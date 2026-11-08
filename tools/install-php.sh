@@ -66,13 +66,19 @@ if pkg info -e "php$short-openssl-legacy"; then
     pkg delete -y "php$short-openssl-legacy" >> "$log" 2>&1 || say "pkg delete failed ($log)"
 fi
 say "pkg install -f $want"
+# CONSERVATIVE_UPGRADE=no: pkg keeps a package from the repository it came from
+# (an official one of the same name, a build dependency), the priority of azbuild
+# decides only without it
 # shellcheck disable=SC2086
-pkg install -y -f $want >> "$log" 2>&1 || say "pkg install says it failed ($log)"
+CONSERVATIVE_UPGRADE=no pkg install -y -f $want >> "$log" 2>&1 || say "pkg install says it failed ($log)"
+# the repository a package came from: its annotation repository (pkg query %R of
+# pkg 2 says nothing for installed packages); none: pkg add of a file
+repo_of() { pkg query '%At %Av' "$1" 2>/dev/null | awk '$1 == "repository" { print $2; exit }'; }
 bad=""
 for p in $want; do
-    r="$(pkg query '%R' "$p" 2>/dev/null)"
+    r="$(repo_of "$p")"
     [ "$r" = azbuild ] && continue
-    if [ -n "$r" ]; then bad="$bad $p(from $r)"; else bad="$bad $p(not installed)"; fi
+    if ! pkg info -e "$p"; then bad="$bad $p(not installed)"; else bad="$bad $p(from ${r:-a file, pkg add})"; fi
 done
 if [ -n "$bad" ]; then
     say "PHP $t: not installed from the repository:$bad ($log)"
