@@ -1,0 +1,6 @@
+XSL: XSL transformations with libxslt of the package az.
+
+The module xsl of PHP 7.4 for php74 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20190902/xsl.so,
+loaded by its ini in etc/php74/conf.d, its headers in
+include/php74/php/ext/xsl.

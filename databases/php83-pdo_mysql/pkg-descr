@@ -1,0 +1,6 @@
+PDO_MYSQL: the MySQL driver of PDO, through mysqlnd.
+
+The module pdo_mysql of PHP 7.4 for php74 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20190902/pdo_mysql.so, loaded by its ini in etc/php74/conf.d,
+its headers in include/php74/php/ext/pdo_mysql.
