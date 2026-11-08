@@ -12,7 +12,9 @@
 #   - readelf -d of every module of lib/php/<API> and of php, php-cgi, php-fpm and
 #     libphp of mod_phpXY: the libraries they name (NEEDED) in /lib, /usr/lib or
 #     /usr/local/az/lib, the run path (RUNPATH) none or /usr/local/az/lib, which it
-#     needs when it links a library there (no ldconfig hints), never /usr/local/lib;
+#     needs when it links a library there (no ldconfig hints); /usr/local/lib only
+#     for a library of a package the package of the file depends on (libpcre2-8 of
+#     devel/pcre2 for the core and mod_phpXY);
 #   - php-fpm -t with the configs of the package (php-fpm.conf, php-fpm.d/www.conf);
 #   - Apache with mod_phpXY: apachectl -t with its sample as
 #     modules.d/280_mod_phpXY.conf (removed again), the module among those Apache
@@ -79,8 +81,16 @@ runs() {
 
 # elf_libs <file>: the libraries readelf -d names (the value texts "Shared library:
 # [...]", which the readelf of the base system and that of binutils both print)
-# are each in one of $libdirs; the run path (RUNPATH or RPATH) is none or $AZ/lib,
-# and that one when a library of $AZ/lib is linked
+# are each in one of $libdirs, or in $P/lib when the package that has it there is
+# a dependency of the package of the file (dep_lib); the run path (RUNPATH or RPATH)
+# is none or $AZ/lib, and that one when a library of $AZ/lib is linked
+# dep_lib <library> <file>: $P/lib/<library> belongs to a package that the package
+# of <file> depends on
+dep_lib() {
+    _o="$(pkg which -q "$P/lib/$1" 2>/dev/null)"; [ -n "$_o" ] || return 1
+    _p="$(pkg which -q "$2" 2>/dev/null)"; [ -n "$_p" ] || return 1
+    pkg query '%dn' "$_p" | grep -qx "${_o%-*}"
+}
 elf_libs() {
     _f="$1"; _n="libraries of ${1#"$P"/}"
     [ -f "$_f" ] || { fail "$_n" "no $_f"; return; }
@@ -91,6 +101,10 @@ elf_libs() {
         for _dir in $libdirs; do
             if [ -e "$_dir/$_l" ]; then _w="$_dir"; break; fi
         done
+        if [ -z "$_w" ] && [ -e "$P/lib/$_l" ] && dep_lib "$_l" "$_f"; then
+            _libs="$_libs $_l ($P/lib, of $(pkg which -q "$P/lib/$_l"))"
+            continue
+        fi
         if [ -z "$_w" ]; then
             _where="found nowhere"
             [ -e "$P/lib/$_l" ] && _where="it is in $P/lib"
