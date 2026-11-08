@@ -33,6 +33,20 @@ annot() {
     done
 }
 
+# the check of the tree before the VM (check-tree.txt of the workflow): its FAIL lines
+if [ -s "$top/check-tree.txt" ] && grep -q 'FAIL' "$top/check-tree.txt"; then
+    {
+        echo "### $title: the check of the tree (tools/check-tree.sh)"
+        echo
+        echo '```'
+        grep 'FAIL' "$top/check-tree.txt" | cut -c1-240
+        echo '```'
+        echo
+    } >> "$summary"
+    grep 'FAIL' "$top/check-tree.txt" | head -n 30 | while read -r l; do
+        printf '::error title=check-tree::%s\n' "$(printf '%s\n' "$l" | escape)"
+    done
+fi
 if [ ! -s "$res/summary.txt" ]; then
     echo "::error title=$title::no results: $res/summary.txt is missing (the build did not run to its end)"
     printf '### %s\n\nno results: %s/summary.txt is missing\n' "$title" "$res" >> "$summary"
