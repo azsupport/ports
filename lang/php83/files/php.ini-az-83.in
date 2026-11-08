@@ -1,0 +1,78 @@
+@comment The defaults of az for PHP 8.3, appended to the php.ini-production of
+@comment the tarball to make etc/php83/php.ini.sample (@sample: pkg copies it
+@comment to php.ini and keeps a changed php.ini), as for 7.4 (the head of
+@comment lang/php74/files/php.ini-az-74.in). The block of 7.4 with two changes:
+@comment the version in its first line and in the name of the log, and the JIT
+@comment of OPcache (new in PHP 8) off: opcache.jit = disable (nothing can
+@comment switch it on at run time by mistake) and opcache.jit_buffer_size = 0;
+@comment web sites gain little from it (they wait for the database and the
+@comment disks), it costs memory and the JIT of 8.x had many crash fixes; a
+@comment profile can switch it on for CPU-heavy jobs. Every other line holds
+@comment in 8.3 as in 7.4: session.sid_length and sid_bits_per_character are
+@comment deprecated only in 8.4, E_STRICT only in 8.4 (error_reporting is that
+@comment of the php.ini-production of 8.3), allow_url_include = Off raises no
+@comment deprecation (only On does). Lines that begin with @comment are not in
+@comment the file (SUB_FILES drops them).
+
+; --- az: defaults of PHP 8.3, on top of php.ini-production above ---
+[PHP]
+expose_php = Off
+short_open_tag = On
+output_buffering = Off
+memory_limit = 1024M
+max_execution_time = 1800
+max_input_time = 1800
+max_input_vars = 10000
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+display_errors = Off
+display_startup_errors = Off
+html_errors = Off
+log_errors = On
+error_log = /var/log/php%%PHP_VER%%_error.log
+zend.exception_ignore_args = On
+allow_url_include = Off
+upload_max_filesize = 500M
+post_max_size = 512M
+cgi.fix_pathinfo = 0
+date.timezone = UTC
+realpath_cache_size = 4096K
+realpath_cache_ttl = 600
+zlib.output_compression = Off
+
+[Pdo_mysql]
+pdo_mysql.default_socket = /tmp/mysql.sock
+
+[MySQLi]
+mysqli.default_socket = /tmp/mysql.sock
+
+[Session]
+session.save_handler = files
+; redis (php83-redis, redis on its socket); with it gc_probability = 0
+;session.save_handler = redis
+;session.save_path = "unix:///var/run/redis/redis.sock"
+;session.gc_probability = 0
+session.use_strict_mode = 1
+session.use_only_cookies = 1
+session.cookie_httponly = 1
+session.cookie_samesite = Lax
+session.sid_length = 48
+session.sid_bits_per_character = 6
+session.gc_probability = 1
+session.gc_divisor = 1000
+
+[opcache]
+opcache.enable = 1
+opcache.enable_cli = 0
+opcache.memory_consumption = 2048
+opcache.interned_strings_buffer = 256
+opcache.max_accelerated_files = 300000
+opcache.max_wasted_percentage = 10
+opcache.validate_timestamps = 1
+opcache.revalidate_freq = 2
+opcache.enable_file_override = 1
+opcache.validate_permission = 1
+opcache.validate_root = 1
+opcache.huge_code_pages = 1
+; JIT off; to switch it on: opcache.jit = tracing, opcache.jit_buffer_size = 128M
+opcache.jit = disable
+opcache.jit_buffer_size = 0

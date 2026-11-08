@@ -4,3 +4,10 @@ Web development and can be embedded into HTML.  Its syntax draws upon C,
 Java, and Perl, and is easy to learn.  The main goal of the language is to
 allow web developers to write dynamically generated webpages quickly, but
 you can do much more with PHP.
+
+This is PHP 8.3.36 of https://github.com/azsupport/php-src (the patches of
+the FreeBSD port applied), built as the overlay azsupport/ports. Versions
+side by side: bin/php83, php-fpm83 with the rc.d script php_fpm83, etc/php83
+(the ini files of the modules in etc/php83/conf.d), phpize83 and the headers
+in include/php83; the modules are the packages php83-<module>, in
+lib/php/20230831.

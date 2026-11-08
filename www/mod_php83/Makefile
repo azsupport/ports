@@ -1,11 +1,15 @@
+# The Apache module of PHP 8.3 of azsupport/php-src: the official www/mod_php83
+# of freebsd-ports eb0100f974b6. The module is libphp83.so (see
+# lang/php83/Makefile), so it conflicts with no mod_php of another version: no
+# CONFLICTS_INSTALL. PHP_PORT for the WARNING of the master, as mod_php74.
+
 CATEGORIES=	www devel
 PKGNAMEPREFIX=	mod_
 
-MAINTAINER=	bofh@FreeBSD.org
+MAINTAINER=	github@azsupport.com
 
-CONFLICTS_INSTALL=	mod_php[0-9][0-9]
-
-MASTERDIR=	${.CURDIR}/../../lang/php83
+PHP_PORT=	lang/php83
+MASTERDIR=	${.CURDIR}/../../${PHP_PORT}
 
 OPTIONS_DEFINE=		AP2FILTER
 OPTIONS_EXCLUDE=	CGI CLI EMBED FPM
