@@ -1,5 +1,15 @@
+# devel/pcre2 of the overlay azsupport/ports: the official port of f16b6dd0f7c1,
+# the PCRE of our PHP (the libpcre2-8 of lang/php74), as in the official ports.
+# The same name and origin, so that our package takes the place of the official
+# one in /usr/local for every program that uses it (apache24, glib, PHP).
+# Changed: PORTREVISION is the stamp of the build (AZ_STAMP of the builder,
+# Mk/bsd.overlay.mk; :U0 because bsd.port.mk tests PORTREVISION before it
+# reads that file), so that every build of ours is an upgrade of the official
+# package.
+
 PORTNAME=	pcre2
 DISTVERSION=	10.49
+PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	devel
 MASTER_SITES=	https://github.com/PCRE2Project/${PORTNAME}/releases/download/${PORTNAME}-${DISTVERSION}/
 
