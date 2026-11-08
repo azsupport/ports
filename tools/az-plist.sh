@@ -18,5 +18,8 @@ d="$1$2"
 [ -d "$d" ] || { echo "az-plist: no directory $d" >&2; exit 1; }
 n="$(cd "$d" && find . ! -type d | wc -l | tr -d ' ')"
 [ "$n" -gt 0 ] || { echo "az-plist: no files in $d" >&2; exit 1; }
-(cd "$d" && find . ! -type d) | sed 's#^\./##' | LC_ALL=C sort |
+# the manual pages under share/man by the names compress-man of the framework gives
+# them after the post-install that runs this (a .gz to every name without one, files
+# and links alike)
+(cd "$d" && find . ! -type d) | sed -e 's#^\./##' -e '/^share\/man\//{/\.gz$/!s/$/.gz/;}' | LC_ALL=C sort |
     awk '/(^|\/)etc\/ImageMagick-[67]\/policy\.xml$/ || /(^|\/)lib\/GraphicsMagick\/config\/delegates\.mgk$/ { print "@config " $0; next } { print }'

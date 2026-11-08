@@ -14,7 +14,7 @@
 # libcurl.a of this build (curl_* made visible by tools/curl-elf-export.py and
 # exported, the libraries inside hidden), so that both need only libz and libthr
 # of the base system; include/curl/, libdata/pkgconfig/libcurl.pc, curl-config,
-# libcurl.m4, the manual pages, the licence, share/doc/curl/VERSIONS (this build
+# libcurl.m4, the licence, share/doc/curl/VERSIONS (this build
 # and AZ_PREFIX/share/doc/az/VERSIONS, the libraries). Moved from
 # build_curl_program of tools/build-deps.sh of https://github.com/azsupport/php-src
 # (08.11.2026), where it ran in the build of the libraries; here it runs after
@@ -35,6 +35,13 @@
 # Exit status: 0 built and checked, 1 the build or a check failed, 2 usage.
 
 set -u
+# A build as from a shell. The make of the port that runs this script leaves its
+# MAKEFLAGS in the environment: its command line and the variables the framework
+# hands to sub-makes (.MAKEFLAGS of bsd.port.mk: ARCH=amd64, OPSYS, OSVERSION, ...),
+# which every gmake here would take as variables of its own command line, above
+# those of the Makefiles: FFmpeg's ARCH=x86 became ARCH=amd64, so no x86 object
+# was built (ld: undefined symbol ff_bwdif_init_x86 ..., 08.11.2026).
+unset MAKEFLAGS MFLAGS MAKELEVEL __MKLVL__
 tools="$(cd "$(dirname "$0")" && pwd)"
 [ $# -eq 1 ] || { echo "usage: sh tools/curl-build.sh <source of curl>" >&2; exit 2; }
 cs="$(cd "$1" 2>/dev/null && pwd)" || { echo "curl-build: no directory $1" >&2; exit 2; }
@@ -126,7 +133,8 @@ cv="$(sed -n 's/^#define LIBCURL_VERSION "\(.*\)"$/\1/p' "$cs/include/curl/curlv
     d="$work/curl-sys-dest/usr/local"
     install -s -m 755 "$d/bin/curl" "$r/bin/curl" || exit 1
     cp -R "$d/include" "$r/" || exit 1
-    [ -d "$d/share/man" ] && { mkdir -p "$r/share" && cp -R "$d/share/man" "$r/share/"; }
+    # no manual pages: the servers have MAN3 and MANPAGES unset (OPTIONS_UNSET of
+    # make.conf), and none of the packages of this tree has them
     [ -d "$d/share/aclocal" ] && { mkdir -p "$r/share" && cp -R "$d/share/aclocal" "$r/share/"; }
     # the name of libcurl.so of curl's libtool numbers (lib/Makefile.soname):
     # libcurl.so.<change - del>.<del>.<add>, as the port has it (libcurl.so.4.8.0)

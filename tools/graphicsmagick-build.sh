@@ -60,6 +60,13 @@
 # are not there, or this CPU cannot run the level, 2 usage.
 
 set -u
+# A build as from a shell. The make of the port that runs this script leaves its
+# MAKEFLAGS in the environment: its command line and the variables the framework
+# hands to sub-makes (.MAKEFLAGS of bsd.port.mk: ARCH=amd64, OPSYS, OSVERSION, ...),
+# which every gmake here would take as variables of its own command line, above
+# those of the Makefiles: FFmpeg's ARCH=x86 became ARCH=amd64, so no x86 object
+# was built (ld: undefined symbol ff_bwdif_init_x86 ..., 08.11.2026).
+unset MAKEFLAGS MFLAGS MAKELEVEL __MKLVL__
 tools="$(cd "$(dirname "$0")" && pwd)"
 conf="${AZ_GM_CONF:-$tools/../graphics/GraphicsMagick/files/graphicsmagick.conf}"
 files="$(dirname "$conf")"
