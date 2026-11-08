@@ -152,32 +152,58 @@ jobs:
           prepare: |
             if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
             env ASSUME_ALWAYS_YES=yes pkg install -y git-lite
+          # the script never stops before its end (vmactions copies results/ and repo/ back
+          # only after a script that ended well): what failed goes into results/rc (0: the
+          # build and every check passed), and a step after the caches fails the job on it
           run: |
             if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
             trap 'rm -f /root/.az-pkg-key.b64' EXIT
             if [ -s /root/.az-pkg-key.b64 ]; then export AZ_PKG_KEY_FILE=/root/.az-pkg-key.b64; fi
-            sh tools/build.sh ${AZ_FORCE:+--force} --repo repo $AZ_PORTS || true
+            rc=0
+            sh tools/build.sh ${AZ_FORCE:+--force} --repo repo $AZ_PORTS || rc=$?
+            mkdir -p results
+            echo "$rc" > results/rc
             # the PHP of each version a package of which was built: installed from the
-            # repository as a server installs it, and checked
+            # repository as a server installs it, and checked, when the repository has its
+            # catalog and the core of the version is there
             : > results/checks.txt
             for v in $(awk '$1 ~ /\// && $2 == "OK" { print $3 }' results/summary.txt 2>/dev/null | sed -n -E 's/^(mod_)?php([0-9])([0-9])-.*/\2.\3/p' | sort -u); do
-              sh tools/install-php.sh --repo repo "$v"
-              rc=$?
-              if [ "$rc" = 3 ]; then
+              core="lang/php$(echo "$v" | tr -d .)"
+              cl="$(awk -v o="$core" '$1 == o { print; exit }' results/summary.txt 2>/dev/null || true)"
+              if [ ! -f repo/meta.conf ]; then
+                echo "PHP $v: SKIP (no catalog in repo/: $(tail -n 1 results/pkg-repo.log 2>/dev/null || echo 'no pkg-repo.log'))" >> results/checks.txt
+                continue
+              fi
+              case "$cl" in
+                *" OK "*|*"in the repository already"*) ;;
+                *) echo "PHP $v: SKIP (the core $core is not there: ${cl:-not in the queue})" >> results/checks.txt; continue ;;
+              esac
+              r=0
+              sh tools/install-php.sh --repo repo "$v" || r=$?
+              if [ "$r" = 3 ]; then
                 echo "PHP $v: SKIP (the repository has no core php of $v)" >> results/checks.txt
-              elif [ "$rc" != 0 ]; then
-                echo "PHP $v: FAIL (the packages did not install: install-php-$v.log)" >> results/checks.txt
+              elif [ "$r" != 0 ]; then
+                echo "PHP $v: FAIL (the packages did not install, exit $r: install-php-$v.log)" >> results/checks.txt
+                rc=1
               elif [ ! -f tools/check-php.sh ]; then
                 echo "PHP $v: SKIP (no tools/check-php.sh)" >> results/checks.txt
-              elif sh tools/check-php.sh "$v"; then
-                echo "PHP $v: OK (check-php-$v.txt)" >> results/checks.txt
               else
-                echo "PHP $v: FAIL (check-php-$v.txt)" >> results/checks.txt
+                r=0
+                sh tools/check-php.sh "$v" || r=$?
+                if [ "$r" = 0 ]; then
+                  echo "PHP $v: OK (check-php-$v.txt)" >> results/checks.txt
+                else
+                  echo "PHP $v: FAIL (check-php-$v.txt, exit $r)" >> results/checks.txt
+                  rc=1
+                fi
               fi
             done
             cat results/checks.txt
+            echo "$rc" > results/rc
+            echo "results/rc: $rc"
             # not back to the runner: the official tree, the work directories, the packages (they are in repo/)
             rm -rf work packages
+            exit 0
 
       # the repository of this run for the next one, also when the run failed (only repo/:
       # the caches of a repository have 10 GB)
@@ -196,6 +222,19 @@ jobs:
         with:
           path: distfiles
           key: ${{ steps.dist.outputs.cache-primary-key }}
+
+      # the outcome of the build and of the checks of the VM (results/rc), after the caches
+      # are saved: the job fails here, and nothing is published
+      - name: The outcome of the build and of the checks
+        id: outcome
+        if: ${{ always() && steps.build.outcome != 'skipped' }}
+        run: |
+          rc="$(cat results/rc 2>/dev/null || echo 'none: the VM gave no results/rc')"
+          echo "results/rc: $rc"
+          if [ "$rc" != 0 ]; then
+            echo "::error title=build::the build or a check failed (results/rc: $rc): the summary of the run, the results"
+            exit 1
+          fi
 
       - name: Report
         id: report
@@ -266,6 +305,6 @@ jobs:
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
           RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} publish=${{ inputs.publish }}
-          RUNS_STEPS: build=${{ steps.build.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
+          RUNS_STEPS: build=${{ steps.build.outcome }} outcome=${{ steps.outcome.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
           PART: ${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"
