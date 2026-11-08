@@ -160,7 +160,14 @@ all_ports() {
         ours "$o" && echo "$o"
     done
 }
+# catalog <file name>: a file of the catalog of pkg repo, not a package
+catalog() {
+    case "$1" in meta|meta.*|packagesite.*|data.*|digests.*|filesite.*) return 0 ;; esac
+    return 1
+}
 st() { cat "$q/state/$(key "$1")" 2>/dev/null; }
+# npkg <dir>: the number of packages in a directory (not the files of the catalog)
+npkg() { ls "$1" | grep '\.pkg$' | while read -r _f; do catalog "$_f" || echo "$_f"; done | wc -l | tr -d ' '; }
 # the origins of a list of dependencies (target:origin[:what] each, as make -V prints)
 dep_origins() {
     tr -s ' \t' '\n\n' | sed -n 's/^[^:]*:\([^:]*\).*$/\1/p' | sed -e "s|^$ports/||" -e "s|^$top/||" | LC_ALL=C sort -u
@@ -259,7 +266,7 @@ inst_port() {
         _n="$(pkg query -F "$_f" %n)"; _v="$(pkg query -F "$_f" %v)"
         _af=""
         pkg info -e "$_n" && _af=-f
-        say "  pkg add $_af ${_f##*/}"
+        say "  pkg add ${_af:+$_af }${_f##*/}"
         # shellcheck disable=SC2086
         if ! pkg add $_af "$_f" >> "$log" 2>&1 || [ "$(pkg query %v "$_n" 2>/dev/null)" != "$_v" ]; then
             why="pkg add ${_f##*/} failed: $(tail -n 1 "$log")"
@@ -272,12 +279,11 @@ inst_port() {
 }
 
 # --- the queue -----------------------------------------------------------------------
+for o in "$@"; do
+    ours "${o%/}" || die "not a port of this tree: $o (no $top/${o%/}/Makefile)"
+done
 if [ $# -gt 0 ]; then
-    for o in "$@"; do
-        o="${o%/}"
-        ours "$o" || die "not a port of this tree: $o (no $top/$o/Makefile)"
-        echo "$o"
-    done
+    for o in "$@"; do echo "${o%/}"; done
 else
     all_ports
 fi | LC_ALL=C sort -u > "$q/want.txt"
@@ -326,7 +332,7 @@ overlay_rev="$(git -C "$top" log -1 --format='%h %s' 2>/dev/null)"
     echo "overlay:  ${overlay_rev:-?}"
     echo "host:     $(uname -sr), $(cc --version 2>/dev/null | head -n 1)"
     echo "cputype:  $cputype; CFLAGS: $(sed -n 's/^CFLAGS=//p' "$work/make.conf")"
-    echo "repo:     $repo ($(ls "$repo" | grep -c '\.pkg$') files .pkg before the run)"
+    echo "repo:     $repo ($(npkg "$repo") packages before the run)"
     echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')"
 } > "$sum"
 
@@ -369,7 +375,7 @@ for o in $(cat "$q/queue.txt"); do
         record "$o" repo "$pn: in the repository already"
         continue
     fi
-    [ -n "$fresh" ] && say "$o: built again, it needs$fresh, built in this run"
+    [ "$force" = 0 ] && [ -n "$fresh" ] && [ -f "$repo/$pn.pkg" ] && say "$o: $pn is in the repository, built again: it needs$fresh, built in this run"
     say "$o: $pn"
     why=""
     if ! official "$q/odeps/$k"; then record "$o" fail "$pn: the official dependencies: $why"; continue; fi
@@ -409,10 +415,6 @@ done
 
 # --- the repository --------------------------------------------------------------------
 # the packages of the repository before: name origin file
-catalog() {
-    case "$1" in meta|meta.*|packagesite.*|data.*|digests.*|filesite.*) return 0 ;; esac
-    return 1
-}
 : > "$q/repo-had"
 for f in "$repo"/*.pkg; do
     [ -f "$f" ] || continue
@@ -434,7 +436,7 @@ while read -r n og f; do
     fi
 done < "$q/repo-had"
 for f in $(cat "$q/made"); do cp -p "$f" "$repo/" || say "cannot copy ${f##*/} into $repo"; done
-nrepo="$(ls "$repo" | grep '\.pkg$' | while read -r f; do catalog "$f" || echo "$f"; done | wc -l | tr -d ' ')"
+nrepo="$(npkg "$repo")"
 if sh "$top/tools/pkg-repo-sign.sh" "$repo" "$res/pkg-repo.log"; then
     repo_ok=1
 else
