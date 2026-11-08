@@ -60,12 +60,17 @@ Names and origins as the ports, files at the paths of the ports:
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); its `libMagickWand-7.so` in `/usr/local/az/lib` for the module imagick |
 | `php74` | `lang/php74` | the core of PHP 7.4: CLI, php-fpm, phpize |
 | `mod_php74` | `www/mod_php74` | the Apache module `libphp74.so` |
-| `php74-<module>` | `<category>/php74-<module>` | a package per module (`php74-gd`: `graphics/php74-gd`); the PECL ones without "pecl": `php74-redis`, `php74-swoole`, `php74-igbinary`, `php74-memcached`, `php74-memcache`, `php74-imagick`, `php74-mcrypt`, `php74-excimer`, `php74-openswoole`; OPcache and json are modules too (`php74-opcache`, `php74-json`), mysqlnd as well (`php74-mysqlnd`: the database modules use it) |
+| `php74-<module>` | `<category>/php74-<module>` | a package per module (`php74-gd`: `graphics/php74-gd`); the PECL ones without "pecl": `php74-redis`, `php74-swoole`, `php74-igbinary`, `php74-memcached`, `php74-memcache`, `php74-imagick`, `php74-gmagick`, `php74-mcrypt`, `php74-excimer`, `php74-openswoole`; OPcache and json are modules too (`php74-opcache`, `php74-json`), mysqlnd as well (`php74-mysqlnd`: the database modules use it) |
 
 - openssl in two kinds, one of the two: `php74-openssl` and `php74-openssl-legacy` (the
   legacy provider of OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
 - `php74-swoole` and `php74-openswoole` can both be installed; the ini of openswoole is
   off (they define the same classes), its package message says how to switch.
+- `php74-imagick` and `php74-gmagick` can both be installed, but must not be loaded into one
+  PHP (GraphicsMagick and ImageMagick have the same function names): the ini of gmagick is
+  off, and installing it makes the CLI profile gmagick (`/usr/local/etc/php74-gmagick`:
+  gmagick on, imagick off; `php74-profile gmagick script.php`), which stays when the
+  package is removed.
 - Not built: the modules that need a library of the ports (enchant, imap, ldap, odbc,
   pdf, pdo_dblib, pdo_firebird, pdo_odbc, pdo_pgsql, pgsql, pspell, snmp).
 - A special build (a static PHP, the options of a server of its own) is not a port
@@ -104,9 +109,9 @@ Names and origins as the ports, files at the paths of the ports:
   [`az-test.sh`](tools/az-test.sh).
 - **`lang/php74`** and **`www/mod_php74`**: the core `php74` and the Apache module
   `libphp74.so`; PCRE2 10.49 is the one the fork bundles (a port `devel/pcre2` later, aZ 08.11.2026).
-- **59 module ports** `php74-<module>`: the names without "pecl", the origins as the
+- **60 module ports** `php74-<module>`: the names without "pecl", the origins as the
   official ports or ours (`graphics/php74-gd`, `databases/php-redis`), the ini
-  `ext-NN-<module>.ini`, that of openswoole off.
+  `ext-NN-<module>.ini`, those of openswoole and gmagick off.
 
 ## The layout of PHP on a server
 
