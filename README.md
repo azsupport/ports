@@ -7,6 +7,7 @@ servers (amd64), so that nothing is built on the servers.
 
 - [What it is](#what-it-is)
 - [The packages](#the-packages)
+- [The ports](#the-ports)
 - [The layout of PHP on a server](#the-layout-of-php-on-a-server)
 - [A server and the repository az](#a-server-and-the-repository-az)
 - [How it is built](#how-it-is-built)
@@ -41,8 +42,8 @@ servers (amd64), so that nothing is built on the servers.
 - **The source of PHP**: the release tarballs of the fork
   [azsupport/php-src](https://github.com/azsupport/php-src) (for 7.4:
   [`php-7.4.33-fbsd-20261104-397aa202.tar.xz`](https://github.com/azsupport/php-src/releases/download/freebsd-7.4-20261104-397aa202/php-7.4.33-fbsd-20261104-397aa202.tar.xz)),
-  which carry the patches of the FreeBSD port, the PECL extensions in `ext/` and the
-  PCRE2 the fork bundles: our PHP ports apply no patches of their own.
+  which carry the patches of the FreeBSD port and the PECL extensions in `ext/`: our
+  PHP ports apply no patches of their own.
 - Now only PHP 7.4 and x86-64-v3: everything is worked out there first, the other
   versions and x86-64-v2 come after.
 
@@ -69,6 +70,43 @@ Names and origins as the ports, files at the paths of the ports:
   pdf, pdo_dblib, pdo_firebird, pdo_odbc, pdo_pgsql, pgsql, pspell, snmp).
 - A special build (a static PHP, the options of a server of its own) is not a port
   here: `az-menu.sh` of [azsupport/php-src](https://github.com/azsupport/php-src) makes it.
+
+## The ports
+
+- **`az/az`**: the package `az`, the libraries of `/usr/local/az`, built from about 40
+  official ports of the pinned commit by [`tools/az-build.sh`](tools/az-build.sh)
+  ([`az/az/files/deps.conf`](az/az/files/deps.conf)). Two trees:
+  `/usr/local/az/static` (static, position independent; for the programs below and the
+  static PHP builds of `az-menu.sh`) and `/usr/local/az` (shared, SONAME and run path
+  `/usr/local/az/lib`, no ldconfig; for the PHP modules), `bin/pkg-config` of each,
+  `VERSIONS` in `share/doc/az`, the licences in `LICENSES/`. It builds into
+  `/usr/local/az` of the build machine (as root, `NEED_ROOT`) and packages that tree.
+  No dependencies.
+- **`ftp/curl`**: the package `curl` in the place of the official one: `bin/curl`
+  (static) and `lib/libcurl.so.4` with its libraries inside (only `curl_*` exported),
+  the options of the official port, against the static tree of az
+  ([`tools/curl-build.sh`](tools/curl-build.sh)).
+- **`multimedia/ffmpeg`**: the package `ffmpeg` in the place of the official one:
+  `bin/ffmpeg` and `bin/ffprobe`, static, with only what the video sites need
+  ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
+  against x264, dav1d and libwebp of the static tree of az.
+- **`graphics/ImageMagick6`**: `bin/convert6`, `identify6`, `mogrify6`, `composite6`
+  and the others, static, next to ImageMagick 7: JPEG, PNG, WebP, GIF, HEIC and AVIF
+  only, with our policy.
+- **`graphics/ImageMagick7`**: the package `ImageMagick7` in the place of the official
+  one: `bin/magick` and its names, static, the same formats and policy; its static
+  libraries and `MagickWand-config` in `/usr/local/az/static`, its shared
+  `libMagickWand-7.so` in `/usr/local/az/lib` for imagick of PHP. Build and run: az.
+- These five: the version of the official port at the pinned commit (or of the take
+  line of its conf) with the build stamp as `PORTREVISION`; every distfile in the fetch
+  phase; tests after the install: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
+  [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
+  [`az-test.sh`](tools/az-test.sh).
+- **`lang/php74`** and **`www/mod_php74`**: the core `php74` and the Apache module
+  `libphp74.so`; the core links PCRE2 of the port `devel/pcre2`.
+- **59 module ports** `php74-<module>`: the names without "pecl", the origins as the
+  official ports or ours (`graphics/php74-gd`, `databases/php-redis`), the ini
+  `ext-NN-<module>.ini`, that of openswoole off.
 
 ## The layout of PHP on a server
 

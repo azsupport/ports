@@ -7,6 +7,7 @@
 
 - [Что это](#что-это)
 - [Пакеты](#пакеты)
+- [Порты](#порты)
 - [Раскладка PHP на сервере](#раскладка-php-на-сервере)
 - [Сервер и репозиторий az](#сервер-и-репозиторий-az)
 - [Как собирается](#как-собирается)
@@ -41,8 +42,8 @@
 - **Исходники PHP**: релизные тарболы форка
   [azsupport/php-src](https://github.com/azsupport/php-src) (для 7.4:
   [`php-7.4.33-fbsd-20261104-397aa202.tar.xz`](https://github.com/azsupport/php-src/releases/download/freebsd-7.4-20261104-397aa202/php-7.4.33-fbsd-20261104-397aa202.tar.xz)),
-  в которых уже есть патчи порта FreeBSD, расширения PECL в `ext/` и PCRE2, которую
-  форк вкладывает в себя: наши порты PHP своих патчей не накладывают.
+  в которых уже есть патчи порта FreeBSD и расширения PECL в `ext/`: наши порты PHP
+  своих патчей не накладывают.
 - Сейчас только PHP 7.4 и x86-64-v3: всё сначала отрабатывается там, остальные версии
   и x86-64-v2 — потом.
 
@@ -69,6 +70,43 @@
   pdf, pdo_dblib, pdo_firebird, pdo_odbc, pdo_pgsql, pgsql, pspell, snmp).
 - Особая сборка (статический PHP, опции конкретного сервера) — не порт здесь: её делает
   `az-menu.sh` из [azsupport/php-src](https://github.com/azsupport/php-src).
+
+## Порты
+
+- **`az/az`**: пакет `az`, библиотеки `/usr/local/az`, собранные из примерно 40
+  официальных портов закреплённого коммита скриптом [`tools/az-build.sh`](tools/az-build.sh)
+  ([`az/az/files/deps.conf`](az/az/files/deps.conf)). Два дерева:
+  `/usr/local/az/static` (статические, position independent; для программ ниже и
+  статических сборок PHP из `az-menu.sh`) и `/usr/local/az` (разделяемые, SONAME и run
+  path `/usr/local/az/lib`, без ldconfig; для модулей PHP), у каждого свой
+  `bin/pkg-config`, `VERSIONS` в `share/doc/az`, лицензии в `LICENSES/`. Собирается
+  прямо в `/usr/local/az` сборочной машины (от root, `NEED_ROOT`) и пакует это дерево.
+  Зависимостей нет.
+- **`ftp/curl`**: пакет `curl` вместо официального: `bin/curl` (статический) и
+  `lib/libcurl.so.4` со своими библиотеками внутри (наружу только `curl_*`), опции
+  официального порта, против статического дерева az
+  ([`tools/curl-build.sh`](tools/curl-build.sh)).
+- **`multimedia/ffmpeg`**: пакет `ffmpeg` вместо официального: `bin/ffmpeg` и
+  `bin/ffprobe`, статические, только с тем, что нужно видеосайтам
+  ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
+  против x264, dav1d и libwebp статического дерева az.
+- **`graphics/ImageMagick6`**: `bin/convert6`, `identify6`, `mogrify6`, `composite6` и
+  остальные, статические, рядом с ImageMagick 7: только JPEG, PNG, WebP, GIF, HEIC и
+  AVIF, с нашей policy.
+- **`graphics/ImageMagick7`**: пакет `ImageMagick7` вместо официального: `bin/magick` и
+  его имена, статические, те же форматы и policy; его статические библиотеки и
+  `MagickWand-config` в `/usr/local/az/static`, разделяемая `libMagickWand-7.so` в
+  `/usr/local/az/lib` для imagick из PHP. Сборка и работа: az.
+- У этих пяти: версия официального порта на закреплённом коммите (или из строки take
+  его conf) со штампом сборки как `PORTREVISION`; все distfile — в фазе fetch; тесты после
+  установки: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
+  [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
+  [`az-test.sh`](tools/az-test.sh).
+- **`lang/php74`** и **`www/mod_php74`**: ядро `php74` и модуль Apache `libphp74.so`;
+  ядро линкует PCRE2 из порта `devel/pcre2`.
+- **59 портов модулей** `php74-<модуль>`: имена без «pecl», origin как у официальных
+  портов или наши (`graphics/php74-gd`, `databases/php-redis`), ini
+  `ext-NN-<модуль>.ini`, у openswoole выключен.
 
 ## Раскладка PHP на сервере
 
