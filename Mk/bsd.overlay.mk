@@ -16,3 +16,18 @@ VALID_CATEGORIES+=	az
 
 AZ_PREFIX?=	${LOCALBASE}/az
 AZ_STATIC?=	${AZ_PREFIX}/static
+
+# AZ_STAMP: the revision of our packages, the time of the build (yymmddhh),
+# which the builder (tools/) passes, so that every build is an upgrade; 0
+# without it. lang/php74 writes PORTREVISION= ${AZ_STAMP:U0}: bsd.port.mk tests
+# PORTREVISION before it reads this file.
+AZ_STAMP?=	0
+
+# AZ_HASH: the hash of the port (with its master, Mk/ and its dependencies)
+# that the builder computes, kept in the package as the annotation az_hash, so
+# that the builder rebuilds a port only when its hash changes. Added once,
+# although bsd.port.mk includes this file twice.
+.if defined(AZ_HASH) && !empty(AZ_HASH) && empty(PKG_NOTES:Maz_hash)
+PKG_NOTES+=	az_hash
+PKG_NOTE_az_hash=	${AZ_HASH}
+.endif
