@@ -228,8 +228,8 @@ EOF
 # module of the conf that is not in the table, or the lines not found as they
 # were, stop the build (a new release that changed them).
 narrow() {
-    st="$1/magick/static.c"; mg="$1/magick/magick.c"
-    [ -f "$st" ] && [ -f "$mg" ] || { echo "== no magick/static.c or magick/magick.c in $1"; return 1; }
+    nst="$1/magick/static.c"; nmg="$1/magick/magick.c"
+    [ -f "$nst" ] && [ -f "$nmg" ] || { echo "== no magick/static.c or magick/magick.c in $1"; return 1; }
     keep="$(conf_opts module | tr '\n' ' ')"
     [ -n "$keep" ] || { echo "== no module line in $conf"; return 1; }
     awk -v keep=" $keep " '
@@ -240,18 +240,18 @@ narrow() {
         }
         { print }
         END { print "kept:" kept > "/dev/stderr"; print "dropped:" dropped > "/dev/stderr" }
-    ' "$st" > "$st.az" 2> "$work/narrow.txt" || return 1
+    ' "$nst" > "$nst.az" 2> "$work/narrow.txt" || return 1
     cat "$work/narrow.txt"
     for m in $keep; do
         grep -q "^kept:.* $m\( \|\$\)" "$work/narrow.txt" ||
             { echo "== module $m of the conf is not in the table of magick/static.c"; return 1; }
     done
     grep -q '^dropped: [A-Z]' "$work/narrow.txt" || { echo "== nothing dropped from magick/static.c: not the table this script knows"; return 1; }
-    mv "$st.az" "$st" || return 1
-    grep -q '^static CoderClass MinimumCoderClass = UnstableCoderClass;' "$mg" ||
+    mv "$nst.az" "$nst" || return 1
+    grep -q '^static CoderClass MinimumCoderClass = UnstableCoderClass;' "$nmg" ||
         { echo "== no \"static CoderClass MinimumCoderClass = UnstableCoderClass;\" in magick/magick.c"; return 1; }
-    sed -i '' 's/^static CoderClass MinimumCoderClass = UnstableCoderClass;/static CoderClass MinimumCoderClass = PrimaryCoderClass;/' "$mg" &&
-        grep -q '^static CoderClass MinimumCoderClass = PrimaryCoderClass;' "$mg" || return 1
+    sed -i '' 's/^static CoderClass MinimumCoderClass = UnstableCoderClass;/static CoderClass MinimumCoderClass = PrimaryCoderClass;/' "$nmg" &&
+        grep -q '^static CoderClass MinimumCoderClass = PrimaryCoderClass;' "$nmg" || return 1
     echo "== magick/magick.c: the lowest coder class is PrimaryCoderClass"
 }
 
