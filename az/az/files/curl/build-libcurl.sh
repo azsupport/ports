@@ -26,7 +26,7 @@
 #             lookup that runs into a timeout is dropped at once, a getaddrinfo()
 #             can only be waited for)
 #   nghttp2   HTTP/2 (the library only)
-#   brotli    Content-Encoding br (and the encoder, for phpdeps)
+#   brotli    Content-Encoding br (and the encoder, for the package az)
 #   zstd      Content-Encoding zstd (the whole library, as its Makefile builds it)
 #   libidn2   IDN host names, with the part of libunistring it carries
 #             (--with-included-libunistring), so no libunistring
@@ -172,7 +172,7 @@ lib_zstd() {
 }
 
 lib_libidn2() {
-    # LIBICONV_PREFIX: GNU libiconv to use (phpdeps); else the iconv of libc
+    # LIBICONV_PREFIX: GNU libiconv to use (the package az); else the iconv of libc
     if [ -n "${LIBICONV_PREFIX:-}" ]; then io="--with-libiconv-prefix=$LIBICONV_PREFIX"; else io="--without-libiconv-prefix"; fi
     configure_dep libidn2 "$1" "$2" --disable-nls --with-included-libunistring "$io" ac_cv_prog_RONN=true
     mk libidn2 -j"$ncpu" -C gl
