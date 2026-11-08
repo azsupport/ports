@@ -529,7 +529,8 @@ COMMENT=	Extension to access Redis
 WWW=		https://pecl.php.net/package/redis
 
 LICENSE=	PHP301
-LICENSE_FILE=	${WRKSRC}/COPYING
+# LICENSE in 6.3.0 (COPYING in 5.3.7 of the port)
+LICENSE_FILE=	${WRKSRC}/LICENSE
 
 AZ_LIBS=	libzstd.so
 
