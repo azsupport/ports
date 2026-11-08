@@ -42,8 +42,8 @@
 - **Исходники PHP**: релизные тарболы форка
   [azsupport/php-src](https://github.com/azsupport/php-src) (для 7.4:
   [`php-7.4.33-fbsd-20261104-397aa202.tar.xz`](https://github.com/azsupport/php-src/releases/download/freebsd-7.4-20261104-397aa202/php-7.4.33-fbsd-20261104-397aa202.tar.xz)),
-  в которых уже есть патчи порта FreeBSD и расширения PECL в `ext/`: наши порты PHP
-  своих патчей не накладывают.
+  в которых уже есть патчи порта FreeBSD, расширения PECL в `ext/` и PCRE2, которую
+  форк вкладывает в себя: наши порты PHP своих патчей не накладывают.
 - Сейчас только PHP 7.4 и x86-64-v3: всё сначала отрабатывается там, остальные версии
   и x86-64-v2 — потом.
 
@@ -103,7 +103,7 @@
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
   [`az-test.sh`](tools/az-test.sh).
 - **`lang/php74`** и **`www/mod_php74`**: ядро `php74` и модуль Apache `libphp74.so`;
-  ядро линкует PCRE2 из порта `devel/pcre2`.
+  PCRE2 10.49 — встроенная в исходники форка (порт `devel/pcre2` — позже, aZ 08.11.2026).
 - **59 портов модулей** `php74-<модуль>`: имена без «pecl», origin как у официальных
   портов или наши (`graphics/php74-gd`, `databases/php-redis`), ini
   `ext-NN-<модуль>.ini`, у openswoole выключен.

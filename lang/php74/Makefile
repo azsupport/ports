@@ -25,15 +25,8 @@
 #   versions (the modules set theirs in Makefile.ext).
 # - Libraries: libxml2 and argon2 of the package az (${AZ_PREFIX}), depended
 #   on by a file (no ldconfig hints for ${AZ_PREFIX}/lib: never LIB_DEPENDS),
-#   linked with its run path and found by its pkg-config. PCRE: external, the
-#   libpcre2-8 of devel/pcre2 (our port of the official one, aZ 08.11.2026),
-#   as the official ports of today (lang/php84: the option PCRE, on by
-#   default): one PCRE2 in /usr/local for PHP, apache24 (mod_php74 runs in its
-#   process) and the other ports. The php74 of 036685c034ba had the
-#   LIB_DEPENDS but no --with-external-pcre (7.4 renamed --with-pcre-regex), so
-#   it built the bundled pcre2lib. The PCRE2 the fork bundles (its functions
-#   renamed, so that it does not clash with a system one) stays for the static
-#   builds of php-src tools/az-menu.sh.
+#   linked with its run path and found by its pkg-config; the PCRE2 the fork
+#   bundles (not devel/pcre2).
 # - Options: no MYSQLND (mysqlnd is the module php74-mysqlnd); EMBED and DTRACE
 #   off by default; PHPDBG off is --disable-phpdbg (7.4 builds phpdbg unless
 #   told not to). OPcache and json are modules too (php74-opcache, php74-json),
@@ -84,7 +77,6 @@ NO_OPTIONS_SORT=yes
 AZ_PHP_RELEASE=	20261104-397aa202
 
 .if !defined(PKGNAMESUFFIX)
-LIB_DEPENDS=	libpcre2-8.so:devel/pcre2
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
 		${AZ_PREFIX}/lib/libxml2.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
@@ -97,20 +89,14 @@ CONFIGURE_ARGS+=--with-layout=GNU \
 		--disable-all \
 		--with-libxml \
 		--with-password-argon2=${AZ_PREFIX} \
-		--with-external-pcre=${LOCALBASE} \
 		--program-prefix="" \
 		--program-suffix=74 \
 		--sysconfdir=${PREFIX}/etc/php74 \
 		--libdir=${PREFIX}/lib/php74 \
 		--includedir=${PREFIX}/include/php74 \
 		--datadir=${PREFIX}/share/php74
-# libpcre2-8 of devel/pcre2 given to configure: 7.4 looks for it with
-# pkg-config only, and the pkg-config of az sees the .pc files of ${AZ_PREFIX}
-# and the base system, not those of ${LOCALBASE}
 CONFIGURE_ENV=	CPPFLAGS="-I${AZ_PREFIX}/include" \
-		EXTENSION_DIR=${PREFIX}/lib/php/${PHP_EXT_DIR} \
-		PCRE2_CFLAGS="-I${LOCALBASE}/include" \
-		PCRE2_LIBS="-L${LOCALBASE}/lib -lpcre2-8"
+		EXTENSION_DIR=${PREFIX}/lib/php/${PHP_EXT_DIR}
 LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
 
 # the directory of the modules: ZEND_MODULE_API_NO of PHP 7.4, as the ports
