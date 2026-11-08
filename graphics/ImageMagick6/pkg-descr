@@ -1,0 +1,4 @@
+ImageMagick 6 with JPEG, PNG, WebP, GIF, HEIC and AVIF only and the policy of
+graphics/ImageMagick7/files/policy.xml of azsupport/ports: bin/convert6,
+identify6, mogrify6, composite6 and the others, static, next to ImageMagick 7.
+Versions and options: share/doc/ImageMagick6/VERSIONS.

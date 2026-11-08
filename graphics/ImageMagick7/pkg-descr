@@ -1,0 +1,7 @@
+ImageMagick 7 with JPEG, PNG, WebP, GIF, HEIC and AVIF only and the policy of
+graphics/ImageMagick7/files/policy.xml of azsupport/ports: bin/magick and the
+names linked to it (convert, identify, ...), static, in the place of those of
+the port; its static libraries in /usr/local/az/static and its shared
+libMagickWand-7.so in /usr/local/az, for imagick of PHP
+(--with-imagick=/usr/local/az). Versions and options:
+share/doc/ImageMagick7/VERSIONS.

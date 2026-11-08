@@ -1,0 +1,5 @@
+curl with the options of the port ftp/curl (HTTP/2, the protocols of
+the port, NTLM, IDN, the Public Suffix List, brotli, zstd, the threaded
+resolver; no SCP and SFTP, no GSSAPI), the OpenSSL of the package az inside:
+bin/curl (static) and lib/libcurl.so.4 in the place of those of the port.
+Versions: share/doc/curl/VERSIONS.

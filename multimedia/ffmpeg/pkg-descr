@@ -1,0 +1,3 @@
+FFmpeg with only what the video sites need (multimedia/ffmpeg/files/ffmpeg.conf
+of azsupport/ports): bin/ffmpeg and bin/ffprobe, static, in the place of those
+of the port. Versions and options: share/doc/ffmpeg/VERSIONS.

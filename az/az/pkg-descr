@@ -1,0 +1,8 @@
+The libraries of /usr/local/az (az/az/files/deps.conf of azsupport/ports) in
+two trees. /usr/local/az/static: static, position independent libraries with
+the curl of PHP (the static libcurl, only what PHP needs) and the OpenSSL of
+the port: PHP built against them and the programs (curl, FFmpeg, ImageMagick)
+need no library of /usr/local/lib. /usr/local/az: shared libraries with the
+run path /usr/local/az/lib and the OpenSSL of the base system (libcurl,
+libzip), for the PHP modules of pkg mode (also sqlite3, gmp, libxslt, libffi,
+tidy). Versions: /usr/local/az/share/doc/az/VERSIONS.
