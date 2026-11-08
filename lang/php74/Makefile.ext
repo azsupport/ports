@@ -524,6 +524,7 @@ LICENSE=	PHP301
 
 AZ_LIBS=	libmcrypt.so
 CONFIGURE_ARGS+=--with-mcrypt=${AZ_PREFIX}
+# not the post-patch of the port (1.0.5): 1.0.9 ends RETURN_FALSE/TRUE with ;
 .endif
 
 .if ${PHP_MODNAME} == "memcache"
