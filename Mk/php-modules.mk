@@ -32,6 +32,7 @@ filter_DEPENDS=		security/php${PHP_VER}-filter
 ftp_DEPENDS=		ftp/php${PHP_VER}-ftp
 gd_DEPENDS=		graphics/php${PHP_VER}-gd
 gettext_DEPENDS=	devel/php${PHP_VER}-gettext
+gmagick_DEPENDS=	graphics/php-gmagick
 gmp_DEPENDS=		math/php${PHP_VER}-gmp
 iconv_DEPENDS=		converters/php${PHP_VER}-iconv
 igbinary_DEPENDS=	converters/php-igbinary
