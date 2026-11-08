@@ -1,6 +1,6 @@
 #!/bin/sh
 # report.sh - turn the results of tools/build.sh and of the checks of PHP (the lines
-# of results/checks.txt and the files results/check-php-<version>-<mode>.txt of
+# of results/checks.txt and the files results/check-php-<version>.txt of
 # tools/check-php.sh) into the job log, the job summary ($GITHUB_STEP_SUMMARY) and
 # annotations (an error for each port that failed or was not built and for checks
 # that failed, a notice for the outcome), so that it shows on the page of the run
@@ -76,8 +76,8 @@ done
     echo
 } >> "$summary"
 
-# the checks of PHP: results/checks.txt (a line per version and mode, written by the
-# workflow) and the output of tools/check-php.sh, results/check-php-<version>-<mode>.txt
+# the checks of PHP: results/checks.txt (a line per version, written by the workflow)
+# and the output of tools/check-php.sh, results/check-php-<version>.txt
 if [ -s "$res/checks.txt" ]; then
     {
         cat "$res/checks.txt"
@@ -94,7 +94,7 @@ if [ -s "$res/checks.txt" ]; then
     if grep -q ': FAIL' "$res/checks.txt"; then level=error; rc=1; else level=notice; fi
     annot "$level" "$title: PHP checks" "$tmp/php.txt"
     {
-        echo "### $title: PHP, the packages of each mode installed and checked"
+        echo "### $title: PHP, the packages installed and checked"
         echo
         echo '```'
         cat "$tmp/php.txt"
