@@ -18,6 +18,10 @@ on:
         description: 'An extended regular expression of the lines to print (empty: every file)'
         required: false
         default: ''
+      show:
+        description: 'Files of the packages to print whole, as globs of their paths, e.g. "*/share/doc/az/VERSIONS"'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -38,7 +42,10 @@ jobs:
         env:
           PKGS: ${{ inputs.packages }}
           PAT: ${{ inputs.pattern }}
+          SHOW: ${{ inputs.show }}
         run: |
+          # the globs of the inputs are for find and tar, not for this shell
+          set -f
           [ -d repo ] || { echo "::error::no cache repo-${{ inputs.cputype }}-*"; exit 1; }
           echo "repo: $(find repo -name '*.pkg' | wc -l) packages"
           n=0
@@ -49,6 +56,10 @@ jobs:
               # pkg files are tar archives (zstd, xz or gzip): tar of the runner reads them
               tar -tvf "$f" > files.txt 2> tar.err || { echo "tar: $(head -n 1 tar.err)"; continue; }
               grep -E "${PAT:-.}" files.txt || echo "(no file matches ${PAT:-.})"
+              for s in $SHOW; do
+                echo "-- $s:"
+                tar -xOf "$f" --wildcards "$s" 2> tar.err || echo "tar: $(head -n 1 tar.err)"
+              done
             done
           done
           [ "$n" -gt 0 ] || { echo "::error::no package matches: $PKGS"; exit 1; }
