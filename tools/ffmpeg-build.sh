@@ -53,6 +53,12 @@ tools="$(cd "$(dirname "$0")" && pwd)"
 # the conf and patches: files/ of the port multimedia/ffmpeg; the ports commit: deps.conf of az/az
 files="${AZ_FILESDIR:-$tools/../multimedia/ffmpeg/files}"
 conf="$files/ffmpeg.conf"
+# AZ_FFMPEG_NONFREE=yes (the port multimedia/ffmpeg-nonfree, nonfree/ffmpeg/Makefile.in):
+# the lines of files/ffmpeg-nonfree.conf too, its programs before FFmpeg and its
+# configure lines after those of ffmpeg.conf (after --disable-everything). FFmpeg with
+# libfdk_aac and libx264 needs --enable-nonfree: its programs may not be given to anyone.
+nonfree="${AZ_FFMPEG_NONFREE:-}"
+case "$nonfree" in yes) ;; ""|no) nonfree="" ;; *) echo "ffmpeg-build: AZ_FFMPEG_NONFREE is yes or empty, not $nonfree" >&2; exit 2 ;; esac
 deps_conf="${AZ_DEPS_CONF:-$tools/../az/az/files/deps.conf}"
 # the static tree of azsupport (static archives, their .pc files and headers)
 L="${AZ_PREFIX:-/usr/local/az}/static"
@@ -68,6 +74,8 @@ major="$(uname -r | cut -d. -f1)"
 
 if [ "${1:-}" = "--tools" ]; then
     pkgs="git meson ninja nasm gmake perl5 pkgconf python3"
+    # fdk-aac of the nonfree build: cmake
+    [ -z "$nonfree" ] || pkgs="$pkgs cmake"
     # shellcheck disable=SC2086
     env ASSUME_ALWAYS_YES=yes pkg install -y $pkgs
     rc=$?
@@ -75,6 +83,13 @@ if [ "${1:-}" = "--tools" ]; then
     exit $rc
 fi
 [ -f "$conf" ] || { echo "ffmpeg-build: no $conf (AZ_FILESDIR: files/ of the port multimedia/ffmpeg)" >&2; exit 2; }
+if [ -n "$nonfree" ]; then
+    nfc="$files/ffmpeg-nonfree.conf"
+    [ -f "$nfc" ] || { echo "ffmpeg-build: AZ_FFMPEG_NONFREE=yes, but no $nfc" >&2; exit 2; }
+    mkdir -p "$work" || exit 2
+    { awk '$1 == "program"' "$nfc"; cat "$conf"; awk '$1 == "configure"' "$nfc"; } > "$work/ffmpeg-nonfree.conf"
+    conf="$work/ffmpeg-nonfree.conf"
+fi
 [ -f "$deps_conf" ] || { echo "ffmpeg-build: no $deps_conf (AZ_DEPS_CONF: deps.conf of the port az/az)" >&2; exit 2; }
 
 say() { printf '[ffmpeg-build %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
@@ -147,9 +162,21 @@ fix_guess() {
         cp "$ports/Templates/${f##*/}" "$f" && chmod a+rx "$f"
     done
 }
+# fdk-aac (the nonfree build): the static library only, with the flags of FFmpeg, into
+# the work directory; its .pc there comes first for the configure of FFmpeg
+fdk="$work/fdk-aac"
+b_fdkaac() {
+    rm -rf "$fdk" "$1/az-build"
+    cmake -S "$1" -B "$1/az-build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$fdk" \
+        -DBUILD_SHARED_LIBS=OFF -DBUILD_PROGRAMS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DCMAKE_C_FLAGS="$ffcflags" -DCMAKE_CXX_FLAGS="$ffcflags" &&
+        cmake --build "$1/az-build" -j "$ncpu" && cmake --install "$1/az-build" || return 1
+    [ -f "$fdk/lib/libfdk-aac.a" ] && [ -f "$fdk/lib/pkgconfig/fdk-aac.pc" ] || { echo "== no $fdk/lib/libfdk-aac.a or its .pc"; return 1; }
+    mkdir -p "$work/licenses" && cp "$1/NOTICE" "$work/licenses/fdk-aac-NOTICE"
+}
 # FFmpeg: after the port's patches those of files/ffmpeg/ (in the order of their
 # names), then configure with the options of the script and the configure lines
-# of ffmpeg.conf
+# of ffmpeg.conf (the nonfree build: with those of ffmpeg-nonfree.conf, and fdk-aac)
 b_ffmpeg() {
     rm -rf "$stage"
     for p in "$files"/ffmpeg/*.patch; do
@@ -163,12 +190,14 @@ b_ffmpeg() {
             --extra-cflags="$ffcflags -I$L/include" --extra-cxxflags="$ffcflags -I$L/include" \
             --extra-ldflags="-L$L/lib"
         if [ -n "${AR:-}" ]; then set -- "$@" --ar="$AR" --ranlib="$RANLIB" --nm="$NM -g"; fi
+        [ -z "$nonfree" ] || export PKG_CONFIG_LIBDIR="$fdk/lib/pkgconfig:$PKG_CONFIG_LIBDIR"
         # shellcheck disable=SC2046
         ./configure "$@" $(conf_opts) && gmake -j"$ncpu" && gmake install-progs DESTDIR="$stage"
     ) || { cp "$1/ffbuild/config.log" "$res/ffmpeg-config.log" 2>/dev/null; return 1; }
     cp "$1/ffbuild/config.log" "$res/ffmpeg-config.log" 2>/dev/null
     mkdir -p "$stage$F/share/licenses/ffmpeg"
     for f in COPYING.GPLv2 COPYING.LGPLv2.1 LICENSE.md; do cp "$1/$f" "$stage$F/share/licenses/ffmpeg/$f"; done
+    [ -z "$nonfree" ] || cp "$work/licenses/fdk-aac-NOTICE" "$stage$F/share/licenses/ffmpeg/fdk-aac-NOTICE"
 }
 
 take_args() {
@@ -273,6 +302,7 @@ manifest() {
         echo "FFmpeg for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $ffcflags"
         echo "x264, dav1d and libwebp: the static libraries of $L (the package az, the static tree)"
+        [ -z "$nonfree" ] || echo "fdk-aac: its static library, built here (the nonfree build, files/ffmpeg-nonfree.conf)"
         echo
         while read -r n pkgname port; do
             printf '%-8s %-24s %s\n' "$n" "$pkgname" "$port"
@@ -303,8 +333,15 @@ manifest() {
         echo "configure (after --prefix=$F, the compiler and the flags):"
         conf_opts | sed 's/^/    /'
         echo
-        echo "Licence: GPL version 2 or later (FFmpeg with --enable-gpl, x264); the licences are in"
-        echo "share/licenses/ffmpeg/ (x264, dav1d and webp: LICENSES/ of /usr/local/az, the package az)."
+        if [ -n "$nonfree" ]; then
+            echo "Licence: nonfree and unredistributable (FFmpeg with --enable-gpl and --enable-nonfree:"
+            echo "x264 under the GPL and libfdk_aac under the licence of the Fraunhofer FDK AAC library);"
+            echo "this package may not be given to anyone. The licences are in share/licenses/ffmpeg/"
+            echo "(fdk-aac-NOTICE; x264, dav1d and webp: LICENSES/ of /usr/local/az, the package az)."
+        else
+            echo "Licence: GPL version 2 or later (FFmpeg with --enable-gpl, x264); the licences are in"
+            echo "share/licenses/ffmpeg/ (x264, dav1d and webp: LICENSES/ of /usr/local/az, the package az)."
+        fi
         echo "Sources: the distfiles above (their SHA-256), the patches of the port at the commit above,"
         echo "files/ffmpeg/ and tools/ffmpeg-build.sh of https://github.com/azsupport/ports (multimedia/ffmpeg/files/ffmpeg.conf)."
     } > "$res/VERSIONS"
