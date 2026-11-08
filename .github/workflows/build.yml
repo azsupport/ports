@@ -50,9 +50,11 @@ on:
 permissions:
   contents: write
 
-# one run at a time for a release: each writes its repositories
+# one run at a time for a release and a branch: a run of main publishes, a run of
+# another branch only tries its ports (its caches are its own: GitHub gives a
+# branch the caches of main, never main those of another branch)
 concurrency:
-  group: az-ports-${{ inputs.release }}
+  group: az-ports-${{ inputs.release }}-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -283,7 +285,8 @@ jobs:
 
       - name: Publish
         id: publish
-        if: ${{ success() && inputs.publish }}
+        # the servers read what main builds: a run of another branch never publishes
+        if: ${{ success() && inputs.publish && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE: ${{ inputs.release }}
