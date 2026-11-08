@@ -1,18 +1,21 @@
 #!/bin/sh
-# curl-sources.sh - the sources of the bundled curl: the curl release of a target
-# (freebsd/curl.conf) and the libraries it needs (freebsd/curl-deps.conf).
+# az-curl-sources.sh - the sources of the bundled curl of the package az: the curl
+# release of az/az/files/curl.conf and the libraries it needs
+# (az/az/files/curl-deps.conf). Moved from tools/curl-sources.sh of
+# https://github.com/azsupport/php-src (08.11.2026), which keeps its own for the
+# ext/curl of the PHP tarballs (tools/sync.sh there).
 #
-# Usage: sh tools/curl-sources.sh [<target>] <dir>
+# Usage: sh tools/az-curl-sources.sh [<target>] <dir>
 #
 # Puts curl into <dir>/libcurl and every library into <dir>/deps/<name>, from the
 # release files, checked against the SHA-256 of the conf (that of the distinfo of
 # the FreeBSD port; of the upstream release file while one is taken before its port
 # for a security fix), without their top directory, with
-# freebsd/curl/<name>-<version>.patch where there is one, and writes
-# <dir>/deps/VERSIONS ("name version SHA-256 distfile", ext/curl/build-libcurl.sh
+# files/curl/<name>-<version>.patch where there is one, and writes
+# <dir>/deps/VERSIONS ("name version SHA-256 distfile", files/curl/build-libcurl.sh
 # rebuilds when it changes). Without <target>: the curl of the last line of
-# curl.conf. tools/sync.sh runs it for ext/curl of every target with a curl,
-# tools/build-deps.sh for the curl of /usr/local/phpdeps.
+# curl.conf. tools/az-build.sh runs it for the curl of /usr/local/az. The confs
+# and patches: AZ_FILESDIR (default az/az/files of this tree).
 #
 # Two changes to the releases, both for a build with only cc and make:
 #   - libpsl gets src/suffixes_dafsa.h, the built-in list, made here with its
@@ -30,14 +33,14 @@
 # gzip, zstd and lzip), patch and python3.
 
 set -eu
-main_dir="$(cd "$(dirname "$0")/.." && pwd)"
-curl_conf="$main_dir/freebsd/curl.conf"
-deps_conf="$main_dir/freebsd/curl-deps.conf"
-patches="$main_dir/freebsd/curl"
+files="${AZ_FILESDIR:-$(cd "$(dirname "$0")/.." && pwd)/az/az/files}"
+curl_conf="$files/curl.conf"
+deps_conf="$files/curl-deps.conf"
+patches="$files/curl"
 case $# in
     1) target="" dir="$1" ;;
     2) target="$1" dir="$2" ;;
-    *) echo "usage: sh tools/curl-sources.sh [<target>] <dir>" >&2; exit 2 ;;
+    *) echo "usage: sh tools/az-curl-sources.sh [<target>] <dir>" >&2; exit 2 ;;
 esac
 cache="${CURL_DISTFILES:-${TMPDIR:-/tmp}/curl-distfiles}"
 mkdir -p "$cache" "$dir"
@@ -80,7 +83,7 @@ unpack() {
     fi
 }
 
-# patch_in <dir> <patch>: a patch of freebsd/curl, -p0 as the ports have them
+# patch_in <dir> <patch>: a patch of files/curl, -p0 as the ports have them
 patch_in() {
     [ -f "$2" ] || return 0
     (cd "$1" && patch -p0 -N -s -f < "$2") || { echo "curl-sources: ${2##*/} does not apply" >&2; return 1; }
