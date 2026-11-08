@@ -16,8 +16,11 @@
 #   it from here.
 # - Versions side by side (aZ): every path of PHP 7.4 has 74 in it, nothing is
 #   shared with another version: bin/php74 ... (--program-suffix=74), etc/php74
-#   (php.ini by @sample from php.ini-production; FPM with /var/run/php-fpm74.pid,
-#   /var/log/php-fpm74.log, the pool www on /var/run/php-fpm74.sock), the scan
+#   (php.ini by @sample from php.ini.sample: php.ini-production with the
+#   defaults of az, files/php.ini-az-74.in, at its end; errors in
+#   /var/log/php74_error.log, made at install when missing; FPM with
+#   /var/run/php-fpm74.pid, /var/log/php-fpm74.log, the pool www on
+#   /var/run/php-fpm74.sock), the scan
 #   dir etc/php74/conf.d (the ini files of the modules), lib/php74 (the build
 #   files of phpize74), include/php74, share/php74, etc/rc.d/php_fpm74 and
 #   libexec/apache24/libphp74.so (www/mod_php74); the modules in
@@ -235,19 +238,24 @@ post-build:
 test: build
 	@(cd ${WRKSRC} && ${MAKE} test)
 
-# bin/php74-profile and the pkg-message on profiles, from templates of every
-# version (PHP_VER); in files/, so that the modules do not take the message
-SUB_FILES+=	php-profile pkg-message
-SUB_LIST+=	PHP_VER=74
+# bin/php74-profile, the pkg-message (profiles, php.ini) and the block of az
+# for php.ini, from templates (PHP_VER; the block one file per version); in
+# files/, so that the modules do not take the message
+PHP_VER=	74
+SUB_FILES+=	php-profile pkg-message php.ini-az-${PHP_VER}
+SUB_LIST+=	PHP_VER=${PHP_VER}
 
-# etc/php74: php.conf (the version for Mk/Uses/php.mk), php.ini-development
-# and php.ini-production (php.ini by @sample); the empty directories of the
-# modules: the scan dir etc/php74/conf.d and lib/php/20190902 (@dir)
+# etc/php74: php.conf (the version for Mk/Uses/php.mk), php.ini-development,
+# php.ini-production and php.ini.sample (php.ini-production with the block of
+# az at its end; php.ini by @sample); the empty directories of the modules: the
+# scan dir etc/php74/conf.d and lib/php/20190902 (@dir)
 post-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/etc/php74/conf.d \
 		${STAGEDIR}${PREFIX}/lib/php/${PHP_EXT_DIR}
+	${CAT} ${WRKSRC}/php.ini-production ${WRKDIR}/php.ini-az-${PHP_VER} \
+		> ${WRKDIR}/php.ini.sample
 	${INSTALL_DATA} ${WRKSRC}/php.ini-development ${WRKSRC}/php.ini-production \
-		${WRKDIR}/php.conf ${STAGEDIR}${PREFIX}/etc/php74
+		${WRKDIR}/php.ini.sample ${WRKDIR}/php.conf ${STAGEDIR}${PREFIX}/etc/php74
 	${INSTALL_SCRIPT} ${WRKDIR}/php-profile ${STAGEDIR}${PREFIX}/bin/php74-profile
 .else
 do-install:
