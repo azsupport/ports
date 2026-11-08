@@ -31,10 +31,11 @@ on:
         description: 'Build the ports also when their package is in the release already'
         type: boolean
         default: false
+      # off by default: the repository the servers read is published on aZ's word
       publish:
-        description: 'Publish the repository when everything built and every check passed'
+        description: 'Publish the repository (the release the servers read) when everything built and every check passed'
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: write
