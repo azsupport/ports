@@ -3,11 +3,14 @@
 @comment to php.ini and keeps a changed php.ini), as for 7.4 (the head of
 @comment lang/php74/files/php.ini-az-74.in). The block of 7.4 with two changes:
 @comment the version in its first line and in the name of the log, and the JIT
-@comment of OPcache (new in PHP 8) off: opcache.jit = disable (nothing can
-@comment switch it on at run time by mistake) and opcache.jit_buffer_size = 0;
-@comment web sites gain little from it (they wait for the database and the
-@comment disks), it costs memory and the JIT of 8.x had many crash fixes; a
-@comment profile can switch it on for CPU-heavy jobs. Every other line holds
+@comment of OPcache (new in PHP 8) on (aZ, 08.11.2026): opcache.jit = tracing
+@comment and opcache.jit_buffer_size = 128M (PHP 8.0-8.3 come with tracing and a
+@comment buffer of 0, which keeps it off; 8.4 with disable and 64M). The buffer
+@comment is in the shared memory of OPcache, next to opcache.memory_consumption.
+@comment None of the modules of az turns it off (an extension that overrides
+@comment zend_execute_ex or sets user opcode handlers does, with a warning at
+@comment each start; swoole's handlers come only with --enable-swoole-stdext,
+@comment which the port does not use). Every other line holds
 @comment in 8.3 as in 7.4: session.sid_length and sid_bits_per_character are
 @comment deprecated only in 8.4, E_STRICT only in 8.4 (error_reporting is that
 @comment of the php.ini-production of 8.3), allow_url_include = Off raises no
@@ -73,6 +76,6 @@ opcache.enable_file_override = 1
 opcache.validate_permission = 1
 opcache.validate_root = 1
 opcache.huge_code_pages = 1
-; JIT off; to switch it on: opcache.jit = tracing, opcache.jit_buffer_size = 128M
-opcache.jit = disable
-opcache.jit_buffer_size = 0
+; JIT on; to switch it off: opcache.jit = disable
+opcache.jit = tracing
+opcache.jit_buffer_size = 128M
