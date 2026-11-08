@@ -117,7 +117,7 @@ Names and origins as the ports, files at the paths of the ports:
 - **`lang/php74`** and **`www/mod_php74`**: the core `php74` and the Apache module
   `libphp74.so`; PCRE2 10.49 is the one the fork bundles (a port `devel/pcre2` later, aZ 08.11.2026).
 - **60 module ports** `php74-<module>`: the names without "pecl", the origins as the
-  official ports or ours (`graphics/php74-gd`, `databases/php-redis`), the ini
+  official ports or ours (`graphics/php74-gd`, `databases/php74-redis`), the ini
   `ext-NN-<module>.ini`, those of openswoole and gmagick off.
 
 ## The layout of PHP on a server
