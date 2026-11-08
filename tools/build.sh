@@ -31,7 +31,12 @@
 #   JPEG_PORT, OPTIONS_UNSET of aZ, the paths), as __MAKE_CONF: /etc/make.conf is not read;
 # - the queue: the ports and those of this tree they need (FETCH_, EXTRACT_, PATCH_,
 #   BUILD_, LIB_, RUN_ and PKG_DEPENDS of make -V, the origins that are ours), each
-#   after those it needs;
+#   after those it needs; a port whose CONFLICTS_BUILD or CONFLICTS_INSTALL names the
+#   package of another port of the queue (lang/php74-static) last, with the ports that
+#   need it, and the installed packages it names deleted before its build;
+# - a NEED_ROOT port (az/az builds into the real prefix and refuses files of a package
+#   there): its installed package deleted before its build, the new one added after
+#   it (the old one back when it fails);
 # - a port whose package (PKGNAME of make -V) is in the repository already is skipped
 #   (an incremental build) unless --force or a port of this tree it needs was built in
 #   this run; a port that fails stops those that need it (skipped, with the reason);
