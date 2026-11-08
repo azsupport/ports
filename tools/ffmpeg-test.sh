@@ -106,9 +106,14 @@ fi
 av="-f lavfi -i testsrc2=size=640x360:rate=30:duration=3 -f lavfi -i sine=frequency=440:sample_rate=48000:duration=3"
 x264="-c:v libx264 -preset veryfast -pix_fmt yuv420p"
 if [ -z "$have_samples" ]; then
+# the package of the ports, never ours: a repository of ours (priority 100, as in
+# the VM) would give its ffmpeg to pkg install ffmpeg
 if [ ! -x "$ref" ]; then
-    env ASSUME_ALWAYS_YES=yes pkg install -y ffmpeg-nox11 > "$res/pkg-ffmpeg.log" 2>&1 ||
-        env ASSUME_ALWAYS_YES=yes pkg install -y ffmpeg >> "$res/pkg-ffmpeg.log" 2>&1
+    : > "$res/pkg-ffmpeg.log"
+    for r in FreeBSD-ports FreeBSD; do
+        env ASSUME_ALWAYS_YES=yes pkg install -y -r "$r" ffmpeg-nox11 >> "$res/pkg-ffmpeg.log" 2>&1 && break
+        env ASSUME_ALWAYS_YES=yes pkg install -y -r "$r" ffmpeg >> "$res/pkg-ffmpeg.log" 2>&1 && break
+    done
 fi
 [ -x "$ref" ] || { fail "the ffmpeg package (for the samples) could not be installed: $(tail -n 2 "$res/pkg-ffmpeg.log" | tr '\n' ' ')"; finish; }
 note "samples made with $("$ref" -hide_banner -version | head -n 1)"

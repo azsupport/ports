@@ -71,17 +71,24 @@ for p in ImageMagick7 ffmpeg; do
     say "pkg delete -f $p (the samples are made with the official package)"
     pkg delete -y -f "$p" >> "$log" 2>&1 || say "pkg delete -f $p failed (test-programs.log)"
 done
+# the official packages of a sample away before the next: ImageMagick7-nox11 of the
+# ports needs their ffmpeg, which conflicts with ffmpeg-nox11 of the ffmpeg samples
+# (pkg stopped, and the samples were made with ours: build.yml 42533903453)
 for t in ffmpeg imagemagick; do
     say "$t-test.sh --samples"
     (cd "$res" && sh "$top/tools/$t-test.sh" --samples) >> "$log" 2>&1 ||
         say "$t-test.sh --samples failed: its test says so (test-programs.log)"
-done
-for p in ImageMagick7-nox11 ImageMagick7 ffmpeg-nox11 ffmpeg; do
-    pkg info -e "$p" || continue
-    say "pkg delete $p (the official package of the samples)"
-    pkg delete -y "$p" >> "$log" 2>&1 || say "pkg delete $p failed (test-programs.log)"
+    for p in ImageMagick7-nox11 ImageMagick7 ffmpeg-nox11 ffmpeg; do
+        pkg info -e "$p" || continue
+        say "pkg delete $p (the official package of the samples)"
+        pkg delete -y "$p" >> "$log" 2>&1 || say "pkg delete $p failed (test-programs.log)"
+    done
 done
 pkg autoremove -y >> "$log" 2>&1
+# autoremove takes the build tools that came as dependencies too, pkgconf among them:
+# the link tests of az-test.sh need pkg-config (they failed with no word without it)
+say "pkg install pkgconf (pkg-config of the link tests of az-test.sh)"
+pkg install -y pkgconf >> "$log" 2>&1 || say "pkg install pkgconf failed (test-programs.log)"
 
 # 2. ours from the repository
 want=""
@@ -93,7 +100,9 @@ if [ -n "$want" ]; then
     # shellcheck disable=SC2086
     # CONSERVATIVE_UPGRADE=no: the official curl a build dependency brought stays
     # from its repository otherwise (pkg install -f reinstalled it from FreeBSD-ports)
-    CONSERVATIVE_UPGRADE=no pkg install -y -f $want > "$res/test-programs-install.log" 2>&1 || say "pkg install says it failed (test-programs-install.log)"
+    # -r azbuild: pkg install -f reinstalled the curl of FreeBSD-ports even so
+    # (build.yml 42533903453); their dependencies are ours or installed already
+    CONSERVATIVE_UPGRADE=no pkg install -y -f -r azbuild $want > "$res/test-programs-install.log" 2>&1 || say "pkg install says it failed (test-programs-install.log)"
     cat "$res/test-programs-install.log" >> "$log"
 fi
 # from the repository: the annotation repository of the installed package (pkg query

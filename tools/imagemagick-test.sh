@@ -54,9 +54,15 @@ last() { tail -n 2 "$1" | tr '\n' ' ' | sed "s#$T/##g"; }
 
 # --- the samples --------------------------------------------------------------
 if [ -z "$have_samples" ]; then
+# the package of the ports, never ours: with a repository of ours (priority 100, as
+# in the VM) pkg install ImageMagick7 gave ours, without plasma: and gradient:, and
+# the samples were not made (build.yml 42533903453)
 if [ ! -x "$ref" ]; then
-    env ASSUME_ALWAYS_YES=yes pkg install -y ImageMagick7-nox11 dejavu > "$res/pkg-imagemagick.log" 2>&1 ||
-        env ASSUME_ALWAYS_YES=yes pkg install -y ImageMagick7 dejavu >> "$res/pkg-imagemagick.log" 2>&1
+    : > "$res/pkg-imagemagick.log"
+    for r in FreeBSD-ports FreeBSD; do
+        env ASSUME_ALWAYS_YES=yes pkg install -y -r "$r" ImageMagick7-nox11 dejavu >> "$res/pkg-imagemagick.log" 2>&1 && break
+        env ASSUME_ALWAYS_YES=yes pkg install -y -r "$r" ImageMagick7 dejavu >> "$res/pkg-imagemagick.log" 2>&1 && break
+    done
 fi
 [ -x "$ref" ] || { fail "the ImageMagick7 package (for the samples) could not be installed: $(tail -n 2 "$res/pkg-imagemagick.log" | tr '\n' ' ')"; finish; }
 note "samples made with $("$ref" -version | head -n 1)"
