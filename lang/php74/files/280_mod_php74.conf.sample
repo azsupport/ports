@@ -1,4 +1,4 @@
-# PHP 7.4 as an Apache module (mod_php74 of azsupport/ports): copy this file to
+# PHP 7.4 as an Apache module (libphp74.so of azsupport/ports): copy this file to
 # 280_mod_php74.conf in modules.d of the Apache instance that is to load it
 # (one PHP module per instance), then restart that instance.
 LoadModule php7_module libexec/apache24/libphp74.so

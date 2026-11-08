@@ -19,8 +19,9 @@
 #   dir etc/php74/conf.d (the ini files of the modules), lib/php74 (the build
 #   files of phpize74), include/php74, share/php74, etc/rc.d/php_fpm74 and
 #   libexec/apache24/libphp74.so (www/mod_php74); the modules in
-#   lib/php/20190902 as the ports. So CONFLICTS_INSTALL is php74-static only
-#   (the static PHP of the same version), not the other versions.
+#   lib/php/20190902 as the ports. So CONFLICTS_INSTALL of the core and of
+#   mod_php74 is php74-static only (the static PHP of the same version), not
+#   the other versions; the modules set theirs in Makefile.ext.
 # - Libraries: libxml2 and argon2 of the package az (${AZ_PREFIX}), depended
 #   on by a file (no ldconfig hints for ${AZ_PREFIX}/lib: never LIB_DEPENDS),
 #   linked with its run path and found by its pkg-config; the PCRE2 the fork
@@ -40,10 +41,11 @@
 #	.include "${MASTERDIR}/Makefile"
 # With PKGNAMESUFFIX defined this Makefile includes ${MASTERDIR}/Makefile.ext
 # (the rules of the modules) and ends with bsd.port.post.mk. Makefile.ext gets
-# from here PORTNAME, DISTVERSION, PORTREVISION?=, CATEGORIES?=, MASTER_SITES,
-# DISTNAME (the top directory of the tarball), DIST_SUBDIR, distinfo (through
-# MASTERDIR), MAINTAINER, WWW, LICENSE, USES (compiler:c11 cpe gnome
-# pkgconfig tar:xz) and CONFLICTS_INSTALL?=; it sets COMMENT, USES+= php:ext
+# from here PORTNAME, DISTVERSION?= (a slave of a PECL extension sets its own
+# version first), PORTREVISION?=, CATEGORIES?=, MASTER_SITES, DISTNAME (the top
+# directory of the tarball, without DISTVERSION), DIST_SUBDIR, distinfo
+# (through MASTERDIR), MAINTAINER, WWW, LICENSE and USES (compiler:c11 cpe
+# gnome pkgconfig tar:xz); it sets COMMENT, CONFLICTS_INSTALL, USES+= php:ext
 # (php:zend), PHP_VER=74, PHP_MODNAME, WRKSRC and EXTRACT_AFTER_ARGS (only
 # ${DISTNAME}/ext/<module>), PLIST=${NONEXISTENT}, the options and arguments of
 # each module, and includes bsd.port.options.mk and bsd.port.pre.mk itself.
@@ -51,11 +53,11 @@
 # its head).
 
 PORTNAME=	php74
-DISTVERSION=	7.4.33
+DISTVERSION?=	7.4.33
 PORTREVISION?=	0
 CATEGORIES?=	lang devel www
 MASTER_SITES=	https://github.com/azsupport/php-src/releases/download/freebsd-7.4-${AZ_PHP_RELEASE}/
-DISTNAME=	php-${DISTVERSION}-fbsd-${AZ_PHP_RELEASE}
+DISTNAME=	php-7.4.33-fbsd-${AZ_PHP_RELEASE}
 DIST_SUBDIR=	php
 
 MAINTAINER=	github@azsupport.com
@@ -68,12 +70,15 @@ USES+=		compiler:c11 tar:xz cpe gnome pkgconfig
 CPE_PRODUCT=	php
 NO_OPTIONS_SORT=yes
 
-# the dated release of the fork: its tag freebsd-7.4-<date>-<commit>
+# the dated release of the fork: its tag freebsd-7.4-<date>-<commit>; DISTNAME
+# without DISTVERSION, which the slaves of PECL extensions set to their version
 AZ_PHP_RELEASE=	20261104-397aa202
 
-CONFLICTS_INSTALL?=	php74-static
-
 .if !defined(PKGNAMESUFFIX)
+# versions side by side: only the static PHP of the version (the same files);
+# the modules have their own (Makefile.ext)
+CONFLICTS_INSTALL=	php74-static
+
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
 		${AZ_PREFIX}/lib/libxml2.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
