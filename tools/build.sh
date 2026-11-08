@@ -658,8 +658,10 @@ make_port() {
             AZ_STAMP="$az_stamp" AZ_HASH="$h" >> "$log" 2>&1
     fi
     start="$(date +%s)"
+    # AZ_RESULTS: the results of the scripts of tools/ (az/az: the line of each library)
+    # in results/az-results/<key>, where they stay after make clean
     make -C "$top/$1" clean package USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" \
-        ${_pk:+PACKAGES="$_pk"} >> "$log" 2>&1
+        AZ_RESULTS="$res/az-results/$k" ${_pk:+PACKAGES="$_pk"} >> "$log" 2>&1
     rc=$?
     secs=$(( $(date +%s) - start ))
     # the config.log files of a failed build next to its log, then the work directory away
@@ -684,6 +686,18 @@ make_port() {
         rm -f "$q/made-$k"
         e="$(grep -E ' error:|Error code|^\*\*\*|^===>.*(IGNORE|not found|failed)' "$log" | head -n 1 | cut -c1-200)"
         [ "$rc" = 0 ] && e="make package made no $pn.pkg"
+        # a file of a dependency that is not there: the files of its directory by that
+        # name, and the package that says it has it (at the end of the log, so that the
+        # report shows it)
+        grep -o 'depends on file: [^ ]* - not found' "$log" | awk '{ print $4 }' | sort -u |
+            while read -r nf; do
+                {
+                    echo "== $nf is not there; in ${nf%/*}:"
+                    _b="${nf##*/}"
+                    ls -la "${nf%/*}" 2>&1 | grep -F "${_b%.so}" | head -n 10
+                    echo "== pkg which $nf: $(pkg which "$nf" 2>&1 | head -n 1)"
+                } >> "$log"
+            done
         say "$1: make package failed, the last 40 lines of logs/$k.log:"
         tail -n 40 "$log" | sed 's/^/    | /'
         record "$1" fail "$pn: ${secs}s, ${e:-make package failed} (logs/$k.log)"

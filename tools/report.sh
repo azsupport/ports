@@ -69,6 +69,12 @@ trap 'rm -rf "$tmp"' EXIT
         echo "..."
         tail -n 15 "$l" | cut -c1-240
     done
+    # the libraries of az/az, a line each (tools/az-build.sh), when it was built
+    if [ -s "$res/az-results/az_az/summary.txt" ]; then
+        echo
+        echo "== az/az: the libraries (az-results/az_az/summary.txt)"
+        cut -c1-200 "$res/az-results/az_az/summary.txt"
+    fi
 } > "$tmp/build.txt"
 echo "==================== build"
 cat "$tmp/build.txt"
