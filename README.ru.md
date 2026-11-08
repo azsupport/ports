@@ -167,17 +167,18 @@ pkg install -r az php74 mod_php74 php74-opcache php74-gd php74-mbstring php74-op
 pkg install -r az curl ffmpeg ImageMagick6 ImageMagick7
 ```
 
-Несвободный FFmpeg, для одного сервера: `ffmpeg-nonfree` (multimedia/ffmpeg с кодировщиком
-AAC `libfdk_aac` — для форматов старых сайтов с `-c:a libfdk_aac`) никому нельзя
-передавать (FFmpeg с `--enable-nonfree`), поэтому в релизе его нет никогда. Workflow
+Несвободный FFmpeg: `ffmpeg-nonfree` (multimedia/ffmpeg с кодировщиком AAC `libfdk_aac` —
+для форматов старых сайтов с `-c:a libfdk_aac`) никому нельзя передавать (FFmpeg с
+`--enable-nonfree`), поэтому в релизе его нет никогда. Workflow
 [`ffmpeg-nonfree.yml`](.github/workflows/ffmpeg-nonfree.yml) собирает его из
-[`nonfree/ffmpeg/Makefile.in`](nonfree/ffmpeg/Makefile.in) и кладёт по scp в
-`~/repo/fbsd15-amd64-v3/` пользователя этого сервера: отдельный репозиторий pkg,
-подписанный тем же ключом. На этом сервере (пользователь `aznonfree`, домашний каталог
-`/var/db/az-nonfree`):
+[`nonfree/ffmpeg/Makefile.in`](nonfree/ffmpeg/Makefile.in) и кладёт по scp на
+`pkg.azsupport.com` — отдельный репозиторий pkg под паролем (HTTP Basic auth), подписанный
+тем же ключом. Сервер подключает его рядом с az (пароль пользователя `pkg` — в адресе;
+файл — только для root):
 
 ```sh
-printf '%s\n' 'az-nonfree: { url: "file:///var/db/az-nonfree/repo/fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/az.pub", priority: 100, enabled: yes }' > /usr/local/etc/pkg/repos/az-nonfree.conf
+printf '%s\n' 'az-nonfree: { url: "https://pkg:PASSWORD@pkg.azsupport.com/az-nonfree/fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/az.pub", priority: 100, enabled: yes }' > /usr/local/etc/pkg/repos/az-nonfree.conf
+chmod 600 /usr/local/etc/pkg/repos/az-nonfree.conf
 pkg update -r az-nonfree
 pkg install -r az-nonfree ffmpeg-nonfree
 ```

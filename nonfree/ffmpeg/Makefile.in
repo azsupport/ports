@@ -6,7 +6,7 @@
 # multimedia/ffmpeg-nonfree/Makefile: tools/build.sh and check-tree.sh take the
 # ports */*/Makefile, and a release of this repository never has this package. Only
 # the workflow ffmpeg-nonfree.yml puts it in place, in its VM, builds the package and
-# gives it to aZ's server (scp), as a repository of pkg of its own (README.md).
+# gives it to pkg.azsupport.com (scp), a repository of pkg of its own (README.md).
 # files/ffmpeg-nonfree.conf of multimedia/ffmpeg: the lines it adds to ffmpeg.conf.
 
 PKGNAMESUFFIX=	-nonfree

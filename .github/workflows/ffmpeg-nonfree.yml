@@ -1,26 +1,29 @@
-name: The nonfree FFmpeg for a server of aZ (never published)
+name: The nonfree FFmpeg for pkg.azsupport.com (never published)
 
 # Builds multimedia/ffmpeg-nonfree, the FFmpeg of multimedia/ffmpeg with the AAC
 # encoder libfdk_aac (files/ffmpeg-nonfree.conf), for the formats of old video sites
 # that ask for -c:a libfdk_aac. FFmpeg with libfdk_aac and libx264 needs
 # --enable-nonfree, and its programs "will be unredistributable" (configure): this
 # workflow never makes a release, never uploads an artifact and never saves a cache;
-# its package goes, as a repository of pkg of its own (signed with the key of az), to
-# one server of aZ by scp, and only when the three secrets are there:
-#   NONFREE_SSH_KEY      the private key (ed25519) of the user of the server
-#   NONFREE_SSH_TARGET   user@host
-#   NONFREE_KNOWN_HOSTS  ssh-keyscan -p <port> <host> of that server (the port of ssh
-#                        is taken from it: [host]:port)
-# into ~/repo/fbsd<major>-amd64-<level>/ of that user (README.md: the server reads it as
-# a repository of pkg, file://). Without them the package is built and tested, and
-# nothing leaves the runner.
+# its package goes, as a repository of pkg of its own (signed with the key of az), by scp
+# to the server of pkg.azsupport.com, which gives it with a password (HTTP Basic auth of
+# nginx) to the servers that read it next to az (README.md), and only when the three
+# secrets are there:
+#   NONFREE_SSH_KEY      the private key (ed25519) of the user azpkg of that server
+#   NONFREE_SSH_TARGET   azpkg@pkg.azsupport.com
+#   NONFREE_KNOWN_HOSTS  ssh-keyscan -p <port> pkg.azsupport.com (the port of ssh is
+#                        taken from it: [host]:port)
+# into ~/www/az-nonfree/fbsd<major>-amd64-<level>/ of that user, the web root of
+# pkg.azsupport.com (tools/pkg-azsupport-setup.sh of azsupport/azsupport makes the user,
+# the root and the vhost). Without them the package is built and tested, and nothing
+# leaves the runner.
 # In the VM: nonfree/ffmpeg/Makefile.in as multimedia/ffmpeg-nonfree/Makefile (only
 # here: tools/build.sh takes the ports */*/Makefile), then tools/build.sh over the
 # repository of the last run of build.yml (its cache, only read) and the files of the
 # release: az/az and what else it needs are kept from there; the package, then
 # tools/ffmpeg-test.sh with it installed (the samples with the ffmpeg package of
 # FreeBSD first).
-# Started by hand: Actions, "The nonfree FFmpeg for a server of aZ (never published)",
+# Started by hand: Actions, "The nonfree FFmpeg for pkg.azsupport.com (never published)",
 # "Run workflow".
 
 on:
@@ -161,7 +164,7 @@ jobs:
 
       # by scp into a new directory, then in the place of the old one (pkg never reads
       # a half-copied catalog); the port of ssh from the known_hosts line
-      - name: To the server of aZ
+      - name: To pkg.azsupport.com
         id: send
         if: ${{ success() }}
         env:
@@ -189,12 +192,12 @@ jobs:
           trap 'rm -f "$HOME/.ssh/nonfree"' EXIT
           o="-i $HOME/.ssh/nonfree -o UserKnownHostsFile=$HOME/.ssh/nonfree_known_hosts -o StrictHostKeyChecking=yes -o BatchMode=yes -o IdentitiesOnly=yes"
           # shellcheck disable=SC2086
-          ssh $o -p "$port" "$NONFREE_SSH_TARGET" "mkdir -p repo && rm -rf repo/.new-$dir && mkdir repo/.new-$dir"
+          ssh $o -p "$port" "$NONFREE_SSH_TARGET" "mkdir -p www/az-nonfree && rm -rf www/az-nonfree/.new-$dir && mkdir www/az-nonfree/.new-$dir"
           # shellcheck disable=SC2086
-          scp $o -P "$port" nonfree-repo/* "$NONFREE_SSH_TARGET:repo/.new-$dir/"
+          scp $o -P "$port" nonfree-repo/* "$NONFREE_SSH_TARGET:www/az-nonfree/.new-$dir/"
           # shellcheck disable=SC2086
-          ssh $o -p "$port" "$NONFREE_SSH_TARGET" "rm -rf repo/.old-$dir; if [ -d repo/$dir ]; then mv repo/$dir repo/.old-$dir; fi; mv repo/.new-$dir repo/$dir && rm -rf repo/.old-$dir && ls repo/$dir"
-          echo "sent: ~/repo/$dir of the user of the server ($(ls nonfree-repo | wc -l) files)"
+          ssh $o -p "$port" "$NONFREE_SSH_TARGET" "cd www/az-nonfree && rm -rf .old-$dir; if [ -d $dir ]; then mv $dir .old-$dir; fi; mv .new-$dir $dir && rm -rf .old-$dir && chmod -R a+rX $dir && ls $dir"
+          echo "sent: https://pkg.azsupport.com/az-nonfree/$dir/ ($(ls nonfree-repo | wc -l) files)"
 
       - name: Report
         if: always()

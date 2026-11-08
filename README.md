@@ -167,17 +167,18 @@ The programs:
 pkg install -r az curl ffmpeg ImageMagick6 ImageMagick7
 ```
 
-The nonfree FFmpeg, for one server: `ffmpeg-nonfree` (multimedia/ffmpeg with the AAC
-encoder `libfdk_aac`, for the formats of old sites with `-c:a libfdk_aac`) may not be
-given to anyone (FFmpeg with `--enable-nonfree`), so it is never in the release. The
-workflow [`ffmpeg-nonfree.yml`](.github/workflows/ffmpeg-nonfree.yml) builds it from
-[`nonfree/ffmpeg/Makefile.in`](nonfree/ffmpeg/Makefile.in) and copies it with scp into
-`~/repo/fbsd15-amd64-v3/` of a user of that server: a repository of pkg of its own,
-signed with the same key. On that server (the user `aznonfree`, home
-`/var/db/az-nonfree`):
+The nonfree FFmpeg: `ffmpeg-nonfree` (multimedia/ffmpeg with the AAC encoder
+`libfdk_aac`, for the formats of old sites with `-c:a libfdk_aac`) may not be given to
+anyone (FFmpeg with `--enable-nonfree`), so it is never in the release. The workflow
+[`ffmpeg-nonfree.yml`](.github/workflows/ffmpeg-nonfree.yml) builds it from
+[`nonfree/ffmpeg/Makefile.in`](nonfree/ffmpeg/Makefile.in) and copies it with scp to
+`pkg.azsupport.com`, a repository of pkg of its own behind a password (HTTP Basic auth),
+signed with the same key. A server reads it next to az (the password of the user `pkg`
+in the address; the file only for root):
 
 ```sh
-printf '%s\n' 'az-nonfree: { url: "file:///var/db/az-nonfree/repo/fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/az.pub", priority: 100, enabled: yes }' > /usr/local/etc/pkg/repos/az-nonfree.conf
+printf '%s\n' 'az-nonfree: { url: "https://pkg:PASSWORD@pkg.azsupport.com/az-nonfree/fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/az.pub", priority: 100, enabled: yes }' > /usr/local/etc/pkg/repos/az-nonfree.conf
+chmod 600 /usr/local/etc/pkg/repos/az-nonfree.conf
 pkg update -r az-nonfree
 pkg install -r az-nonfree ffmpeg-nonfree
 ```
