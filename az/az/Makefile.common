@@ -6,9 +6,10 @@
 MAINTAINER=	github@azsupport.com
 
 # The revision of the build: AZ_STAMP, the yymmddhh of the run, given by the
-# builder (Mk/bsd.overlay.mk: 0 without it); above the PORTREVISION of the
+# builder (0 without it: bsd.port.mk reads PORTREVISION before
+# Mk/bsd.overlay.mk, which sets it); above the PORTREVISION of the
 # official port, so that a new build is an upgrade of the official package.
-PORTREVISION=	${AZ_STAMP}
+PORTREVISION=	${AZ_STAMP:U0}
 
 # our release files (the take lines, the bundled curl) in one place of DISTDIR
 DIST_SUBDIR=	az

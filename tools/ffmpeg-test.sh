@@ -1,7 +1,7 @@
 #!/bin/sh
-# ffmpeg-test.sh - test ffmpeg and ffprobe of tools/build-ffmpeg.sh (the package
-# ffmpeg of tools/build-az.sh, installed: /usr/local/bin) as the video sites use
-# it, and that what freebsd/ffmpeg.conf leaves out is refused.
+# ffmpeg-test.sh - test ffmpeg and ffprobe of tools/ffmpeg-build.sh (the package
+# ffmpeg of the port multimedia/ffmpeg, installed: /usr/local/bin) as the video sites use
+# it, and that what multimedia/ffmpeg/files/ffmpeg.conf leaves out is refused.
 #
 # Usage (FreeBSD, as root):
 #   sh tools/ffmpeg-test.sh --samples   only make the samples (before our ffmpeg
@@ -15,7 +15,7 @@
 # video, JPEG, PNG and WebP pictures. With each: ffprobe and "ffmpeg -i" (what KVS
 # reads), the conversion of KVS (libx264 into mp4, without and with AAC; its
 # command has no -pix_fmt), which must give 8-bit 4:2:0 H.264, what browsers play
-# (freebsd/ffmpeg/libx264-8bit-420.patch), screenshots, a watermark. The other ways of
+# (multimedia/ffmpeg/files/ffmpeg/libx264-8bit-420.patch), screenshots, a watermark. The other ways of
 # remote_cron.php and the plugins of KVS: joins with -f concat -safe 0 and -c copy
 # into mp4, mov (-f mov) and mkv (-f matroska), subtitles left out, not failed on,
 # silence from -f lavfi -i anullsrc, a video from pictures (task-%d.jpg).
@@ -29,10 +29,10 @@
 # exit status 0 when every check passed.
 
 set -u
-top="$(pwd)"
-conf="$top/freebsd/ffmpeg.conf"
+tools="$(cd "$(dirname "$0")" && pwd)"
+conf="${AZ_FFMPEG_CONF:-$tools/../multimedia/ffmpeg/files/ffmpeg.conf}"
 F="${FFMPEG_PREFIX:-/usr/local}"
-res="$top/ffmpeg-results"
+res="${AZ_RESULTS:-$(pwd)/ffmpeg-results}"
 T="${FFMPEG_TEST_WORK:-/var/tmp/ffmpeg-test}"
 ff="$F/bin/ffmpeg"
 fp="$F/bin/ffprobe"
@@ -57,7 +57,7 @@ finish() {
 }
 
 if [ -z "$samples_only" ]; then
-[ -x "$ff" ] && [ -x "$fp" ] || { fail "no $ff or $fp (tools/build-ffmpeg.sh first)"; finish; }
+[ -x "$ff" ] && [ -x "$fp" ] || { fail "no $ff or $fp (the port multimedia/ffmpeg first)"; finish; }
 
 # --- the lists of components: those of ffmpeg.conf ---------------------------
 # the components of ffmpeg.conf, by the names ffmpeg lists them under (the demuxer
@@ -203,7 +203,7 @@ probe() {
 }
 dims() { "$fp" -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "$1" 2>/dev/null; }
 pfmt() { "$fp" -v error -select_streams v:0 -show_entries stream=profile,pix_fmt -of csv=p=0 "$1" 2>/dev/null; }
-# libx264 takes 8-bit 4:2:0 only (freebsd/ffmpeg/libx264-8bit-420.patch); an explicit
+# libx264 takes 8-bit 4:2:0 only (multimedia/ffmpeg/files/ffmpeg/libx264-8bit-420.patch); an explicit
 # -pix_fmt of another format becomes yuv420p
 v="$("$ff" -hide_banner -h encoder=libx264 2>/dev/null | sed -n 's/^ *Supported pixel formats: *//p')"
 [ "$v" = "yuv420p yuvj420p nv12 nv21" ] && pass "libx264: pixel formats $v" || fail "libx264: pixel formats ${v:-none} (not those of libx264-8bit-420.patch)"

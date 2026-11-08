@@ -1,7 +1,7 @@
 #!/bin/sh
-# curl-test.sh - test the package curl of tools/build-az.sh, installed in the place
-# of that of the ports (tools/build-deps.sh, build_curl_program; the line "program
-# curl" of freebsd/deps.conf): its version and features, those of the port ftp/curl
+# curl-test.sh - test the package curl of the port ftp/curl (tools/curl-build.sh),
+# installed in the place of that of the official port: its version and features,
+# those of the official port ftp/curl
 # (the OpenSSL of /usr/local/az/static, the threaded resolver, HTTP/2, brotli, zstd, IDN,
 # the Public Suffix List, NTLM; the protocols of the port: DICT, FTP, gopher, HTTP,
 # IMAP, IPFS, MQTT, POP3, RTSP, SMTP, telnet, TFTP, WebSocket; no LDAP, SCP and
@@ -14,8 +14,7 @@
 # exit status 0 when every check passed.
 
 set -u
-top="$(pwd)"
-res="$top/curl-results"
+res="${AZ_RESULTS:-$(pwd)/curl-results}"
 T="${CURL_TEST_WORK:-/var/tmp/curl-test}"
 c="${CURL_PREFIX:-/usr/local}/bin/curl"
 so="${CURL_PREFIX:-/usr/local}/lib/libcurl.so.4"
@@ -33,7 +32,7 @@ finish() {
     exit $?
 }
 
-[ -x "$c" ] || { fail "no $c (tools/build-deps.sh first)"; finish; }
+[ -x "$c" ] || { fail "no $c (the port ftp/curl first)"; finish; }
 "$c" --version > "$T/version.txt" 2>&1 || { fail "curl --version: $(head -n 2 "$T/version.txt" | tr '\n' ' ')"; finish; }
 first="$(head -n 1 "$T/version.txt")"
 feats=" $(sed -n 's/^Features: //p' "$T/version.txt") "

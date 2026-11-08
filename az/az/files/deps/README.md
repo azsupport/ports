@@ -1,12 +1,12 @@
 # Patches of a port, brought up to the release of its take line
 
-`freebsd/deps.conf` can build a library of `/usr/local/phpdeps` from a new upstream
+`az/az/files/deps.conf` can build a library of `/usr/local/az` from a new upstream
 release before its FreeBSD port has it (a `take` line). The ports framework applies
 the patches of the port to it; when one of them no longer applies,
-`freebsd/deps/<name>-<version>/` holds all the patches of that port, the failing ones
+`az/az/files/deps/<name>-<version>/` holds all the patches of that port, the failing ones
 brought up to the release, and the framework takes them from here instead
-(`PATCHDIR`). [`tools/deps-take-check.sh`](../../tools/deps-take-check.sh) (workflow
-"phpdeps take check") shows which patches apply.
+(`PATCHDIR`). `tools/deps-take-check.sh` of azsupport/php-src (workflow
+"phpdeps take check" there; not moved yet) shows which patches apply.
 
 | Directory | From | Changed |
 |---|---|---|

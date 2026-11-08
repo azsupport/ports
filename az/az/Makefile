@@ -62,8 +62,9 @@
 # *-config scripts, run paths and compiled-in paths name them), so the script
 # installs into /usr/local/az of the build machine, as build-az.sh did in its
 # VM, and do-install copies that tree into ${STAGEDIR}; the plist is made from
-# the stage. So this port is built as root (make package as root; poudriere:
-# BUILD_AS_NON_ROOT=no), on a machine or in a jail of its own: the script does
+# the stage. So this port is built as root (NEED_ROOT: poudriere builds it as
+# root even with BUILD_AS_NON_ROOT=yes; make package as root), on a machine or
+# in a jail of its own: the script does
 # not start while a package or a PHP build has files in /usr/local/az, and
 # removes there only what an unfinished build of its own left (marked by the
 # file .az-build, which is not packaged). The other four install with DESTDIR
@@ -145,6 +146,9 @@ BUILD_DEPENDS=	bison:devel/bison \
 
 USES=		autoreconf:build gmake perl5 pkgconfig
 USE_PERL5=	build
+
+# The build installs into AZ_PREFIX of the build machine (see the head)
+NEED_ROOT=	yes
 
 # Nothing is extracted by the framework: tools/az-curl-sources.sh unpacks the
 # bundled curl, the official ports extract their own distfiles (make patch).

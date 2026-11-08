@@ -1,9 +1,9 @@
 #!/bin/sh
-# imagemagick-test.sh - test ImageMagick 6 and 7 of tools/build-imagemagick.sh
-# (the packages ImageMagick6 and ImageMagick7 of tools/build-az.sh, installed:
+# imagemagick-test.sh - test ImageMagick 6 and 7 of tools/imagemagick-build.sh
+# (the packages ImageMagick6 and ImageMagick7 of the ports graphics/ImageMagick6 and 7, installed:
 # /usr/local/bin/convert6, identify6, composite6...; magick) as the video sites
-# use them, and that what freebsd/imagemagick.conf and
-# freebsd/imagemagick/policy.xml leave out is refused.
+# use them, and that what graphics/ImageMagick7/files/imagemagick.conf and
+# policy.xml there leave out is refused.
 #
 # Usage (FreeBSD, as root):
 #   sh tools/imagemagick-test.sh --samples   only make the samples (before our
@@ -27,9 +27,9 @@
 # end); exit status 0 when every check passed.
 
 set -u
-top="$(pwd)"
-conf="$top/freebsd/imagemagick.conf"
-res="$top/imagemagick-results"
+tools="$(cd "$(dirname "$0")" && pwd)"
+conf="${AZ_IM_CONF:-$tools/../graphics/ImageMagick7/files/imagemagick.conf}"
+res="${AZ_RESULTS:-$(pwd)/imagemagick-results}"
 T="${IM_TEST_WORK:-/var/tmp/imagemagick-test}"
 ref=/usr/local/bin/magick
 samples_only=""; [ "${1:-}" = --samples ] && samples_only=1
@@ -107,7 +107,7 @@ for im in $(awk '$1 == "im" { print $2 }' "$conf"); do
     else
         cv="$pfx/bin/magick"; idf="$pfx/bin/magick identify"; cps="$pfx/bin/magick composite"
     fi
-    [ -x "$cv" ] || { fail "$im: no $cv (tools/build-imagemagick.sh first)"; continue; }
+    [ -x "$cv" ] || { fail "$im: no $cv (the ports graphics/ImageMagick6 and 7 first)"; continue; }
     w="$T/$im"; mkdir -p "$w"
     # what is built in, and whose policy
     "$cv" -version > "$w/version.txt" 2>&1
