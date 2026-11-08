@@ -648,6 +648,10 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 USES+=		compiler:c11 ssl
 USE_PHP=	sockets:build mysqlnd:build
 AZ_LIBS=	libbrotlienc.so
+# its configure finds brotli by a link test only (AC_CHECK_LIB, through the -L of
+# az in LDFLAGS) and has no option for its directory: the headers of az too
+# (brotli/encode.h was not found; build.yml 42519391339)
+CPPFLAGS+=	-I${AZ_PREFIX}/include
 
 CONFIGURE_ARGS+=	--enable-openswoole \
 			--enable-sockets \
