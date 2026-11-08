@@ -153,6 +153,9 @@ else
     fi
 fi
 ports_head="$(git -C "$ports" rev-parse HEAD 2>/dev/null || echo unknown)"
+# the real paths of the work and of the official tree: their files are not of a port
+workr="$(cd "$work" && pwd -P)"
+portsr="$(cd "$ports" && pwd -P)"
 
 # --- the make.conf of the run --------------------------------------------------------
 sed -e "s|@CPUTYPE@|$cputype|" -e "s|@PORTSDIR@|$ports|" -e "s|@OVERLAYS@|$top|" \
@@ -244,7 +247,14 @@ port_files() {
         done
     } 2> /dev/null | while read -r _f; do realpath "$_f" 2> /dev/null; done | LC_ALL=C sort -u |
         while read -r _f; do
-            case "$_f" in "$topr"/Mk/*) continue ;; "$topr"/*) ;; *) continue ;; esac
+            # not the work, the official tree, the packages and the results under the
+            # tree (the make.conf of the run names the paths of the machine)
+            case "$_f" in
+                "$workr"/*|"$portsr"/*|"$topr"/work/*|"$topr"/packages/*|"$topr"/distfiles/*|"$topr"/results/*|"$topr"/repo/*|"$topr"/.git/*) continue ;;
+                "$topr"/Mk/*) continue ;;
+                "$topr"/*) ;;
+                *) continue ;;
+            esac
             printf 'f %s %s\n' "${_f#"$topr"/}" "$(hfile "$_f")"
         done
 }
