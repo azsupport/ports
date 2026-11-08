@@ -216,6 +216,8 @@ sh tools/build.sh lang/php74 www/mod_php74
 sh tools/build.sh --force lang/php74
 env AZ_CPUTYPE=x86-64-v2 sh tools/build.sh
 env AZ_PORTSDIR=/usr/ports sh tools/build.sh
+env AZ_JOBS=1 sh tools/build.sh
+env AZ_DRYRUN=1 sh tools/build.sh
 ```
 
 What it does, with the logic of poudriere:
@@ -240,13 +242,21 @@ What it does, with the logic of poudriere:
   repository of the machine), ours by `pkg add` of the packages built before, then
   `make clean package` with `USE_PACKAGE_DEPENDS_ONLY=yes` (nothing is built from
   source but the port itself); its log and its time;
-- a `NEED_ROOT` port (`az/az`: it builds into the real `/usr/local/az`): its installed
-  package is deleted before its build and the new one added after it;
+- up to `AZ_JOBS` ports at once (default 4), in waves: the ports whose ports of this
+  tree they need are done form a wave; the dependencies of its ports are installed
+  first, one port after another (a port whose installation takes away what a port
+  before it in the wave got goes to a later wave), then their `make package` run at
+  once with no `pkg add`, `pkg install` or `pkg delete` meanwhile, the biggest first,
+  each with its log and its own packages directory; the summary in the order of the
+  queue; `results/waves.txt`. `AZ_JOBS=1`: one port after another, as before;
+  `AZ_DRYRUN=1`: the waves of the run said, nothing built;
+- a `NEED_ROOT` port (`az/az`: it builds into the real `/usr/local/az`): alone, its
+  installed package is deleted before its build and the new one added after it;
 - the repository (`--repo <dir>`, default `work/repo`): one package per origin, the new
   ones in the place of the old ones, `pkg repo`, signed with the key of
   `AZ_PKG_KEY_FILE` and checked ([`tools/pkg-repo-sign.sh`](tools/pkg-repo-sign.sh));
 - the results in `results/`: `summary.txt` (a line per port, `result: OK` or
-  `result: FAIL (...)` at the end), `queue.txt`, `hashes.txt`, `logs/`.
+  `result: FAIL (...)` at the end), `queue.txt`, `hashes.txt`, `waves.txt`, `logs/`.
 
 ### Versions and rebuilds
 
@@ -283,6 +293,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | `cputype` | `x86-64-v3` (default), `x86-64-v2` or `both` (a job each) |
 | `ports` | the ports to build, separated by spaces; empty: all |
 | `force` | build them also when their package with the same `az_hash` is in the release already |
+| `jobs` | the ports built at once (`AZ_JOBS`, default 4; `1`: one after another) |
 | `publish` | publish the repository when everything built and every check passed (off by default: the repository the servers read is published on aZ's word) |
 
 It takes the repository of the last run (an actions/cache, saved also when a run
