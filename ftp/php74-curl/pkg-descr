@@ -1,0 +1,7 @@
+cURL: HTTP(S), FTP and the other transfers of libcurl, that of the
+package az.
+
+The module curl of PHP 7.4 for php74 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20190902/curl.so,
+loaded by its ini in etc/php74/conf.d, its headers in
+include/php74/php/ext/curl.

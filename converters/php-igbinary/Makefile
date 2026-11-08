@@ -1,19 +1,10 @@
-PORTNAME=	igbinary
-PORTVERSION=	3.2.7
+# PECL igbinary, bundled into ext/igbinary of the release tarball of azsupport/php-src:
+# its version there (php-src freebsd/pecl.conf)
+DISTVERSION=	3.2.16
 CATEGORIES=	converters
 
-MAINTAINER=	sunpoet@FreeBSD.org
-COMMENT=	Replacement for the standard PHP serializer
-WWW=		https://pecl.php.net/package/igbinary
+MASTERDIR=	${.CURDIR}/../../lang/php74
 
-LICENSE=	BSD3CLAUSE
-LICENSE_FILE=	${WRKSRC}/COPYING
+PKGNAMESUFFIX=	-igbinary
 
-USES=		php:pecl
-
-post-patch:
-# Install the real header files
-	@${CP} ${WRKSRC}/src/php7/igbinary.h ${WRKSRC}/igbinary.h
-	@${CP} ${WRKSRC}/src/php7/php_igbinary.h ${WRKSRC}/php_igbinary.h
-
-.include <bsd.port.mk>
+.include "${MASTERDIR}/Makefile"

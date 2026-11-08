@@ -1,0 +1,6 @@
+XML-RPC: XML-RPC clients and servers (xmlrpc-epi).
+
+The module xmlrpc of PHP 7.4 for php74 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20190902/xmlrpc.so, loaded by its ini in etc/php74/conf.d, its
+headers in include/php74/php/ext/xmlrpc.

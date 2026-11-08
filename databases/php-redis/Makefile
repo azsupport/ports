@@ -1,21 +1,10 @@
-PORTNAME=	redis
-PORTVERSION=	5.3.7
+# PECL redis, bundled into ext/redis of the release tarball of azsupport/php-src:
+# its version there (php-src freebsd/pecl.conf)
+DISTVERSION=	6.3.0
 CATEGORIES=	databases
 
-MAINTAINER=	daniel@blodan.se
-COMMENT=	Extension to access Redis
-WWW=		https://pecl.php.net/package/redis
+MASTERDIR=	${.CURDIR}/../../lang/php74
 
-LICENSE=	PHP301
-LICENSE_FILE=	${WRKSRC}/COPYING
+PKGNAMESUFFIX=	-redis
 
-USES=		php:pecl
-USE_PHP=	hash:build json:build session:build
-
-OPTIONS_DEFINE=	IGBINARY
-IGBINARY_DESC=	Build with Igbinary serializer
-
-IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
-IGBINARY_USE=			PHP=igbinary:build
-
-.include <bsd.port.mk>
+.include "${MASTERDIR}/Makefile"

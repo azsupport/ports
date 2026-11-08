@@ -1,24 +1,10 @@
-PORTNAME=	imagick
-PORTVERSION=	3.7.0
+# PECL imagick, bundled into ext/imagick of the release tarball of azsupport/php-src:
+# its version there (php-src freebsd/pecl.conf)
+DISTVERSION=	3.8.1
 CATEGORIES=	graphics
 
-MAINTAINER=	000.fbsd@quip.cz
-COMMENT?=	PHP wrapper to the ImageMagick/GraphicsMagick library version 6
-WWW=		https://pecl.php.net/package/imagick
+MASTERDIR=	${.CURDIR}/../../lang/php74
 
-LICENSE=	PHP301
+PKGNAMESUFFIX=	-imagick
 
-USES=		cpe php:pecl localbase
-
-CPE_VENDOR=	php
-
-CONFLICTS_INSTALL?=	${PKGNAMEPREFIX}${PORTNAME}-im7
-
-OPTIONS_DEFINE=	X11
-
-X11_USES?=		magick:6
-X11_USES_OFF?=		magick:6,nox11
-
-CONFIGURE_ARGS=	--with-imagick=${LOCALBASE}
-
-.include <bsd.port.mk>
+.include "${MASTERDIR}/Makefile"
