@@ -1,0 +1,7 @@
+Tidy: cleaning and repair of HTML documents with libtidy (tidy-html5)
+of the package az.
+
+The module tidy of PHP 7.4 for php74 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20190902/tidy.so,
+loaded by its ini in etc/php74/conf.d, its headers in
+include/php74/php/ext/tidy.

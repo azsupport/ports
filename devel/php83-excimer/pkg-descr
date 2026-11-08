@@ -1,0 +1,6 @@
+Excimer PHP extension provides an interrupting timer and a low-overhead
+sampling profiler
+
+PECL excimer for php74 of azsupport/ports, built from ext/excimer of
+the release tarball of azsupport/php-src, which bundles it:
+lib/php/20190902/excimer.so, loaded by its ini in etc/php74/conf.d.

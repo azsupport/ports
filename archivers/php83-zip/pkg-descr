@@ -1,0 +1,6 @@
+Zip: reading and writing of zip archives with libzip of the package az.
+
+The module zip of PHP 7.4 for php74 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20190902/zip.so,
+loaded by its ini in etc/php74/conf.d, its headers in
+include/php74/php/ext/zip.

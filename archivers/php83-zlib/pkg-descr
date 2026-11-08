@@ -1,0 +1,7 @@
+Zlib: gzip and deflate files and output compression, with the zlib of
+the base system.
+
+The module zlib of PHP 7.4 for php74 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20190902/zlib.so,
+loaded by its ini in etc/php74/conf.d, its headers in
+include/php74/php/ext/zlib.
