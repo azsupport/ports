@@ -1,0 +1,146 @@
+#!/bin/sh
+
+# php-fpm of PHP 8.3 (the package php83 of azsupport/ports): the rc.d script
+# php_fpm of the port lang/php84 of freebsd-ports f16b6dd0f7c1 with names of its
+# own, so that the php-fpm of several versions of PHP run at once
+# (php_fpm83_enable="YES" in /etc/rc.conf), and with profiles in the way of the
+# rc.d script of www/apache24: a profile is another configuration of the same
+# PHP, the directory %%PREFIX%%/etc/php83-<profile> (php83-profile --create
+# <profile>), run as an instance of its own.
+
+# PROVIDE: php_fpm83
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+
+#
+# Add the following line to /etc/rc.conf to enable php_fpm83:
+# php_fpm83_enable (bool):        Set to "NO" by default.
+#                               Set it to "YES" to enable php_fpm83
+# php_fpm83_profiles (str):       Set to "" by default.
+#                               The profiles run after the default instance,
+#                               e.g. "tds a b".
+# php_fpm83_<profile>_enable (bool): Set to the value of php_fpm83_enable by
+#                               default.
+# php_fpm83_<profile>_flags (str): Set to "" by default.
+#                               More flags of php-fpm83 for the profile.
+#
+# Without a profile (service php_fpm83 start): the default instance, then each
+# enabled profile of php_fpm83_profiles. With one (service php_fpm83 start tds,
+# service php_fpm83 configtest tds): only that profile, with
+# php-fpm83 -y %%PREFIX%%/etc/php83-tds/php-fpm.conf -c %%PREFIX%%/etc/php83-tds
+# and PHPRC=%%PREFIX%%/etc/php83-tds PHP_INI_SCAN_DIR=%%PREFIX%%/etc/php83-tds/conf.d;
+# its pid file the pid of that php-fpm.conf (/var/run/php-fpm83-tds.pid when it
+# has none).
+
+. /etc/rc.subr
+
+name="php_fpm83"
+rcvar=php_fpm83_enable
+
+start_precmd="php_fpm83_prestart"
+restart_precmd="php_fpm83_checkconfig"
+reload_precmd="php_fpm83_checkconfig"
+command="%%PREFIX%%/sbin/php-fpm83"
+configtest_cmd="php_fpm83_checkconfig"
+_pidprefix="/var/run"
+pidfile="${_pidprefix}/php-fpm83.pid"
+required_files="%%PREFIX%%/etc/php83/php-fpm.conf"
+
+load_rc_config "${name}"
+
+: ${php_fpm83_enable="NO"}
+: ${php_fpm83_umask=""}
+: ${php_fpm83_svcj_options:="net_basic"}
+
+profile=""
+if [ -n "$2" ]; then
+	profile="$2"
+	case "${profile}" in
+	*[!a-z0-9_]*)
+		echo "$0: bad profile name '${profile}': a-z, 0-9 and _ only"
+		exit 1
+		;;
+	esac
+	_pdir="%%PREFIX%%/etc/php83-${profile}"
+	if [ ! -f "${_pdir}/php-fpm.conf" ]; then
+		echo "$0: no profile ${profile} of php-fpm83: no ${_pdir}/php-fpm.conf (php83-profile --create ${profile})"
+		exit 1
+	fi
+	# the pid file of its php-fpm.conf (a relative one is under /var, as
+	# php-fpm takes it), else php-fpm83-<profile>.pid
+	_ppid="$(sed -n 's/^[[:space:]]*pid[[:space:]]*=[[:space:]]*//p' "${_pdir}/php-fpm.conf" | head -n 1 | sed -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/')"
+	case "${_ppid}" in
+	"")	pidfile="${_pidprefix}/php-fpm83-${profile}.pid" ;;
+	/*)	pidfile="${_ppid}" ;;
+	*)	pidfile="/var/${_ppid}" ;;
+	esac
+	required_files="${_pdir}/php-fpm.conf ${_pdir}/php.ini"
+	eval php_fpm83_enable="\${php_fpm83_${profile}_enable:-${php_fpm83_enable}}"
+	eval _pflags="\${php_fpm83_${profile}_flags:-}"
+	php_fpm83_flags="-y ${_pdir}/php-fpm.conf -c ${_pdir} -g ${pidfile}${_pflags:+ ${_pflags}}"
+	php_fpm83_env="PHPRC=${_pdir} PHP_INI_SCAN_DIR=${_pdir}/conf.d"
+fi
+
+extra_commands="reload configtest logrotate"
+sig_stop="QUIT"
+sig_reload="USR2"
+logrotate_cmd="php_fpm83_logrotate"
+
+php_fpm83_logrotate() {
+        if [ -z "$rc_pid" ]; then
+                _run_rc_notrunning
+                return 1
+        fi
+        echo "Rotating logs $name."
+        kill -USR1 $rc_pid
+}
+
+php_fpm83_checkconfig()
+{
+        echo "Performing sanity check on php-fpm configuration${profile:+ of the profile ${profile}}:"
+        eval ${profile:+env ${php_fpm83_env} }${command} ${php_fpm83_flags} -t
+}
+
+php_fpm83_prestart()
+{
+	php_fpm83_checkconfig
+	checkconfig=$?
+	if [ $checkconfig -ne 0  ]; then
+		return $checkconfig
+	fi
+
+	if [ ! -z "$php_fpm83_umask"  ]; then
+		echo "Setting umask to: ${php_fpm83_umask}"
+		umask $php_fpm83_umask
+	fi
+}
+
+# Without a profile, with profiles: the default instance, then each enabled
+# profile (this script with the profile); the status says what failed.
+if [ -z "${profile}" ] && [ -n "${php_fpm83_profiles}" ] && [ -n "$1" ]; then
+	_failed=""
+	( run_rc_command "$1" ) || _failed="the default instance"
+	for _p in ${php_fpm83_profiles}; do
+		eval _e="\${php_fpm83_${_p}_enable:-${php_fpm83_enable}}"
+		case "${_e}" in
+		[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+			;;
+		[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0|"")
+			continue
+			;;
+		*)
+			echo "Bad value '${_e}' for php_fpm83_${_p}_enable: the profile ${_p} skipped"
+			continue
+			;;
+		esac
+		echo "===> php_fpm83 profile: ${_p}"
+		%%PREFIX%%/etc/rc.d/php_fpm83 "$1" "${_p}" || _failed="${_failed:+${_failed}, }${_p}"
+	done
+	if [ -n "${_failed}" ]; then
+		echo "php_fpm83 $1 failed: ${_failed}"
+		exit 1
+	fi
+	exit 0
+fi
+
+run_rc_command "$1"
