@@ -7,9 +7,11 @@ name: Build the packages of the repository az
 # them (tools/check-php.sh); and publishes
 # the repository of pkg as the files of the release az-fbsd<major>-amd64-<level>
 # of this repository (its address goes into /usr/local/etc/pkg/repos/az.conf of a
-# server, README.md). The packages of that release are downloaded first: a port
-# whose package with the same az_hash is there already is not built again (unless
-# force), and they go into the new repository with the new ones.
+# server, README.md). The repository of the last run (a cache, kept also when a run
+# fails) and the files of that release come first: a port whose package with the
+# same az_hash is there already is not built again (unless force), and they go into
+# the new repository with the new ones. Before the VM, tools/check-tree.sh checks the
+# ports of this tree with make -V against a sparse official tree (bmake).
 # Started by hand: Actions, "Build the packages of the repository az", "Run workflow".
 
 on:
@@ -58,7 +60,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: The repository of the release (the packages built before), if there is one
+      # the repository of the last run, published or not (a run that fails in PHP keeps
+      # az and the libraries for the next one): the newest cache of the level
+      - name: The repository of the last run
+        uses: actions/cache/restore@v4
+        with:
+          path: repo
+          key: repo-${{ matrix.cputype }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: repo-${{ matrix.cputype }}-
+
+      # with the files of the release (tools/build.sh keeps the newer package of an origin)
+      - name: The repository of the release, if there is one
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE: ${{ inputs.release }}
@@ -68,19 +80,41 @@ jobs:
           tag="az-fbsd$major-amd64-${CPUTYPE#x86-64-}"
           mkdir -p repo
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir repo || echo "::warning title=repository::the files of the release $tag did not all download: the ports whose package is missing are built again"
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir repo --skip-existing || echo "::warning title=repository::the files of the release $tag did not all download: the ports whose package is missing are built again"
           else
-            echo "no release $tag yet: every port is built"
+            echo "no release $tag yet"
           fi
           ls -l repo
 
       # the distribution files of the ports, kept between the runs (the VM fetches what is missing)
       - name: The distribution files of the runs before
-        uses: actions/cache@v4
+        id: dist
+        uses: actions/cache/restore@v4
         with:
           path: distfiles
           key: distfiles-${{ hashFiles('**/distinfo') }}
           restore-keys: distfiles-
+
+      # the ports of this tree with make -V against the official tree, before the VM:
+      # a port that names a missing origin, a wrong PKGORIGIN, two ports of one PKGNAME
+      # (tools/check-tree.sh) stop the run here, not after an hour of az/az
+      - name: The ports of this tree checked with make -V (bmake, a sparse official tree)
+        env:
+          CPUTYPE: ${{ matrix.cputype }}
+        run: |
+          sudo apt-get update -qq > /dev/null
+          sudo apt-get install -y -qq bmake > /dev/null
+          commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
+          off="$RUNNER_TEMP/freebsd-ports"
+          mkdir -p "$off"
+          git -C "$off" init -q
+          git -C "$off" remote add origin https://github.com/freebsd/freebsd-ports
+          git -C "$off" fetch -q --depth 1 --filter=blob:none origin "$commit"
+          git -C "$off" sparse-checkout set --no-cone '/Mk/' '/Templates/' '/Keywords/' '/Makefile*' '/*/Makefile*' '/*/*/Makefile*' '/*/*/*.mk' '/*/*/distinfo'
+          git -C "$off" checkout -q FETCH_HEAD
+          sed -n '1,/^# The paths of tools\/build.sh/p' tools/make.conf.in | sed "s|@CPUTYPE@|$CPUTYPE|" > "$RUNNER_TEMP/make.conf"
+          set -o pipefail
+          MAKE_CONF="$RUNNER_TEMP/make.conf" sh tools/check-tree.sh "$off" 2>&1 | tee check-tree.txt
 
       - name: Free space on the runner (the disk of the VM grows on it)
         run: |
@@ -144,6 +178,24 @@ jobs:
             cat results/checks.txt
             # not back to the runner: the official tree, the work directories, the packages (they are in repo/)
             rm -rf work packages
+
+      # the repository of this run for the next one, also when the run failed (only repo/:
+      # the caches of a repository have 10 GB)
+      - name: The repository of this run, kept for the next one
+        if: ${{ always() && steps.build.outcome != 'skipped' && hashFiles('repo/*.pkg') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: repo
+          key: repo-${{ matrix.cputype }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: The distribution files, kept for the next run
+        if: ${{ always() && steps.build.outcome != 'skipped' && steps.dist.outputs.cache-hit != 'true' && hashFiles('distfiles/**') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: distfiles
+          key: ${{ steps.dist.outputs.cache-primary-key }}
 
       - name: Report
         id: report
