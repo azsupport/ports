@@ -7,7 +7,9 @@ bin/phpize74
 %%FPM%%sbin/php-fpm74
 etc/php74/php.conf
 etc/php74/php.ini-development
-@sample etc/php74/php.ini-production etc/php74/php.ini
+etc/php74/php.ini-production
+@sample etc/php74/php.ini.sample etc/php74/php.ini
+@postexec [ -e /var/log/php74_error.log ] || install -m 666 -o www -g www /dev/null /var/log/php74_error.log
 %%FPM%%@sample etc/php74/php-fpm.conf.default etc/php74/php-fpm.conf
 %%FPM%%@sample etc/php74/php-fpm.d/www.conf.default etc/php74/php-fpm.d/www.conf
 @dir etc/php74/conf.d
