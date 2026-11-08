@@ -1,0 +1,201 @@
+name: Build the packages of the repository az
+
+# Builds the ports of this overlay (tools/build.sh) in a FreeBSD VM, with the
+# make.conf of aZ's servers for an x86-64 level (tools/make.conf.in), over the
+# official ports tree at the commit pinned in tools/build.sh; checks the PHP
+# packages installed together (tools/check-php.sh) when PHP was built; and publishes
+# the repository of pkg as the files of the release az-fbsd<major>-amd64-<level>
+# of this repository (its address goes into /usr/local/etc/pkg/repos/az.conf of a
+# server, README.md). The packages of that release are downloaded first: a port
+# whose package is there already is not built again (unless force), and they go
+# into the new repository with the new ones.
+# Started by hand: Actions, "Build the packages of the repository az", "Run workflow".
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'FreeBSD release'
+        required: true
+        default: '15.1'
+      cputype:
+        description: 'x86-64 level (CPUTYPE of make.conf)'
+        type: choice
+        options: [x86-64-v3, x86-64-v2, both]
+        default: x86-64-v3
+      ports:
+        description: 'Ports to build (category/port, separated by spaces; with the ports of this tree they need); empty: all'
+        required: false
+        default: ''
+      force:
+        description: 'Build the ports also when their package is in the release already'
+        type: boolean
+        default: false
+      publish:
+        description: 'Publish the repository when everything built and every check passed'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+# one run at a time for a release: each writes its repositories
+concurrency:
+  group: az-ports-${{ inputs.release }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        cputype: ${{ inputs.cputype == 'both' && fromJSON('["x86-64-v3", "x86-64-v2"]') || fromJSON(format('["{0}"]', inputs.cputype)) }}
+    name: build (${{ matrix.cputype }})
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: The repository of the release (the packages built before), if there is one
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ inputs.release }}
+          CPUTYPE: ${{ matrix.cputype }}
+        run: |
+          major="${RELEASE%%.*}"
+          tag="az-fbsd$major-amd64-${CPUTYPE#x86-64-}"
+          mkdir -p repo
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir repo || echo "::warning title=repository::the files of the release $tag did not all download: the ports whose package is missing are built again"
+          else
+            echo "no release $tag yet: every port is built"
+          fi
+          ls -l repo
+
+      # the distribution files of the ports, kept between the runs (the VM fetches what is missing)
+      - name: The distribution files of the runs before
+        uses: actions/cache@v4
+        with:
+          path: distfiles
+          key: distfiles-${{ hashFiles('**/distinfo') }}
+          restore-keys: distfiles-
+
+      - name: Free space on the runner (the disk of the VM grows on it)
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost /usr/share/swift || true
+          sudo docker system prune --all --force > /dev/null 2>&1 || true
+          df -h /
+
+      # the key of the repository az (the secret PKG_SIGNING_KEY, PEM) in one line for envs:
+      # of the VM, masked; tools/pkg-repo-sign.sh signs with it there (no key: unsigned)
+      - name: The signing key of the repository, for the VM
+        id: key
+        env:
+          PKG_SIGNING_KEY: ${{ secrets.PKG_SIGNING_KEY }}
+        run: |
+          if [ -n "$PKG_SIGNING_KEY" ]; then
+            b64="$(printf '%s\n' "$PKG_SIGNING_KEY" | base64 -w0)"
+            echo "::add-mask::$b64"
+            echo "b64=$b64" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=signing key::no PKG_SIGNING_KEY: the repository will not be signed (and not published)"
+          fi
+
+      - name: Build and check in FreeBSD ${{ inputs.release }}
+        id: build
+        uses: vmactions/freebsd-vm@v1
+        env:
+          AZ_CPUTYPE: ${{ matrix.cputype }}
+          AZ_PORTS: ${{ inputs.ports }}
+          AZ_FORCE: ${{ inputs.force && '1' || '' }}
+          AZ_PKG_KEY: ${{ steps.key.outputs.b64 }}
+        with:
+          release: ${{ inputs.release }}
+          envs: 'AZ_CPUTYPE AZ_PORTS AZ_FORCE AZ_PKG_KEY'
+          prepare: |
+            if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
+            env ASSUME_ALWAYS_YES=yes pkg install -y git-lite
+          run: |
+            if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
+            trap 'rm -f /root/.az-pkg-key.b64' EXIT
+            if [ -s /root/.az-pkg-key.b64 ]; then export AZ_PKG_KEY_FILE=/root/.az-pkg-key.b64; fi
+            sh tools/build.sh ${AZ_FORCE:+--force} --repo repo $AZ_PORTS || true
+            for v in $(awk '$1 ~ /\// && $2 == "OK" { print $3 }' results/summary.txt 2>/dev/null | sed -n -E 's/^(mod_)?php([0-9])([0-9])-.*/\2.\3/p' | sort -u); do
+              sh tools/check-php.sh --repo repo "$v" || true
+            done
+            # not back to the runner: the official tree, the work directories, the packages (they are in repo/)
+            rm -rf work packages
+
+      - name: Report
+        id: report
+        if: always()
+        run: |
+          # the summary goes to report.md first (tools/runs-report.sh commits it), then to the job summary
+          summary="$GITHUB_STEP_SUMMARY"
+          export GITHUB_STEP_SUMMARY="$PWD/report.md"
+          : > report.md
+          rc=0
+          sh tools/report.sh results || rc=1
+          cat report.md >> "$summary"
+          exit $rc
+
+      - name: Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.cputype }}
+          path: results/
+          if-no-files-found: ignore
+
+      - name: Publish
+        id: publish
+        if: ${{ success() && inputs.publish }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ inputs.release }}
+          CPUTYPE: ${{ matrix.cputype }}
+        run: |
+          major="${RELEASE%%.*}"
+          level="${CPUTYPE#x86-64-}"
+          tag="az-fbsd$major-amd64-$level"
+          dir=repo
+          # the servers read the catalog with signature_type pubkey: an unsigned one is not published
+          last="$(tail -n 1 results/pkg-repo.log 2>/dev/null)"
+          case "$last" in
+            "pkg repo: signed"*) ;;
+            *) echo "::error title=publish::the catalog is not signed ($last): not published"; exit 1 ;;
+          esac
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
+          commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
+          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: az (the libraries of /usr/local/az), curl, ffmpeg, ImageMagick6, ImageMagick7, php74 with mod_php74 and the modules php74-<module>, php74-static. On a server, /usr/local/etc/pkg/repos/az.conf: az: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/az.pub\", priority: 100, enabled: yes } with the key keys/az.pub of $GITHUB_REPOSITORY, then: pkg update -r az, pkg install -r az php74 php74-gd ... (README.md)."
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "$tag" --notes "$notes" --target "$GITHUB_SHA" ||
+              gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null
+          fi
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes "$notes"
+          # the packages first, the catalog of pkg repo last (the files that are not
+          # <name>-<version>.pkg), then away with what the repository has no more
+          pk="$(ls "$dir" | grep -E '^[^/]+-[0-9][^/]*\.pkg$' | sed "s#^#$dir/#")"
+          if [ -n "$pk" ]; then gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber $pk; fi
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber $(ls -d "$dir"/* | grep -v -E '/[^/]+-[0-9][^/]*\.pkg$')
+          for a in $(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'); do
+            [ -e "$dir/$a" ] || gh release delete-asset "$tag" "$a" --repo "$GITHUB_REPOSITORY" -y
+          done
+          # every file of the repository is in the release under its own name
+          have="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')"
+          for f in $(ls "$dir"); do
+            printf '%s\n' "$have" | grep -qxF "$f" || { echo "not in the release $tag: $f"; exit 1; }
+          done
+          echo "published: $url ($(ls "$dir" | wc -l) files)"
+
+      # the report into the branch runs of the private azsupport/azsupport (secret RUNS_TOKEN)
+      - name: Report to azsupport/azsupport
+        if: always()
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} publish=${{ inputs.publish }}
+          RUNS_STEPS: build=${{ steps.build.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
+          PART: ${{ matrix.cputype }}
+        run: sh tools/runs-report.sh report.md "$PART"
