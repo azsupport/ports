@@ -6,8 +6,10 @@
 #   - php -v of the core, php -m with the ini files of the modules (no warning);
 #   - per installed phpXY-<module> package: its ini in etc/phpXY/conf.d
 #     (ext-<NN>-<module>.ini, from the @sample of the package: opcache 10 with
-#     zend_extension, session 18, the others 20 or 30; the line of openswoole off)
-#     and the module in php -m (openswoole loaded on its own, with the modules of
+#     zend_extension, session 18, the others 20 or 30; the lines of openswoole and
+#     gmagick off) and the module in php -m (gmagick in its CLI profile instead:
+#     php74-profile gmagick -m lists gmagick and not imagick; openswoole loaded on
+#     its own, with the modules of
 #     conf.d but swoole: they define the same classes);
 #   - readelf -d of every module of lib/php/<API> and of php, php-cgi, php-fpm and
 #     libphp of mod_phpXY: the libraries they name (NEEDED) in /lib, /usr/lib or
@@ -182,12 +184,16 @@ while read -r p; do
     case "$mod" in
         opcache) want="zend_extension=opcache.so"; nnok=10 ;;
         session) nnok=18 ;;
-        openswoole) want="" ;;
+        openswoole|gmagick) want="" ;;
     esac
     why=""
     case " $nnok " in *" $nn "*) ;; *) why="priority $nn, not $(echo "$nnok" | sed 's/ / or /');" ;; esac
     if [ -z "$want" ]; then
-        [ -z "$act" ] || why="$why its line is on ($act), it must be off (swoole and openswoole define the same classes);"
+        case "$mod" in
+            gmagick) because="imagick and gmagick must not be loaded into one PHP" ;;
+            *) because="swoole and openswoole define the same classes" ;;
+        esac
+        [ -z "$act" ] || why="$why its line is on ($act), it must be off ($because);"
         grep -q "^;[[:space:]]*extension[[:space:]]*=[[:space:]]*\"\{0,1\}$mod\.so" "$ini" || why="$why no line ;extension=$mod.so;"
     else
         [ "$act" = "$want" ] || why="$why the line is '${act:-none}', not '$want';"
@@ -207,6 +213,25 @@ while read -r p; do
             ok "openswoole in php$short -m" "with the modules of conf.d but swoole, and extension=openswoole.so"
         else
             fail "openswoole in php$short -m" "with the modules of conf.d but swoole: $(last3 "$(grep -v '^\[' "$tmp/m-os")")"
+        fi
+    elif [ "$mod" = gmagick ]; then
+        # off in conf.d, on in its CLI profile (etc/php74-gmagick, made when the package
+        # is installed), with imagick off there
+        has_module "$tmp/m" gmagick && fail "gmagick off in php$short -m" "php$short -m lists gmagick: its ini in conf.d must be off"
+        pf="$P/bin/php$short-profile"
+        if [ ! -x "$pf" ]; then
+            fail "gmagick in php$short-profile gmagick -m" "no $pf"
+        elif [ ! -d "$P/etc/php$short-gmagick" ]; then
+            fail "gmagick in php$short-profile gmagick -m" "no profile $P/etc/php$short-gmagick (the install of $p makes it)"
+        else
+            "$pf" gmagick -m > "$tmp/m-gm" 2>&1 < /dev/null
+            if has_module "$tmp/m-gm" gmagick && ! has_module "$tmp/m-gm" imagick; then
+                ok "gmagick in php$short-profile gmagick -m" "gmagick on, imagick off ($P/etc/php$short-gmagick)"
+            elif has_module "$tmp/m-gm" gmagick; then
+                fail "gmagick in php$short-profile gmagick -m" "imagick is on there too"
+            else
+                fail "gmagick in php$short-profile gmagick -m" "no gmagick: $(last3 "$(grep -v '^\[' "$tmp/m-gm")")"
+            fi
         fi
     elif has_module "$tmp/m" "$mn"; then
         ok "$mod in php$short -m" "$p"

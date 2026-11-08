@@ -9,7 +9,8 @@
 #   <version>     7.4: the core php74, mod_php74 and every module php74-<module> of the
 #                 repository but php74-openssl-legacy (of the two kinds of openssl the
 #                 standard one; the other stays in the repository for a swap:
-#                 pkg install -y php74-openssl-legacy)
+#                 pkg install -y php74-openssl-legacy); php74-gmagick too (its ini is
+#                 off, so it does not clash with imagick; its CLI profile has it on)
 #   --repo <dir>  the repository of tools/build.sh (default: work/repo)
 #
 # The repository is taken as the repository "azbuild" of pkg (file://, priority 100,
