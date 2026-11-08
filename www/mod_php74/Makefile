@@ -2,7 +2,7 @@
 # of freebsd-ports 036685c034ba with the idioms of the framework of f16b6dd
 # (AP2FILTER by option helpers, as www/mod_php84 there). The module is
 # libphp74.so (see lang/php74/Makefile), so it conflicts with no mod_php of
-# another version: CONFLICTS_INSTALL php74-static of the master (the same file).
+# another version: no CONFLICTS_INSTALL.
 
 CATEGORIES=	www devel
 PKGNAMEPREFIX=	mod_
