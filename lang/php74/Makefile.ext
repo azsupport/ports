@@ -16,13 +16,20 @@
 #   databases/pecl-memcached, databases/pecl-redis, graphics/pecl-imagick with
 #   pecl-imagick-im7, security/pecl-mcrypt, devel/pecl-swoole); excimer from
 #   devel/pecl-excimer of 6002588334a9, the ports commit of PHP 8.1
-#   (036685c034ba has none).
+#   (036685c034ba has none); gmagick from graphics/pecl-gmagick of
+#   57eddb3fa57f (30.12.2018), the last commit that has it (no ports commit
+#   has it for PHP 7: it was removed as working only with PHP 5.6).
 # - ours: mysqlnd (databases/php74-mysqlnd: an option of the core in the
 #   official lang/php74, a module of its own here: aZ, 08.11.2026),
 #   openssl-legacy (security/php74-openssl-legacy: openssl built with
 #   --with-openssl-legacy-provider of the fork, for RC4, Blowfish, DES, CAST5
 #   and MD4; the same files as php74-openssl, one of the two), openswoole
 #   (devel/php-openswoole: no port; its ini comes commented out, see its rules).
+# - the ini of openswoole and of gmagick comes with its line commented out, and
+#   the message of the package says why and how to switch it on (AZ_INI_OFF
+#   below); installing php74-gmagick makes the CLI profile gmagick (gmagick on,
+#   imagick off: aZ, 08.11.2026). Every module package syncs the profiles of
+#   php74-profile (of the core) after its installation and its removal.
 #
 # The modules, by the priority of their ini (ext-<NN>-<module>.ini; PHP loads
 # conf.d in the order of the names): opcache 10 (a Zend extension), session 18,
@@ -30,9 +37,9 @@
 # ffi fileinfo filter ftp gd gettext gmp iconv intl json mbstring mysqlnd
 # openssl openssl-legacy pcntl pdo phar posix readline shmop simplexml soap
 # sockets sodium sqlite3 sysvmsg sysvsem sysvshm tidy tokenizer xml xmlwriter
-# zip zlib excimer imagick mcrypt; 30 (USE_PHP: they need another one): mysqli
-# pdo_mysql pdo_sqlite xmlreader xmlrpc xsl igbinary memcache memcached redis
-# swoole openswoole.
+# zip zlib excimer gmagick imagick mcrypt; 30 (USE_PHP: they need another one):
+# mysqli pdo_mysql pdo_sqlite xmlreader xmlrpc xsl igbinary memcache memcached
+# redis swoole openswoole.
 #
 # Not built: enchant, imap, ldap, odbc, pdo_dblib, pdo_firebird, pdo_odbc,
 # pdo_pgsql, pgsql, pspell, snmp (and PDFlib): they need a library of the ports
@@ -435,6 +442,49 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 CONFIGURE_ARGS+=--enable-excimer
 .endif
 
+.if ${PHP_MODNAME} == "gmagick"
+# GraphicsMagick of the overlay in ${AZ_PREFIX} (its libraries and
+# GraphicsMagick-config, which config.m4 runs), not LIB_DEPENDS of the port;
+# not its DEPRECATED, EXPIRATION_DATE and IGNORE_WITH_PHP (for 1.1.7RC3, PHP
+# 5.6 only; 2.0.6RC1 is for PHP 7 and 8). Not with imagick in one PHP: its ini
+# comes off, and the CLI profile gmagick has it on and imagick off (aZ).
+COMMENT=	Provides a wrapper to the GraphicsMagick library
+WWW=		https://pecl.php.net/package/gmagick
+
+LICENSE=	PHP301
+LICENSE_FILE=	${WRKSRC}/LICENSE
+
+AZ_GMAGICK_DEP=	${AZ_PREFIX}/lib/libGraphicsMagickWand.so:graphics/GraphicsMagick
+BUILD_DEPENDS+=	${AZ_GMAGICK_DEP}
+RUN_DEPENDS+=	${AZ_GMAGICK_DEP}
+
+CONFIGURE_ARGS+=--with-gmagick=${AZ_PREFIX}
+
+AZ_PROFILE=	${PREFIX}/etc/php${PHP_VER}-gmagick
+AZ_INI_OFF=	"Off: imagick and gmagick must not be loaded into one PHP" \
+		"(GraphicsMagick and ImageMagick have the same function names):" \
+		"gmagick is on in the CLI profile gmagick, ${AZ_PROFILE}" \
+		"(pkg info -D ${PKGBASE})."
+AZ_MSG=		"imagick and gmagick must not be loaded into one PHP: GraphicsMagick" \
+		"and ImageMagick have the same MagickWand function names, so one" \
+		"module could call the library of the other. One of the two per" \
+		"php.ini or profile, so ${AZ_INI}" \
+		"comes with its line commented out, and the CLI profile gmagick," \
+		"${AZ_PROFILE}, has gmagick on and imagick off, with" \
+		"the other modules of ${AZ_INI:H} (it follows them; made at the" \
+		"first installation by php${PHP_VER}-profile --create gmagick --follow" \
+		"--off imagick --on gmagick --cli). Run a script with it:" \
+		"  php${PHP_VER}-profile gmagick script.php" \
+		"The profile stays when ${PKGBASE} is removed; to remove it:" \
+		"  rm -r ${AZ_PROFILE}" \
+		"To load gmagick in ${AZ_INI:H} instead of imagick:" \
+		"comment out the line of imagick in ext-*-imagick.ini there, remove" \
+		"the ';' before extension=gmagick.so in ${AZ_INI:T}, then" \
+		"restart php_fpm${PHP_VER} or Apache."
+AZ_MSG_REMOVE=	"The CLI profile gmagick, ${AZ_PROFILE}, stays; to" \
+		"remove it: rm -r ${AZ_PROFILE}"
+.endif
+
 .if ${PHP_MODNAME} == "igbinary"
 COMMENT=	Replacement for the standard PHP serializer
 WWW=		https://pecl.php.net/package/igbinary
@@ -604,7 +654,15 @@ CONFIGURE_ARGS+=	--enable-openswoole \
 			--enable-mysqlnd \
 			--with-openssl-dir=/usr
 
-POST_PLIST+=	openswoole-ini-off
+AZ_INI_OFF=	"Off: PHP stops when openswoole.so and swoole.so are loaded" \
+		"together (pkg info -D ${PKGBASE})."
+AZ_MSG=		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops" \
+		"when openswoole.so and swoole.so are loaded together, so" \
+		"${AZ_INI}" \
+		"comes with its line commented out. To load openswoole: comment out" \
+		"the line of swoole in ${AZ_INI:H}/ext-*-swoole.ini," \
+		"remove the ';' before extension=${PHP_MODNAME}.so in" \
+		"${AZ_INI}, then restart php_fpm${PHP_VER} or Apache."
 .endif
 
 .include <bsd.port.options.mk>
@@ -708,22 +766,45 @@ post-patch:
 	@${CP} ${WRKSRC}/src/php7/php_igbinary.h ${WRKSRC}/php_igbinary.h
 .endif
 
-.if ${PHP_MODNAME} == "openswoole"
-# After add-plist-phpext of Mk/Uses/php.mk: the ini (${PHP_EXT_INI_FILE},
-# an .ini.sample) and the message of the package
-OPENSWOOLE_INI=	${PREFIX}/${PHP_EXT_INI_FILE:S/.sample$//}
-openswoole-ini-off:
-	@${PRINTF} '%s\n' \
-		"; Off: PHP stops when openswoole.so and swoole.so are loaded" \
-		"; together (pkg info -D ${PKGBASE})." \
-		";extension=${PHP_MODNAME}.so" > ${STAGEDIR}${PREFIX}/${PHP_EXT_INI_FILE}
-	@${PRINTF} '%s\n' '[' '{' '  message: <<EOD' \
-		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops" \
-		"when openswoole.so and swoole.so are loaded together, so" \
-		"${OPENSWOOLE_INI}" \
-		"comes with its line commented out. To load openswoole: comment out" \
-		"the line of swoole in ${OPENSWOOLE_INI:H}/ext-*-swoole.ini," \
-		"remove the ';' before extension=${PHP_MODNAME}.so in" \
-		"${OPENSWOOLE_INI}, then restart php_fpm${PHP_VER} or Apache." \
-		'EOD' '  type: install' '}' ']' > ${PHP_EXT_PKGMESSAGE}
+# The ini of the module installed (by ${PHP_EXT_INI_FILE}, an .ini.sample, and
+# @sample in the plist): AZ_INI. AZ_INI_OFF (openswoole, gmagick): the ini comes
+# with its line commented out, after these lines of the reason; AZ_MSG: the
+# message of the package (why, how to switch it on) in the place of that of
+# Mk/Uses/php.mk (which says that the ini loads the module), and AZ_MSG_REMOVE
+# one at its removal. Lines as words in double quotes, without '"' or '$'.
+# The targets run after add-plist-phpext of php.mk, which staged the ini and
+# wrote the message.
+AZ_INI=		${PREFIX}/${PHP_EXT_INI_FILE:S/.sample$//}
+.if defined(AZ_INI_OFF)
+POST_PLIST+=	az-ini-off
+az-ini-off:
+	@${PRINTF} '; %s\n' ${AZ_INI_OFF} > ${STAGEDIR}${PREFIX}/${PHP_EXT_INI_FILE}
+	@${ECHO_CMD} ";extension=${PHP_MODNAME}.so" \
+		>> ${STAGEDIR}${PREFIX}/${PHP_EXT_INI_FILE}
+	@${PRINTF} '%s\n' '[' '{' '  message: <<EOD' ${AZ_MSG} 'EOD' \
+		'  type: install' > ${PHP_EXT_PKGMESSAGE}
+.  if defined(AZ_MSG_REMOVE)
+	@${PRINTF} '%s\n' '},' '{' '  message: <<EOD' ${AZ_MSG_REMOVE} 'EOD' \
+		'  type: remove' >> ${PHP_EXT_PKGMESSAGE}
+.  endif
+	@${PRINTF} '%s\n' '}' ']' >> ${PHP_EXT_PKGMESSAGE}
+.endif
+
+# Every module package: php${PHP_VER}-profile of the core syncs the profiles
+# that follow ${PREFIX}/etc/php${PHP_VER}/conf.d (their links to the ini of the
+# modules) after its installation and after its removal (aZ, 08.11.2026);
+# php${PHP_VER}-gmagick makes the CLI profile gmagick after its ini, unless it
+# is there (it stays at the removal: the message says so).
+# (no blank before a backslash: the lines are those of the plist, one blank)
+AZ_PROFILE_SYNC=	[ -x %D/bin/php${PHP_VER}-profile ] &&\
+			%D/bin/php${PHP_VER}-profile --sync > /dev/null 2>&1 || true
+AZ_PROFILE_GMAGICK=	[ -d %D/etc/php${PHP_VER}-gmagick ] ||\
+			%D/bin/php${PHP_VER}-profile --create gmagick --follow\
+			--off imagick --on gmagick --cli
+POST_PLIST+=	az-plist-profile
+az-plist-profile:
+	@${ECHO_CMD} "@postexec ${AZ_PROFILE_SYNC}" >> ${TMPPLIST}
+	@${ECHO_CMD} "@postunexec ${AZ_PROFILE_SYNC}" >> ${TMPPLIST}
+.if ${PHP_MODNAME} == "gmagick"
+	@${ECHO_CMD} "@postexec ${AZ_PROFILE_GMAGICK}" >> ${TMPPLIST}
 .endif
