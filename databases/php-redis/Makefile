@@ -1,4 +1,4 @@
-# PECL redis, bundled into ext/redis of the release tarball of azsupport/php-src:
+# PECL redis of ext/redis of the release tarball of azsupport/php-src:
 # its version there (php-src freebsd/pecl.conf)
 DISTVERSION=	6.3.0
 CATEGORIES=	databases

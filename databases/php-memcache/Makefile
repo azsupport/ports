@@ -1,4 +1,4 @@
-# PECL memcache, bundled into ext/memcache of the release tarball of azsupport/php-src:
+# PECL memcache of ext/memcache of the release tarball of azsupport/php-src:
 # its version there (php-src freebsd/pecl.conf)
 DISTVERSION=	4.0.5.3
 CATEGORIES=	databases

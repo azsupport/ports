@@ -12,10 +12,11 @@
 #   azsupport/php-src (it bundles them), their version that of php-src
 #   freebsd/pecl.conf; package php74-<name>, origin <category>/php-<name> (no
 #   "pecl": aZ, 08.11.2026). Their rules come from their ports of 036685c034ba
-#   (converters/pecl-igbinary, databases/pecl-memcache, databases/pecl-memcached,
-#   databases/pecl-redis, graphics/pecl-imagick with pecl-imagick-im7,
-#   security/pecl-mcrypt, devel/pecl-swoole); excimer from devel/pecl-excimer of
-#   6002588334a9, the ports commit of PHP 8.1 (036685c034ba has none).
+#   (converters/pecl-igbinary, databases/pecl-memcache,
+#   databases/pecl-memcached, databases/pecl-redis, graphics/pecl-imagick with
+#   pecl-imagick-im7, security/pecl-mcrypt, devel/pecl-swoole); excimer from
+#   devel/pecl-excimer of 6002588334a9, the ports commit of PHP 8.1
+#   (036685c034ba has none).
 # - ours: mysqlnd (databases/php74-mysqlnd: an option of the core in the
 #   official lang/php74, a module of its own here: aZ, 08.11.2026),
 #   openssl-legacy (security/php74-openssl-legacy: openssl built with
@@ -709,16 +710,19 @@ post-patch:
 .if ${PHP_MODNAME} == "openswoole"
 # After add-plist-phpext of Mk/Uses/php.mk: the ini (${PHP_EXT_INI_FILE},
 # an .ini.sample) and the message of the package
+OPENSWOOLE_INI=	${PREFIX}/${PHP_EXT_INI_FILE:S/.sample$//}
 openswoole-ini-off:
-	@${PRINTF} '%s\n' "; Off: PHP stops when openswoole.so and swoole.so are loaded together (pkg info -D ${PKGBASE})." \
+	@${PRINTF} '%s\n' \
+		"; Off: PHP stops when openswoole.so and swoole.so are loaded" \
+		"; together (pkg info -D ${PKGBASE})." \
 		";extension=${PHP_MODNAME}.so" > ${STAGEDIR}${PREFIX}/${PHP_EXT_INI_FILE}
 	@${PRINTF} '%s\n' '[' '{' '  message: <<EOD' \
-		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops when" \
-		"openswoole.so and swoole.so are loaded together, so" \
-		"${PREFIX}/${PHP_EXT_INI_FILE:S/.sample$//} comes with its line commented out." \
-		"To load openswoole: comment out the line of swoole in its" \
-		"${PREFIX}/${PHP_EXT_INI_FILE:H}/ext-*-swoole.ini, remove the ';' before" \
-		"extension=${PHP_MODNAME}.so in ${PREFIX}/${PHP_EXT_INI_FILE:S/.sample$//}, then restart" \
-		"php_fpm${PHP_VER} or Apache." \
+		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops" \
+		"when openswoole.so and swoole.so are loaded together, so" \
+		"${OPENSWOOLE_INI}" \
+		"comes with its line commented out. To load openswoole: comment out" \
+		"the line of swoole in ${OPENSWOOLE_INI:H}/ext-*-swoole.ini," \
+		"remove the ';' before extension=${PHP_MODNAME}.so in" \
+		"${OPENSWOOLE_INI}, then restart php_fpm${PHP_VER} or Apache." \
 		'EOD' '  type: install' '}' ']' > ${PHP_EXT_PKGMESSAGE}
 .endif
