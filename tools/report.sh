@@ -1,8 +1,10 @@
 #!/bin/sh
-# report.sh - turn the results of tools/build.sh and tools/check-php.sh into the job
-# log, the job summary ($GITHUB_STEP_SUMMARY) and annotations (an error for each port
-# that failed or was not built and for each version whose checks failed, a notice
-# for the outcome), so that it shows on the page of the run and in the API.
+# report.sh - turn the results of tools/build.sh and of the checks of PHP (the lines
+# of results/checks.txt and the files results/check-php-<version>-<mode>.txt of
+# tools/check-php.sh) into the job log, the job summary ($GITHUB_STEP_SUMMARY) and
+# annotations (an error for each port that failed or was not built and for checks
+# that failed, a notice for the outcome), so that it shows on the page of the run
+# and in the API.
 #
 # Usage: sh tools/report.sh [<results>]    (default: results/ of the tree)
 # REPORT_TITLE: the title of the summary (default "azsupport/ports").
@@ -74,35 +76,40 @@ done
     echo
 } >> "$summary"
 
-# the checks of PHP
-for d in "$res"/check-php-*/; do
-    [ -f "$d/summary.txt" ] || continue
-    v="${d%/}"; v="${v##*/check-php-}"
+# the checks of PHP: results/checks.txt (a line per version and mode, written by the
+# workflow) and the output of tools/check-php.sh, results/check-php-<version>-<mode>.txt
+if [ -s "$res/checks.txt" ]; then
     {
-        cat "$d/summary.txt"
-        if grep -q '^FAIL ' "$d/tests.txt" 2>/dev/null; then
-            echo "checks that failed:"
-            grep '^FAIL ' "$d/tests.txt" | cut -c1-240
-        fi
-    } > "$tmp/php-$v.txt"
-    echo "==================== PHP $v"
-    cat "$tmp/php-$v.txt"
-    case "$(result "$d/summary.txt")" in OK) level=notice ;; *) level=error; rc=1 ;; esac
-    annot "$level" "$title: PHP $v checks" "$tmp/php-$v.txt"
+        cat "$res/checks.txt"
+        for f in "$res"/check-php-*.txt; do
+            [ -f "$f" ] || continue
+            grep -q '^FAIL' "$f" || continue
+            echo
+            echo "== ${f##*/}: what failed"
+            grep '^FAIL' "$f" | cut -c1-240
+        done
+    } > "$tmp/php.txt"
+    echo "==================== PHP"
+    cat "$tmp/php.txt"
+    if grep -q ': FAIL' "$res/checks.txt"; then level=error; rc=1; else level=notice; fi
+    annot "$level" "$title: PHP checks" "$tmp/php.txt"
     {
-        echo "### $title: PHP $v, the packages installed together and checked"
+        echo "### $title: PHP, the packages of each mode installed and checked"
         echo
         echo '```'
-        cat "$tmp/php-$v.txt"
+        cat "$tmp/php.txt"
         echo '```'
         echo
-        echo '<details><summary>tests.txt</summary>'
-        echo
-        echo '```'
-        cat "$d/tests.txt" 2>/dev/null
-        echo '```'
-        echo '</details>'
-        echo
+        for f in "$res"/check-php-*.txt; do
+            [ -f "$f" ] || continue
+            echo "<details><summary>${f##*/}</summary>"
+            echo
+            echo '```'
+            cat "$f"
+            echo '```'
+            echo '</details>'
+            echo
+        done
     } >> "$summary"
-done
+fi
 exit "$rc"
