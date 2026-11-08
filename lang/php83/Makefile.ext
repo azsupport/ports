@@ -483,8 +483,9 @@ CONFIGURE_ARGS+=--enable-memcache \
 .endif
 
 .if ${PHP_MODNAME} == "memcached"
-# libmemcached of az; not the json serializer, the protocol and SASL of the
-# port (ext.conf: libmemcachedprotocol needs libevent, SASL cyrus-sasl2)
+# libmemcached of az; the json serializer as the port (json is in the core);
+# not the protocol and SASL of the port (ext.conf: libmemcachedprotocol needs
+# libevent, SASL cyrus-sasl2)
 COMMENT=	PHP extension for interfacing with memcached via libmemcached library
 WWW=		https://pecl.php.net/package/memcached
 
@@ -496,6 +497,7 @@ AZ_LIBS=	libmemcached.so
 USE_PHP=	session:build
 
 CONFIGURE_ARGS+=--enable-memcached \
+		--enable-memcached-json \
 		--enable-memcached-session \
 		--with-libmemcached-dir=${AZ_PREFIX} \
 		--with-zlib-dir=/usr
