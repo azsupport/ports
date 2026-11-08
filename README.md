@@ -102,7 +102,14 @@ Names and origins as the ports, files at the paths of the ports:
   one: `bin/magick` and its names, static, the same formats and policy; its static
   libraries and `MagickWand-config` in `/usr/local/az/static`, its shared
   `libMagickWand-7.so` in `/usr/local/az/lib` for imagick of PHP. Build and run: az.
-- These five: the version of the official port at the pinned commit (or of the take
+- **`graphics/GraphicsMagick`**: the package `GraphicsMagick` in the place of the official
+  one: `bin/gm`, static, built as our ImageMagick, with JPEG, PNG, WebP, GIF, BMP, HEIC and
+  AVIF only; with no policy file, the coders it registers and an empty `delegates.mgk` take
+  its place (`files/graphicsmagick.conf`). Its static libraries in `/usr/local/az/static`,
+  its shared `libGraphicsMagick` and `libGraphicsMagickWand` (symbol prefix `Gm`) and
+  `GraphicsMagick-config` in `/usr/local/az`, for gmagick of PHP
+  (`--with-gmagick=/usr/local/az`). Build and run: az.
+- These six: the version of the official port at the pinned commit (or of the take
   line of its conf) with the build stamp as `PORTREVISION`; every distfile in the fetch
   phase; tests after the install: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),

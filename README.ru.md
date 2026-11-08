@@ -101,7 +101,14 @@
   его имена, статические, те же форматы и policy; его статические библиотеки и
   `MagickWand-config` в `/usr/local/az/static`, разделяемая `libMagickWand-7.so` в
   `/usr/local/az/lib` для imagick из PHP. Сборка и работа: az.
-- У этих пяти: версия официального порта на закреплённом коммите (или из строки take
+- **`graphics/GraphicsMagick`**: пакет `GraphicsMagick` вместо официального: `bin/gm`,
+  статический, собран как наш ImageMagick, только JPEG, PNG, WebP, GIF, BMP, HEIC и AVIF;
+  файла политики у него нет — её заменяют зарегистрированные кодеки и пустой
+  `delegates.mgk` (`files/graphicsmagick.conf`). Статические библиотеки — в
+  `/usr/local/az/static`, общие `libGraphicsMagick` и `libGraphicsMagickWand` (префикс
+  символов `Gm`) и `GraphicsMagick-config` — в `/usr/local/az`, для gmagick в PHP
+  (`--with-gmagick=/usr/local/az`). Сборка и работа: az.
+- У этих шести: версия официального порта на закреплённом коммите (или из строки take
   его conf) со штампом сборки как `PORTREVISION`; все distfile — в фазе fetch; тесты после
   установки: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
