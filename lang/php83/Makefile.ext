@@ -517,7 +517,8 @@ SASL_LIB_DEPENDS=	libsasl2.so:security/cyrus-sasl2
 .endif
 
 .if ${PHP_MODNAME} == "redis"
-# zstd compression with libzstd of az (ext.conf); json: the json serializer of
+# zstd (ext.conf) and lz4 compression, the options ZSTD and LZ4 of the port
+# (on by default), with libzstd and liblz4 of az; json: the json serializer of
 # redis is on by default
 COMMENT=	Extension to access Redis
 WWW=		https://pecl.php.net/package/redis
@@ -526,13 +527,15 @@ LICENSE=	PHP301
 # LICENSE in 6.3.0 (COPYING in 5.3.7 of the port)
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-AZ_LIBS=	libzstd.so
+AZ_LIBS=	libzstd.so liblz4.so
 
 USE_PHP=	hash:build json:build session:build
 
 CONFIGURE_ARGS+=--enable-redis \
 		--enable-redis-zstd \
-		--with-libzstd=${AZ_PREFIX}
+		--with-libzstd=${AZ_PREFIX} \
+		--enable-redis-lz4 \
+		--with-liblz4=${AZ_PREFIX}
 
 OPTIONS_DEFINE=	IGBINARY
 OPTIONS_DEFAULT=IGBINARY
