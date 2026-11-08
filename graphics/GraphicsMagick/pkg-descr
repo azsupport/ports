@@ -1,0 +1,7 @@
+GraphicsMagick with JPEG, PNG, WebP, GIF, BMP, HEIC and AVIF only, as the
+ImageMagick of azsupport/ports (graphics/GraphicsMagick/files/graphicsmagick.conf:
+only those coders are registered, no delegate program is run): bin/gm, static,
+in the place of the port's; its static libraries in /usr/local/az/static and its
+shared libGraphicsMagick and libGraphicsMagickWand in /usr/local/az, with
+GraphicsMagick-config, for gmagick of PHP (--with-gmagick=/usr/local/az).
+Versions and options: share/doc/GraphicsMagick/VERSIONS.

@@ -1,6 +1,6 @@
 # az/az: the libraries of /usr/local/az (the package az).
 #
-# DESIGN of the five ports that take over the builds of tools/build-az.sh of
+# DESIGN of the ports that take over the builds of tools/build-az.sh of
 # https://github.com/azsupport/php-src (08.11.2026, aZ: the development of
 # these packages moves into this tree):
 #
@@ -21,6 +21,15 @@
 #                                        static libraries in az/static and the
 #                                        shared libMagickWand-7.so in az/lib,
 #                                        with MagickWand-config
+#   GraphicsMagick graphics/GraphicsMagick
+#                                        bin/gm, lib/GraphicsMagick,
+#                                        share/GraphicsMagick; its static
+#                                        libraries in az/static and the shared
+#                                        libGraphicsMagick.so and
+#                                        libGraphicsMagickWand.so in az/lib, with
+#                                        GraphicsMagick-config, for gmagick
+#                                        (added 08.11.2026, aZ: GraphicsMagick
+#                                        built as our ImageMagick)
 #
 # The same packages as build-az.sh (the library package named az now, aZ
 # 08.11.2026): names, origins, epochs, files, comments, descriptions,
@@ -51,6 +60,10 @@
 #   graphics/ImageMagick6  tools/imagemagick-build.sh, one ImageMagick per run;
 #   graphics/ImageMagick7  ImageMagick7/files/imagemagick.conf and policy.xml
 #                          (one copy for both), the patches in files/ of each
+#   graphics/GraphicsMagick
+#                          tools/graphicsmagick-build.sh, files/graphicsmagick.conf
+#                          (the coders it registers: GraphicsMagick has no policy),
+#                          files/delegates.mgk (none)
 # A library is still the official port of the pinned commit: its distfiles,
 # distinfo and patches (make patch in ${PORTSDIR}/<origin>, with our
 # WRKDIRPREFIX), then configured and built by the script with its own options.
@@ -73,11 +86,13 @@
 #
 # Dependencies on our packages: by a file, never LIB_DEPENDS (no ldconfig
 # hints). curl, ffmpeg and ImageMagick6: BUILD_DEPENDS on the static tree only
-# (static programs: no RUN_DEPENDS, as in build-az.sh). ImageMagick7: the static
-# and the shared tree to build, the shared tree to run (its libMagickWand-7.so
-# links the shared libraries of az). The PHP ports: az and ImageMagick7
-# (lib/libMagickWand-7.so, for imagick). Build order: az; then curl, ffmpeg,
-# ImageMagick6, ImageMagick7 (any order); then PHP.
+# (static programs: no RUN_DEPENDS, as in build-az.sh). ImageMagick7 and
+# GraphicsMagick: the static and the shared tree to build, the shared tree to
+# run (their libMagickWand-7.so and libGraphicsMagickWand.so link the shared
+# libraries of az). The PHP ports: az, ImageMagick7 (lib/libMagickWand-7.so, for
+# imagick) and GraphicsMagick (lib/libGraphicsMagickWand.so, for gmagick). Build
+# order: az; then curl, ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick (any
+# order); then PHP.
 #
 # Distfiles: all of them in the fetch phase, so that the build needs no network
 # (poudriere has none there; the VM of CI reaches GitHub badly, which is why
