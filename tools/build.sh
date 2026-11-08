@@ -73,7 +73,6 @@ while [ $# -gt 0 ]; do
         *) break ;;
     esac
 done
-named=$#
 
 [ "$(uname -s)" = FreeBSD ] || die "FreeBSD only (the ports framework and pkg)"
 [ "$(id -u)" = 0 ] || die "as root (pkg install and pkg add of the dependencies)"
@@ -175,7 +174,7 @@ dep_origins() {
 
 # port_info <origin>: PKGNAME, IGNORE and the dependencies of a port of this tree into
 # $q/info/<key> (lines: PKGNAME, IGNORE, then FETCH_ EXTRACT_ PATCH_ BUILD_ LIB_ RUN_
-# PKG_DEPENDS); our dependencies into $q/deps/<key> (all kinds) and $q/rdeps/<key>
+# PKG_DEPENDS, CONFLICTS_BUILD, CONFLICTS_INSTALL, NEED_ROOT); our dependencies into $q/deps/<key> (all kinds) and $q/rdeps/<key>
 # (LIB_ and RUN_DEPENDS: what pkg add of its package needs), the official ones into
 # $q/odeps/<key> and $q/orun/<key>
 port_info() {
@@ -183,7 +182,8 @@ port_info() {
     [ -f "$q/info/$_k" ] && return 0
     : > "$q/deps/$_k"; : > "$q/rdeps/$_k"; : > "$q/odeps/$_k"; : > "$q/orun/$_k"
     if ! make -C "$top/$1" -V PKGNAME -V IGNORE -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
-            -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS > "$q/info/$_k" 2> "$q/info/$_k.err" ||
+            -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS -V CONFLICTS_BUILD -V CONFLICTS_INSTALL \
+            -V NEED_ROOT > "$q/info/$_k" 2> "$q/info/$_k.err" ||
             [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
         echo "make -V failed: $(grep . "$q/info/$_k.err" | head -n 1)" > "$q/info/$_k.bad"
         return 1
@@ -215,16 +215,25 @@ pkgbase() {
     cat "$_f"
 }
 
-# our installed packages: name version file, one per line (put back when pkg install of
-# an official package replaced one by the official package of the same name)
+# our installed packages: origin name version file, one per line (put back when pkg
+# install of an official package replaced one by the official package of the same name)
 : > "$q/installed"
 ours_back() {
-    while read -r _n _v _f; do
+    while read -r _io _n _v _f; do
         [ "$(pkg query %v "$_n" 2>/dev/null)" = "$_v" ] && continue
         say "pkg install put another $_n in the place of ours ($_v): pkg add -f ${_f##*/}"
         pkg add -f "$_f" >> "$log" 2>&1 || { why="pkg add -f ${_f##*/} failed"; return 1; }
     done < "$q/installed"
     return 0
+}
+
+# gone: our packages that pkg delete removed are no longer installed for the ports after
+gone() {
+    : > "$q/installed.new"
+    while read -r _io _n _v _f; do
+        if pkg info -e "$_n"; then echo "$_io $_n $_v $_f" >> "$q/installed.new"; else rm -f "$q/inst-$(key "$_io")"; fi
+    done < "$q/installed"
+    mv "$q/installed.new" "$q/installed"
 }
 
 # official <file of origins>: their official packages installed (pkg install), what is
@@ -272,7 +281,7 @@ inst_port() {
             why="pkg add ${_f##*/} failed: $(tail -n 1 "$log")"
             return 1
         fi
-        echo "$_n $_v $_f" >> "$q/installed"
+        echo "$_c $_n $_v $_f" >> "$q/installed"
         : > "$q/inst-$_ck"
     done
     return 0
@@ -323,6 +332,42 @@ while [ -s "$q/left.txt" ]; do
         break
     fi
 done
+# a port that conflicts with packages of other ports of the queue (CONFLICTS_BUILD or
+# CONFLICTS_INSTALL: lang/php74-static has the files of php74 and its modules) goes
+# last, with the ports that need it: before its build those packages are deleted
+: > "$q/late.txt"
+for o in $(cat "$q/queue.txt"); do
+    pats="$(sed -n '10,11p' "$q/info/$(key "$o")" 2>/dev/null | tr -s '\n\t ' '   ' | sed 's/^ //; s/ $//')"
+    [ -n "$(printf '%s' "$pats" | tr -d ' \t')" ] || continue
+    for d in $(cat "$q/queue.txt"); do
+        [ "$d" = "$o" ] && continue
+        n="$(sed -n 1p "$q/info/$(key "$d")" 2>/dev/null)"; n="${n%-*}"
+        [ -n "$n" ] || continue
+        hit=0
+        set -f
+        for pt in $pats; do
+            # shellcheck disable=SC2254
+            case "$n" in $pt) hit=1 ;; esac
+        done
+        set +f
+        if [ "$hit" = 1 ]; then
+            say "$o: conflicts with $n of $d (CONFLICTS_BUILD/CONFLICTS_INSTALL $pats): it goes last"
+            echo "$o" >> "$q/late.txt"
+            break
+        fi
+    done
+done
+if [ -s "$q/late.txt" ]; then
+    grow=1
+    while [ "$grow" = 1 ]; do
+        grow=0
+        for o in $(grep -vxF -f "$q/late.txt" "$q/queue.txt"); do
+            if grep -qxF -f "$q/late.txt" "$q/deps/$(key "$o")"; then echo "$o" >> "$q/late.txt"; grow=1; fi
+        done
+    done
+    { grep -vxF -f "$q/late.txt" "$q/queue.txt"; grep -xF -f "$q/late.txt" "$q/queue.txt"; } > "$q/queue.new"
+    mv "$q/queue.new" "$q/queue.txt"
+fi
 cp "$q/queue.txt" "$res/queue.txt"
 say "the queue: $(wc -l < "$q/queue.txt" | tr -d ' ') ports (results/queue.txt)"
 
@@ -332,6 +377,12 @@ overlay_rev="$(git -C "$top" log -1 --format='%h %s' 2>/dev/null)"
     echo "overlay:  ${overlay_rev:-?}"
     echo "host:     $(uname -sr), $(cc --version 2>/dev/null | head -n 1)"
     echo "cputype:  $cputype; CFLAGS: $(sed -n 's/^CFLAGS=//p' "$work/make.conf")"
+    echo "pkg:      $(pkg -v 2>/dev/null); the official packages from: $(pkg -vv 2>/dev/null | awk '
+        /^Repositories:/ { r = 1; next }
+        r && /^[^ ]/ { r = 0 }
+        r && /^  [^ ].*: *\{/ { n = $1; sub(/:$/, "", n); u = "" }
+        r && /^ *url *:/ { u = $0; sub(/^ *url *: *"?/, "", u); sub(/"?,? *$/, "", u) }
+        r && /^ *enabled *: *(yes|true)/ && n != "" { printf "%s%s %s", s, n, u; s = ", " }')"
     echo "repo:     $repo ($(npkg "$repo") packages before the run)"
     echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')"
 } > "$sum"
@@ -384,6 +435,34 @@ for o in $(cat "$q/queue.txt"); do
         inst_port "$d" || { okd=0; break; }
     done
     if [ "$okd" = 0 ]; then record "$o" fail "$pn: our dependencies: $why"; continue; fi
+    # the installed packages its CONFLICTS_BUILD and CONFLICTS_INSTALL name: deleted
+    # (with those that need them: pkg delete -R)
+    pats="$(sed -n '10,11p' "$q/info/$k" | tr '\n' ' ')"
+    if [ -n "$(printf '%s' "$pats" | tr -d ' \t')" ]; then
+        set -f
+        del="$(for pt in $pats; do pkg query -g '%n' "$pt" 2>/dev/null; done | LC_ALL=C sort -u | tr '\n' ' ')"
+        set +f
+        if [ -n "$(printf '%s' "$del" | tr -d ' ')" ]; then
+            say "  pkg delete -R $del(the port conflicts with them)"
+            # shellcheck disable=SC2086
+            pkg delete -y -R $del >> "$log" 2>&1 || say "  pkg delete of $del failed (logs/$k.log)"
+            gone
+        fi
+    fi
+    # NEED_ROOT (az/az: it installs into the real prefix while it builds, and refuses
+    # files there of a package): its installed package deleted first (pkg delete -f,
+    # those that need it stay), the new one added after the build, the old one back
+    # when the build fails
+    old=""
+    nr="$(sed -n 12p "$q/info/$k")"
+    if [ -n "$nr" ] && [ "$nr" != no ] && pkg info -e "${pn%-*}"; then
+        old="$(awk -v n="${pn%-*}" '$2 == n { print $4 }' "$q/installed" | tail -n 1)"
+        [ -z "$old" ] && [ -f "$q/file/$k" ] && old="$(cat "$q/file/$k")"
+        [ -z "$old" ] && [ -f "$repo/$pn.pkg" ] && old="$repo/$pn.pkg"
+        say "  pkg delete -f ${pn%-*} (NEED_ROOT: it builds into the real prefix)"
+        pkg delete -y -f "${pn%-*}" >> "$log" 2>&1 || say "  pkg delete -f ${pn%-*} failed (logs/$k.log)"
+        gone
+    fi
     stamp="$q/stamp-$k"
     : > "$stamp"
     rm -f "$packages/All/$pn.pkg"
@@ -404,13 +483,22 @@ for o in $(cat "$q/queue.txt"); do
         e="$(grep -E ' error:|Error code|^\*\*\*|^===>.*(IGNORE|not found|failed)' "$log" | tail -n 1 | cut -c1-200)"
         [ "$rc" = 0 ] && e="make package made no $pn.pkg"
         record "$o" fail "$pn: ${secs}s, ${e:-make package failed} (logs/$k.log)"
+        if [ -n "$old" ] && [ -f "$old" ]; then
+            say "  pkg add ${old##*/}: the package of before back"
+            pkg add -f "$old" >> "$log" 2>&1 || say "  pkg add ${old##*/} failed"
+        fi
         continue
     fi
     echo "$packages/All/$pn.pkg" > "$q/file/$k"
+    rm -f "$q/inst-$k"
     # every package the build made (a port with subpackages makes more than one)
     find "$packages/All" -name '*.pkg' -newer "$stamp" > "$q/made-$k"
     grep -qxF "$packages/All/$pn.pkg" "$q/made-$k" || echo "$packages/All/$pn.pkg" >> "$q/made-$k"
     record "$o" ok "$pn: ${secs}s, $(( $(wc -c < "$packages/All/$pn.pkg") / 1024 )) KB"
+    if [ -n "$nr" ] && [ "$nr" != no ]; then
+        why=""
+        inst_port "$o" || say "  the new package of $o did not install: $why"
+    fi
 done
 
 # --- the repository --------------------------------------------------------------------
@@ -430,7 +518,7 @@ while read -r n og f; do
     if awk -v n="$n" -v o="$og" '$1 == n || $2 == o { f = 1 } END { exit !f }' "$q/made-names"; then
         say "the repository: $f gives way to the package built now"
         rm -f "$repo/$f"
-    elif [ "$named" = 0 ] && ! ours "$og"; then
+    elif ! ours "$og"; then
         say "the repository: $f away (this tree has no port $og any more)"
         rm -f "$repo/$f"
     fi
