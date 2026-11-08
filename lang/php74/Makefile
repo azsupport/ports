@@ -1,46 +1,111 @@
+# PHP 7.4 of azsupport/php-src for the overlay azsupport/ports: the official
+# port lang/php74 of freebsd-ports 036685c034ba (the ports commit of PHP 7.4 in
+# php-src freebsd/targets.conf), changed only where the overlay needs it, and
+# for the framework of the pinned tree (f16b6dd0f7c1). What differs, and why:
+#
+# - Source: the dated release tarball of the fork azsupport/php-src, PHP 7.4.33
+#   with the security backports of Remi Collet and the PECL extensions in ext/.
+#   It carries the patches of the official port and a configure generated with
+#   them, so this port has no files/patch-* and runs no buildconf (no
+#   autoreconf). Of the official patches the fork leaves out (php-src
+#   freebsd/patches/7.4/SKIPPED) one hunk matters here, main/php_config.h
+#   including ext/php_config.h (patch-configure.ac): post-configure adds it.
+#   A new dated release of the same PHP version: AZ_PHP_RELEASE, distinfo, and
+#   PORTREVISION bumped (the modules take it from here).
+# - Versions side by side (aZ): every path of PHP 7.4 has 74 in it, nothing is
+#   shared with another version: bin/php74 ... (--program-suffix=74), etc/php74
+#   (php.ini by @sample from php.ini-production; FPM with /var/run/php-fpm74.pid,
+#   /var/log/php-fpm74.log, the pool www on /var/run/php-fpm74.sock), the scan
+#   dir etc/php74/conf.d (the ini files of the modules), lib/php74 (the build
+#   files of phpize74), include/php74, share/php74, etc/rc.d/php_fpm74 and
+#   libexec/apache24/libphp74.so (www/mod_php74); the modules in
+#   lib/php/20190902 as the ports. So CONFLICTS_INSTALL is php74-static only
+#   (the static PHP of the same version), not the other versions.
+# - Libraries: libxml2 and argon2 of the package az (${AZ_PREFIX}), depended
+#   on by a file (no ldconfig hints for ${AZ_PREFIX}/lib: never LIB_DEPENDS),
+#   linked with its run path and found by its pkg-config; the PCRE2 the fork
+#   bundles (not devel/pcre2).
+# - Options: no MYSQLND (mysqlnd is the module php74-mysqlnd); EMBED and DTRACE
+#   off by default; PHPDBG off is --disable-phpdbg (7.4 builds phpdbg unless
+#   told not to). OPcache and json are modules too (php74-opcache, php74-json),
+#   and this PHP loads modules (no --disable-extension-loading of the fork).
+# - No DEPRECATED/EXPIRATION_DATE: the fork carries the security fixes.
+# - The Apache module (PKGNAMEPREFIX mod_) with the idioms of the framework of
+#   f16b6dd (USES=apache before bsd.port.pre.mk, as lang/php84 there).
+#
+# The slave ports, the modules php74-<module>: a slave's Makefile sets
+#	CATEGORIES=	<category>
+#	PKGNAMESUFFIX=	-<module>
+#	MASTERDIR=	${.CURDIR}/../../lang/php74
+#	.include "${MASTERDIR}/Makefile"
+# With PKGNAMESUFFIX defined this Makefile includes ${MASTERDIR}/Makefile.ext
+# (the rules of the modules) and ends with bsd.port.post.mk. Makefile.ext gets
+# from here PORTNAME, DISTVERSION, PORTREVISION?=, CATEGORIES?=, MASTER_SITES,
+# DISTNAME (the top directory of the tarball), DIST_SUBDIR, distinfo (through
+# MASTERDIR), MAINTAINER, WWW, LICENSE, USES (compiler:c11 cpe gnome
+# pkgconfig tar:xz) and CONFLICTS_INSTALL?=; it sets COMMENT, USES+= php:ext
+# (php:zend), PHP_VER=74, PHP_MODNAME, WRKSRC and EXTRACT_AFTER_ARGS (only
+# ${DISTNAME}/ext/<module>), PLIST=${NONEXISTENT}, the options and arguments of
+# each module, and includes bsd.port.options.mk and bsd.port.pre.mk itself.
+# Mk/Uses/php.mk of the overlay builds, installs and registers the module (see
+# its head).
+
 PORTNAME=	php74
 DISTVERSION=	7.4.33
 PORTREVISION?=	0
 CATEGORIES?=	lang devel www
-MASTER_SITES=	PHP
-DISTNAME=	php-${DISTVERSION}
+MASTER_SITES=	https://github.com/azsupport/php-src/releases/download/freebsd-7.4-${AZ_PHP_RELEASE}/
+DISTNAME=	php-${DISTVERSION}-fbsd-${AZ_PHP_RELEASE}
 DIST_SUBDIR=	php
 
-MAINTAINER=	tz@FreeBSD.org
-COMMENT=	PHP Scripting Language
-WWW=		https://www.php.net/
+MAINTAINER=	github@azsupport.com
+COMMENT=	PHP Scripting Language (7.4.X branch of azsupport/php-src)
+WWW=		https://github.com/azsupport/php-src
 
 LICENSE=	PHP301
-
-DEPRECATED=Upstream Security Support ends on 2022-11-28
-EXPIRATION_DATE=2022-11-29
 
 USES+=		compiler:c11 tar:xz cpe gnome pkgconfig
 CPE_PRODUCT=	php
 NO_OPTIONS_SORT=yes
 
-CONFLICTS_INSTALL?=	php[0-9][0-9]${PKGNAMESUFFIX}
+# the dated release of the fork: its tag freebsd-7.4-<date>-<commit>
+AZ_PHP_RELEASE=	20261104-397aa202
+
+CONFLICTS_INSTALL?=	php74-static
 
 .if !defined(PKGNAMESUFFIX)
-LIB_DEPENDS=	libpcre2-8.so:devel/pcre2 \
-		libargon2.so:security/libargon2
+BUILD_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
+		${AZ_PREFIX}/lib/libxml2.so:az/az
+RUN_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
+		${AZ_PREFIX}/lib/libxml2.so:az/az
 
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS+=--with-layout=GNU \
-		--with-config-file-scan-dir=${PREFIX}/etc/php \
+		--with-config-file-path=${PREFIX}/etc/php74 \
+		--with-config-file-scan-dir=${PREFIX}/etc/php74/conf.d \
 		--disable-all \
 		--with-libxml \
-		--with-password-argon2=${LOCALBASE} \
-		--program-prefix=""
-CONFIGURE_ENV=	CPPFLAGS="-I${LOCALBASE}/include"
-USES+=		autoreconf:build
-USE_GNOME=	libxml2
+		--with-password-argon2=${AZ_PREFIX} \
+		--program-prefix="" \
+		--program-suffix=74 \
+		--sysconfdir=${PREFIX}/etc/php74 \
+		--libdir=${PREFIX}/lib/php74 \
+		--includedir=${PREFIX}/include/php74 \
+		--datadir=${PREFIX}/share/php74
+CONFIGURE_ENV=	CPPFLAGS="-I${AZ_PREFIX}/include" \
+		EXTENSION_DIR=${PREFIX}/lib/php/${PHP_EXT_DIR} \
+		PKG_CONFIG=${AZ_PREFIX}/bin/pkg-config
+LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+
+# the directory of the modules: ZEND_MODULE_API_NO of PHP 7.4, as the ports
+PHP_EXT_DIR=	20190902
+PLIST_SUB+=	PHP_EXT_DIR=${PHP_EXT_DIR}
 
 # PR230207 Allow relocations against read-only segments (override lld default)
 LDFLAGS_i386=	-Wl,-z,notext
 
-OPTIONS_DEFINE+=CLI CGI FPM EMBED PHPDBG DEBUG DTRACE IPV6 MYSQLND LINKTHR ZTS
-OPTIONS_DEFAULT=CLI CGI FPM EMBED MYSQLND LINKTHR DTRACE
+OPTIONS_DEFINE+=CLI CGI FPM EMBED PHPDBG DEBUG DTRACE IPV6 LINKTHR ZTS
+OPTIONS_DEFAULT=CLI CGI FPM LINKTHR
 OPTIONS_EXCLUDE_DragonFly=	DTRACE
 # ld(1) fails to link probes: Relocations in generic ELF (EM: 0)
 OPTIONS_EXCLUDE_aarch64=	DTRACE
@@ -61,7 +126,6 @@ CLI_DESC=	Build CLI version
 EMBED_DESC=	Build embedded library
 FPM_DESC=	Build FPM version
 LINKTHR_DESC=	Link thread lib (for threaded extensions)
-MYSQLND_DESC=	Build with MySQL Native Driver
 PHPDBG_DESC=	Interactive PHP debugger
 ZTS_DESC=	Force Zend Thread Safety (ZTS) build
 
@@ -76,36 +140,37 @@ EMBED_VARS=	PHP_SAPI+=embed
 FPM_CONFIGURE_ON=--enable-fpm \
 		--with-fpm-user=${WWWOWN} \
 		--with-fpm-group=${WWWGRP}
-FPM_VARS=	PHP_SAPI+=fpm USE_RC_SUBR+=php-fpm
+FPM_VARS=	PHP_SAPI+=fpm USE_RC_SUBR+=php_fpm74
 IPV6_CONFIGURE_OFF=--disable-ipv6
 LINKTHR_LIBS=		-lpthread
-MYSQLND_CONFIGURE_ON=--enable-mysqlnd
 PHPDBG_CONFIGURE_ON=--enable-phpdbg
+PHPDBG_CONFIGURE_OFF=--disable-phpdbg
 PHPDBG_VARS=	PHP_SAPI+=phpdbg
 ZTS_CONFIGURE_ENV=	pthreads_working="yes"
 ZTS_CONFIGURE_ON=--enable-maintainer-zts
 
 DESTDIRNAME=	INSTALL_ROOT
 
+# The Apache module of the version, libphp74.so (aZ: libphpXY.so for every
+# version, so that the versions side by side do not overwrite each other; the
+# official name is libphp7.so). Not loaded by itself: the package brings
+# etc/apache24/modules.d/280_mod_php74.conf.sample to copy (one PHP module per
+# Apache instance), so no apxs -e -a. It uses etc/php74 and the modules of
+# php74, so it depends on php74.
+.if defined(PKGNAMEPREFIX)
+USES+=		apache
+RUN_DEPENDS+=	${LOCALBASE}/include/php74/php/main/php.h:lang/php74
+PLIST=		${PKGDIR}/pkg-plist.mod
+PKGMESSAGE=	${PKGDIR}/pkg-message.mod
+MODULENAME=	libphp74
+SHORTMODNAME=	php7
+WARNING=	"!!! If you have a threaded Apache, you must build ${PHP_PORT} with ZTS support to enable thread-safety in extensions !!!"
+.endif
+
 .include <bsd.port.pre.mk>
 
 .if ${ARCH} == riscv64
 CONFIGURE_ARGS+=--without-pcre-jit
-.endif
-
-.if defined(PKGNAMEPREFIX)
-USES+=		apache:2.2+
-.include "${PORTSDIR}/Mk/Uses/apache.mk"
-.if ${PORT_OPTIONS:MAP2FILTER}
-CONFIGURE_ARGS+=--with-apxs2filter=${APXS}
-.else
-CONFIGURE_ARGS+=--with-apxs2=${APXS}
-.endif
-PLIST=		${PKGDIR}/pkg-plist.mod
-PKGMESSAGE=	${PKGDIR}/pkg-message.mod
-MODULENAME=	libphp7
-SHORTMODNAME=	php7
-WARNING=	"!!! If you have a threaded Apache, you must build ${PHP_PORT} with ZTS support to enable thread-safety in extensions !!!"
 .endif
 
 .if ${PORT_OPTIONS:MPHPDBG} && ${PORT_OPTIONS:MDEBUG}
@@ -125,12 +190,24 @@ post-patch:
 	@${TOUCH} ${WRKSRC}/ext/php_config.h
 	@${REINPLACE_CMD} "s|^\(extension_dir\)|; \1|" ${WRKSRC}/php.ini-*
 
+# the FPM of the version: its own pid file and log (php-fpm.conf), the pool www
+# on its own socket for the web server (www.conf)
 post-patch-FPM-on:
-	@${REINPLACE_CMD} -e "s|^;\(pid\)|\1|;s|^;\(pm\.[a-z_]*_servers\)|\1|" \
+	@${REINPLACE_CMD} -e "s|^;*pid = .*|pid = /var/run/php-fpm74.pid|" \
+		-e "s|^;*error_log = .*|error_log = /var/log/php-fpm74.log|" \
+		-e "s|^;\(pm\.[a-z_]*_servers\)|\1|" \
 		${WRKSRC}/sapi/fpm/php-fpm.conf.in
+	@${REINPLACE_CMD} -e "s|^listen = .*|listen = /var/run/php-fpm74.sock|" \
+		-e "s|^;*listen\.owner = .*|listen.owner = ${WWWOWN}|" \
+		-e "s|^;*listen\.group = .*|listen.group = ${WWWGRP}|" \
+		-e "s|^;*listen\.mode = .*|listen.mode = 0660|" \
+		${WRKSRC}/sapi/fpm/www.conf.in
 
-pre-configure:
-	@(cd ${WRKSRC} && ${SETENV} MAKE=${MAKE_CMD} ./buildconf --force)
+# main/php_config.h includes ext/php_config.h, where the packages of the
+# modules add the config.h of their module (Mk/Uses/php.mk): the hunk of
+# patch-configure.ac of the official port that the fork does not apply
+post-configure:
+	@${ECHO_CMD} '#include <ext/php_config.h>' >> ${WRKSRC}/main/php_config.h
 
 .if !defined(PKGNAMEPREFIX)
 post-build:
@@ -144,14 +221,22 @@ post-build:
 test: build
 	@(cd ${WRKSRC} && ${MAKE} test)
 
+# etc/php74: php.conf (the version for Mk/Uses/php.mk), php.ini-development
+# and php.ini-production (php.ini by @sample); the empty directories of the
+# modules: the scan dir etc/php74/conf.d and lib/php/20190902 (@dir)
 post-install:
+	${MKDIR} ${STAGEDIR}${PREFIX}/etc/php74/conf.d \
+		${STAGEDIR}${PREFIX}/lib/php/${PHP_EXT_DIR}
 	${INSTALL_DATA} ${WRKSRC}/php.ini-development ${WRKSRC}/php.ini-production \
-		${WRKDIR}/php.conf ${STAGEDIR}/${PREFIX}/etc
+		${WRKDIR}/php.conf ${STAGEDIR}${PREFIX}/etc/php74
 .else
 do-install:
-	${MKDIR} ${STAGEDIR}${PREFIX}/${APACHEMODDIR}
-	${INSTALL_LIB} ${WRKSRC}/libs/${MODULENAME}.so \
-		${STAGEDIR}${PREFIX}/${APACHEMODDIR}
+	${MKDIR} ${STAGEDIR}${PREFIX}/${APACHEMODDIR} \
+		${STAGEDIR}${PREFIX}/${APACHEETCDIR}/modules.d
+	${INSTALL_LIB} ${WRKSRC}/libs/libphp7.so \
+		${STAGEDIR}${PREFIX}/${APACHEMODDIR}/${MODULENAME}.so
+	${INSTALL_DATA} ${FILESDIR}/280_mod_php74.conf.sample \
+		${STAGEDIR}${PREFIX}/${APACHEETCDIR}/modules.d
 .endif
 
 .else

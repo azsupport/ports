@@ -1,19 +1,16 @@
-******************************************************************************
+[
+{ type: install
+  message: <<EOM
+The Apache module of PHP 7.4 is libexec/apache24/libphp74.so; it is not
+loaded by itself. To load it into an Apache instance (one PHP module per
+instance), copy
+  etc/apache24/modules.d/280_mod_php74.conf.sample
+of the prefix to 280_mod_php74.conf in the same directory, then restart
+Apache. The sample makes .php files go to PHP and adds index.php to
+DirectoryIndex.
 
-Make sure index.php is part of your DirectoryIndex.
-
-You should add the following to your Apache configuration file:
-
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-<FilesMatch "\.phps$">
-    SetHandler application/x-httpd-php-source
-</FilesMatch>
-
-******************************************************************************
-
-If you are building PHP-based ports in poudriere(8) or Synth with ZTS enabled,
-add WITH_MPM=event to /etc/make.conf to prevent build failures.
-
-******************************************************************************
+PHP reads etc/php74/php.ini and the ini files of the modules in
+etc/php74/conf.d (the packages php74-<module>).
+EOM
+}
+]

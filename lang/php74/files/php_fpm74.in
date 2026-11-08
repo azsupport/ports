@@ -1,0 +1,107 @@
+#!/bin/sh
+
+# php-fpm of PHP 7.4 (the package php74 of azsupport/ports): the rc.d script
+# php_fpm of the port lang/php84 of freebsd-ports f16b6dd0f7c1 with names of its
+# own, so that the php-fpm of several versions of PHP run at once
+# (php_fpm74_enable="YES" in /etc/rc.conf).
+
+# PROVIDE: php_fpm74
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+
+#
+# Add the following line to /etc/rc.conf to enable php_fpm74:
+# php_fpm74_enable (bool):        Set to "NO" by default.
+#                               Set it to "YES" to enable php_fpm74
+# php_fpm74_profiles (str):       Set to "" by default.
+#                               Define your profiles here.
+# php_fpm74_pid_prefix (str):     Set to "" by default.
+#                               When using profiles manually assign value to "php_fpm74_"
+#                               for prevent collision with other PIDs names.
+
+. /etc/rc.subr
+
+name="php_fpm74"
+rcvar=php_fpm74_enable
+
+start_precmd="php_fpm74_prestart"
+restart_precmd="php_fpm74_checkconfig"
+reload_precmd="php_fpm74_checkconfig"
+command="%%PREFIX%%/sbin/php-fpm74"
+configtest_cmd="php_fpm74_checkconfig"
+_pidprefix="/var/run"
+pidfile="${_pidprefix}/php-fpm74.pid"
+required_files="%%PREFIX%%/etc/php74/php-fpm.conf"
+
+load_rc_config "${name}"
+
+: ${php_fpm74_enable="NO"}
+: ${php_fpm74_umask=""}
+: ${php_fpm74_svcj_options:="net_basic"}
+
+if [ -n "$2" ]; then
+        profile="$2"
+        if [ "x${php_fpm74_profiles}" != "x" ]; then
+                pidfile="${_pidprefix}/${php_fpm74_pid_prefix}php-fpm74-${profile}.pid"
+                eval php_fpm74_configfile="\${php_fpm74_${profile}_configfile:-}"
+                if [ "x${php_fpm74_configfile}" = "x" ]; then
+                        echo "You must define a configuration file (php_fpm74_${profile}_configfile)"
+                        exit 1
+                fi
+                required_files="${php_fpm74_configfile}"
+                eval php_fpm74_enable="\${php_fpm74_${profile}_enable:-${php_fpm74_enable}}"
+                php_fpm74_flags="-y ${php_fpm74_configfile} -g ${pidfile}"
+        else
+                echo "$0: extra argument ignored"
+        fi
+else
+        if [ "x${php_fpm74_profiles}" != "x" -a "x$1" != "x" ]; then
+                for profile in ${php_fpm74_profiles}; do
+                        echo "===> php_fpm74 profile: ${profile}"
+                        %%PREFIX%%/etc/rc.d/php_fpm74 $1 ${profile}
+                        retcode="$?"
+                        if [ "0${retcode}" -ne 0 ]; then
+                                failed="${profile} (${retcode}) ${failed:-}"
+                        else
+                                success="${profile} ${success:-}"
+                        fi
+                done
+                exit 0
+        fi
+fi
+
+extra_commands="reload configtest logrotate"
+sig_stop="QUIT"
+sig_reload="USR2"
+logrotate_cmd="php_fpm74_logrotate"
+
+php_fpm74_logrotate() {
+        if [ -z "$rc_pid" ]; then
+                _run_rc_notrunning
+                return 1
+        fi
+        echo "Rotating logs $name."
+        kill -USR1 $rc_pid
+}
+
+php_fpm74_checkconfig()
+{
+        echo "Performing sanity check on php-fpm configuration:"
+        eval ${command} ${php_fpm74_flags} -t
+}
+
+php_fpm74_prestart()
+{
+	php_fpm74_checkconfig
+	checkconfig=$?
+	if [ $checkconfig -ne 0  ]; then
+		return $checkconfig
+	fi
+
+	if [ ! -z "$php_fpm74_umask"  ]; then
+		echo "Setting umask to: ${php_fpm74_umask}"
+		umask $php_fpm74_umask
+	fi
+}
+
+run_rc_command "$1"
