@@ -1,0 +1,227 @@
+name: The nonfree FFmpeg for a server of aZ (never published)
+
+# Builds multimedia/ffmpeg-nonfree, the FFmpeg of multimedia/ffmpeg with the AAC
+# encoder libfdk_aac (files/ffmpeg-nonfree.conf), for the formats of old video sites
+# that ask for -c:a libfdk_aac. FFmpeg with libfdk_aac and libx264 needs
+# --enable-nonfree, and its programs "will be unredistributable" (configure): this
+# workflow never makes a release, never uploads an artifact and never saves a cache;
+# its package goes, as a repository of pkg of its own (signed with the key of az), to
+# one server of aZ by scp, and only when the three secrets are there:
+#   NONFREE_SSH_KEY      the private key (ed25519) of the user of the server
+#   NONFREE_SSH_TARGET   user@host
+#   NONFREE_KNOWN_HOSTS  ssh-keyscan -p <port> <host> of that server (the port of ssh
+#                        is taken from it: [host]:port)
+# into ~/repo/fbsd<major>-amd64-<level>/ of that user (README.md: the server reads it as
+# a repository of pkg, file://). Without them the package is built and tested, and
+# nothing leaves the runner.
+# In the VM: nonfree/ffmpeg/Makefile.in as multimedia/ffmpeg-nonfree/Makefile (only
+# here: tools/build.sh takes the ports */*/Makefile), then tools/build.sh over the
+# repository of the last run of build.yml (its cache, only read) and the files of the
+# release: az/az and what else it needs are kept from there; the package, then
+# tools/ffmpeg-test.sh with it installed (the samples with the ffmpeg package of
+# FreeBSD first).
+# Started by hand: Actions, "The nonfree FFmpeg for a server of aZ (never published)",
+# "Run workflow".
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'FreeBSD release'
+        required: true
+        default: '15.1'
+      cputype:
+        description: 'x86-64 level (CPUTYPE of make.conf)'
+        type: choice
+        options: [x86-64-v3, x86-64-v2]
+        default: x86-64-v3
+
+permissions:
+  contents: read
+
+concurrency:
+  group: az-nonfree-${{ inputs.release }}-${{ inputs.cputype }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v5
+
+      # read only: the cache is that of build.yml, and nothing of this run goes into it
+      - name: The repository of the last run of build.yml
+        uses: actions/cache/restore@v4
+        with:
+          path: repo
+          key: repo-${{ inputs.cputype }}-none
+          restore-keys: repo-${{ inputs.cputype }}-
+
+      - name: The repository of the release, if there is one
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ inputs.release }}
+          CPUTYPE: ${{ inputs.cputype }}
+        run: |
+          major="${RELEASE%%.*}"
+          tag="az-fbsd$major-amd64-${CPUTYPE#x86-64-}"
+          mkdir -p repo
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir repo --skip-existing || echo "::warning title=repository::the files of the release $tag did not all download"
+          else
+            echo "no release $tag yet"
+          fi
+          ls -l repo
+
+      - name: The distribution files of the runs of build.yml
+        uses: actions/cache/restore@v4
+        with:
+          path: distfiles
+          key: distfiles-${{ hashFiles('**/distinfo') }}
+          restore-keys: distfiles-
+
+      - name: Free space on the runner
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost /usr/share/swift || true
+          sudo docker system prune --all --force > /dev/null 2>&1 || true
+          df -h /
+
+      # as in build.yml: the secret PKG_SIGNING_KEY in one line, masked, into the VM
+      - name: The signing key of the repository, for the VM
+        id: key
+        env:
+          PKG_SIGNING_KEY: ${{ secrets.PKG_SIGNING_KEY }}
+        run: |
+          if [ -n "$PKG_SIGNING_KEY" ]; then
+            b64="$(printf '%s\n' "$PKG_SIGNING_KEY" | base64 -w0)"
+            echo "::add-mask::$b64"
+            echo "b64=$b64" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=signing key::no PKG_SIGNING_KEY: the repository will not be signed (and not sent)"
+          fi
+
+      - name: Build and test in FreeBSD ${{ inputs.release }}
+        id: build
+        uses: vmactions/freebsd-vm@v1
+        env:
+          AZ_CPUTYPE: ${{ inputs.cputype }}
+          AZ_PKG_KEY: ${{ steps.key.outputs.b64 }}
+        with:
+          release: ${{ inputs.release }}
+          envs: 'AZ_CPUTYPE AZ_PKG_KEY'
+          prepare: |
+            if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
+            env ASSUME_ALWAYS_YES=yes pkg install -y git-lite
+          # the script never stops before its end (vmactions gives the directory back only
+          # after a script that ended well): what failed goes into results/rc
+          run: |
+            if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
+            trap 'rm -f /root/.az-pkg-key.b64' EXIT
+            if [ -s /root/.az-pkg-key.b64 ]; then export AZ_PKG_KEY_FILE=/root/.az-pkg-key.b64; fi
+            rc=0
+            mkdir -p results nonfree-repo
+            mkdir -p multimedia/ffmpeg-nonfree && cp nonfree/ffmpeg/Makefile.in multimedia/ffmpeg-nonfree/Makefile
+            sh tools/build.sh --repo repo multimedia/ffmpeg-nonfree || rc=$?
+            f="$(ls repo/ffmpeg-nonfree-[0-9]*.pkg 2>/dev/null | tail -n 1)"
+            if [ "$rc" = 0 ] && [ -n "$f" ]; then
+              cp "$f" nonfree-repo/
+              sh tools/pkg-repo-sign.sh nonfree-repo results/nonfree-repo.log || rc=1
+              tail -n 1 results/nonfree-repo.log
+              # the samples with the ffmpeg package of FreeBSD, then ours in its place
+              r=0
+              env AZ_RESULTS="$PWD/results/ffmpeg" sh tools/ffmpeg-test.sh --samples || r=$?
+              for p in ffmpeg ffmpeg-nox11; do pkg info -e "$p" && env ASSUME_ALWAYS_YES=yes pkg delete -y -f "$p"; done
+              env ASSUME_ALWAYS_YES=yes pkg add "$f" || r=1
+              /usr/local/bin/ffmpeg -hide_banner -encoders 2>/dev/null | grep ' libfdk_aac ' || { echo "no libfdk_aac in the ffmpeg of the package"; r=1; }
+              env AZ_RESULTS="$PWD/results/ffmpeg" sh tools/ffmpeg-test.sh || r=$?
+              [ "$r" = 0 ] || rc=1
+              cat results/ffmpeg/tests.txt 2>/dev/null | tail -n 5
+            else
+              echo "no package ffmpeg-nonfree (tools/build.sh exit $rc)"
+              rc=1
+            fi
+            echo "$rc" > results/rc
+            echo "results/rc: $rc"
+            # back to the runner: results/ and nonfree-repo/ only (no other package, no
+            # official tree, no work directory)
+            rm -rf work packages repo distfiles multimedia/ffmpeg-nonfree
+            exit 0
+
+      - name: The outcome of the build and of the tests
+        id: outcome
+        if: ${{ always() && steps.build.outcome != 'skipped' }}
+        run: |
+          rc="$(cat results/rc 2>/dev/null || echo 'none: the VM gave no results/rc')"
+          echo "results/rc: $rc"
+          if [ "$rc" != 0 ]; then
+            echo "::error title=nonfree::the build or a test failed (results/rc: $rc): nothing is sent"
+            exit 1
+          fi
+
+      # by scp into a new directory, then in the place of the old one (pkg never reads
+      # a half-copied catalog); the port of ssh from the known_hosts line
+      - name: To the server of aZ
+        id: send
+        if: ${{ success() }}
+        env:
+          NONFREE_SSH_KEY: ${{ secrets.NONFREE_SSH_KEY }}
+          NONFREE_SSH_TARGET: ${{ secrets.NONFREE_SSH_TARGET }}
+          NONFREE_KNOWN_HOSTS: ${{ secrets.NONFREE_KNOWN_HOSTS }}
+          RELEASE: ${{ inputs.release }}
+          CPUTYPE: ${{ inputs.cputype }}
+        run: |
+          if [ -z "$NONFREE_SSH_KEY" ] || [ -z "$NONFREE_SSH_TARGET" ] || [ -z "$NONFREE_KNOWN_HOSTS" ]; then
+            echo "::warning title=nonfree::no NONFREE_SSH_KEY, NONFREE_SSH_TARGET or NONFREE_KNOWN_HOSTS: the package was built and tested, and not sent"
+            exit 0
+          fi
+          case "$(tail -n 1 results/nonfree-repo.log 2>/dev/null)" in
+            "pkg repo: signed"*) ;;
+            *) echo "::error title=nonfree::the catalog is not signed: not sent"; exit 1 ;;
+          esac
+          port="$(printf '%s\n' "$NONFREE_KNOWN_HOSTS" | awk 'NF && $1 !~ /^#/ { print $1; exit }' | sed -n 's/^\[[^]]*\]:\([0-9][0-9]*\)$/\1/p')"
+          port="${port:-22}"
+          dir="fbsd${RELEASE%%.*}-amd64-${CPUTYPE#x86-64-}"
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$NONFREE_SSH_KEY" > "$HOME/.ssh/nonfree"
+          printf '%s\n' "$NONFREE_KNOWN_HOSTS" > "$HOME/.ssh/nonfree_known_hosts"
+          trap 'rm -f "$HOME/.ssh/nonfree"' EXIT
+          o="-i $HOME/.ssh/nonfree -o UserKnownHostsFile=$HOME/.ssh/nonfree_known_hosts -o StrictHostKeyChecking=yes -o BatchMode=yes -o IdentitiesOnly=yes"
+          # shellcheck disable=SC2086
+          ssh $o -p "$port" "$NONFREE_SSH_TARGET" "mkdir -p repo && rm -rf repo/.new-$dir && mkdir repo/.new-$dir"
+          # shellcheck disable=SC2086
+          scp $o -P "$port" nonfree-repo/* "$NONFREE_SSH_TARGET:repo/.new-$dir/"
+          # shellcheck disable=SC2086
+          ssh $o -p "$port" "$NONFREE_SSH_TARGET" "rm -rf repo/.old-$dir; if [ -d repo/$dir ]; then mv repo/$dir repo/.old-$dir; fi; mv repo/.new-$dir repo/$dir && rm -rf repo/.old-$dir && ls repo/$dir"
+          echo "sent: ~/repo/$dir of the user of the server ($(ls nonfree-repo | wc -l) files)"
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "# The nonfree FFmpeg (${{ inputs.cputype }}, FreeBSD ${{ inputs.release }})"
+            echo
+            echo "build: ${{ steps.build.outcome }}, outcome: ${{ steps.outcome.outcome }}, sent: ${{ steps.send.outcome }}"
+            echo
+            echo '```'
+            cat results/summary.txt 2>/dev/null || echo "no results/summary.txt"
+            echo
+            ls nonfree-repo 2>/dev/null
+            echo
+            grep -E '^(FAIL|note|ok .*libfdk)' results/ffmpeg/tests.txt 2>/dev/null
+            tail -n 3 results/ffmpeg/tests.txt 2>/dev/null
+            echo '```'
+          } > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # the report into the branch runs of the private azsupport/azsupport (secret RUNS_TOKEN)
+      - name: Report to azsupport/azsupport
+        if: always()
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ inputs.cputype }}
+          RUNS_STEPS: build=${{ steps.build.outcome }} outcome=${{ steps.outcome.outcome }} send=${{ steps.send.outcome }}
+          PART: ${{ inputs.cputype }}
+        run: sh tools/runs-report.sh report.md "$PART"

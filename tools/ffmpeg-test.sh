@@ -335,6 +335,17 @@ if [ -s "$T/h264_aac_ts.mp4" ]; then
         [ "$(probe "$T/ts.mp4")" = "mov,mp4,m4a,3gp,3g2,mj2 h264,aac" ] && pass "yt-dlp: MPEG-TS in .mp4 -c copy -f mp4 -bsf:a aac_adtstoasc" ||
         fail "yt-dlp: MPEG-TS in .mp4 into MP4: $(tail -n 3 "$T/ts.log" | tr '\n' ' ')"
 fi
+# the nonfree build (multimedia/ffmpeg-nonfree): the formats of old sites with
+# -c:a libfdk_aac -b:a 128k; the free one has no libfdk_aac, and says nothing here
+if "$ff" -hide_banner -encoders 2>/dev/null | grep -q ' libfdk_aac '; then
+    note "nonfree: this ffmpeg has libfdk_aac (multimedia/ffmpeg-nonfree; its package may not be given to anyone)"
+    if [ -f "$T/h264_aac.mp4" ]; then
+        # shellcheck disable=SC2086
+        "$ff" -hide_banner -loglevel error -y -i "$T/h264_aac.mp4" $kvs -c:a libfdk_aac -b:a 128k -ar 44100 -f mp4 "$T/fdk.mp4" > "$T/fdk.log" 2>&1 &&
+            [ "$(probe "$T/fdk.mp4" | cut -d' ' -f2)" = h264,aac ] && pass "KVS with -c:a libfdk_aac -b:a 128k -> $(probe "$T/fdk.mp4")" ||
+            fail "KVS with -c:a libfdk_aac: $(tail -n 3 "$T/fdk.log" | tr '\n' ' ')"
+    fi
+fi
 # silence for a video without sound (-f lavfi -i anullsrc ... -shortest)
 if [ -f "$T/h264_aac.mp4" ]; then
     "$ff" -hide_banner -loglevel error -y -i "$T/h264_aac.mp4" -an -c copy "$T/mute.mp4" > "$T/mute.log" 2>&1

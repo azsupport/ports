@@ -1,0 +1,20 @@
+# multimedia/ffmpeg-nonfree: the FFmpeg of multimedia/ffmpeg with the AAC encoder
+# libfdk_aac (the Fraunhofer FDK AAC library), for the formats of the old video
+# sites that ask for -c:a libfdk_aac (aZ, 08.11.2026). FFmpeg with libfdk_aac and
+# libx264 needs --enable-nonfree, and configure says its programs "will be
+# unredistributable": its package may not be given to anyone. So this file is not
+# multimedia/ffmpeg-nonfree/Makefile: tools/build.sh and check-tree.sh take the
+# ports */*/Makefile, and a release of this repository never has this package. Only
+# the workflow ffmpeg-nonfree.yml puts it in place, in its VM, builds the package and
+# gives it to aZ's server (scp), as a repository of pkg of its own (README.md).
+# files/ffmpeg-nonfree.conf of multimedia/ffmpeg: the lines it adds to ffmpeg.conf.
+
+PKGNAMESUFFIX=	-nonfree
+COMMENT=	FFmpeg for the video sites, static, with libfdk_aac (nonfree)
+RESTRICTED=	FFmpeg with libfdk_aac and libx264: nonfree and unredistributable
+CONFLICTS_INSTALL=	ffmpeg ffmpeg-nox11
+AZ_FFMPEG_ENV=	AZ_FFMPEG_NONFREE=yes
+
+MASTERDIR=	${.CURDIR}/../ffmpeg
+
+.include "${MASTERDIR}/Makefile"
