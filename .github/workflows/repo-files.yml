@@ -1,0 +1,54 @@
+# The files of packages of the repository that build.yml keeps between its runs (the
+# newest cache repo-<level>-*, published or not), printed into the log of the job:
+# what a package has, without a FreeBSD VM and without downloading anything.
+name: The files of packages of the kept repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      cputype:
+        description: 'The x86-64 level of the repository (its cache)'
+        required: false
+        default: 'x86-64-v3'
+      packages:
+        description: 'Package files, as globs of their names without .pkg, e.g. "az-* php74-gd-*"'
+        required: false
+        default: 'az-*'
+      pattern:
+        description: 'An extended regular expression of the lines to print (empty: every file)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: The repository of the last run of build.yml
+        uses: actions/cache/restore@v4
+        with:
+          path: repo
+          key: repo-${{ inputs.cputype }}-none
+          restore-keys: repo-${{ inputs.cputype }}-
+
+      - name: The files of the packages
+        env:
+          PKGS: ${{ inputs.packages }}
+          PAT: ${{ inputs.pattern }}
+        run: |
+          [ -d repo ] || { echo "::error::no cache repo-${{ inputs.cputype }}-*"; exit 1; }
+          echo "repo: $(find repo -name '*.pkg' | wc -l) packages"
+          n=0
+          for g in $PKGS; do
+            for f in $(find repo -name "$g.pkg" | sort); do
+              n=$((n + 1))
+              echo "== $f ($(wc -c < "$f") bytes)"
+              # pkg files are tar archives (zstd, xz or gzip): tar of the runner reads them
+              tar -tvf "$f" > files.txt 2> tar.err || { echo "tar: $(head -n 1 tar.err)"; continue; }
+              grep -E "${PAT:-.}" files.txt || echo "(no file matches ${PAT:-.})"
+            done
+          done
+          [ "$n" -gt 0 ] || { echo "::error::no package matches: $PKGS"; exit 1; }
