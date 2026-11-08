@@ -227,6 +227,7 @@ CONFLICTS_INSTALL=	php${PHP_VER}-openssl-legacy
 .endif
 
 .if ${PHP_MODNAME} == "opcache"
+# not the --disable-opcache-jit of the port for aarch64: amd64 only here
 CONFIGURE_ARGS+=--enable-opcache
 .endif
 
@@ -291,6 +292,7 @@ USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "sockets"
+# not the LOCAL_CREDS_PERSISTENT=yes of the port: no config.m4 of 8.3 reads it
 CONFIGURE_ARGS+=--enable-sockets
 .endif
 
@@ -431,6 +433,7 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 CONFIGURE_ARGS+=--enable-igbinary
 # Its session serializer
 USE_PHP=	session:build
+# not files/patch-php85 of the port: zend_smart_string.h for PHP 8.5 only
 .endif
 
 .if ${PHP_MODNAME} == "imagick"
@@ -449,6 +452,7 @@ BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
 RUN_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
 
 CONFIGURE_ARGS+=--with-imagick=${AZ_PREFIX}
+# not the post-patch of the port: it is for PHP 8.6 only (PHP_VER >= 86)
 .endif
 
 .if ${PHP_MODNAME} == "mcrypt"
@@ -460,6 +464,7 @@ LICENSE=	PHP301
 
 AZ_LIBS=	libmcrypt.so
 CONFIGURE_ARGS+=--with-mcrypt=${AZ_PREFIX}
+# not files/patch-php84 of the port (1.0.7): 1.0.9 has its include already
 .endif
 
 .if ${PHP_MODNAME} == "memcache"
@@ -474,6 +479,7 @@ USE_PHP=	session:build zlib:build
 
 CONFIGURE_ARGS+=--enable-memcache \
 		--with-zlib-dir=/usr
+# not files/patch-php85 of the port: zend_smart_string.h for PHP 8.5 only
 .endif
 
 .if ${PHP_MODNAME} == "memcached"
@@ -563,6 +569,7 @@ SOCKETS_CONFIGURE_ON=	--enable-sockets
 CURL_LIB_DEPENDS=	libcurl.so:ftp/curl
 CURL_CONFIGURE_ON=	--enable-swoole-curl
 CURL_USE=		PHP=curl
+# not files/patch-src_core_misc.cc of the port (6.2.3): in 6.2.5 already
 .endif
 
 .if ${PHP_MODNAME} == "openswoole"
@@ -632,6 +639,7 @@ CONFIGURE_ARGS+=--with-tcadb=${LOCALBASE}
 CONFIGURE_ARGS+=--disable-inifile
 .	endif
 .	if empty(PORT_OPTIONS:MFLATFILE)
+# (the port's FLATFILE_CONFIGURE_ON=--disable-flatfile is the wrong way round)
 CONFIGURE_ARGS+=--disable-flatfile
 .	endif
 
