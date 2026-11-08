@@ -1,7 +1,75 @@
+# The rules of the module ports of PHP 7.4: one slave port of lang/php74 per
+# module, as the FreeBSD ports do it. A slave sets CATEGORIES, MASTERDIR and
+# PKGNAMESUFFIX (-<module>; a PECL extension also DISTVERSION, its version) and
+# includes the Makefile of lang/php74, which includes this file.
+#
+# Base: lang/php74/Makefile.ext of freebsd-ports 036685c034ba (the ports commit
+# of PHP 7.4 in php-src freebsd/targets.conf), changed only where the overlay
+# needs it, with the modules and configure options of php-src freebsd/ext.conf
+# (worked out and tested there). What is not in those ports comes from the ports
+# of the nearest higher version that has it, or is ours:
+# - the PECL extensions, built from ext/<name> of the same release tarball of
+#   azsupport/php-src (it bundles them), their version that of php-src
+#   freebsd/pecl.conf; package php74-<name>, origin <category>/php-<name> (no
+#   "pecl": aZ, 08.11.2026). Their rules come from their ports of 036685c034ba
+#   (converters/pecl-igbinary, databases/pecl-memcache, databases/pecl-memcached,
+#   databases/pecl-redis, graphics/pecl-imagick with pecl-imagick-im7,
+#   security/pecl-mcrypt, devel/pecl-swoole); excimer from devel/pecl-excimer of
+#   6002588334a9, the ports commit of PHP 8.1 (036685c034ba has none).
+# - ours: mysqlnd (databases/php74-mysqlnd: an option of the core in the
+#   official lang/php74, a module of its own here: aZ, 08.11.2026),
+#   openssl-legacy (security/php74-openssl-legacy: openssl built with
+#   --with-openssl-legacy-provider of the fork, for RC4, Blowfish, DES, CAST5
+#   and MD4; the same files as php74-openssl, one of the two), openswoole
+#   (devel/php-openswoole: no port; its ini comes commented out, see its rules).
+#
+# The modules, by the priority of their ini (ext-<NN>-<module>.ini; PHP loads
+# conf.d in the order of the names): opcache 10 (a Zend extension), session 18,
+# 20 (they need no other module): bcmath bz2 calendar ctype curl dba dom exif
+# ffi fileinfo filter ftp gd gettext gmp iconv intl json mbstring mysqlnd
+# openssl openssl-legacy pcntl pdo phar posix readline shmop simplexml soap
+# sockets sodium sqlite3 sysvmsg sysvsem sysvshm tidy tokenizer xml xmlwriter
+# zip zlib excimer imagick mcrypt; 30 (USE_PHP: they need another one): mysqli
+# pdo_mysql pdo_sqlite xmlreader xmlrpc xsl igbinary memcache memcached redis
+# swoole openswoole.
+#
+# Not built: enchant, imap, ldap, odbc, pdo_dblib, pdo_firebird, pdo_odbc,
+# pdo_pgsql, pgsql, pspell, snmp (and PDFlib): they need a library of the ports
+# (an open question of ext.conf), so their rules and ports are not here; the dba
+# handlers of the options DB4 GDBM QDBM TOKYO LMDB (off) for the same reason.
+#
+# What differs from the official file, and why:
+# - the libraries: the shared ones of the package az (${AZ_PREFIX}/lib, SONAME
+#   and run path ${AZ_PREFIX}/lib, its pkg-config; Mk/bsd.overlay.mk) or those
+#   of the base system (OpenSSL, zlib, bzip2), never one of the ports: no
+#   LIB_DEPENDS, USES=gettext iconv localbase readline sqlite or USE_GNOME. A
+#   module depends on az by the files of ${AZ_PREFIX}/lib it links (AZ_LIBS),
+#   not by LIB_DEPENDS: ldconfig has no hints of ${AZ_PREFIX}/lib.
+# - the configure options are those of ext.conf: the official ones point at the
+#   libraries of the ports (--with-<x>=${LOCALBASE}) and at the PCRE2 of the
+#   ports, which the official core links (--with-pcre-dir); ours has the PCRE2
+#   the fork bundles.
+# - USE_PHP: that of the official port and the modules our options need
+#   (ext.conf): session for igbinary, mysqlnd for mysqli, pdo_mysql, swoole and
+#   openswoole, igbinary for memcached and redis. The builder installs every
+#   package it builds, so a configure that looks for a module would find it or
+#   not by the order of the builds: with USE_PHP it is always there.
+# - CONFLICTS_INSTALL: the PHP versions install side by side (lib/php/<API>,
+#   etc/phpXY, include/phpXY), so a module conflicts with the static PHP of its
+#   version, not with the module of another version; openssl with
+#   openssl-legacy.
+# - the patches of the official slave ports (files/ of each port) stay as they
+#   are (the release tarball of the fork has those of lang/php74 only), except
+#   readline_cli.c of readline (in the source already), config.m4 of fileinfo,
+#   mbstring, phar and simplexml (only for the PCRE2 of the ports), and those of
+#   swoole for swoole_admin_server.cc, server/manager.cc and server/master.cc
+#   (in 4.8.13 already).
+
 COMMENT=	The ${PHP_MODNAME} shared extension for php
 
 USES+=	php:ext,noflavors
-PHP_MODNAME=	${PKGNAMESUFFIX:S/-//}
+# openssl-legacy builds ext/openssl
+PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//}
 PHP_VER=	74
 IGNORE_WITH_PHP= 72 73
 
@@ -9,8 +77,22 @@ EXTSUBDIR=	${DISTNAME}/ext/${PHP_MODNAME}
 WRKSRC=		${WRKDIR}/${EXTSUBDIR}
 PATCHDIR=	${.CURDIR}/files
 PLIST=		${NONEXISTENT}
+# Each module port has a description of its own (not that of the core)
+DESCR=		${.CURDIR}/pkg-descr
 
 EXTRACT_AFTER_ARGS?=	${EXTSUBDIR}
+
+# The versions side by side: not php[0-9][0-9]${PKGNAMESUFFIX} of the master
+CONFLICTS_INSTALL=	php${PHP_VER}-static
+
+# The libraries of az, as for the core: its pkg-config (with the .pc files of
+# the base system), its lib/ with the run path; AZ_LIBS (per module) the
+# libraries of ${AZ_PREFIX}/lib the module links
+BUILD_DEPENDS+=	${AZ_PREFIX}/bin/pkg-config:az/az \
+		${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
+RUN_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
+CONFIGURE_ENV+=	PKG_CONFIG=${AZ_PREFIX}/bin/pkg-config
+LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
 
 .if ${PHP_MODNAME} == "bcmath"
 CONFIGURE_ARGS+=--enable-bcmath
@@ -31,9 +113,9 @@ CONFIGURE_ARGS+=--enable-ctype
 .endif
 
 .if ${PHP_MODNAME} == "curl"
-LIB_DEPENDS+=	libcurl.so:ftp/curl
+AZ_LIBS=	libcurl.so
 
-CONFIGURE_ARGS+=--with-curl=${LOCALBASE}
+CONFIGURE_ARGS+=--with-curl
 USES+=		pkgconfig
 .endif
 
@@ -56,16 +138,10 @@ PHP_HEADER_DIRS=	libcdb libflatfile libinifile
 .endif
 
 .if ${PHP_MODNAME} == "dom"
-CONFIGURE_ARGS+=--enable-dom \
-		--with-libxml-dir=${LOCALBASE}
+AZ_LIBS=	libxml2.so
 
-USES+=		pkgconfig
-USE_GNOME=	libxml2
-.endif
+CONFIGURE_ARGS+=--enable-dom
 
-.if ${PHP_MODNAME} == "enchant"
-LIB_DEPENDS+=   libenchant.so:textproc/enchant
-CONFIGURE_ARGS+=--with-enchant=${LOCALBASE}
 USES+=		pkgconfig
 .endif
 
@@ -74,46 +150,43 @@ CONFIGURE_ARGS+=--enable-exif
 .endif
 
 .if ${PHP_MODNAME} == "ffi"
-LIB_DEPENDS=	libffi.so:devel/libffi
-CONFIGURE_ARGS+=--enable-ffi
+AZ_LIBS=	libffi.so
+CONFIGURE_ARGS+=--with-ffi
 .endif
 
 .if ${PHP_MODNAME} == "fileinfo"
-CONFIGURE_ARGS+=--enable-fileinfo \
-		--with-pcre-dir=${LOCALBASE}
+CONFIGURE_ARGS+=--enable-fileinfo
 
 PHP_HEADER_DIRS=	libmagic
 .endif
 
 .if ${PHP_MODNAME} == "filter"
-CONFIGURE_ARGS+=--enable-filter \
-		--with-pcre-dir=${LOCALBASE}
+CONFIGURE_ARGS+=--enable-filter
 .endif
 
 .if ${PHP_MODNAME} == "ftp"
-CONFIGURE_ARGS+=--enable-ftp
+CONFIGURE_ARGS+=--enable-ftp \
+		--with-openssl-dir=/usr
 
 CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
-		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto" \
-		PHP_OPENSSL=yes
+		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
 
 LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl
 USES+=		ssl pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "gd"
-LIB_DEPENDS=	libfreetype.so:print/freetype2 \
-		libpng.so:graphics/png
-USES+=		jpeg
+# libgd of az, with PNG, JPEG (mozjpeg), WebP and FreeType (not the bundled one)
+AZ_LIBS=	libgd.so
 
 CONFIGURE_ARGS+=--enable-gd \
 		--with-external-gd
 
 EXTRACT_AFTER_ARGS=--no-same-owner --no-same-permissions --exclude libgd \
-		php-${DISTVERSION}/ext/gd
+		${EXTSUBDIR}
 
 OPTIONS_DEFINE=TRUETYPE JIS WEBP X11
-OPTIONS_DEFAULT=TRUETYPE
+OPTIONS_DEFAULT=TRUETYPE WEBP
 
 TRUETYPE_DESC=	Enable TrueType string function
 JIS_DESC=	Enable JIS-mapped Japanese font support
@@ -123,64 +196,36 @@ X11_DESC=	Enable XPM support
 .endif
 
 .if ${PHP_MODNAME} == "gettext"
-CONFIGURE_ARGS+=--with-gettext=${LOCALBASE}
-
-USES+=		gettext
+AZ_LIBS=	libintl.so
+CONFIGURE_ARGS+=--with-gettext=${AZ_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "gmp"
-LIB_DEPENDS+=	libgmp.so:math/gmp
+AZ_LIBS=	libgmp.so
 
-CONFIGURE_ARGS+=--with-gmp=${LOCALBASE}
+CONFIGURE_ARGS+=--with-gmp=${AZ_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "iconv"
-CONFIGURE_ARGS+=--with-iconv=${LOCALBASE}
-
-USES+=	iconv:translit
-.endif
-
-.if ${PHP_MODNAME} == "imap"
-PHP_MOD_PRIO=	30
-OPTIONS_RADIO=  CLIENT
-OPTIONS_RADIO_CLIENT=	CCLIENT PANDA
-OPTIONS_DEFAULT=PANDA
-CCLIENT_DESC=	Uses the original but unmaintained cclient
-PANDA_DESC=	Uses the forked panda-cclient instead of the original cclient
-
-CONFIGURE_ARGS+=--with-imap=${LOCALBASE} \
-		--with-pcre-dir=${LOCALBASE} \
-		--with-imap-ssl=${OPENSSLBASE}
-
-CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
-		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto" \
-		PHP_OPENSSL=yes
-  
-LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl
-USES+=		ssl
+# GNU libiconv of az, as ext.conf
+AZ_LIBS=	libiconv.so
+CONFIGURE_ARGS+=--with-iconv=${AZ_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "intl"
-CONFIGURE_ARGS+=--with-intl=${LOCALBASE}
-LIB_DEPENDS=	libicui18n.so:devel/icu
+AZ_LIBS=	libicui18n.so
+CONFIGURE_ARGS+=--enable-intl
 USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "json"
 CONFIGURE_ARGS+=--enable-json
-BUILD_DEPENDS=  re2c:devel/re2c
-.endif
-
-.if ${PHP_MODNAME} == "ldap"
-CONFIGURE_ARGS+=--with-ldap=${LOCALBASE} --with-ldap-sasl=${LOCALBASE}
-
-USE_OPENLDAP=	yes
+BUILD_DEPENDS+=  re2c:devel/re2c
 .endif
 
 .if ${PHP_MODNAME} == "mbstring"
 
-CONFIGURE_ARGS+=--enable-mbstring \
-		--with-pcre-dir=${LOCALBASE}
+CONFIGURE_ARGS+=--enable-mbstring
 
 OPTIONS_DEFINE=	REGEX
 OPTIONS_DEFAULT=REGEX
@@ -191,17 +236,28 @@ PHP_HEADER_DIRS=libmbfl libmbfl/filters libmbfl/mbfl libmbfl/nls
 .endif
 
 .if ${PHP_MODNAME} == "mysqli"
+# --with-mysql-sock only for mysqli (ext.conf)
+CONFIGURE_ARGS+=--with-mysql-sock=/tmp/mysql.sock
+
 OPTIONS_DEFINE=	MYSQLND
 OPTIONS_DEFAULT=MYSQLND
 
 MYSQLND_DESC=	Use MySQL Native Driver
 .endif
 
-.if ${PHP_MODNAME} == "odbc"
-LIB_DEPENDS+=	libodbc.so:databases/unixODBC
+.if ${PHP_MODNAME} == "mysqlnd"
+# Ours: the MySQL Native Driver of mysqli and pdo_mysql (aZ: mysqlnd for the
+# databases, never libmysqlclient of the ports), SSL on the OpenSSL and the
+# compressed protocol on the zlib of the base system
+CONFIGURE_ARGS+=--enable-mysqlnd
 
-CONFIGURE_ARGS+=--enable-odbc \
-		--with-unixODBC=${LOCALBASE}
+CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
+		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
+USES+=		ssl pkgconfig
+# Its sources do not include config.h (php-src builds mysqlnd into PHP):
+# without it mysqlnd.so has no get_module and no SSL code (php-src
+# tools/build-pkg.sh)
+MAKE_ARGS+=	EXTRA_CFLAGS="-include ${WRKSRC}/config.h"
 .endif
 
 .if ${PHP_MODNAME} == "openssl"
@@ -209,13 +265,21 @@ USES+=			ssl
 CONFIGURE_ARGS+=	--with-openssl
 CONFIGURE_ENV+=		OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 			OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
+.  if ${PKGNAMESUFFIX} == "-openssl-legacy"
+# Ours: the legacy provider of OpenSSL loaded too (RC4, Blowfish, DES, CAST5,
+# MD4; aZ's sites need RC4); the same files as php74-openssl
+COMMENT=	The openssl shared extension for php, with the legacy provider
+CONFIGURE_ARGS+=	--with-openssl-legacy-provider
+CONFLICTS_INSTALL+=	php${PHP_VER}-openssl
+.  else
+CONFLICTS_INSTALL+=	php${PHP_VER}-openssl-legacy
+.  endif
 .endif
 
 .if ${PHP_MODNAME} == "opcache"
 # This is needed by Zend extensions, keep before everything.
 PHP_MOD_PRIO=	10
 CONFIGURE_ARGS+=--enable-opcache
-USES+=	localbase
 .endif
 
 .if ${PHP_MODNAME} == "pcntl"
@@ -224,30 +288,6 @@ CONFIGURE_ARGS+=--enable-pcntl
 
 .if ${PHP_MODNAME} == "pdo"
 CONFIGURE_ARGS+=--enable-pdo
-.endif
-
-.if ${PHP_MODNAME} == "pdo_dblib"
-CONFIGURE_ARGS+=--with-pdo-dblib=${LOCALBASE}
-
-USE_PHP=	pdo:build
-
-OPTIONS_DEFINE=	MSSQL
-
-MSSQL_DESC=	Enable Microsoft SQL Server support
-.endif
-
-.if ${PHP_MODNAME} == "pdo_firebird"
-CONFIGURE_ARGS+=--with-pdo-firebird=${LOCALBASE}
-
-USES+=	firebird
-USE_PHP=	pdo:build
-.endif
-
-.if ${PHP_MODNAME} == "pdo_odbc"
-LIB_DEPENDS+=	libodbc.so:databases/unixODBC
-CONFIGURE_ARGS+=--with-pdo-odbc=unixODBC,${LOCALBASE}
-
-USE_PHP=	pdo:build
 .endif
 
 .if ${PHP_MODNAME} == "pdo_mysql"
@@ -259,45 +299,25 @@ MYSQLND_DESC=	Use MySQL Native Driver
 USE_PHP=	pdo:build
 .endif
 
-.if ${PHP_MODNAME} == "pdo_pgsql"
-USES+=		pgsql
-
-CONFIGURE_ARGS+=--with-pdo-pgsql=${LOCALBASE}
-
-USE_PHP=	pdo:build
-.endif
-
 .if ${PHP_MODNAME} == "pdo_sqlite"
-USES+=		localbase sqlite
-CONFIGURE_ARGS+=--with-pdo-sqlite=${LOCALBASE}
+AZ_LIBS=	libsqlite3.so
+CONFIGURE_ARGS+=--with-pdo-sqlite
 
 USE_PHP=	pdo:build
-.endif
-
-.if ${PHP_MODNAME} == "pgsql"
-USES+=		pgsql
-
-CONFIGURE_ARGS+=--with-pgsql=${LOCALBASE}
 .endif
 
 .if ${PHP_MODNAME} == "phar"
-CONFIGURE_ARGS+=--enable-phar \
-		--with-pcre-dir=${LOCALBASE}
+CONFIGURE_ARGS+=--enable-phar
 .endif
 
 .if ${PHP_MODNAME} == "posix"
 CONFIGURE_ARGS+=--enable-posix
 .endif
 
-.if ${PHP_MODNAME} == "pspell"
-LIB_DEPENDS+=	libaspell.so:textproc/aspell
-
-CONFIGURE_ARGS+=--with-pspell=${LOCALBASE}
-.endif
-
 .if ${PHP_MODNAME} == "readline"
-CONFIGURE_ARGS+=--with-readline=/usr
-USES+=		readline
+# GNU readline of az
+AZ_LIBS=	libreadline.so
+CONFIGURE_ARGS+=--with-readline=${AZ_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "session"
@@ -310,31 +330,17 @@ CONFIGURE_ARGS+=--enable-shmop
 .endif
 
 .if ${PHP_MODNAME} == "simplexml"
-CONFIGURE_ARGS+=--enable-simplexml \
-		--with-pcre-dir=${LOCALBASE} \
-		--with-libxml-dir=${LOCALBASE}
+AZ_LIBS=	libxml2.so
+CONFIGURE_ARGS+=--enable-simplexml
 
 USES+=		pkgconfig
-USE_GNOME=	libxml2
-.endif
-
-.if ${PHP_MODNAME} == "snmp"
-CONFIGURE_ARGS+=--with-snmp=${LOCALBASE} \
-		--with-openssl-dir=${OPENSSLBASE}
-
-CONFIGURE_ENV+=	ac_cv_buggy_snprint_value="no"
-
-LIB_DEPENDS+=	libnetsnmp.so:net-mgmt/net-snmp
-LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl
-USES+=	ssl
 .endif
 
 .if ${PHP_MODNAME} == "soap"
-CONFIGURE_ARGS+=--enable-soap \
-		--with-libxml-dir=${LOCALBASE}
+AZ_LIBS=	libxml2.so
+CONFIGURE_ARGS+=--enable-soap
 
 USES+=		pkgconfig
-USE_GNOME=	libxml2
 .endif
 
 .if ${PHP_MODNAME} == "sockets"
@@ -342,13 +348,14 @@ CONFIGURE_ARGS+=--enable-sockets
 .endif
 
 .if ${PHP_MODNAME} == "sodium"
-CONFIGURE_ARGS+=	--with-sodium=${LOCALBASE}
-LIB_DEPENDS+=	libsodium.so:security/libsodium
+AZ_LIBS=	libsodium.so
+CONFIGURE_ARGS+=	--with-sodium
 .endif
 
 .if ${PHP_MODNAME} == "sqlite3"
-USES+=		localbase pkgconfig sqlite
-CONFIGURE_ARGS+=--with-sqlite3=${LOCALBASE}
+AZ_LIBS=	libsqlite3.so
+USES+=		pkgconfig
+CONFIGURE_ARGS+=--with-sqlite3
 .endif
 
 .if ${PHP_MODNAME} == "sysvmsg"
@@ -364,9 +371,8 @@ CONFIGURE_ARGS+=--enable-sysvshm
 .endif
 
 .if ${PHP_MODNAME} == "tidy"
-CONFIGURE_ARGS+=--with-tidy=${LOCALBASE}
-
-LIB_DEPENDS+=	libtidy.so:www/tidy-lib
+AZ_LIBS=	libtidy.so
+CONFIGURE_ARGS+=--with-tidy=${AZ_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "tokenizer"
@@ -374,63 +380,237 @@ CONFIGURE_ARGS+=--enable-tokenizer
 .endif
 
 .if ${PHP_MODNAME} == "xml"
-CONFIGURE_ARGS+=--enable-xml \
-		--with-libxml-dir=${LOCALBASE}
+AZ_LIBS=	libxml2.so
+CONFIGURE_ARGS+=--enable-xml
 
 USES+=		pkgconfig
-USE_GNOME=	libxml2
 .endif
 
 .if ${PHP_MODNAME} == "xmlreader"
-CONFIGURE_ARGS+=--enable-xmlreader \
-		--with-libxml-dir=${LOCALBASE}
-
-USE_GNOME=	libxml2
+AZ_LIBS=	libxml2.so
+CONFIGURE_ARGS+=--enable-xmlreader
 
 USE_PHP=	dom:build
 .endif
 
 .if ${PHP_MODNAME} == "xmlrpc"
+AZ_LIBS=	libxml2.so libiconv.so
 CONFIGURE_ARGS+=--with-xmlrpc \
-		--with-libxml-dir=${LOCALBASE} \
-		--with-iconv-dir=${LOCALBASE}
-
-USES+=		iconv:translit
-USE_GNOME=	libxml2
+		--with-iconv-dir=${AZ_PREFIX}
 
 PHP_HEADER_DIRS=libxmlrpc
 
+# Its parser is the compat.c of xml (a phpize build does not take it in)
 USE_PHP=	xml:build
 .endif
 
 .if ${PHP_MODNAME} == "xmlwriter"
-CONFIGURE_ARGS+=--enable-xmlwriter \
-                --with-libxml-dir=${LOCALBASE}
+AZ_LIBS=	libxml2.so
+CONFIGURE_ARGS+=--enable-xmlwriter
 
 USES+=		pkgconfig
-USE_GNOME=      libxml2
 .endif
 
 .if ${PHP_MODNAME} == "xsl"
-CONFIGURE_ARGS+=--with-xsl=${LOCALBASE}
+AZ_LIBS=	libxslt.so
+CONFIGURE_ARGS+=--with-xsl
 
-USE_GNOME=	libxslt
 USE_PHP=	dom:build xml:build
 .endif
 
 .if ${PHP_MODNAME} == "zip"
-LIB_DEPENDS+=	libzip.so:archivers/libzip
+AZ_LIBS=	libzip.so
 
-CONFIGURE_ARGS+=--enable-zip \
-		--with-zlib-dir=/usr \
-		--with-pcre-dir=${LOCALBASE} \
-		--with-libzip=${LOCALBASE}
+CONFIGURE_ARGS+=--with-zip
 USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "zlib"
-CONFIGURE_ARGS+=--with-zlib=/usr
+CONFIGURE_ARGS+=--with-zlib
 USES+=		pkgconfig
+.endif
+
+# The PECL extensions (the rules of their ports)
+
+.if ${PHP_MODNAME} == "excimer"
+COMMENT=	Interrupting timer and a low-overhead sampling profiler
+WWW=		https://pecl.php.net/package/excimer
+
+LICENSE=	APACHE20
+LICENSE_FILE=	${WRKSRC}/LICENSE
+
+CONFIGURE_ARGS+=--enable-excimer
+.endif
+
+.if ${PHP_MODNAME} == "igbinary"
+COMMENT=	Replacement for the standard PHP serializer
+WWW=		https://pecl.php.net/package/igbinary
+
+LICENSE=	BSD3CLAUSE
+LICENSE_FILE=	${WRKSRC}/COPYING
+
+CONFIGURE_ARGS+=--enable-igbinary
+# Its session serializer
+USE_PHP=	session:build
+.endif
+
+.if ${PHP_MODNAME} == "imagick"
+# graphics/pecl-imagick-im7: ImageMagick 7, that of the overlay in
+# ${AZ_PREFIX} (libraries, MagickWand-config) with its configuration in
+# ${LOCALBASE}/etc/ImageMagick-7
+COMMENT=	PHP wrapper to the ImageMagick/GraphicsMagick library version 7
+WWW=		https://pecl.php.net/package/imagick
+
+LICENSE=	PHP301
+
+CPE_VENDOR=	php
+CPE_PRODUCT=	imagick
+
+BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
+RUN_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
+
+CONFIGURE_ARGS+=--with-imagick=${AZ_PREFIX}
+.endif
+
+.if ${PHP_MODNAME} == "mcrypt"
+# libmcrypt of az, without libltdl
+COMMENT=	PHP extension for mcrypt, removed in PHP 7.2
+WWW=		https://pecl.php.net/package/mcrypt
+
+LICENSE=	PHP301
+
+AZ_LIBS=	libmcrypt.so
+CONFIGURE_ARGS+=--with-mcrypt=${AZ_PREFIX}
+.endif
+
+.if ${PHP_MODNAME} == "memcache"
+# Not the USES=dos2unix and USE_CSTD=gnu89 of the port: they were for its 8.0
+COMMENT=	Memcached extension
+WWW=		https://github.com/websupport-sk/pecl-memcache
+
+LICENSE=	PHP30
+LICENSE_FILE=	${WRKSRC}/LICENSE
+
+USE_PHP=	session:build zlib:build
+
+CONFIGURE_ARGS+=--enable-memcache \
+		--with-zlib-dir=/usr
+.endif
+
+.if ${PHP_MODNAME} == "memcached"
+# libmemcached of az; not the json serializer, the protocol and SASL of the
+# port (ext.conf: libmemcachedprotocol needs libevent, SASL cyrus-sasl2)
+COMMENT=	PHP extension for interfacing with memcached via libmemcached library
+WWW=		https://pecl.php.net/package/memcached
+
+LICENSE=	PHP30
+LICENSE_FILE=	${WRKSRC}/LICENSE
+
+AZ_LIBS=	libmemcached.so
+
+USE_PHP=	session:build
+
+CONFIGURE_ARGS+=--enable-memcached \
+		--enable-memcached-session \
+		--with-libmemcached-dir=${AZ_PREFIX} \
+		--with-zlib-dir=/usr
+
+OPTIONS_DEFINE=	IGBINARY MSGPACK SASL
+OPTIONS_DEFAULT=IGBINARY
+IGBINARY_DESC=	Binary serializer support
+MSGPACK_DESC=	MessagePack serializer support
+
+IGBINARY_CONFIGURE_ENABLE=	memcached-igbinary
+IGBINARY_USE=		PHP=igbinary:build
+MSGPACK_BUILD_DEPENDS=	${PECL_PKGNAMEPREFIX}msgpack>=0:devel/pecl-msgpack@${PHP_FLAVOR}
+MSGPACK_CONFIGURE_ENABLE=	memcached-msgpack
+MSGPACK_RUN_DEPENDS=	${PECL_PKGNAMEPREFIX}msgpack>=0:devel/pecl-msgpack@${PHP_FLAVOR}
+SASL_CONFIGURE_ENABLE=	memcached-sasl
+SASL_LIB_DEPENDS=	libsasl2.so:security/cyrus-sasl2
+.endif
+
+.if ${PHP_MODNAME} == "redis"
+# zstd compression with libzstd of az (ext.conf); json: the json serializer of
+# redis is on by default
+COMMENT=	Extension to access Redis
+WWW=		https://pecl.php.net/package/redis
+
+LICENSE=	PHP301
+LICENSE_FILE=	${WRKSRC}/COPYING
+
+AZ_LIBS=	libzstd.so
+
+USE_PHP=	hash:build json:build session:build
+
+CONFIGURE_ARGS+=--enable-redis \
+		--enable-redis-zstd \
+		--with-libzstd=${AZ_PREFIX}
+
+OPTIONS_DEFINE=	IGBINARY
+OPTIONS_DEFAULT=IGBINARY
+IGBINARY_DESC=	Build with Igbinary serializer
+
+IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
+IGBINARY_USE=			PHP=igbinary:build
+.endif
+
+.if ${PHP_MODNAME} == "swoole"
+# mysqlnd is a module here; brotli of az, OpenSSL of the base system
+# (ext.conf); not USES=localbase:ldflags: no library of the ports
+COMMENT=	Asynchronous, concurrent, and distributed networking framework
+WWW=		https://pecl.php.net/package/swoole
+
+LICENSE=	APACHE20
+LICENSE_FILE=	${WRKSRC}/LICENSE
+
+USES+=		compiler:c11 ssl
+USE_PHP=	hash:build pcre mysqlnd:build
+AZ_LIBS=	libbrotlienc.so
+
+CONFIGURE_ARGS+=	--enable-swoole \
+			--enable-mysqlnd \
+			--with-openssl-dir=/usr \
+			--enable-brotli \
+			--with-brotli-dir=${AZ_PREFIX}
+
+OPTIONS_DEFINE=		CARES CURL HTTP2 JSON SOCKETS
+OPTIONS_DEFAULT=	SOCKETS
+CARES_LIB_DEPENDS=	libcares.so:dns/c-ares
+CARES_CONFIGURE_ON=	--enable-cares
+HTTP2_CONFIGURE_ON=	--enable-http2 \
+			--enable-openssl
+SOCKETS_USE=		PHP=sockets:build
+SOCKETS_DESC=		Use native php sockets extension
+SOCKETS_CONFIGURE_ON=	--enable-sockets
+CURL_LIB_DEPENDS=	libcurl.so:ftp/curl
+CURL_CONFIGURE_ON=	--enable-swoole-curl
+CURL_USE=		PHP=curl
+JSON_CONFIGURE_ON=	--enable-swoole-json
+JSON_USE=		PHP=json:build
+.endif
+
+.if ${PHP_MODNAME} == "openswoole"
+# Ours (no port), as swoole. OpenSwoole is a fork of Swoole with the same
+# classes and PHP stops when both are loaded, but both install (aZ): the ini
+# comes with its line commented out, and the message of the package says why
+# and how to switch (php-src tools/build-pkg.sh). Its configure takes brotli
+# when it finds it: that of az.
+COMMENT=	Asynchronous networking framework, the OpenSwoole fork of Swoole
+WWW=		https://openswoole.com/
+
+LICENSE=	APACHE20
+LICENSE_FILE=	${WRKSRC}/LICENSE
+
+USES+=		compiler:c11 ssl
+USE_PHP=	sockets:build mysqlnd:build
+AZ_LIBS=	libbrotlienc.so
+
+CONFIGURE_ARGS+=	--enable-openswoole \
+			--enable-sockets \
+			--enable-mysqlnd \
+			--with-openssl-dir=/usr
+
+POST_PLIST+=	openswoole-ini-off
 .endif
 
 .include <bsd.port.options.mk>
@@ -476,6 +656,7 @@ CONFIGURE_ARGS+=	--with-lmdb=${LOCALBASE}
 .if ${PHP_MODNAME} == "mysqli"
 .	if ${PORT_OPTIONS:MMYSQLND}
 CONFIGURE_ARGS+=--with-mysqli=mysqlnd
+USE_PHP=	mysqlnd:build
 .	else
 CONFIGURE_ARGS+=--with-mysqli=${LOCALBASE}/bin/mysql_config
 USES+=	mysql
@@ -485,6 +666,7 @@ USES+=	mysql
 .if ${PHP_MODNAME} == "pdo_mysql"
 .	if ${PORT_OPTIONS:MMYSQLND}
 CONFIGURE_ARGS+=--with-pdo-mysql=mysqlnd
+USE_PHP+=	mysqlnd:build
 .	else
 CONFIGURE_ARGS+=--with-pdo-mysql=${LOCALBASE} \
 		--with-zlib-dir=/usr
@@ -497,8 +679,7 @@ USES+=	mysql
 CONFIGURE_ARGS+=--enable-gd-jis-conv
 .	endif
 .   if ${PORT_OPTIONS:MWEBP}
-LIB_DEPENDS+=   libwebp.so:graphics/webp
-
+# WebP of libgd of az
 CONFIGURE_ARGS+=--with-webp
 .   endif
 .	if ${PORT_OPTIONS:MX11}
@@ -511,18 +692,10 @@ CONFIGURE_ARGS+=--with-xpm
 
 .include <bsd.port.pre.mk>
 
-.if ${PHP_MODNAME} == "imap"
-.	if ${PORT_OPTIONS:MPANDA}
-LIB_DEPENDS+=	libc-client.so.2010:mail/panda-cclient
-.	else
-LIB_DEPENDS+=	libc-client4.so.9:mail/cclient
-.	endif
-.endif
-
 .if ${PHP_MODNAME} == "mbstring"
 .	if ${PORT_OPTIONS:MREGEX}
-LIB_DEPENDS+=	libonig.so:devel/oniguruma
-CONFIGURE_ARGS+=--with-onig=${LOCALBASE}
+# oniguruma of az, found by its pkg-config
+AZ_LIBS+=	libonig.so
 .	else
 CONFIGURE_ARGS+=--disable-mbregex
 .	endif
@@ -533,12 +706,9 @@ post-extract:
 	@${MV} ${WRKSRC}/config0.m4 ${WRKSRC}/config.m4
 .endif
 
-.if ${PHP_MODNAME} == "pdo_dblib"
-.	if ${PORT_OPTIONS:MMSSQL}
-LIB_DEPENDS+=	libsybdb.so:databases/freetds
-.	else
-LIB_DEPENDS+=	libct.so:databases/freetds
-.	endif
+.if ${PHP_MODNAME} == "mysqlnd"
+post-extract:
+	@${MV} ${WRKSRC}/config9.m4 ${WRKSRC}/config.m4
 .endif
 
 .if ${PHP_MODNAME} == "xml"
@@ -550,4 +720,32 @@ post-extract:
 .if ${PHP_MODNAME} == "zlib"
 post-extract:
 	@${MV} ${WRKSRC}/config0.m4 ${WRKSRC}/config.m4
+.endif
+
+.if ${PHP_MODNAME} == "igbinary"
+post-patch:
+# Install the real header files
+	@${CP} ${WRKSRC}/src/php7/igbinary.h ${WRKSRC}/igbinary.h
+	@${CP} ${WRKSRC}/src/php7/php_igbinary.h ${WRKSRC}/php_igbinary.h
+.endif
+
+.if ${PHP_MODNAME} == "openswoole"
+# After add-plist-phpext of Mk/Uses/php.mk (the ini, staged as
+# ${PHP_EXT_INI_FILE} or its .sample, and the message of the package)
+openswoole-ini-off:
+	@cd ${STAGEDIR}${PREFIX} && for f in ${PHP_EXT_INI_FILE} ${PHP_EXT_INI_FILE}.sample; do \
+		if [ -f "$$f" ]; then \
+			${PRINTF} '%s\n' "; Off: PHP stops when openswoole.so and swoole.so are loaded together (pkg info -D ${PKGBASE})." \
+				";extension=${PHP_MODNAME}.so" > "$$f"; \
+		fi; \
+	done
+	@${PRINTF} '%s\n' '[' '{' '  message: <<EOD' \
+		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops when" \
+		"openswoole.so and swoole.so are loaded together, so" \
+		"${PREFIX}/${PHP_EXT_INI_FILE} comes with its line commented out." \
+		"To load openswoole: comment out the line of swoole in its" \
+		"${PREFIX}/${PHP_EXT_INI_FILE:H}/ext-*-swoole.ini, remove the ';' before" \
+		"extension=${PHP_MODNAME}.so in ${PREFIX}/${PHP_EXT_INI_FILE}, then restart" \
+		"php_fpm${PHP_VER} or Apache." \
+		'EOD' '  type: install' '}' ']' > ${PHP_EXT_PKGMESSAGE}
 .endif

@@ -1,21 +1,10 @@
-PORTNAME=	mcrypt
-PORTVERSION=	1.0.5
-PORTREVISION=	0
+# PECL mcrypt, bundled into ext/mcrypt of the release tarball of azsupport/php-src:
+# its version there (php-src freebsd/pecl.conf)
+DISTVERSION=	1.0.9
 CATEGORIES=	security pear
 
-MAINTAINER=	pizzamig@FreeBSD.org
-COMMENT=	PHP extension for mcrypt, removed in PHP 7.2
-WWW=		https://pecl.php.net/package/mcrypt
+MASTERDIR=	${.CURDIR}/../../lang/php74
 
-LICENSE=	PHP301
+PKGNAMESUFFIX=	-mcrypt
 
-LIB_DEPENDS=	libltdl.so:devel/libltdl \
-		libmcrypt.so:security/libmcrypt
-
-USES=	php:pecl
-
-post-patch:
-	${REINPLACE_CMD} -e 's/RETURN_FALSE$$/RETURN_FALSE;/g' ${WRKSRC}/mcrypt.c
-	${REINPLACE_CMD} -e 's/RETURN_TRUE$$/RETURN_TRUE;/g' ${WRKSRC}/mcrypt.c
-
-.include <bsd.port.mk>
+.include "${MASTERDIR}/Makefile"

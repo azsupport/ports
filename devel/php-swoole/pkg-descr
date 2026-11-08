@@ -10,3 +10,7 @@ Asynchronous & concurrent & distributed networking framework for PHP.
 * async read/write file system
 * async dns lookup
 * support IPv4/IPv6/UnixSocket/TCP/UDP
+
+PECL swoole for php74 of azsupport/ports, built from ext/swoole of the
+release tarball of azsupport/php-src, which bundles it:
+lib/php/20190902/swoole.so, loaded by its ini in etc/php74/conf.d.

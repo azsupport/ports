@@ -1,14 +1,10 @@
-PORTNAME=	excimer
-DISTVERSION=	1.2.3
+# PECL excimer, bundled into ext/excimer of the release tarball of azsupport/php-src:
+# its version there (php-src freebsd/pecl.conf)
+DISTVERSION=	1.2.7
 CATEGORIES=	devel
 
-MAINTAINER=	000.fbsd@quip.cz
-COMMENT=	Interrupting timer and a low-overhead sampling profiler
-WWW=		https://pecl.php.net/package/excimer
+MASTERDIR=	${.CURDIR}/../../lang/php74
 
-LICENSE=	APACHE20
-LICENSE_FILE=	${WRKSRC}/LICENSE
+PKGNAMESUFFIX=	-excimer
 
-USES=		php:pecl
-
-.include <bsd.port.mk>
+.include "${MASTERDIR}/Makefile"

@@ -6,3 +6,7 @@ This extension uses libmemcached library to provide API for
 communicating with memcached servers.
 
 See also: https://github.com/php-memcached-dev/php-memcached
+
+PECL memcached for php74 of azsupport/ports, built from ext/memcached
+of the release tarball of azsupport/php-src, which bundles it:
+lib/php/20190902/memcached.so, loaded by its ini in etc/php74/conf.d.
