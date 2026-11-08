@@ -25,6 +25,11 @@
 #                    the pinned commit (a build server: its own tree; a warning when it is
 #                    at another commit)
 #   AZ_PKG_KEY_FILE  the signing key of the repository (see tools/pkg-repo-sign.sh)
+#   AZ_JOBS          the ports built at once, in waves (default 4); 1: one after
+#                    another in the order of the queue, as before AZ_JOBS
+#   AZ_DRYRUN        1: the queue, the hashes and the waves of the run (what the
+#                    repository has with the same az_hash left out), nothing installed
+#                    or built, no repository
 #
 # How (the logic of poudriere, with make and pkg of the host):
 # - the official tree of freebsd-ports at the pinned commit below (git, depth 1, reused
@@ -53,9 +58,16 @@
 #   repository of the host), ours by pkg add of the packages built before (or of the
 #   repository), then make clean package with USE_PACKAGE_DEPENDS_ONLY=yes (nothing is
 #   built from source but the port itself); its log, its time, OK or FAIL;
+# - AZ_JOBS above 1: waves, each of the ports whose ports of this tree they need are
+#   done; the dependencies of the ports of a wave installed first, one port after
+#   another as above (a port whose installation takes away a package that a port
+#   before it in the wave got goes to a later wave), then up to AZ_JOBS make package
+#   at once, the biggest first (the size of the package in the repository), each with
+#   its log and its own PACKAGES directory, and no pkg add, install or delete while
+#   they run; the summary in the order of the queue, results/waves.txt;
 # - a NEED_ROOT port (az/az builds into the real prefix and refuses files of a package
-#   there): its installed package deleted before its build, the new one added after
-#   it (the old one back when it fails);
+#   there): alone (a wave of its own), its installed package deleted before its
+#   build, the new one added after it (the old one back when it fails);
 # - the repository: one package per origin (of two in <dir> at the start, the newer
 #   version), the new ones in the place of the old ones of the same name or origin,
 #   away with the packages of origins this tree has no more, pkg repo, signed and
@@ -65,10 +77,10 @@
 #   only (never published).
 #
 # Results: results/ of the tree: summary.txt (a line per port, "result: OK" or
-# "result: FAIL (...)" at the end), queue.txt, hashes.txt, logs/<category>_<port>.log,
-# pkg-repo.log.
+# "result: FAIL (...)" at the end), queue.txt, hashes.txt, waves.txt (AZ_JOBS above 1,
+# AZ_DRYRUN), logs/<category>_<port>.log, pkg-repo.log.
 # Exit status: 0 every port of the queue built or kept and the repository signed (or
-# unsigned without a key), 1 otherwise, 2 a wrong call.
+# unsigned without a key), or a dry run; 1 otherwise, 2 a wrong call.
 
 set -u
 
@@ -108,6 +120,14 @@ az_stamp="${AZ_STAMP:-$(date -u +%y%m%d%H)}"
 case "$az_stamp" in
     ''|*[!0-9]*) die "AZ_STAMP=$az_stamp: not a number (yymmddhh)" ;;
 esac
+jobs="${AZ_JOBS:-4}"
+case "$jobs" in
+    ''|*[!0-9]*|0*) die "AZ_JOBS=$jobs: not a number of 1 or more" ;;
+esac
+case "${AZ_DRYRUN:-}" in ''|0) dryrun=0 ;; *) dryrun=1 ;; esac
+# one port after another as before AZ_JOBS: AZ_JOBS=1 (not a dry run)
+serial=0
+[ "$jobs" = 1 ] && [ "$dryrun" = 0 ] && serial=1
 work="${AZ_WORK:-$top/work}"
 res="$top/results"
 packages="$top/packages"
@@ -121,7 +141,7 @@ work="$(cd "$work" && pwd)"
 repo="$(cd "$repo" && pwd)"
 # the real path of the tree: the files of the hashes are named relative to it
 topr="$(cd "$top" && pwd -P)"
-rm -rf "${q:?}"/* "${res:?}"
+rm -rf "${q:?}"/* "${res:?}" "$work/pk"
 mkdir -p "$res/logs" "$q/info" "$q/deps" "$q/rdeps" "$q/odeps" "$q/orun" "$q/pkgbase" "$q/state" "$q/file" "$q/hash" ||
     die "cannot make $res and $q"
 # make package writes packages/All/<pkgname>.pkg (the directory must exist, else
@@ -539,12 +559,13 @@ overlay_rev="$(git -C "$top" log -1 --format='%h %s' 2>/dev/null)"
         r && /^ *url *:/ { u = $0; sub(/^ *url *: *"?/, "", u); sub(/"?,? *$/, "", u) }
         r && /^ *enabled *: *(yes|true)/ && n != "" { printf "%s%s %s", s, n, u; s = ", " }')"
     echo "repo:     $repo ($(npkg "$repo") packages before the run)"
-    echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')"
+    echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')$( [ "$serial" = 0 ] && echo ", AZ_JOBS=$jobs")$( [ "$dryrun" = 1 ] && echo ', AZ_DRYRUN')"
 } > "$sum"
 
 # --- the builds ------------------------------------------------------------------------
 # a line of the summary and the state of a port: ok (built), repo (in the repository
-# already), fail, skip (needs a port that failed)
+# already), fail, skip (needs a port that failed); with AZ_JOBS above 1 the line goes
+# into $q/sum/<key> first and the summary takes the lines in the order of the queue
 record() {
     _o="$1"; _s="$2"; shift 2
     echo "$_s" > "$q/state/$(key "$_o")"
@@ -553,93 +574,118 @@ record() {
         fail) _w=FAIL ;;
         *) _w=SKIP ;;
     esac
-    printf '%-34s %-4s %s\n' "$_o" "$_w" "$*" >> "$sum"
+    if [ "$serial" = 1 ]; then
+        printf '%-34s %-4s %s\n' "$_o" "$_w" "$*" >> "$sum"
+    else
+        printf '%-34s %-4s %s\n' "$_o" "$_w" "$*" > "$q/sum/$(key "$_o")"
+    fi
     say "$_o: $_w $*"
 }
 
-for o in $(cat "$q/queue.txt"); do
-    k="$(key "$o")"
+# pre_port <origin>: what is to be done with a port, before its dependencies: 1 when
+# that is said already (the line of the summary: it failed, is skipped, or its
+# package with the same az_hash is in the repository), 0 when it is to be built
+# (k, log, pn, ign, h, hs, had set; asked again it says nothing more)
+pre_port() {
+    k="$(key "$1")"
     log="$res/logs/$k.log"
-    : > "$log"
-    if [ -f "$q/info/$k.bad" ]; then record "$o" fail "$(cat "$q/info/$k.bad")"; continue; fi
-    pn="$(sed -n 1p "$q/info/$k")"
-    ign="$(sed -n 2p "$q/info/$k")"
-    h="$(cat "$q/hash/$k")"
+    pn="$(sed -n 1p "$q/info/$k" 2>/dev/null)"
+    ign="$(sed -n 2p "$q/info/$k" 2>/dev/null)"
+    h="$(cat "$q/hash/$k" 2>/dev/null)"
     hs="$(printf '%s' "$h" | cut -c1-12)"
+    had="$(awk -v o="$1" '$2 == o { print $3, $4; exit }' "$q/repo-had")"
+    [ -f "$q/tobuild-$k" ] && return 0
+    : > "$log"
+    if [ -f "$q/info/$k.bad" ]; then record "$1" fail "$(cat "$q/info/$k.bad")"; return 1; fi
     # the ports of this tree it needs: failed, or skipped for that
     bad=""
     for d in $(cat "$q/deps/$k"); do
         case "$(st "$d")" in fail|skip) bad="$bad $d" ;; esac
     done
-    if [ -n "$bad" ]; then record "$o" skip "$pn: needs$bad, which failed or was skipped"; continue; fi
-    if [ -n "$ign" ]; then record "$o" fail "$pn: the port says IGNORE: $ign"; continue; fi
+    if [ -n "$bad" ]; then record "$1" skip "$pn: needs$bad, which failed or was skipped"; return 1; fi
+    if [ -n "$ign" ]; then record "$1" fail "$pn: the port says IGNORE: $ign"; return 1; fi
     # its package in the repository: the same az_hash, another one, none
-    had="$(awk -v o="$o" '$2 == o { print $3, $4; exit }' "$q/repo-had")"
     if [ -n "$had" ] && [ "${had%% *}" = "$h" ] && [ "$force" = 0 ]; then
         echo "$repo/${had#* }" > "$q/file/$k"
-        record "$o" repo "${had#* }: in the repository already with the same az_hash $hs"
-        continue
+        record "$1" repo "${had#* }: in the repository already with the same az_hash $hs"
+        return 1
     fi
     if [ "$force" = 1 ]; then why="--force"
-    elif [ -z "$had" ]; then why="no package of $o in the repository"
+    elif [ -z "$had" ]; then why="no package of $1 in the repository"
     elif [ "${had%% *}" = - ]; then why="${had#* } in the repository has no az_hash"
     else why="az_hash $hs, not $(printf '%s' "${had%% *}" | cut -c1-12) of ${had#* } in the repository"
     fi
-    say "$o: $pn ($why)"
+    say "$1: $pn ($why)"
+    : > "$q/tobuild-$k"
+    return 0
+}
+
+# deps_port <origin>: its official dependencies (pkg install) and ours (pkg add); 1
+# when they did not install (the line of the summary said)
+deps_port() {
     why=""
-    if ! official "$q/odeps/$k"; then record "$o" fail "$pn: the official dependencies: $why"; continue; fi
-    okd=1
+    if ! official "$q/odeps/$k"; then record "$1" fail "$pn: the official dependencies: $why"; return 1; fi
     for d in $(cat "$q/deps/$k"); do
-        inst_port "$d" || { okd=0; break; }
+        inst_port "$d" || { record "$1" fail "$pn: our dependencies: $why"; return 1; }
     done
-    if [ "$okd" = 0 ]; then record "$o" fail "$pn: our dependencies: $why"; continue; fi
-    # NEED_ROOT (az/az: it installs into the real prefix while it builds, and refuses
-    # files there of a package): its installed package deleted first (pkg delete -f,
-    # those that need it stay), the new one added after the build, the old one back
-    # when the build fails
-    old=""
-    nr="$(sed -n 10p "$q/info/$k")"
-    case "$nr" in ''|no|NO) nr="" ;; esac
-    if [ -n "$nr" ] && pkg info -e "${pn%-*}"; then
-        old="$(awk -v n="${pn%-*}" '$2 == n { print $4 }' "$q/installed" | tail -n 1)"
-        [ -z "$old" ] && [ -n "$had" ] && old="$repo/${had#* }"
-        say "  pkg delete -f ${pn%-*} (NEED_ROOT: it builds into the real prefix)"
-        pkg delete -y -f "${pn%-*}" >> "$log" 2>&1 || say "  pkg delete -f ${pn%-*} failed (logs/$k.log)"
-        gone
-    fi
+    return 0
+}
+
+# need_root <origin>: NEED_ROOT of the port (az/az: it installs into the real prefix
+# while it builds, and refuses files there of a package), or nothing
+need_root() {
+    _nr="$(sed -n 10p "$q/info/$(key "$1")" 2>/dev/null)"
+    case "$_nr" in ''|no|NO) _nr="" ;; esac
+    printf '%s' "$_nr"
+}
+
+# make_port <origin> [<packages>]: make clean package of a port, its result said (the
+# line of the summary); with <packages> (AZ_JOBS above 1) the build writes its
+# packages into <packages>/All, moved into packages/All after it (each build its
+# own: the files a build made are those, whatever builds at the same time)
+make_port() {
+    _pk="${2:-}"
     mark="$q/mark-$k"
     : > "$mark"
     rm -f "$packages/All/$pn.pkg"
+    if [ -n "$_pk" ]; then rm -rf "$_pk" && mkdir -p "$_pk/All"; fi
     start="$(date +%s)"
-    make -C "$top/$o" clean package USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" >> "$log" 2>&1
+    make -C "$top/$1" clean package USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" \
+        ${_pk:+PACKAGES="$_pk"} >> "$log" 2>&1
     rc=$?
     secs=$(( $(date +%s) - start ))
     # the config.log files of a failed build next to its log, then the work directory away
     if [ "$rc" != 0 ]; then
-        wd="$(make -C "$top/$o" -V WRKDIR 2>/dev/null)"
+        wd="$(make -C "$top/$1" -V WRKDIR 2>/dev/null)"
         n=0
         for c in $(find "$wd" -maxdepth 3 -name config.log 2>/dev/null); do
             n=$((n + 1)); cp "$c" "$res/logs/$k.config-$n.log"
         done
     fi
-    make -C "$top/$o" clean > /dev/null 2>&1
+    make -C "$top/$1" clean > /dev/null 2>&1
+    # the packages of a build of its own into packages/All
+    if [ -n "$_pk" ] && [ "$rc" = 0 ] && [ -f "$_pk/All/$pn.pkg" ]; then
+        : > "$q/made-$k"
+        for f in "$_pk"/All/*.pkg; do
+            [ -f "$f" ] || continue
+            mv -f "$f" "$packages/All/" && echo "$packages/All/${f##*/}" >> "$q/made-$k"
+        done
+        rm -rf "$_pk"
+    fi
     if [ "$rc" != 0 ] || [ ! -f "$packages/All/$pn.pkg" ]; then
+        rm -f "$q/made-$k"
         e="$(grep -E ' error:|Error code|^\*\*\*|^===>.*(IGNORE|not found|failed)' "$log" | head -n 1 | cut -c1-200)"
         [ "$rc" = 0 ] && e="make package made no $pn.pkg"
-        say "$o: make package failed, the last 40 lines of logs/$k.log:"
+        say "$1: make package failed, the last 40 lines of logs/$k.log:"
         tail -n 40 "$log" | sed 's/^/    | /'
-        record "$o" fail "$pn: ${secs}s, ${e:-make package failed} (logs/$k.log)"
-        if [ -n "$old" ] && [ -f "$old" ]; then
-            say "  pkg add ${old##*/}: the package of before back"
-            pkg add -f "$old" >> "$log" 2>&1 || say "  pkg add ${old##*/} failed"
-        fi
-        continue
+        record "$1" fail "$pn: ${secs}s, ${e:-make package failed} (logs/$k.log)"
+        return 1
     fi
     f="$packages/All/$pn.pkg"
     echo "$f" > "$q/file/$k"
     rm -f "$q/inst-$k"
     # every package the build made (a port with subpackages makes more than one)
-    find "$packages/All" -name '*.pkg' -newer "$mark" > "$q/made-$k"
+    [ -n "$_pk" ] || find "$packages/All" -name '*.pkg' -newer "$mark" > "$q/made-$k"
     grep -qxF "$f" "$q/made-$k" || echo "$f" >> "$q/made-$k"
     note=""
     [ "$(pkg_hash "$f")" = "$h" ] ||
@@ -648,12 +694,204 @@ for o in $(cat "$q/queue.txt"); do
         *_"$az_stamp"|*_"$az_stamp",*) ;;
         *) note="$note; warning: the version has not the revision $az_stamp (PORTREVISION= \${AZ_STAMP}): no upgrade for pkg" ;;
     esac
-    record "$o" ok "$pn: ${secs}s, $(( $(wc -c < "$f") / 1024 )) KB, az_hash $hs$note"
+    record "$1" ok "$pn: ${secs}s, $(( $(wc -c < "$f") / 1024 )) KB, az_hash $hs$note"
+    return 0
+}
+
+# one_port <origin>: a port built as it is alone (AZ_JOBS=1: every port; above 1: a
+# NEED_ROOT port), after pre_port said it is to be built: its dependencies, the
+# NEED_ROOT steps (its installed package deleted first with pkg delete -f, those
+# that need it stay; the new one added after the build, the old one back when the
+# build fails), make package
+one_port() {
+    deps_port "$1" || return 0
+    old=""
+    nr="$(need_root "$1")"
+    if [ -n "$nr" ] && pkg info -e "${pn%-*}"; then
+        old="$(awk -v n="${pn%-*}" '$2 == n { print $4 }' "$q/installed" | tail -n 1)"
+        [ -z "$old" ] && [ -n "$had" ] && old="$repo/${had#* }"
+        say "  pkg delete -f ${pn%-*} (NEED_ROOT: it builds into the real prefix)"
+        pkg delete -y -f "${pn%-*}" >> "$log" 2>&1 || say "  pkg delete -f ${pn%-*} failed (logs/$k.log)"
+        gone
+    fi
+    if ! make_port "$1"; then
+        if [ -n "$old" ] && [ -f "$old" ]; then
+            say "  pkg add ${old##*/}: the package of before back"
+            pkg add -f "$old" >> "$log" 2>&1 || say "  pkg add ${old##*/} failed"
+        fi
+        return 0
+    fi
     if [ -n "$nr" ]; then
         why=""
-        inst_port "$o" || say "  the new package of $o did not install: $why"
+        inst_port "$1" || say "  the new package of $1 did not install: $why"
     fi
-done
+    return 0
+}
+
+# deps_ok <origin>: the dependencies a port of the wave got are still installed (the
+# official ones, ours with their versions and the official ones those need); not
+# when pkg install or pkg add for a port after it in the wave took one away
+deps_ok() {
+    _k="$(key "$1")"
+    for _o in $(cat "$q/odeps/$_k"); do
+        _p="$(pkgbase "$_o")" && pkg info -e "$_p" || return 1
+    done
+    for _d in $(cat "$q/deps/$_k"); do
+        printf '%s\n' "$_d" > "$q/ok.all"
+        cp "$q/ok.all" "$q/ok.new"
+        while [ -s "$q/ok.new" ]; do
+            for _c in $(cat "$q/ok.new"); do cat "$q/rdeps/$(key "$_c")"; done | LC_ALL=C sort -u |
+                grep -vxF -f "$q/ok.all" > "$q/ok.next"
+            cat "$q/ok.next" >> "$q/ok.all"
+            mv "$q/ok.next" "$q/ok.new"
+        done
+        for _c in $(cat "$q/ok.all"); do
+            [ -f "$q/inst-$(key "$_c")" ] || return 1
+            _l="$(awk -v o="$_c" '$1 == o { l = $2 " " $3 } END { print l }' "$q/installed")"
+            [ -n "$_l" ] && [ "$(pkg query %v "${_l% *}" 2>/dev/null)" = "${_l#* }" ] || return 1
+            for _o in $(cat "$q/orun/$(key "$_c")"); do
+                _p="$(pkgbase "$_o")" && pkg info -e "$_p" || return 1
+            done
+        done
+    done
+    return 0
+}
+
+if [ "$serial" = 1 ]; then
+    # one port after another, in the order of the queue
+    for o in $(cat "$q/queue.txt"); do
+        pre_port "$o" && one_port "$o"
+    done
+else
+    # Waves (AZ_JOBS above 1, or AZ_DRYRUN): the ports whose ports of this tree they
+    # need are done (built, kept, failed or skipped) form a wave, in the order of
+    # the queue; a NEED_ROOT port is a wave alone (as with AZ_JOBS=1). The
+    # dependencies of the ports of a wave are installed first, one port after
+    # another as with AZ_JOBS=1; a port whose installation took away what a port
+    # before it in the wave got (pkg install replacing or removing a package) goes
+    # to a later wave, and those before it get theirs again. Then no pkg add, pkg
+    # install or pkg delete while up to AZ_JOBS make package run at once, each with
+    # its log and its own packages directory; its screen output said when it ends.
+    mkdir -p "$q/sum" "$q/jobs"
+    : > "$res/waves.txt"
+    wave=0
+    while :; do
+        # the ports that are ready, those that need no build said at once (the next
+        # ones may be ready then)
+        : > "$q/cand"
+        more=1
+        while [ "$more" = 1 ]; do
+            more=0
+            : > "$q/cand"
+            for o in $(cat "$q/queue.txt"); do
+                [ -n "$(st "$o")" ] && continue
+                ready=1
+                for d in $(cat "$q/deps/$(key "$o")"); do
+                    [ -n "$(st "$d")" ] || { ready=0; break; }
+                done
+                [ "$ready" = 1 ] || continue
+                if pre_port "$o"; then echo "$o" >> "$q/cand"; else more=1; fi
+            done
+        done
+        if [ ! -s "$q/cand" ]; then
+            # nothing ready: done, or a loop in the dependencies (the first port left
+            # in the order of the queue, as with AZ_JOBS=1)
+            o="$(for o in $(cat "$q/queue.txt"); do [ -z "$(st "$o")" ] && { echo "$o"; break; }; done)"
+            [ -n "$o" ] || break
+            pre_port "$o" || continue
+            echo "$o" > "$q/cand"
+        fi
+        wave=$((wave + 1))
+        # a NEED_ROOT port first in the order of the queue: alone; else the ports that
+        # are not NEED_ROOT
+        o="$(head -n 1 "$q/cand")"
+        if [ -n "$(need_root "$o")" ]; then
+            say "wave $wave: $o (alone: NEED_ROOT)"
+            echo "wave $wave: $o" >> "$res/waves.txt"
+            if [ "$dryrun" = 1 ]; then pre_port "$o"; record "$o" ok "$pn: dry run, not built"; else pre_port "$o"; one_port "$o"; fi
+            continue
+        fi
+        : > "$q/wave"
+        for o in $(cat "$q/cand"); do
+            [ -n "$(need_root "$o")" ] && continue
+            pre_port "$o"
+            if [ "$dryrun" = 1 ]; then echo "$o" >> "$q/wave"; continue; fi
+            pkg query -a '%n %v' 2> /dev/null | LC_ALL=C sort > "$q/pkgs.before"
+            deps_port "$o" || continue
+            # what the ports before it in the wave got: still there? (looked at only
+            # when its installation removed a package or changed its version)
+            pkg query -a '%n %v' 2> /dev/null | LC_ALL=C sort > "$q/pkgs.after"
+            broke=""
+            if [ -n "$(grep -vxF -f "$q/pkgs.after" "$q/pkgs.before")" ]; then
+                for w in $(cat "$q/wave"); do deps_ok "$w" || broke="$broke $w"; done
+            fi
+            if [ -z "$broke" ]; then echo "$o" >> "$q/wave"; continue; fi
+            say "$o: its dependencies took away those of$broke: a later wave"
+            for w in $(cat "$q/wave"); do
+                pre_port "$w"
+                if ! deps_port "$w"; then
+                    grep -vxF "$w" "$q/wave" > "$q/wave.new"; mv "$q/wave.new" "$q/wave"
+                fi
+            done
+            # still not: the first port of the wave alone
+            broke=""
+            for w in $(cat "$q/wave"); do deps_ok "$w" || broke="$broke $w"; done
+            if [ -n "$broke" ]; then
+                say "the dependencies of$broke are not there again: the first port of the wave alone"
+                head -n 1 "$q/wave" > "$q/wave.new"; mv "$q/wave.new" "$q/wave"
+                w="$(cat "$q/wave")"
+                [ -n "$w" ] && { pre_port "$w"; deps_port "$w" || : > "$q/wave"; }
+            fi
+            break
+        done
+        [ -s "$q/wave" ] || continue
+        say "wave $wave: $(wc -l < "$q/wave" | tr -d ' ') ports, up to $jobs at once: $(tr '\n' ' ' < "$q/wave")"
+        echo "wave $wave: $(tr '\n' ' ' < "$q/wave" | sed 's/ $//')" >> "$res/waves.txt"
+        if [ "$dryrun" = 1 ]; then
+            for o in $(cat "$q/wave"); do pre_port "$o"; record "$o" ok "$pn: dry run, not built"; done
+            continue
+        fi
+        # up to $jobs builds at once, the biggest first (by the size of its package in
+        # the repository: the longer builds; those without one after them, in the
+        # order of the queue); each writes $q/jobs/<key>.done when it ends
+        for o in $(cat "$q/wave"); do
+            pre_port "$o"
+            sz=0
+            [ -n "$had" ] && [ -f "$repo/${had#* }" ] && sz="$(wc -c < "$repo/${had#* }" | tr -d ' ')"
+            echo "$sz $o"
+        done | sort -s -k1,1nr | awk '{ print $2 }' > "$q/wave.order"
+        running=0
+        for o in $(cat "$q/wave.order") ''; do
+            while [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; }; do
+                for dn in "$q"/jobs/*.done; do
+                    [ -f "$dn" ] || continue
+                    jk="${dn##*/}"; jk="${jk%.done}"
+                    wait "$(cat "$q/jobs/$jk.pid")" 2> /dev/null
+                    cat "$q/jobs/$jk.out"
+                    rm -f "$dn" "$q/jobs/$jk.pid" "$q/jobs/$jk.out"
+                    running=$((running - 1))
+                done
+                [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; } || break
+                sleep 1
+            done
+            [ -n "$o" ] || break
+            pre_port "$o"
+            say "$o: make package (logs/$k.log)"
+            ( make_port "$o" "$work/pk/$k"; : > "$q/jobs/$k.done" ) > "$q/jobs/$k.out" 2>&1 &
+            echo $! > "$q/jobs/$k.pid"
+            running=$((running + 1))
+        done
+    done
+    # the summary in the order of the queue
+    for o in $(cat "$q/queue.txt"); do cat "$q/sum/$(key "$o")" 2> /dev/null; done >> "$sum"
+fi
+
+if [ "$dryrun" = 1 ]; then
+    echo "dry run: the waves in results/waves.txt, nothing built, no repository" >> "$sum"
+    say "dry run (AZ_DRYRUN): $wave waves (results/waves.txt), nothing built"
+    cat "$res/waves.txt"
+    exit 0
+fi
 
 # --- the repository --------------------------------------------------------------------
 cat "$q"/made-* 2> /dev/null > "$q/made"
