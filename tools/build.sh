@@ -273,13 +273,19 @@ tools_named_mk() {
     [ $# -gt 0 ] || return 0
     sed 's/#.*//' "$@" 2> /dev/null | tools_names
 }
+# files_in <dir>: the files under a directory but those of a work/ in it (a WRKDIR
+# without WRKDIRPREFIX); a /work/ in the path of the directory itself (the tree in
+# /home/runner/work/...) does not count
+files_in() {
+    find "$1" -type f 2> /dev/null | awk -v d="$1" 'index(substr($0, length(d) + 1), "/work/") == 0'
+}
 port_files() {
     _k="$(key "$1")"
     {
-        find "$topr/$1" -type f ! -path '*/work/*'
+        files_in "$topr/$1"
         [ -f "$topr/Mk/bsd.overlay.mk" ] && echo "$topr/Mk/bsd.overlay.mk"
         for _p in $(sed -n '11,16p' "$q/info/$_k"); do
-            if [ -d "$_p" ]; then find "$_p" -type f ! -path '*/work/*'; elif [ -f "$_p" ]; then echo "$_p"; fi
+            if [ -d "$_p" ]; then files_in "$_p"; elif [ -f "$_p" ]; then echo "$_p"; fi
         done
     } 2> /dev/null | while read -r _f; do realpath "$_f" 2> /dev/null; done | LC_ALL=C sort -u |
         while read -r _f; do tree_file "$_f" && echo "$_f"; done > "$q/files-$_k"
