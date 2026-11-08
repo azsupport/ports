@@ -56,7 +56,10 @@
 # - the repository: one package per origin (of two in <dir> at the start, the newer
 #   version), the new ones in the place of the old ones of the same name or origin,
 #   away with the packages of origins this tree has no more, pkg repo, signed and
-#   checked (tools/pkg-repo-sign.sh).
+#   checked (tools/pkg-repo-sign.sh); <dir> keeps a signed catalog or none: without
+#   the signature (no key, or the key fails) its catalog goes, the packages stay, and
+#   an unsigned catalog of them in work/repo-unsigned serves the checks of the run
+#   only (never published).
 #
 # Results: results/ of the tree: summary.txt (a line per port, "result: OK" or
 # "result: FAIL (...)" at the end), queue.txt, hashes.txt, logs/<category>_<port>.log,
@@ -619,17 +622,39 @@ while read -r n og hh f; do
 done < "$q/repo-had"
 for f in $(cat "$q/made"); do cp -p "$f" "$repo/" || say "cannot copy ${f##*/} into $repo"; done
 nrepo="$(npkg "$repo")"
-if sh "$top/tools/pkg-repo-sign.sh" "$repo" "$res/pkg-repo.log"; then
-    repo_ok=1
-else
-    repo_ok=0
-    # no catalog rather than one that is not signed or not whole: the packages stay
-    # (the cache of the workflow keeps them), the next run writes the catalog
+sh "$top/tools/pkg-repo-sign.sh" "$repo" "$res/pkg-repo.log"
+src=$?
+signed=0
+case "$(tail -n 1 "$res/pkg-repo.log" 2>/dev/null)" in "pkg repo: signed"*) signed=1 ;; esac
+# no key: unsigned, as before (the build can pass, nothing is published); the key
+# failing: pkg repo failed
+if [ "$src" = 0 ]; then repo_ok=1; else repo_ok=0; fi
+# the repository (repo/) has a signed catalog or none: an unsigned one, or one not
+# whole, goes; the packages stay (the cache of the workflow keeps them) and the next
+# run writes the catalog. For the checks of this run an unsigned catalog of the same
+# packages in work/repo-unsigned (hard links), never in the repository and never
+# published: the checks read it as the file:// repository azbuild
+unsigned=""
+if [ "$signed" = 0 ]; then
     for f in "$repo"/*; do
         [ -f "$f" ] && catalog "${f##*/}" && rm -f "$f"
     done
     say "the repository: no catalog (results/pkg-repo.log: $(tail -n 1 "$res/pkg-repo.log" 2>/dev/null)); its $nrepo packages stay for the next run"
+    ur="$work/repo-unsigned"
+    rm -rf "$ur" && mkdir -p "$ur"
+    for f in "$repo"/*.pkg; do
+        [ -f "$f" ] || continue
+        catalog "${f##*/}" && continue
+        ln "$f" "$ur/" 2> /dev/null || cp -p "$f" "$ur/"
+    done
+    if pkg repo "$ur" > "$res/pkg-repo-unsigned.log" 2>&1 && [ -f "$ur/meta.conf" ]; then
+        unsigned="$ur"
+        say "an unsigned catalog for the checks of this run only (not published): $ur"
+    else
+        say "no unsigned catalog for the checks either: pkg repo $ur failed (results/pkg-repo-unsigned.log)"
+    fi
 fi
+[ -n "$unsigned" ] && echo "checks:   an unsigned catalog of these packages in $unsigned: checks only, not published" >> "$sum"
 echo "repository: $nrepo packages; $(tail -n 1 "$res/pkg-repo.log" 2>/dev/null)" >> "$sum"
 
 # --- the result ------------------------------------------------------------------------

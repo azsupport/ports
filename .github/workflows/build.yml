@@ -168,11 +168,18 @@ jobs:
             # repository as a server installs it, and checked, when the repository has its
             # catalog and the core of the version is there
             : > results/checks.txt
+            # the catalog the checks read: the signed one of repo/, else the unsigned one
+            # of this run (work/repo-unsigned of build.sh: checks only, never published)
+            crepo=repo
+            if [ ! -f repo/meta.conf ] && [ -f work/repo-unsigned/meta.conf ]; then
+              crepo=work/repo-unsigned
+              echo "unsigned catalog: checks only, not published (work/repo-unsigned; $(tail -n 1 results/pkg-repo.log 2>/dev/null || echo 'no pkg-repo.log'))" >> results/checks.txt
+            fi
             for v in $(awk '$1 ~ /\// && $2 == "OK" { print $3 }' results/summary.txt 2>/dev/null | sed -n -E 's/^(mod_)?php([0-9])([0-9])-.*/\2.\3/p' | sort -u); do
               core="lang/php$(echo "$v" | tr -d .)"
               cl="$(awk -v o="$core" '$1 == o { print; exit }' results/summary.txt 2>/dev/null || true)"
-              if [ ! -f repo/meta.conf ]; then
-                echo "PHP $v: SKIP (no catalog in repo/: $(tail -n 1 results/pkg-repo.log 2>/dev/null || echo 'no pkg-repo.log'))" >> results/checks.txt
+              if [ ! -f "$crepo/meta.conf" ]; then
+                echo "PHP $v: SKIP (no catalog in $crepo: $(tail -n 1 results/pkg-repo.log 2>/dev/null || echo 'no pkg-repo.log'))" >> results/checks.txt
                 continue
               fi
               case "$cl" in
@@ -180,7 +187,7 @@ jobs:
                 *) echo "PHP $v: SKIP (the core $core is not there: ${cl:-not in the queue})" >> results/checks.txt; continue ;;
               esac
               r=0
-              sh tools/install-php.sh --repo repo "$v" || r=$?
+              sh tools/install-php.sh --repo "$crepo" "$v" || r=$?
               if [ "$r" = 3 ]; then
                 echo "PHP $v: SKIP (the repository has no core php of $v)" >> results/checks.txt
               elif [ "$r" != 0 ]; then
@@ -203,7 +210,7 @@ jobs:
             # installed from the repository and tested (the samples with the official
             # packages first); exit 2: no catalog, said in checks.txt
             r=0
-            sh tools/test-programs.sh --repo repo || r=$?
+            sh tools/test-programs.sh --repo "$crepo" || r=$?
             if [ "$r" = 1 ]; then rc=1; fi
             cat results/checks.txt
             echo "$rc" > results/rc
