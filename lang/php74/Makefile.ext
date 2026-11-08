@@ -55,9 +55,14 @@
 #   package it builds, so a configure that looks for a module would find it or
 #   not by the order of the builds: with USE_PHP it is always there.
 # - CONFLICTS_INSTALL: the PHP versions install side by side (lib/php/<API>,
-#   etc/phpXY, include/phpXY), so a module conflicts with the static PHP of its
-#   version, not with the module of another version; openssl with
-#   openssl-legacy.
+#   etc/phpXY, include/phpXY), so a module conflicts with no module of another
+#   version (the official: php[0-9][0-9]-<module>); openssl and openssl-legacy
+#   with each other.
+# - Mk/Uses/php.mk does for every module what the official file does for some:
+#   config0.m4 or config9.m4 as config.m4 (openssl, sqlite3, zlib; mysqlnd),
+#   make EXTRA_CFLAGS="-include config.h" (mysqlnd). The priorities of the ini
+#   are in Mk/php-modules.mk (<module>_PRIO: opcache 10, session 18), with the
+#   origins of the modules for USE_PHP.
 # - the patches of the official slave ports (files/ of each port) stay as they
 #   are (the release tarball of the fork has those of lang/php74 only), except
 #   readline_cli.c of readline (in the source already), config.m4 of fileinfo,
@@ -82,17 +87,10 @@ DESCR=		${.CURDIR}/pkg-descr
 
 EXTRACT_AFTER_ARGS?=	${EXTSUBDIR}
 
-# The versions side by side: not php[0-9][0-9]${PKGNAMESUFFIX} of the master
-CONFLICTS_INSTALL=	php${PHP_VER}-static
-
-# The libraries of az, as for the core: its pkg-config (with the .pc files of
-# the base system), its lib/ with the run path; AZ_LIBS (per module) the
-# libraries of ${AZ_PREFIX}/lib the module links
-BUILD_DEPENDS+=	${AZ_PREFIX}/bin/pkg-config:az/az \
-		${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
+# AZ_LIBS (per module): the libraries of ${AZ_PREFIX}/lib the module links
+# (Mk/Uses/php.mk links them with their run path, found by the pkg-config of az)
+BUILD_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
 RUN_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
-CONFIGURE_ENV+=	PKG_CONFIG=${AZ_PREFIX}/bin/pkg-config
-LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
 
 .if ${PHP_MODNAME} == "bcmath"
 CONFIGURE_ARGS+=--enable-bcmath
@@ -254,10 +252,6 @@ CONFIGURE_ARGS+=--enable-mysqlnd
 CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
 USES+=		ssl pkgconfig
-# Its sources do not include config.h (php-src builds mysqlnd into PHP):
-# without it mysqlnd.so has no get_module and no SSL code (php-src
-# tools/build-pkg.sh)
-MAKE_ARGS+=	EXTRA_CFLAGS="-include ${WRKSRC}/config.h"
 .endif
 
 .if ${PHP_MODNAME} == "openssl"
@@ -270,15 +264,13 @@ CONFIGURE_ENV+=		OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 # MD4; aZ's sites need RC4); the same files as php74-openssl
 COMMENT=	The openssl shared extension for php, with the legacy provider
 CONFIGURE_ARGS+=	--with-openssl-legacy-provider
-CONFLICTS_INSTALL+=	php${PHP_VER}-openssl
+CONFLICTS_INSTALL=	php${PHP_VER}-openssl
 .  else
-CONFLICTS_INSTALL+=	php${PHP_VER}-openssl-legacy
+CONFLICTS_INSTALL=	php${PHP_VER}-openssl-legacy
 .  endif
 .endif
 
 .if ${PHP_MODNAME} == "opcache"
-# This is needed by Zend extensions, keep before everything.
-PHP_MOD_PRIO=	10
 CONFIGURE_ARGS+=--enable-opcache
 .endif
 
@@ -322,7 +314,6 @@ CONFIGURE_ARGS+=--with-readline=${AZ_PREFIX}
 
 .if ${PHP_MODNAME} == "session"
 CONFIGURE_ARGS+=--enable-session
-PHP_MOD_PRIO=	18
 .endif
 
 .if ${PHP_MODNAME} == "shmop"
@@ -400,7 +391,8 @@ CONFIGURE_ARGS+=--with-xmlrpc \
 
 PHP_HEADER_DIRS=libxmlrpc
 
-# Its parser is the compat.c of xml (a phpize build does not take it in)
+# It includes ext/xml/expat_compat.h, and its parser is the compat.c of
+# xml.so (a phpize build does not take it in)
 USE_PHP=	xml:build
 .endif
 
@@ -701,25 +693,10 @@ CONFIGURE_ARGS+=--disable-mbregex
 .	endif
 .endif
 
-.if ${PHP_MODNAME} == "openssl" || ${PHP_MODNAME} == "sqlite3"
-post-extract:
-	@${MV} ${WRKSRC}/config0.m4 ${WRKSRC}/config.m4
-.endif
-
-.if ${PHP_MODNAME} == "mysqlnd"
-post-extract:
-	@${MV} ${WRKSRC}/config9.m4 ${WRKSRC}/config.m4
-.endif
-
 .if ${PHP_MODNAME} == "xml"
 post-extract:
 	@${MKDIR} ${WRKSRC}/ext/xml
 	@${CP} ${WRKSRC}/expat_compat.h ${WRKSRC}/ext/xml
-.endif
-
-.if ${PHP_MODNAME} == "zlib"
-post-extract:
-	@${MV} ${WRKSRC}/config0.m4 ${WRKSRC}/config.m4
 .endif
 
 .if ${PHP_MODNAME} == "igbinary"
@@ -730,22 +707,18 @@ post-patch:
 .endif
 
 .if ${PHP_MODNAME} == "openswoole"
-# After add-plist-phpext of Mk/Uses/php.mk (the ini, staged as
-# ${PHP_EXT_INI_FILE} or its .sample, and the message of the package)
+# After add-plist-phpext of Mk/Uses/php.mk: the ini (${PHP_EXT_INI_FILE},
+# an .ini.sample) and the message of the package
 openswoole-ini-off:
-	@cd ${STAGEDIR}${PREFIX} && for f in ${PHP_EXT_INI_FILE} ${PHP_EXT_INI_FILE}.sample; do \
-		if [ -f "$$f" ]; then \
-			${PRINTF} '%s\n' "; Off: PHP stops when openswoole.so and swoole.so are loaded together (pkg info -D ${PKGBASE})." \
-				";extension=${PHP_MODNAME}.so" > "$$f"; \
-		fi; \
-	done
+	@${PRINTF} '%s\n' "; Off: PHP stops when openswoole.so and swoole.so are loaded together (pkg info -D ${PKGBASE})." \
+		";extension=${PHP_MODNAME}.so" > ${STAGEDIR}${PREFIX}/${PHP_EXT_INI_FILE}
 	@${PRINTF} '%s\n' '[' '{' '  message: <<EOD' \
 		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops when" \
 		"openswoole.so and swoole.so are loaded together, so" \
-		"${PREFIX}/${PHP_EXT_INI_FILE} comes with its line commented out." \
+		"${PREFIX}/${PHP_EXT_INI_FILE:S/.sample$//} comes with its line commented out." \
 		"To load openswoole: comment out the line of swoole in its" \
 		"${PREFIX}/${PHP_EXT_INI_FILE:H}/ext-*-swoole.ini, remove the ';' before" \
-		"extension=${PHP_MODNAME}.so in ${PREFIX}/${PHP_EXT_INI_FILE}, then restart" \
+		"extension=${PHP_MODNAME}.so in ${PREFIX}/${PHP_EXT_INI_FILE:S/.sample$//}, then restart" \
 		"php_fpm${PHP_VER} or Apache." \
 		'EOD' '  type: install' '}' ']' > ${PHP_EXT_PKGMESSAGE}
 .endif
