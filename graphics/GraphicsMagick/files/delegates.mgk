@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!--
+  The delegates of GraphicsMagick of azsupport/ports
+  (graphics/GraphicsMagick/files/delegates.mgk): none. GraphicsMagick runs
+  the program of a delegate for a format it has no coder for (Ghostscript,
+  fig2dev, html2ps, ...); here it runs none (files/graphicsmagick.conf).
+-->
+<delegatemap>
+</delegatemap>

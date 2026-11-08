@@ -1,10 +1,11 @@
 #!/bin/sh
 # az-plist.sh - the plist of a port of az/az, ftp/curl, multimedia/ffmpeg,
-# graphics/ImageMagick6 and graphics/ImageMagick7: every file and link under
+# graphics/ImageMagick6, ImageMagick7 and GraphicsMagick: every file and link under
 # <stagedir><prefix>, as a path relative to <prefix>, sorted, as tools/build-az.sh
 # of https://github.com/azsupport/php-src listed the files of its packages; the
 # policy of ImageMagick (etc/ImageMagick-6/policy.xml, etc/ImageMagick-7/policy.xml)
-# as @config, so that pkg keeps it when it was changed. The post-install of the
+# and the delegates of GraphicsMagick (lib/GraphicsMagick/config/delegates.mgk, also
+# that of az/lib) as @config, so that pkg keeps them when they were changed. The post-install of the
 # ports appends this to TMPPLIST (the framework adds its own lines after it, such
 # as share/licenses/<package>/).
 #
@@ -18,4 +19,4 @@ d="$1$2"
 n="$(cd "$d" && find . ! -type d | wc -l | tr -d ' ')"
 [ "$n" -gt 0 ] || { echo "az-plist: no files in $d" >&2; exit 1; }
 (cd "$d" && find . ! -type d) | sed 's#^\./##' | LC_ALL=C sort |
-    awk '/(^|\/)etc\/ImageMagick-[67]\/policy\.xml$/ { print "@config " $0; next } { print }'
+    awk '/(^|\/)etc\/ImageMagick-[67]\/policy\.xml$/ || /(^|\/)lib\/GraphicsMagick\/config\/delegates\.mgk$/ { print "@config " $0; next } { print }'
