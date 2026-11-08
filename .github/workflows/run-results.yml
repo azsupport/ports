@@ -1,0 +1,50 @@
+# The files of the results of a run of build.yml (its artifact results-<level>),
+# printed into the log of the job: what the report of the run leaves out (the logs
+# of the checks, the samples of the tests), without downloading the artifact.
+name: The results of a run of build.yml
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'The id of the run of build.yml (its URL ends with it)'
+        required: true
+      files:
+        description: 'Files of the results, as globs of their paths under results/, e.g. "test-programs.log az-results/*"'
+        required: false
+        default: '*.txt'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: The artifacts of the run
+        uses: actions/download-artifact@v5
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts
+
+      - name: The files
+        env:
+          FILES: ${{ inputs.files }}
+        run: |
+          # the globs of the input are for find, not for this shell
+          set -f
+          [ -d artifacts ] || { echo "::error::no artifacts of the run ${{ inputs.run_id }}"; exit 1; }
+          echo "artifacts: $(ls artifacts | tr '\n' ' ')"
+          n=0
+          for g in $FILES; do
+            for f in $(find artifacts -type f -path "artifacts/*/$g" | sort); do
+              n=$((n + 1))
+              echo "===== ${f#artifacts/} ($(wc -c < "$f") bytes)"
+              cat "$f"
+              echo
+            done
+          done
+          [ "$n" -gt 0 ] || { echo "::error::no file matches: $FILES"; find artifacts -type f | sed 's#^artifacts/##' | sort | head -n 200; exit 1; }
