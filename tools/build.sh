@@ -63,8 +63,9 @@
 #   another as above (a port whose installation takes away a package that a port
 #   before it in the wave got goes to a later wave), then up to AZ_JOBS make package
 #   at once, the biggest first (the size of the package in the repository), each with
-#   its log and its own PACKAGES directory, and no pkg add, install or delete while
-#   they run; the summary in the order of the queue, results/waves.txt;
+#   its log and its own PACKAGES directory (its distfiles fetched under lockf(1),
+#   one build at a time), and no pkg add, install or delete while they run; the
+#   summary in the order of the queue, results/waves.txt;
 # - a NEED_ROOT port (az/az builds into the real prefix and refuses files of a package
 #   there): alone (a wave of its own), its installed package deleted before its
 #   build, the new one added after it (the old one back when it fails);
@@ -648,7 +649,14 @@ make_port() {
     mark="$q/mark-$k"
     : > "$mark"
     rm -f "$packages/All/$pn.pkg"
-    if [ -n "$_pk" ]; then rm -rf "$_pk" && mkdir -p "$_pk/All"; fi
+    if [ -n "$_pk" ]; then
+        rm -rf "$_pk" && mkdir -p "$_pk/All"
+        # the distfiles one build at a time (lockf): the ports of a wave may share one
+        # (the tarball of PHP of the modules), and two fetches of it at once break it;
+        # what fails here make package says again
+        lockf -k "$q/fetch.lock" make -C "$top/$1" checksum USE_PACKAGE_DEPENDS_ONLY=yes \
+            AZ_STAMP="$az_stamp" AZ_HASH="$h" >> "$log" 2>&1
+    fi
     start="$(date +%s)"
     make -C "$top/$1" clean package USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" \
         ${_pk:+PACKAGES="$_pk"} >> "$log" 2>&1
