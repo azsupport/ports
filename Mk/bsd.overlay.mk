@@ -31,3 +31,14 @@ AZ_STAMP?=	0
 PKG_NOTES+=	az_hash
 PKG_NOTE_az_hash=	${AZ_HASH}
 .endif
+
+# The libraries of ${AZ_PREFIX}/lib (az, and the shared ones of ImageMagick7 and
+# GraphicsMagick) count as libraries the packages provide: the framework gives
+# pkg SHLIB_PROVIDE_PATHS_NATIVE from LIB_DIRS (and USE_LDCONFIG), only /lib,
+# /usr/lib and ${LOCALBASE}/lib by default, so pkg 2 refused php74 ("Missing shlib
+# libargon2.so.0", run 42514624927). No ldconfig hints for that directory (its
+# libraries are found by their run path). Added once, although bsd.port.mk
+# includes this file twice.
+.if empty(LIB_DIRS:M${AZ_PREFIX}/lib)
+LIB_DIRS+=	${AZ_PREFIX}/lib
+.endif
