@@ -29,12 +29,6 @@
 #   its config.h first. Most include it themselves; those of mysqlnd do not
 #   (php-src builds mysqlnd into PHP), so without it mysqlnd.so has no
 #   get_module and no SSL code (php-src tools/build-pkg.sh).
-# - ${LOCALBASE}/include as the last directory of headers (-idirafter, C and
-#   C++): our cores take the PCRE2 of devel/pcre2, so ext/pcre/php_pcre.h
-#   includes the pcre2.h of ${LOCALBASE}/include (fileinfo, filter, mbstring,
-#   opcache, swoole, openswoole, zip include php_pcre.h). The official ports
-#   use USES=localbase for that, whose -L${LOCALBASE}/lib would come before
-#   ${AZ_PREFIX}/lib; -idirafter is searched only after every other directory.
 # - No "pecl" in the names of the packages (aZ, 08.11.2026): PECL_PKGNAMEPREFIX
 #   is php${PHP_VER}-.
 # - apache.mk as the framework of f16b6dd wants it (apache_ARGS, USESDIR).
@@ -319,9 +313,8 @@ CONFIGURE_ARGS+=--with-php-config=${PHPBASE}/bin/php-config${PHP_VER}
 # ldconfig hints for ${AZ_PREFIX}/lib); its pkg-config below (post part)
 LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
 # every source file of the module sees its config.h first (mysqlnd's do not
-# include it); pcre2.h of devel/pcre2 found last (see the head)
-MAKE_ARGS+=	EXTRA_CFLAGS="-include ${WRKSRC}/config.h -idirafter ${LOCALBASE}/include" \
-		EXTRA_CXXFLAGS="-idirafter ${LOCALBASE}/include"
+# include it)
+MAKE_ARGS+=	EXTRA_CFLAGS="-include ${WRKSRC}/config.h"
 
 _USES_configure+=	190:phpize-message 250:do-phpize
 

@@ -42,8 +42,8 @@ servers (amd64), so that nothing is built on the servers.
 - **The source of PHP**: the release tarballs of the fork
   [azsupport/php-src](https://github.com/azsupport/php-src) (for 7.4:
   [`php-7.4.33-fbsd-20261104-397aa202.tar.xz`](https://github.com/azsupport/php-src/releases/download/freebsd-7.4-20261104-397aa202/php-7.4.33-fbsd-20261104-397aa202.tar.xz)),
-  which carry the patches of the FreeBSD port and the PECL extensions in `ext/`: our
-  PHP ports apply no patches of their own.
+  which carry the patches of the FreeBSD port, the PECL extensions in `ext/` and the
+  PCRE2 the fork bundles: our PHP ports apply no patches of their own.
 - Now only PHP 7.4 and x86-64-v3: everything is worked out there first, the other
   versions and x86-64-v2 come after.
 
@@ -103,7 +103,7 @@ Names and origins as the ports, files at the paths of the ports:
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
   [`az-test.sh`](tools/az-test.sh).
 - **`lang/php74`** and **`www/mod_php74`**: the core `php74` and the Apache module
-  `libphp74.so`; the core links PCRE2 of the port `devel/pcre2`.
+  `libphp74.so`; PCRE2 10.49 is the one the fork bundles (a port `devel/pcre2` later, aZ 08.11.2026).
 - **59 module ports** `php74-<module>`: the names without "pecl", the origins as the
   official ports or ours (`graphics/php74-gd`, `databases/php-redis`), the ini
   `ext-NN-<module>.ini`, that of openswoole off.
