@@ -31,6 +31,13 @@
 #   off by default; PHPDBG off is --disable-phpdbg (7.4 builds phpdbg unless
 #   told not to). OPcache and json are modules too (php74-opcache, php74-json),
 #   and this PHP loads modules (no --disable-extension-loading of the fork).
+# - Profiles (aZ, 08.11.2026): other configurations of the same PHP, each the
+#   directory etc/php74-<profile> (php.ini, conf.d, php-fpm.conf), made by
+#   bin/php74-profile (files/php-profile.in, generic: %%PHP_VER%%), which also
+#   runs PHP with one and keeps the profiles that follow etc/php74 up to date
+#   (--sync, from the modules); the rc.d script php_fpm74 runs their php-fpm74
+#   as the profiles of www/apache24. Nothing of a profile is a file of the
+#   package; pkg-message says how.
 # - No DEPRECATED/EXPIRATION_DATE: the fork carries the security fixes.
 # - The Apache module (PKGNAMEPREFIX mod_) with the idioms of the framework of
 #   f16b6dd (USES=apache before bsd.port.pre.mk, as lang/php84 there).
@@ -228,6 +235,11 @@ post-build:
 test: build
 	@(cd ${WRKSRC} && ${MAKE} test)
 
+# bin/php74-profile and the pkg-message on profiles, from templates of every
+# version (PHP_VER); in files/, so that the modules do not take the message
+SUB_FILES+=	php-profile pkg-message
+SUB_LIST+=	PHP_VER=74
+
 # etc/php74: php.conf (the version for Mk/Uses/php.mk), php.ini-development
 # and php.ini-production (php.ini by @sample); the empty directories of the
 # modules: the scan dir etc/php74/conf.d and lib/php/20190902 (@dir)
@@ -236,6 +248,7 @@ post-install:
 		${STAGEDIR}${PREFIX}/lib/php/${PHP_EXT_DIR}
 	${INSTALL_DATA} ${WRKSRC}/php.ini-development ${WRKSRC}/php.ini-production \
 		${WRKDIR}/php.conf ${STAGEDIR}${PREFIX}/etc/php74
+	${INSTALL_SCRIPT} ${WRKDIR}/php-profile ${STAGEDIR}${PREFIX}/bin/php74-profile
 .else
 do-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/${APACHEMODDIR} \

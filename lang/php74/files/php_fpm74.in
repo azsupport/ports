@@ -3,7 +3,10 @@
 # php-fpm of PHP 7.4 (the package php74 of azsupport/ports): the rc.d script
 # php_fpm of the port lang/php84 of freebsd-ports f16b6dd0f7c1 with names of its
 # own, so that the php-fpm of several versions of PHP run at once
-# (php_fpm74_enable="YES" in /etc/rc.conf).
+# (php_fpm74_enable="YES" in /etc/rc.conf), and with profiles in the way of the
+# rc.d script of www/apache24: a profile is another configuration of the same
+# PHP, the directory %%PREFIX%%/etc/php74-<profile> (php74-profile --create
+# <profile>), run as an instance of its own.
 
 # PROVIDE: php_fpm74
 # REQUIRE: LOGIN
@@ -14,10 +17,20 @@
 # php_fpm74_enable (bool):        Set to "NO" by default.
 #                               Set it to "YES" to enable php_fpm74
 # php_fpm74_profiles (str):       Set to "" by default.
-#                               Define your profiles here.
-# php_fpm74_pid_prefix (str):     Set to "" by default.
-#                               When using profiles manually assign value to "php_fpm74_"
-#                               for prevent collision with other PIDs names.
+#                               The profiles run after the default instance,
+#                               e.g. "tds a b".
+# php_fpm74_<profile>_enable (bool): Set to the value of php_fpm74_enable by
+#                               default.
+# php_fpm74_<profile>_flags (str): Set to "" by default.
+#                               More flags of php-fpm74 for the profile.
+#
+# Without a profile (service php_fpm74 start): the default instance, then each
+# enabled profile of php_fpm74_profiles. With one (service php_fpm74 start tds,
+# service php_fpm74 configtest tds): only that profile, with
+# php-fpm74 -y %%PREFIX%%/etc/php74-tds/php-fpm.conf -c %%PREFIX%%/etc/php74-tds
+# and PHPRC=%%PREFIX%%/etc/php74-tds PHP_INI_SCAN_DIR=%%PREFIX%%/etc/php74-tds/conf.d;
+# its pid file the pid of that php-fpm.conf (/var/run/php-fpm74-tds.pid when it
+# has none).
 
 . /etc/rc.subr
 
@@ -39,35 +52,33 @@ load_rc_config "${name}"
 : ${php_fpm74_umask=""}
 : ${php_fpm74_svcj_options:="net_basic"}
 
+profile=""
 if [ -n "$2" ]; then
-        profile="$2"
-        if [ "x${php_fpm74_profiles}" != "x" ]; then
-                pidfile="${_pidprefix}/${php_fpm74_pid_prefix}php-fpm74-${profile}.pid"
-                eval php_fpm74_configfile="\${php_fpm74_${profile}_configfile:-}"
-                if [ "x${php_fpm74_configfile}" = "x" ]; then
-                        echo "You must define a configuration file (php_fpm74_${profile}_configfile)"
-                        exit 1
-                fi
-                required_files="${php_fpm74_configfile}"
-                eval php_fpm74_enable="\${php_fpm74_${profile}_enable:-${php_fpm74_enable}}"
-                php_fpm74_flags="-y ${php_fpm74_configfile} -g ${pidfile}"
-        else
-                echo "$0: extra argument ignored"
-        fi
-else
-        if [ "x${php_fpm74_profiles}" != "x" -a "x$1" != "x" ]; then
-                for profile in ${php_fpm74_profiles}; do
-                        echo "===> php_fpm74 profile: ${profile}"
-                        %%PREFIX%%/etc/rc.d/php_fpm74 $1 ${profile}
-                        retcode="$?"
-                        if [ "0${retcode}" -ne 0 ]; then
-                                failed="${profile} (${retcode}) ${failed:-}"
-                        else
-                                success="${profile} ${success:-}"
-                        fi
-                done
-                exit 0
-        fi
+	profile="$2"
+	case "${profile}" in
+	*[!a-z0-9_]*)
+		echo "$0: bad profile name '${profile}': a-z, 0-9 and _ only"
+		exit 1
+		;;
+	esac
+	_pdir="%%PREFIX%%/etc/php74-${profile}"
+	if [ ! -f "${_pdir}/php-fpm.conf" ]; then
+		echo "$0: no profile ${profile} of php-fpm74: no ${_pdir}/php-fpm.conf (php74-profile --create ${profile})"
+		exit 1
+	fi
+	# the pid file of its php-fpm.conf (a relative one is under /var, as
+	# php-fpm takes it), else php-fpm74-<profile>.pid
+	_ppid="$(sed -n 's/^[[:space:]]*pid[[:space:]]*=[[:space:]]*//p' "${_pdir}/php-fpm.conf" | head -n 1 | sed -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/')"
+	case "${_ppid}" in
+	"")	pidfile="${_pidprefix}/php-fpm74-${profile}.pid" ;;
+	/*)	pidfile="${_ppid}" ;;
+	*)	pidfile="/var/${_ppid}" ;;
+	esac
+	required_files="${_pdir}/php-fpm.conf ${_pdir}/php.ini"
+	eval php_fpm74_enable="\${php_fpm74_${profile}_enable:-${php_fpm74_enable}}"
+	eval _pflags="\${php_fpm74_${profile}_flags:-}"
+	php_fpm74_flags="-y ${_pdir}/php-fpm.conf -c ${_pdir} -g ${pidfile}${_pflags:+ ${_pflags}}"
+	php_fpm74_env="PHPRC=${_pdir} PHP_INI_SCAN_DIR=${_pdir}/conf.d"
 fi
 
 extra_commands="reload configtest logrotate"
@@ -86,8 +97,8 @@ php_fpm74_logrotate() {
 
 php_fpm74_checkconfig()
 {
-        echo "Performing sanity check on php-fpm configuration:"
-        eval ${command} ${php_fpm74_flags} -t
+        echo "Performing sanity check on php-fpm configuration${profile:+ of the profile ${profile}}:"
+        eval ${profile:+env ${php_fpm74_env} }${command} ${php_fpm74_flags} -t
 }
 
 php_fpm74_prestart()
@@ -103,5 +114,33 @@ php_fpm74_prestart()
 		umask $php_fpm74_umask
 	fi
 }
+
+# Without a profile, with profiles: the default instance, then each enabled
+# profile (this script with the profile); the status says what failed.
+if [ -z "${profile}" ] && [ -n "${php_fpm74_profiles}" ] && [ -n "$1" ]; then
+	_failed=""
+	( run_rc_command "$1" ) || _failed="the default instance"
+	for _p in ${php_fpm74_profiles}; do
+		eval _e="\${php_fpm74_${_p}_enable:-${php_fpm74_enable}}"
+		case "${_e}" in
+		[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+			;;
+		[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0|"")
+			continue
+			;;
+		*)
+			echo "Bad value '${_e}' for php_fpm74_${_p}_enable: the profile ${_p} skipped"
+			continue
+			;;
+		esac
+		echo "===> php_fpm74 profile: ${_p}"
+		%%PREFIX%%/etc/rc.d/php_fpm74 "$1" "${_p}" || _failed="${_failed:+${_failed}, }${_p}"
+	done
+	if [ -n "${_failed}" ]; then
+		echo "php_fpm74 $1 failed: ${_failed}"
+		exit 1
+	fi
+	exit 0
+fi
 
 run_rc_command "$1"

@@ -1,0 +1,9 @@
+[
+{ type: install
+  message: <<EOM
+Profiles, other configurations of php%%PHP_VER%%: php%%PHP_VER%%-profile --create <name> makes %%PREFIX%%/etc/php%%PHP_VER%%-<name> from etc/php%%PHP_VER%%, and php%%PHP_VER%%-profile <name> script.php runs PHP with it (more at the head of %%PREFIX%%/bin/php%%PHP_VER%%-profile).
+Its php-fpm%%PHP_VER%%, in /etc/rc.conf: php_fpm%%PHP_VER%%_profiles="<name>" and php_fpm%%PHP_VER%%_<name>_enable="YES" (service php_fpm%%PHP_VER%% start <name>).
+A crontab line: */10 * * * * %%PREFIX%%/bin/php%%PHP_VER%%-profile <name> /path/to/job.php
+EOM
+}
+]
