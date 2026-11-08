@@ -86,6 +86,15 @@ NO_OPTIONS_SORT=yes
 # without DISTVERSION, which the slaves of PECL extensions set to their version
 AZ_PHP_RELEASE=	20261104-397aa202
 
+# the files of this port that the ports needing it need not see (tools/build.sh):
+# they are installed and used at run time only (post-install, USE_RC_SUBR,
+# SUB_FILES of the core) and no module or mod_php74 build reads them, so a change
+# of one builds php74 again, not the modules and mod_php74 (the slaves of this
+# Makefile leave them out of their az_hash too): the block of az for php.ini,
+# bin/php74-profile, the rc.d script php_fpm74 and pkg-message
+AZ_HASH_NOT_FOR_DEPENDENTS=	${FILESDIR}/php.ini-az-74.in ${FILESDIR}/php-profile.in \
+				${FILESDIR}/php_fpm74.in ${FILESDIR}/pkg-message.in
+
 .if !defined(PKGNAMESUFFIX)
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
 		${AZ_PREFIX}/lib/libxml2.so:az/az
