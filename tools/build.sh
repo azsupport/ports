@@ -52,9 +52,10 @@
 # - a NEED_ROOT port (az/az builds into the real prefix and refuses files of a package
 #   there): its installed package deleted before its build, the new one added after
 #   it (the old one back when it fails);
-# - the repository: one package per origin, the new ones in the place of the old ones
-#   of the same name or origin, away with the packages of origins this tree has no
-#   more, pkg repo, signed and checked (tools/pkg-repo-sign.sh).
+# - the repository: one package per origin (of two in <dir> at the start, the newer
+#   version), the new ones in the place of the old ones of the same name or origin,
+#   away with the packages of origins this tree has no more, pkg repo, signed and
+#   checked (tools/pkg-repo-sign.sh).
 #
 # Results: results/ of the tree: summary.txt (a line per port, "result: OK" or
 # "result: FAIL (...)" at the end), queue.txt, hashes.txt, logs/<category>_<port>.log,
@@ -409,15 +410,33 @@ for o in $(cat "$q/queue.txt"); do
     echo "$o $(cat "$q/hash/$k")" >> "$res/hashes.txt"
 done
 
-# the packages of the repository before: name origin az_hash file
-: > "$q/repo-had"
+# the packages of the repository before: name origin az_hash file, one per origin: of
+# two packages of an origin (the repository of the last run and the files of the
+# release, restored together) the newer version stays
+: > "$q/repo-all"
 for f in "$repo"/*.pkg; do
     [ -f "$f" ] || continue
     catalog "${f##*/}" && continue
-    nm="$(pkg query -F "$f" '%n %o' 2>/dev/null)"
+    nm="$(pkg query -F "$f" '%n %o %v' 2>/dev/null)"
     if [ -z "$nm" ]; then say "the repository: ${f##*/} is not a package: removed"; rm -f "$f"; continue; fi
-    h="$(pkg_hash "$f")"
-    echo "$nm ${h:--} ${f##*/}" >> "$q/repo-had"
+    echo "$nm ${f##*/}" >> "$q/repo-all"
+done
+: > "$q/repo-had"
+for og in $(awk '{ print $2 }' "$q/repo-all" | LC_ALL=C sort -u); do
+    best=""; bv=""; bn=""
+    while read -r n o v f; do
+        [ "$o" = "$og" ] || continue
+        if [ -z "$best" ]; then best="$f"; bv="$v"; bn="$n"; continue; fi
+        if [ "$(pkg version -t "$v" "$bv")" = ">" ]; then
+            say "the repository: $best away ($f of $og is newer)"
+            rm -f "$repo/$best"; best="$f"; bv="$v"; bn="$n"
+        else
+            say "the repository: $f away ($best of $og is newer or the same version)"
+            rm -f "$repo/$f"
+        fi
+    done < "$q/repo-all"
+    h="$(pkg_hash "$repo/$best")"
+    echo "$bn $og ${h:--} $best" >> "$q/repo-had"
 done
 
 overlay_rev="$(git -C "$top" log -1 --format='%h %s' 2>/dev/null)"
