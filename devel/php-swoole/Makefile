@@ -1,4 +1,4 @@
-# PECL swoole, bundled into ext/swoole of the release tarball of azsupport/php-src:
+# PECL swoole of ext/swoole of the release tarball of azsupport/php-src:
 # its version there (php-src freebsd/pecl.conf)
 DISTVERSION=	4.8.13
 CATEGORIES=	devel net
