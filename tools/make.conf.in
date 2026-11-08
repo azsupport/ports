@@ -1,0 +1,27 @@
+# The make.conf of a run of tools/build.sh: written into <work>/make.conf with the
+# values of the run (the @...@ words) and given to make as __MAKE_CONF, so that the
+# /etc/make.conf of a build server is neither read nor changed.
+#
+# The first part is the make.conf of aZ's servers: the same lines go into the
+# make.conf of poudriere (poudriere.d/make.conf), which sets the paths itself.
+
+# the x86-64 level of the run (x86-64-v3 or x86-64-v2): bsd.cpu.mk makes -march of it
+CPUTYPE?=@CPUTYPE@
+# the framework adds -fstack-protector-strong (bsd.ssp.mk)
+CFLAGS=-O3 -pipe -fno-strict-aliasing
+# the ports with USES=jpeg (gd, ImageMagick) take mozjpeg, as on the servers
+JPEG_PORT=graphics/mozjpeg
+DISABLE_VULNERABILITIES=yes
+DISABLE_LICENSES=yes
+BATCH=yes
+OPTIONS_UNSET=X11 WAYLAND GUI DBUS CUPS DEBUG TEST DOCS EXAMPLES INFO MAN3 MANPAGES
+
+# The paths of tools/build.sh. PORT_DBDIR is its own and empty, so that the options
+# saved by make config on a build server (/var/db/ports) do not change a build: only
+# the Makefiles of the ports and the lines above decide.
+PORTSDIR=@PORTSDIR@
+OVERLAYS=@OVERLAYS@
+WRKDIRPREFIX=@WRKDIRPREFIX@
+PACKAGES=@PACKAGES@
+DISTDIR=@DISTDIR@
+PORT_DBDIR=@PORT_DBDIR@
