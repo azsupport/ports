@@ -60,12 +60,16 @@
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickWand-7.so` в `/usr/local/az/lib` для модуля imagick |
 | `php74` | `lang/php74` | ядро PHP 7.4: CLI, php-fpm, phpize |
 | `mod_php74` | `www/mod_php74` | модуль Apache `libphp74.so` |
-| `php74-<модуль>` | `<категория>/php74-<модуль>` | по пакету на модуль (`php74-gd`: `graphics/php74-gd`); PECL без «pecl»: `php74-redis`, `php74-swoole`, `php74-igbinary`, `php74-memcached`, `php74-memcache`, `php74-imagick`, `php74-mcrypt`, `php74-excimer`, `php74-openswoole`; OPcache и json — тоже модули (`php74-opcache`, `php74-json`), mysqlnd тоже (`php74-mysqlnd`: на нём модули баз данных) |
+| `php74-<модуль>` | `<категория>/php74-<модуль>` | по пакету на модуль (`php74-gd`: `graphics/php74-gd`); PECL без «pecl»: `php74-redis`, `php74-swoole`, `php74-igbinary`, `php74-memcached`, `php74-memcache`, `php74-imagick`, `php74-gmagick`, `php74-mcrypt`, `php74-excimer`, `php74-openswoole`; OPcache и json — тоже модули (`php74-opcache`, `php74-json`), mysqlnd тоже (`php74-mysqlnd`: на нём модули баз данных) |
 
 - openssl в двух видах, один из двух: `php74-openssl` и `php74-openssl-legacy` (с
   legacy-провайдером OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
 - `php74-swoole` и `php74-openswoole` ставятся оба; ini у openswoole выключен (у них
   одни и те же классы), его сообщение пакета говорит, как переключить.
+- `php74-imagick` и `php74-gmagick` ставятся оба, но в один PHP их грузить нельзя (у
+  GraphicsMagick и ImageMagick одинаковые имена функций): ini у gmagick выключен, а при
+  установке создаётся CLI-профиль gmagick (`/usr/local/etc/php74-gmagick`: gmagick включён,
+  imagick выключен; `php74-profile gmagick script.php`); при удалении пакета профиль остаётся.
 - Не собираются: модули, которым нужна библиотека портов (enchant, imap, ldap, odbc,
   pdf, pdo_dblib, pdo_firebird, pdo_odbc, pdo_pgsql, pgsql, pspell, snmp).
 - Особая сборка (статический PHP, опции конкретного сервера) — не порт здесь: её делает
@@ -104,9 +108,9 @@
   [`az-test.sh`](tools/az-test.sh).
 - **`lang/php74`** и **`www/mod_php74`**: ядро `php74` и модуль Apache `libphp74.so`;
   PCRE2 10.49 — встроенная в исходники форка (порт `devel/pcre2` — позже, aZ 08.11.2026).
-- **59 портов модулей** `php74-<модуль>`: имена без «pecl», origin как у официальных
+- **60 портов модулей** `php74-<модуль>`: имена без «pecl», origin как у официальных
   портов или наши (`graphics/php74-gd`, `databases/php-redis`), ini
-  `ext-NN-<модуль>.ini`, у openswoole выключен.
+  `ext-NN-<модуль>.ini`, у openswoole и gmagick выключен.
 
 ## Раскладка PHP на сервере
 
