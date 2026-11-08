@@ -1,4 +1,5 @@
 %%CLI%%bin/php74
+bin/php74-profile
 %%CGI%%bin/php-cgi74
 bin/php-config74
 %%PHPDBG%%bin/phpdbg74
