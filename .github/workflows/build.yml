@@ -4,7 +4,8 @@ name: Build the packages of the repository az
 # make.conf of aZ's servers for an x86-64 level (tools/make.conf.in), over the
 # official ports tree at the commit pinned in tools/build.sh; when PHP was built,
 # installs its packages from the new repository (tools/install-php.sh) and checks
-# them (tools/check-php.sh); and publishes
+# them (tools/check-php.sh); installs the programs and libraries from it and tests
+# them (tools/test-programs.sh); and publishes
 # the repository of pkg as the files of the release az-fbsd<major>-amd64-<level>
 # of this repository (its address goes into /usr/local/etc/pkg/repos/az.conf of a
 # server, README.md). The repository of the last run (a cache, kept also when a run
@@ -198,6 +199,12 @@ jobs:
                 fi
               fi
             done
+            # the programs and libraries (az, curl, ffmpeg, ImageMagick6 and 7, GraphicsMagick)
+            # installed from the repository and tested (the samples with the official
+            # packages first); exit 2: no catalog, said in checks.txt
+            r=0
+            sh tools/test-programs.sh --repo repo || r=$?
+            if [ "$r" = 1 ]; then rc=1; fi
             cat results/checks.txt
             echo "$rc" > results/rc
             echo "results/rc: $rc"

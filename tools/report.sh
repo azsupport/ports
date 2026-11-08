@@ -95,20 +95,20 @@ done
 if [ -s "$res/checks.txt" ]; then
     {
         cat "$res/checks.txt"
-        for f in "$res"/check-php-*.txt; do
+        for f in "$res"/check-php-*.txt "$res"/*-results/tests.txt; do
             [ -f "$f" ] || continue
             grep -q '^FAIL' "$f" || continue
             echo
-            echo "== ${f##*/}: what failed"
-            grep '^FAIL' "$f" | cut -c1-240
+            echo "== ${f#"$res"/}: what failed"
+            grep '^FAIL' "$f" | head -n 40 | cut -c1-240
         done
     } > "$tmp/php.txt"
-    echo "==================== PHP"
+    echo "==================== the checks"
     cat "$tmp/php.txt"
     if grep -q ': FAIL' "$res/checks.txt"; then level=error; rc=1; else level=notice; fi
-    annot "$level" "$title: PHP checks" "$tmp/php.txt"
+    annot "$level" "$title: the checks of PHP and the tests of the programs" "$tmp/php.txt"
     {
-        echo "### $title: PHP, the packages installed and checked"
+        echo "### $title: the packages installed and checked (PHP, the programs)"
         echo
         echo '```'
         cat "$tmp/php.txt"
