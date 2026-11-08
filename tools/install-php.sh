@@ -1,17 +1,15 @@
 #!/bin/sh
-# install-php.sh - install the PHP packages of a version in one of its two modes
-# from the repository that tools/build.sh made, as a server installs them: for the
-# checks of that mode (tools/check-php.sh <version> <mode>).
+# install-php.sh - install the PHP packages of a version from the repository that
+# tools/build.sh made, as a server installs them: for the checks of
+# tools/check-php.sh <version>.
 #
 # Usage (as root on FreeBSD, after tools/build.sh):
-#   sh tools/install-php.sh [--repo <dir>] <version> pkg|static
+#   sh tools/install-php.sh [--repo <dir>] <version>
 #
-#   pkg           the core php74, mod_php74 and every module php74-<module> of the
+#   <version>     7.4: the core php74, mod_php74 and every module php74-<module> of the
 #                 repository but php74-openssl-legacy (of the two kinds of openssl the
 #                 standard one; the other stays in the repository for a swap:
-#                 pkg install -y php74-openssl-legacy); php74-static deleted first
-#   static        php74-static; php74, mod_php74 and php74-* deleted first (php74-static
-#                 has their files)
+#                 pkg install -y php74-openssl-legacy)
 #   --repo <dir>  the repository of tools/build.sh (default: work/repo)
 #
 # The repository is taken as the repository "azbuild" of pkg (file://, priority 100,
@@ -19,13 +17,13 @@
 # signature is checked by tools/pkg-repo-sign.sh), in
 # /usr/local/etc/pkg/repos/azbuild.conf, which stays for the checks (remove it after
 # them on a build server). The packages go in by pkg install -f, so that every one is
-# that of the repository. The log: results/install-php-<version>-<mode>.log.
-# Exit status: 0 every package of the mode installed from the repository; 1 not;
-# 2 a wrong call; 3 the repository has no package of that mode for the version.
+# that of the repository. The log: results/install-php-<version>.log.
+# Exit status: 0 every package installed from the repository; 1 not; 2 a wrong call;
+# 3 the repository has no php74 (no core of that version).
 
 set -u
 top="$(cd "$(dirname "$0")/.." && pwd)"
-usage() { sed -n 's/^# \{0,1\}//; 6,16p' "$0" >&2; exit "${1:-2}"; }
+usage() { sed -n 's/^# \{0,1\}//; 6,13p' "$0" >&2; exit "${1:-2}"; }
 say() { printf '[install-php %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 die() { say "$*" >&2; exit 2; }
 
@@ -39,10 +37,9 @@ while [ $# -gt 0 ]; do
         *) break ;;
     esac
 done
-[ $# = 2 ] || usage
-t="$1"; mode="$2"
+[ $# = 1 ] || usage
+t="$1"
 case "$t" in [5-8].[0-9]) ;; *) die "not a version of PHP: $t (7.4)" ;; esac
-case "$mode" in pkg|static) ;; *) die "not a mode: $mode (pkg or static)" ;; esac
 short="$(echo "$t" | tr -d .)"
 [ "$(uname -s)" = FreeBSD ] || die "FreeBSD only"
 [ "$(id -u)" = 0 ] || die "as root (pkg install, pkg delete)"
@@ -50,7 +47,7 @@ repo="${repo:-${AZ_WORK:-$top/work}/repo}"
 repo="$(cd "$repo" 2>/dev/null && pwd)"
 [ -n "$repo" ] && [ -f "$repo/meta.conf" ] || die "no repository of pkg (meta.conf) in ${repo:-the directory given}: tools/build.sh first"
 mkdir -p "$top/results" || die "cannot make $top/results"
-log="$top/results/install-php-$t-$mode.log"
+log="$top/results/install-php-$t.log"
 : > "$log"
 export ASSUME_ALWAYS_YES=yes
 
@@ -60,22 +57,12 @@ printf 'azbuild: { url: "file://%s", signature_type: "none", priority: 100, enab
 pkg update -f -r azbuild >> "$log" 2>&1 || { say "pkg update of the repository $repo failed ($log)"; exit 1; }
 names="$(pkg rquery -r azbuild '%n' 2>> "$log" | grep -E "^(php$short|mod_php$short|php$short-.+)\$" | LC_ALL=C sort -u)"
 
-# what goes in, and the installed packages of the other mode that go out first
-if [ "$mode" = pkg ]; then
-    printf '%s\n' "$names" | grep -qx "php$short" || { say "no package php$short in the repository $repo"; exit 3; }
-    want="$(printf '%s\n' "$names" | grep -v -x -e "php$short-static" -e "php$short-openssl-legacy" | tr '\n' ' ')"
-    del="$(pkg query '%n' "php$short-static" 2>/dev/null; pkg query '%n' "php$short-openssl-legacy" 2>/dev/null)"
-else
-    printf '%s\n' "$names" | grep -qx "php$short-static" || { say "no package php$short-static in the repository $repo"; exit 3; }
-    want="php$short-static"
-    del="$({ pkg query '%n' "php$short"; pkg query '%n' "mod_php$short"; pkg query -g '%n' "php$short-*"; } 2>/dev/null |
-        grep -v -x "php$short-static")"
-fi
-del="$(printf '%s\n' "$del" | grep . | LC_ALL=C sort -u | tr '\n' ' ')"
-if [ -n "$del" ]; then
-    say "pkg delete $del(the files of the other mode)"
-    # shellcheck disable=SC2086
-    pkg delete -y $del >> "$log" 2>&1 || say "pkg delete failed ($log)"
+# what goes in: the core, mod_php and the modules, with the standard openssl
+printf '%s\n' "$names" | grep -qx "php$short" || { say "no package php$short in the repository $repo"; exit 3; }
+want="$(printf '%s\n' "$names" | grep -v -x "php$short-openssl-legacy" | tr '\n' ' ')"
+if pkg info -e "php$short-openssl-legacy"; then
+    say "pkg delete php$short-openssl-legacy (php$short-openssl goes in, the same files)"
+    pkg delete -y "php$short-openssl-legacy" >> "$log" 2>&1 || say "pkg delete failed ($log)"
 fi
 say "pkg install -f $want"
 # shellcheck disable=SC2086
@@ -87,8 +74,8 @@ for p in $want; do
     if [ -n "$r" ]; then bad="$bad $p(from $r)"; else bad="$bad $p(not installed)"; fi
 done
 if [ -n "$bad" ]; then
-    say "PHP $t $mode: not installed from the repository:$bad ($log)"
+    say "PHP $t: not installed from the repository:$bad ($log)"
     exit 1
 fi
-say "PHP $t $mode: $(echo $want | wc -w | tr -d ' ') packages installed from $repo (the repository azbuild stays in $conf)"
+say "PHP $t: $(echo $want | wc -w | tr -d ' ') packages installed from $repo (the repository azbuild stays in $conf)"
 exit 0

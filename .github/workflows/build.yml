@@ -3,13 +3,13 @@ name: Build the packages of the repository az
 # Builds the ports of this overlay (tools/build.sh) in a FreeBSD VM, with the
 # make.conf of aZ's servers for an x86-64 level (tools/make.conf.in), over the
 # official ports tree at the commit pinned in tools/build.sh; when PHP was built,
-# installs its packages from the new repository in each mode (tools/install-php.sh:
-# pkg, then static) and checks them (tools/check-php.sh); and publishes
+# installs its packages from the new repository (tools/install-php.sh) and checks
+# them (tools/check-php.sh); and publishes
 # the repository of pkg as the files of the release az-fbsd<major>-amd64-<level>
 # of this repository (its address goes into /usr/local/etc/pkg/repos/az.conf of a
 # server, README.md). The packages of that release are downloaded first: a port
-# whose package is there already is not built again (unless force), and they go
-# into the new repository with the new ones.
+# whose package with the same az_hash is there already is not built again (unless
+# force), and they go into the new repository with the new ones.
 # Started by hand: Actions, "Build the packages of the repository az", "Run workflow".
 
 on:
@@ -29,7 +29,7 @@ on:
         required: false
         default: ''
       force:
-        description: 'Build the ports also when their package is in the release already'
+        description: 'Build the ports also when their package with the same az_hash is in the release already'
         type: boolean
         default: false
       # off by default: the repository the servers read is published on aZ's word
@@ -123,25 +123,23 @@ jobs:
             trap 'rm -f /root/.az-pkg-key.b64' EXIT
             if [ -s /root/.az-pkg-key.b64 ]; then export AZ_PKG_KEY_FILE=/root/.az-pkg-key.b64; fi
             sh tools/build.sh ${AZ_FORCE:+--force} --repo repo $AZ_PORTS || true
-            # the PHP of each version a package of which was built: each mode installed from the
-            # repository and checked, pkg first, then static (the same files: one or the other)
+            # the PHP of each version a package of which was built: installed from the
+            # repository as a server installs it, and checked
             : > results/checks.txt
             for v in $(awk '$1 ~ /\// && $2 == "OK" { print $3 }' results/summary.txt 2>/dev/null | sed -n -E 's/^(mod_)?php([0-9])([0-9])-.*/\2.\3/p' | sort -u); do
-              for m in pkg static; do
-                sh tools/install-php.sh --repo repo "$v" "$m"
-                rc=$?
-                if [ "$rc" = 3 ]; then
-                  echo "PHP $v $m: SKIP (the repository has no package of this mode)" >> results/checks.txt
-                elif [ "$rc" != 0 ]; then
-                  echo "PHP $v $m: FAIL (the packages did not install: install-php-$v-$m.log)" >> results/checks.txt
-                elif [ ! -f tools/check-php.sh ]; then
-                  echo "PHP $v $m: SKIP (no tools/check-php.sh)" >> results/checks.txt
-                elif sh tools/check-php.sh "$v" "$m"; then
-                  echo "PHP $v $m: OK (check-php-$v-$m.txt)" >> results/checks.txt
-                else
-                  echo "PHP $v $m: FAIL (check-php-$v-$m.txt)" >> results/checks.txt
-                fi
-              done
+              sh tools/install-php.sh --repo repo "$v"
+              rc=$?
+              if [ "$rc" = 3 ]; then
+                echo "PHP $v: SKIP (the repository has no core php of $v)" >> results/checks.txt
+              elif [ "$rc" != 0 ]; then
+                echo "PHP $v: FAIL (the packages did not install: install-php-$v.log)" >> results/checks.txt
+              elif [ ! -f tools/check-php.sh ]; then
+                echo "PHP $v: SKIP (no tools/check-php.sh)" >> results/checks.txt
+              elif sh tools/check-php.sh "$v"; then
+                echo "PHP $v: OK (check-php-$v.txt)" >> results/checks.txt
+              else
+                echo "PHP $v: FAIL (check-php-$v.txt)" >> results/checks.txt
+              fi
             done
             cat results/checks.txt
             # not back to the runner: the official tree, the work directories, the packages (they are in repo/)
@@ -188,7 +186,7 @@ jobs:
           esac
           url="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
           commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
-          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: az (the libraries of /usr/local/az), curl, ffmpeg, ImageMagick6, ImageMagick7, php74 with mod_php74 and the modules php74-<module>, php74-static. On a server, /usr/local/etc/pkg/repos/az.conf: az: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/az.pub\", priority: 100, enabled: yes } with the key keys/az.pub of $GITHUB_REPOSITORY, then: pkg update -r az, pkg install -r az php74 php74-gd ... (README.md)."
+          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: az (the libraries of /usr/local/az), curl, ffmpeg, ImageMagick6, ImageMagick7, php74 with mod_php74 and the modules php74-<module>. On a server, /usr/local/etc/pkg/repos/az.conf: az: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/az.pub\", priority: 100, enabled: yes } with the key keys/az.pub of $GITHUB_REPOSITORY, then: pkg update -r az, pkg install -r az php74 php74-gd ... (README.md)."
           if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "$tag" --notes "$notes" --target "$GITHUB_SHA" ||
               gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null

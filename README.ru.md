@@ -52,7 +52,7 @@
 
 | Пакет | Origin | Что |
 |---|---|---|
-| `az` | `az/az` | библиотеки сборок в `/usr/local/az`: `lib` (разделяемые, с run path `/usr/local/az/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`); статические — в `/usr/local/az/static`, для статического PHP и программ. OpenSSL, zlib и bzip2 — из базовой системы |
+| `az` | `az/az` | библиотеки сборок в `/usr/local/az`: `lib` (разделяемые, с run path `/usr/local/az/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`); статические — в `/usr/local/az/static`, для программ и особых сборок `az-menu.sh`. OpenSSL, zlib и bzip2 — из базовой системы |
 | `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта |
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` и `ffprobe` только с теми форматами, что нужны видеосайтам |
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, программы с 6 на конце (`convert6`, `identify6`, ...) |
@@ -60,7 +60,6 @@
 | `php74` | `lang/php74` | ядро PHP 7.4: CLI, php-fpm, phpize |
 | `mod_php74` | `www/mod_php74` | модуль Apache `libphp74.so` |
 | `php74-<модуль>` | `<категория>/php74-<модуль>` | по пакету на модуль (`php74-gd`: `graphics/php74-gd`); PECL без «pecl»: `php74-redis`, `php74-swoole`, `php74-igbinary`, `php74-memcached`, `php74-memcache`, `php74-imagick`, `php74-mcrypt`, `php74-excimer`, `php74-openswoole`; OPcache и json — тоже модули (`php74-opcache`, `php74-json`), mysqlnd тоже (`php74-mysqlnd`: на нём модули баз данных) |
-| `php74-static` | `lang/php74-static` | статический PHP: файлы `php74`, `mod_php74` и модулей в одной сборке; на версию одно или другое |
 
 - openssl в двух видах, один из двух: `php74-openssl` и `php74-openssl-legacy` (с
   legacy-провайдером OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
@@ -68,6 +67,8 @@
   одни и те же классы), его сообщение пакета говорит, как переключить.
 - Не собираются: модули, которым нужна библиотека портов (enchant, imap, ldap, odbc,
   pdf, pdo_dblib, pdo_firebird, pdo_odbc, pdo_pgsql, pgsql, pspell, snmp).
+- Особая сборка (статический PHP, опции конкретного сервера) — не порт здесь: её делает
+  `az-menu.sh` из [azsupport/php-src](https://github.com/azsupport/php-src).
 
 ## Раскладка PHP на сервере
 
@@ -105,11 +106,10 @@ pkg update -r az
 репозиторию FreeBSD. `pkg update -r az` отказывается от каталога, подпись которого не
 проверяется.
 
-PHP 7.4 с модулями или статический:
+PHP 7.4 с модулями:
 
 ```sh
 pkg install -r az php74 mod_php74 php74-opcache php74-gd php74-mbstring php74-openssl-legacy
-pkg install -r az php74-static
 ```
 
 Программы:
@@ -137,10 +137,8 @@ service php_fpm74 start
 git clone https://github.com/azsupport/ports.git
 cd ports
 sh tools/build.sh
-sh tools/install-php.sh 7.4 pkg
-sh tools/check-php.sh 7.4 pkg
-sh tools/install-php.sh 7.4 static
-sh tools/check-php.sh 7.4 static
+sh tools/install-php.sh 7.4
+sh tools/check-php.sh 7.4
 ```
 
 Только некоторые порты (с портами этого дерева, которые им нужны), заново и тогда,
@@ -166,28 +164,39 @@ env AZ_PORTSDIR=/usr/ports sh tools/build.sh
   читается и не меняется, а сохранённые там `make config` опции на сборку не влияют
   (свой `PORT_DBDIR`);
 - очередь: порты и порты этого дерева, которые им нужны (origin из их `*_DEPENDS`,
-  которые наши), каждый после тех, что ему нужны; порт, который конфликтует с пакетами
-  других (`CONFLICTS_INSTALL`: `php74-static`), — в конце;
-- порт, чей пакет (`PKGNAME`) уже есть в репозитории, заново не собирается
-  (инкрементальная сборка), если нет `--force` и в прогоне не собран порт этого дерева,
-  который ему нужен; упавший порт останавливает порты, которым он нужен (пропущены, с
+  которые наши), каждый после тех, что ему нужны;
+- порт, у origin которого в репозитории есть пакет с тем же `az_hash`, заново не
+  собирается (инкрементальная сборка; [Версии и пересборки](#версии-и-пересборки)),
+  если нет `--force`; упавший порт останавливает порты, которым он нужен (пропущены, с
   причиной);
 - каждый порт: официальные пакеты его зависимостей — `pkg install` (из репозитория
   FreeBSD машины), наши — `pkg add` пакетов, собранных раньше, потом
   `make clean package` с `USE_PACKAGE_DEPENDS_ONLY=yes` (из исходников собирается только
   сам порт); его лог и время;
-- репозиторий (`--repo <каталог>`, по умолчанию `work/repo`): новые пакеты на место
-  старых с тем же именем, `pkg repo`, подпись ключом из `AZ_PKG_KEY_FILE` и проверка
+- порт с `NEED_ROOT` (`az/az`: собирается прямо в `/usr/local/az`): его установленный
+  пакет удаляется перед сборкой, новый ставится после неё;
+- репозиторий (`--repo <каталог>`, по умолчанию `work/repo`): по пакету на origin, новые
+  на место старых, `pkg repo`, подпись ключом из `AZ_PKG_KEY_FILE` и проверка
   ([`tools/pkg-repo-sign.sh`](tools/pkg-repo-sign.sh));
 - результаты в `results/`: `summary.txt` (строка на порт, в конце `result: OK` или
-  `result: FAIL (...)`), `queue.txt`, `logs/`.
+  `result: FAIL (...)`), `queue.txt`, `hashes.txt`, `logs/`.
 
-[`tools/install-php.sh`](tools/install-php.sh) `<версия> pkg|static` ставит пакеты PHP
-версии в одном режиме из этого репозитория, как сервер (`pkg`: ядро, `mod_php74` и
-модули, с `php74-openssl`; `static`: `php74-static`; пакеты другого режима сначала
-удаляются, у них те же файлы), а [`tools/check-php.sh`](tools/check-php.sh)
-`<версия> pkg|static` проверяет установленные пакеты этого режима
-(`results/check-php-<версия>-<режим>.txt`).
+### Версии и пересборки
+
+Как у poudriere: каждый порт, который прогон собирает, получает `AZ_STAMP` (час начала
+прогона, `yymmddhh` UTC) как `PORTREVISION`, чтобы каждая сборка была для pkg
+обновлением (`php74-7.4.33_26110817`), и `AZ_HASH`, который попадает в пакет
+аннотацией `az_hash` (`pkg info -A php74`): SHA-256 файлов порта (с файлами его
+`MASTERDIR`), `Mk/` этого дерева, официального коммита, уровня и `tools/make.conf.in`, и
+`az_hash` каждого порта этого дерева, который ему нужен. Порт, чей пакет в репозитории
+с тем же `az_hash`, заново не собирается; изменение порта пересобирает его и все порты,
+которым он нужен (изменение `az/az` — всё, что его линкует). Ревизии руками не
+поднимаются.
+
+[`tools/install-php.sh`](tools/install-php.sh) `<версия>` ставит пакеты PHP версии из
+этого репозитория, как сервер (ядро, `mod_php74` и модули, с `php74-openssl`), а
+[`tools/check-php.sh`](tools/check-php.sh) `<версия>` их проверяет
+(`results/check-php-<версия>.txt`).
 
 ### Workflow
 
@@ -200,15 +209,15 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 | `release` | релиз FreeBSD для ВМ, `15.1` |
 | `cputype` | `x86-64-v3` (по умолчанию), `x86-64-v2` или `both` (по job на каждый) |
 | `ports` | порты для сборки через пробел; пусто — все |
-| `force` | собирать их и тогда, когда их пакет уже есть в релизе |
+| `force` | собирать их и тогда, когда их пакет с тем же `az_hash` уже есть в релизе |
 | `publish` | опубликовать репозиторий, когда всё собралось и все проверки прошли (по умолчанию выключено: репозиторий, который читают серверы, публикуется по слову aZ) |
 
 Он скачивает файлы релиза `az-fbsd15-amd64-<уровень>` (пакеты, собранные раньше),
 запускает `tools/build.sh` в ВМ FreeBSD
 ([vmactions/freebsd-vm](https://github.com/vmactions/freebsd-vm)), потом для каждой
-версии PHP, пакет которой собран, ставит и проверяет каждый режим, сначала `pkg`,
-потом `static` (`tools/install-php.sh`, `tools/check-php.sh`; по строке в
-`results/checks.txt`), отчитывается
+версии PHP, пакет которой собран, ставит её пакеты из нового репозитория и проверяет их
+(`tools/install-php.sh`, `tools/check-php.sh`; по строке в `results/checks.txt`),
+отчитывается
 ([`tools/report.sh`](tools/report.sh): сводка прогона, аннотация на каждый упавший порт;
 [`tools/runs-report.sh`](tools/runs-report.sh): отчёт в ветку `runs` azsupport/azsupport)
 и публикует: сначала пакеты, каталог последним, потом убирает то, чего в репозитории
@@ -231,8 +240,8 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 - Зависимость от пакета `az` — по файлу, никогда не `LIB_DEPENDS` (для
   `/usr/local/az/lib` нет подсказок ldconfig):
   `BUILD_DEPENDS+= ${LOCALBASE}/az/lib/libxml2.so:az/az`, и то же в `RUN_DEPENDS`.
-- Новая сборка порта, чей пакет уже в релизе: новый `PORTVERSION` или `PORTREVISION`
-  (или `force`); сборщик не собирает пакет, который уже есть.
+- Наши порты берут `PORTREVISION= ${AZ_STAMP}`: изменение порта само по себе — новая
+  сборка ([Версии и пересборки](#версии-и-пересборки)).
 - Пакеты сейчас собираются `make package` в ВМ;
   [poudriere](https://github.com/freebsd/poudriere) — потом, на сборочном сервере
   FreeBSD: он собирает оверлей сам, а первая часть `tools/make.conf.in` — его make.conf.
