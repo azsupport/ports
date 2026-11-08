@@ -39,10 +39,13 @@
 #   and the other makefiles of Mk/ of this tree it reads: Mk/Uses/php.mk for the PHP
 #   ports, not for az/az; the files of tools/ its makefiles name outside their
 #   comments, and those these name: tools/az-build.sh of az/az), of the official commit, the level and tools/make.conf.in,
-#   and of the az_hash of each port of this tree it needs (so a change of az/az builds
-#   again what needs it); it goes to make as AZ_HASH (the annotation az_hash of the package,
+#   and of the hash of each port of this tree it needs (so a change of az/az builds
+#   again what needs it): that hash leaves out the files the port lists in its
+#   AZ_HASH_NOT_FOR_DEPENDENTS (run time only: lang/php74's php.ini block, profile
+#   script, rc.d script, pkg-message), which count in its own az_hash only, not in
+#   that of its slaves either; it goes to make as AZ_HASH (the annotation az_hash of the package,
 #   Mk/bsd.overlay.mk), the revision as AZ_STAMP (PORTREVISION= ${AZ_STAMP}: each
-#   build is an upgrade for pkg);
+#   build is an upgrade for pkg; pkg takes a dependency by its name, not its version);
 # - a port whose origin has a package with the same az_hash in the repository is not
 #   built again (an incremental build) unless --force; a port that fails stops those
 #   that need it (skipped, with the reason);
@@ -213,7 +216,7 @@ dep_origins() {
 # port_info <origin>: what make -V says of a port of this tree into $q/info/<key>
 # (lines: 1 PKGNAME, 2 IGNORE, 3-9 FETCH_ EXTRACT_ PATCH_ BUILD_ LIB_ RUN_ PKG_DEPENDS,
 # 10 NEED_ROOT, 11 MASTERDIR, 12 FILESDIR, 13 PATCHDIR, 14 PKGDIR, 15 DISTINFO_FILE,
-# 16 .MAKE.MAKEFILES); our dependencies into $q/deps/<key> (all kinds) and
+# 16 .MAKE.MAKEFILES, 17 AZ_HASH_NOT_FOR_DEPENDENTS); our dependencies into $q/deps/<key> (all kinds) and
 # $q/rdeps/<key> (LIB_ and RUN_DEPENDS: what pkg add of its package needs), the
 # official ones into $q/odeps/<key> and $q/orun/<key>
 port_info() {
@@ -223,7 +226,7 @@ port_info() {
     if ! make -C "$top/$1" AZ_STAMP="$az_stamp" -V PKGNAME -V IGNORE -V FETCH_DEPENDS -V EXTRACT_DEPENDS \
             -V PATCH_DEPENDS -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS -V NEED_ROOT \
             -V MASTERDIR -V FILESDIR -V PATCHDIR -V PKGDIR -V DISTINFO_FILE -V .MAKE.MAKEFILES \
-            > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
+            -V AZ_HASH_NOT_FOR_DEPENDENTS > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
         echo "make -V failed: $(grep . "$q/info/$_k.err" | head -n 1)" > "$q/info/$_k.bad"
         return 1
     fi
@@ -453,17 +456,43 @@ cp "$q/queue.txt" "$res/queue.txt"
 say "the queue: $(wc -l < "$q/queue.txt" | tr -d ' ') ports (results/queue.txt)"
 
 # --- the az_hash of each port, in the order of the queue -------------------------------
+# Two hashes a port: its az_hash ($q/hash/<key>), and the one the ports that need it
+# fold in ($q/dhash/<key>), the same without the files of AZ_HASH_NOT_FOR_DEPENDENTS
+# (a variable of its Makefile: files it installs and uses at run time only, never
+# read by the build of another port; lang/php74: its php.ini block, the profile
+# script, the rc.d script, pkg-message). A file of that list counts in the az_hash
+# of the port whose directory holds it, and in no other: not in the hash its
+# dependents fold in, nor in the az_hash of its slaves (their MASTERDIR is its
+# directory: the modules php74-*). Without the variable both hashes are the same.
 base_hash="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; cat "$top/tools/make.conf.in"; } | hin)"
+mkdir -p "$q/dhash"
 : > "$res/hashes.txt"
 for o in $(cat "$q/queue.txt"); do
     k="$(key "$o")"
     [ -f "$q/info/$k.bad" ] && continue
+    port_files "$o" > "$q/pf-$k"
+    # the files of AZ_HASH_NOT_FOR_DEPENDENTS, relative to the tree
+    for f in $(sed -n 17p "$q/info/$k"); do
+        f="$(realpath "$f" 2> /dev/null)" && tree_file "$f" && echo "${f#"$topr"/}"
+    done | LC_ALL=C sort -u > "$q/nfd-$k"
+    for d in $(LC_ALL=C sort -u "$q/deps/$k"); do
+        echo "dep $d $(cat "$q/dhash/$(key "$d")" 2>/dev/null || echo none)"
+    done > "$q/dl-$k"
     {
         echo "base $base_hash"
-        port_files "$o"
-        for d in $(LC_ALL=C sort -u "$q/deps/$k"); do echo "dep $d $(cat "$q/hash/$(key "$d")" 2>/dev/null || echo none)"; done
+        awk -v d="$o/" 'FILENAME == ARGV[1] { x[$1] = 1; next }
+            ($2 in x) && substr($2, 1, length(d)) != d { next } { print }' "$q/nfd-$k" "$q/pf-$k"
+        cat "$q/dl-$k"
     } > "$q/hash/$k.in"
+    {
+        echo "base $base_hash"
+        awk 'FILENAME == ARGV[1] { x[$1] = 1; next } !($2 in x) { print }' "$q/nfd-$k" "$q/pf-$k"
+        cat "$q/dl-$k"
+    } > "$q/dhash/$k.in"
     hin < "$q/hash/$k.in" > "$q/hash/$k"
+    hin < "$q/dhash/$k.in" > "$q/dhash/$k"
+    nfd="$(awk -v d="$o/" 'substr($0, 1, length(d)) == d' "$q/nfd-$k" | tr '\n' ' ')"
+    [ -n "$nfd" ] && say "$o: AZ_HASH_NOT_FOR_DEPENDENTS, not in the hash of the ports that need it: $nfd"
     echo "$o $(cat "$q/hash/$k")" >> "$res/hashes.txt"
 done
 

@@ -260,7 +260,11 @@ the level and `tools/make.conf.in`, and of the `az_hash` of each port of this tr
 needs. A port
 whose package in the repository has the same `az_hash` is not built again; a change of
 a port builds it and every port that needs it again (a change of `az/az`: all that
-link it). No revisions bumped by hand.
+link it). The files a port lists in `AZ_HASH_NOT_FOR_DEPENDENTS` (installed and used
+at run time only) count in its own `az_hash` but not in that of the ports that need it
+or of its slaves: a change of the php.ini block, the profile script, the rc.d script or
+the pkg-message of `lang/php74` builds `php74` again, not the modules and `mod_php74`
+(pkg takes a dependency by its name, not its version). No revisions bumped by hand.
 
 [`tools/install-php.sh`](tools/install-php.sh) `<version>` installs the PHP packages of
 a version from that repository, as a server does (the core, `mod_php74` and the
