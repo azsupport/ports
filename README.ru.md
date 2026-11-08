@@ -1,0 +1,238 @@
+# azsupport/ports
+
+Порты FreeBSD от aZ (azsupport.com): оверлей дерева портов FreeBSD, из которого
+собираются пакеты его репозитория pkg **az** для его серверов на FreeBSD 15
+(amd64), чтобы на серверах ничего не собиралось.
+[README.md](README.md): то же по-английски.
+
+- [Что это](#что-это)
+- [Пакеты](#пакеты)
+- [Раскладка PHP на сервере](#раскладка-php-на-сервере)
+- [Сервер и репозиторий az](#сервер-и-репозиторий-az)
+- [Как собирается](#как-собирается)
+- [Правила портов](#правила-портов)
+
+## Что это
+
+- **Оверлей**: только наши порты, поверх официального дерева
+  [freebsd-ports](https://github.com/freebsd/freebsd-ports) на закреплённом коммите
+  [`f16b6dd0f7c1`](https://github.com/freebsd/freebsd-ports/tree/f16b6dd0f7c1c3a2e0447e192e39e72f21d85eb0)
+  (main от 04.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh)). Фреймворк
+  портов берёт его как `OVERLAYS`: `bsd.port.mk` включает
+  [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk), берёт `Mk/Uses/<имя>.mk` оверлея раньше
+  официального, а порт оверлея встаёт на место официального порта с тем же origin.
+- **Минимальные хаки официальных портов**: каждый порт начинается с официального порта
+  нужного коммита и меняет только то, что нужно; его Makefile говорит, чем он отличается
+  и почему.
+- **База каждой версии PHP**: порты её собственного коммита (как
+  [`freebsd/targets.conf`](https://github.com/azsupport/php-src/blob/master/freebsd/targets.conf)
+  в azsupport/php-src); порт, которого на этом коммите нет, берётся из портов ближайшей
+  более новой версии, где он есть, или пишется нами:
+
+  | PHP | freebsd-ports |
+  |---|---|
+  | 5.6 | [`d2c06ef5efae`](https://github.com/freebsd/freebsd-ports/tree/d2c06ef5efae/lang/php56) |
+  | 7.4 | [`036685c034ba`](https://github.com/freebsd/freebsd-ports/tree/036685c034ba/lang/php74) |
+  | 8.1 | [`6002588334a9`](https://github.com/freebsd/freebsd-ports/tree/6002588334a9/lang/php81) |
+  | 8.2 | [`438e512499a9`](https://github.com/freebsd/freebsd-ports/tree/438e512499a9/lang/php82) |
+  | 8.3 | [`eb0100f974b6`](https://github.com/freebsd/freebsd-ports/tree/eb0100f974b6/lang/php83) |
+  | 8.4 | [`1a235373d266`](https://github.com/freebsd/freebsd-ports/tree/1a235373d266/lang/php84) |
+
+- **Исходники PHP**: релизные тарболы форка
+  [azsupport/php-src](https://github.com/azsupport/php-src) (для 7.4:
+  [`php-7.4.33-fbsd-20261104-397aa202.tar.xz`](https://github.com/azsupport/php-src/releases/download/freebsd-7.4-20261104-397aa202/php-7.4.33-fbsd-20261104-397aa202.tar.xz)),
+  в которых уже есть патчи порта FreeBSD, расширения PECL в `ext/` и PCRE2, которую
+  форк вкладывает в себя: наши порты PHP своих патчей не накладывают.
+- Сейчас только PHP 7.4 и x86-64-v3: всё сначала отрабатывается там, остальные версии
+  и x86-64-v2 — потом.
+
+## Пакеты
+
+Имена и origin как у портов, файлы по путям портов:
+
+| Пакет | Origin | Что |
+|---|---|---|
+| `az` | `az/az` | библиотеки сборок в `/usr/local/az`: `lib` (разделяемые, с run path `/usr/local/az/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`); статические — в `/usr/local/az/static`, для статического PHP и программ. OpenSSL, zlib и bzip2 — из базовой системы |
+| `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта |
+| `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` и `ffprobe` только с теми форматами, что нужны видеосайтам |
+| `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, программы с 6 на конце (`convert6`, `identify6`, ...) |
+| `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickWand-7.so` в `/usr/local/az/lib` для модуля imagick |
+| `php74` | `lang/php74` | ядро PHP 7.4: CLI, php-fpm, phpize |
+| `mod_php74` | `www/mod_php74` | модуль Apache `libphp74.so` |
+| `php74-<модуль>` | `<категория>/php74-<модуль>` | по пакету на модуль (`php74-gd`: `graphics/php74-gd`); PECL без «pecl»: `php74-redis`, `php74-swoole`, `php74-igbinary`, `php74-memcached`, `php74-memcache`, `php74-imagick`, `php74-mcrypt`, `php74-excimer`, `php74-openswoole`; OPcache и json — тоже модули (`php74-opcache`, `php74-json`), mysqlnd тоже (`php74-mysqlnd`: на нём модули баз данных) |
+| `php74-static` | `lang/php74-static` | статический PHP: файлы `php74`, `mod_php74` и модулей в одной сборке; на версию одно или другое |
+
+- openssl в двух видах, один из двух: `php74-openssl` и `php74-openssl-legacy` (с
+  legacy-провайдером OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
+- `php74-swoole` и `php74-openswoole` ставятся оба; ini у openswoole выключен (у них
+  одни и те же классы), его сообщение пакета говорит, как переключить.
+- Не собираются: модули, которым нужна библиотека портов (enchant, imap, ldap, odbc,
+  pdf, pdo_dblib, pdo_firebird, pdo_odbc, pdo_pgsql, pgsql, pspell, snmp).
+
+## Раскладка PHP на сервере
+
+Версии рядом, ничего общего между ними:
+
+| | |
+|---|---|
+| Программы | `bin/php74`, `bin/php-cgi74`, `bin/phpize74`, `bin/php-config74`, `sbin/php-fpm74` |
+| Настройки | `etc/php74/`: `php.ini` (из `php.ini-production`, изменённый сохраняется), `php.ini-production`, `php.ini-development`, `php-fpm.conf` (pid `/var/run/php-fpm74.pid`, лог `/var/log/php-fpm74.log`), `php-fpm.d/www.conf` (`listen /var/run/php-fpm74.sock`, владелец и группа `www`, права 0660) |
+| Модули | `lib/php/20190902/<модуль>.so`, грузятся из `etc/php74/conf.d/ext-<NN>-<модуль>.ini` (из его `.ini.sample`, изменённый сохраняется; `NN`: 10 OPcache, 18 session, 20 json и модуль, которому не нужен другой, 30 — которому нужен) |
+| Заголовки | `include/php74/php/...`; заголовки модуля — в `include/php74/php/ext/<модуль>/` |
+| Файлы сборки | `lib/php74/build` |
+| php-fpm | `etc/rc.d/php_fpm74` (`php_fpm74_enable`), чтобы php-fpm нескольких версий работали одновременно |
+| Apache | `libexec/apache24/libphp74.so`, `etc/apache24/modules.d/280_mod_php74.conf` |
+| Данные | `share/php74`, man-страницы с суффиксом в `share/man` |
+
+## Сервер и репозиторий az
+
+Репозиторий — это файлы релиза `az-fbsd15-amd64-v3` этого репозитория
+(`az-fbsd15-amd64-v2` для процессора без AVX2). Его каталог подписан ключом aZ;
+[`keys/az.pub`](keys/az.pub) — его открытый ключ (тот же ключ, что
+[`freebsd/az.pub`](https://github.com/azsupport/php-src/blob/master/freebsd/az.pub) в
+azsupport/php-src; SHA-256
+`2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6`).
+
+```sh
+mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
+fetch -o /usr/local/etc/pkg/keys/az.pub https://raw.githubusercontent.com/azsupport/ports/main/keys/az.pub
+sha256 /usr/local/etc/pkg/keys/az.pub
+printf '%s\n' 'az: { url: "https://github.com/azsupport/ports/releases/download/az-fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/az.pub", priority: 100, enabled: yes }' > /usr/local/etc/pkg/repos/az.conf
+pkg update -r az
+```
+
+`priority: 100`: для пакета, который есть в обоих (`curl`), pkg предпочитает az
+репозиторию FreeBSD. `pkg update -r az` отказывается от каталога, подпись которого не
+проверяется.
+
+PHP 7.4 с модулями или статический:
+
+```sh
+pkg install -r az php74 mod_php74 php74-opcache php74-gd php74-mbstring php74-openssl-legacy
+pkg install -r az php74-static
+```
+
+Программы:
+
+```sh
+pkg install -r az curl ffmpeg ImageMagick6 ImageMagick7
+```
+
+php-fpm 7.4:
+
+```sh
+sysrc php_fpm74_enable=YES
+service php_fpm74 start
+```
+
+## Как собирается
+
+### tools/build.sh
+
+[`tools/build.sh`](tools/build.sh) собирает пакеты фреймворком портов той машины, на
+которой запущен, от root на FreeBSD: в ВМ FreeBSD 15.1 workflow или на сборочном
+сервере FreeBSD.
+
+```sh
+git clone https://github.com/azsupport/ports.git
+cd ports
+sh tools/build.sh
+sh tools/install-php.sh 7.4 pkg
+sh tools/check-php.sh 7.4 pkg
+sh tools/install-php.sh 7.4 static
+sh tools/check-php.sh 7.4 static
+```
+
+Только некоторые порты (с портами этого дерева, которые им нужны), заново и тогда,
+когда их пакет уже есть, другой уровень, дерево портов сборочного сервера:
+
+```sh
+sh tools/build.sh lang/php74 www/mod_php74
+sh tools/build.sh --force lang/php74
+env AZ_CPUTYPE=x86-64-v2 sh tools/build.sh
+env AZ_PORTSDIR=/usr/ports sh tools/build.sh
+```
+
+Что он делает, по логике poudriere:
+
+- официальное дерево на закреплённом коммите (git, глубина 1) в `work/freebsd-ports`,
+  переиспользуется, когда оно на этом коммите (`AZ_PORTSDIR`: дерево берётся как есть,
+  с предупреждением, если оно на другом коммите), это дерево — `OVERLAYS` поверх него;
+- `work/make.conf` из [`tools/make.conf.in`](tools/make.conf.in) — make.conf серверов
+  aZ (`CPUTYPE` уровня, `CFLAGS=-O3 -pipe -fno-strict-aliasing`, фреймворк добавляет
+  `-fstack-protector-strong`; `JPEG_PORT=graphics/mozjpeg`; `OPTIONS_UNSET` для X11,
+  Wayland, GUI, DBus, CUPS, отладки, тестов, документации и man-страниц) с путями
+  прогона, отдаётся make как `__MAKE_CONF`: `/etc/make.conf` сборочного сервера не
+  читается и не меняется, а сохранённые там `make config` опции на сборку не влияют
+  (свой `PORT_DBDIR`);
+- очередь: порты и порты этого дерева, которые им нужны (origin из их `*_DEPENDS`,
+  которые наши), каждый после тех, что ему нужны; порт, который конфликтует с пакетами
+  других (`CONFLICTS_INSTALL`: `php74-static`), — в конце;
+- порт, чей пакет (`PKGNAME`) уже есть в репозитории, заново не собирается
+  (инкрементальная сборка), если нет `--force` и в прогоне не собран порт этого дерева,
+  который ему нужен; упавший порт останавливает порты, которым он нужен (пропущены, с
+  причиной);
+- каждый порт: официальные пакеты его зависимостей — `pkg install` (из репозитория
+  FreeBSD машины), наши — `pkg add` пакетов, собранных раньше, потом
+  `make clean package` с `USE_PACKAGE_DEPENDS_ONLY=yes` (из исходников собирается только
+  сам порт); его лог и время;
+- репозиторий (`--repo <каталог>`, по умолчанию `work/repo`): новые пакеты на место
+  старых с тем же именем, `pkg repo`, подпись ключом из `AZ_PKG_KEY_FILE` и проверка
+  ([`tools/pkg-repo-sign.sh`](tools/pkg-repo-sign.sh));
+- результаты в `results/`: `summary.txt` (строка на порт, в конце `result: OK` или
+  `result: FAIL (...)`), `queue.txt`, `logs/`.
+
+[`tools/install-php.sh`](tools/install-php.sh) `<версия> pkg|static` ставит пакеты PHP
+версии в одном режиме из этого репозитория, как сервер (`pkg`: ядро, `mod_php74` и
+модули, с `php74-openssl`; `static`: `php74-static`; пакеты другого режима сначала
+удаляются, у них те же файлы), а [`tools/check-php.sh`](tools/check-php.sh)
+`<версия> pkg|static` проверяет установленные пакеты этого режима
+(`results/check-php-<версия>-<режим>.txt`).
+
+### Workflow
+
+[`build.yml`](.github/workflows/build.yml), «Build the packages of the repository az»:
+https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
+**Run workflow**.
+
+| Вход | |
+|---|---|
+| `release` | релиз FreeBSD для ВМ, `15.1` |
+| `cputype` | `x86-64-v3` (по умолчанию), `x86-64-v2` или `both` (по job на каждый) |
+| `ports` | порты для сборки через пробел; пусто — все |
+| `force` | собирать их и тогда, когда их пакет уже есть в релизе |
+| `publish` | опубликовать репозиторий, когда всё собралось и все проверки прошли (по умолчанию выключено: репозиторий, который читают серверы, публикуется по слову aZ) |
+
+Он скачивает файлы релиза `az-fbsd15-amd64-<уровень>` (пакеты, собранные раньше),
+запускает `tools/build.sh` в ВМ FreeBSD
+([vmactions/freebsd-vm](https://github.com/vmactions/freebsd-vm)), потом для каждой
+версии PHP, пакет которой собран, ставит и проверяет каждый режим, сначала `pkg`,
+потом `static` (`tools/install-php.sh`, `tools/check-php.sh`; по строке в
+`results/checks.txt`), отчитывается
+([`tools/report.sh`](tools/report.sh): сводка прогона, аннотация на каждый упавший порт;
+[`tools/runs-report.sh`](tools/runs-report.sh): отчёт в ветку `runs` azsupport/azsupport)
+и публикует: сначала пакеты, каталог последним, потом убирает то, чего в репозитории
+больше нет. Публикуется только подписанный каталог.
+
+Секреты (https://github.com/azsupport/ports/settings/secrets/actions, кнопка
+**New repository secret**):
+
+| Секрет | |
+|---|---|
+| `PKG_SIGNING_KEY` | закрытый ключ RSA (PEM) к `keys/az.pub`: попадает в ВМ только файлом, используется `pkg repo` и удаляется |
+| `RUNS_TOKEN` | fine-grained токен с Contents на чтение и запись в azsupport/azsupport, для отчётов |
+
+## Правила портов
+
+- Порт этого дерева начинается с официального порта нужного коммита и меняет только то,
+  что нужно; Makefile говорит, чем он отличается от официального и почему.
+- Makefile в стиле дерева портов (табы, порядок переменных, как хочет portlint);
+  скрипты для FreeBSD `/bin/sh` с утилитами базы.
+- Зависимость от пакета `az` — по файлу, никогда не `LIB_DEPENDS` (для
+  `/usr/local/az/lib` нет подсказок ldconfig):
+  `BUILD_DEPENDS+= ${LOCALBASE}/az/lib/libxml2.so:az/az`, и то же в `RUN_DEPENDS`.
+- Новая сборка порта, чей пакет уже в релизе: новый `PORTVERSION` или `PORTREVISION`
+  (или `force`); сборщик не собирает пакет, который уже есть.
+- Пакеты сейчас собираются `make package` в ВМ;
+  [poudriere](https://github.com/freebsd/poudriere) — потом, на сборочном сервере
+  FreeBSD: он собирает оверлей сам, а первая часть `tools/make.conf.in` — его make.conf.
