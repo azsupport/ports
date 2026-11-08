@@ -218,8 +218,9 @@ PHP_EXT_DIR!=	${PHPBASE}/bin/php-config${PHP_VER} --extension-dir | ${SED} -ne '
 PHP_EXT_DIR=	20240924
 PHP_EXT_INC=	hash json openssl pcre random spl
 .    elif ${PHP_VER:U} == 83
+# lang/php83 of the overlay: openssl is a module (php83-openssl), not in the core
 PHP_EXT_DIR=	20230831
-PHP_EXT_INC=	hash json openssl pcre random spl
+PHP_EXT_INC=	hash json pcre random spl
 .    elif ${PHP_VER:U} == 82
 PHP_EXT_DIR=	20220829
 PHP_EXT_INC=	hash json openssl pcre random spl
