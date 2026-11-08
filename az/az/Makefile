@@ -147,10 +147,12 @@ LICENSE_TEXT=	The licences of the libraries are in /usr/local/az/LICENSES
 LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 
 # The build tools of tools/az-build.sh --tools (git only checks the commit of
-# PORTSDIR, when it is there)
+# PORTSDIR, when it is there); libtool for the autoreconf -fi of gd (USES=autoreconf
+# brings autoconf and automake, libtoolize only with USES=libtool)
 BUILD_DEPENDS=	bison:devel/bison \
 		cmake:devel/cmake-core \
 		gperf:devel/gperf \
+		libtoolize:devel/libtool \
 		lzip:archivers/lzip \
 		meson:devel/meson \
 		msgfmt:devel/gettext-tools \

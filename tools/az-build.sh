@@ -1121,11 +1121,18 @@ for n in "$@"; do
 done
 ports_check || { echo "ports tree     FAIL  $ports is not freebsd-ports $ports_commit of deps.conf" >> "$res/summary.txt"; report; exit 1; }
 mkdir -p "$P" "$S"
-rc=0
+# build_one and build_bundle set rc for the line of their library: the libraries
+# that failed are kept apart, so that one built after them does not hide them
+failed=""
 for n in "$@"; do
     say "$n ($(port_of "$n"))"
-    build_one "$n" || rc=1
+    build_one "$n" || failed="$failed $n"
 done
+rc=0
+if [ -n "$failed" ]; then
+    rc=1
+    say "failed:$failed"
+fi
 finish
 finish_so
 if [ -s "$res/shared-bad.txt" ]; then
