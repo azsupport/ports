@@ -885,7 +885,9 @@ else
             [ -n "$o" ] || break
             pre_port "$o"
             say "$o: make package (logs/$k.log)"
-            ( make_port "$o" "$work/pk/$k"; : > "$q/jobs/$k.done" ) > "$q/jobs/$k.out" 2>&1 &
+            # .done after the subshell of the build, also if it ends early: the loop
+            # above would otherwise wait for it until the timeout of the job
+            ( ( make_port "$o" "$work/pk/$k" ) > "$q/jobs/$k.out" 2>&1; : > "$q/jobs/$k.done" ) &
             echo $! > "$q/jobs/$k.pid"
             running=$((running + 1))
         done
