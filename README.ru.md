@@ -116,7 +116,7 @@
 - **`lang/php74`** и **`www/mod_php74`**: ядро `php74` и модуль Apache `libphp74.so`;
   PCRE2 10.49 — встроенная в исходники форка (порт `devel/pcre2` — позже, aZ 08.11.2026).
 - **60 портов модулей** `php74-<модуль>`: имена без «pecl», origin как у официальных
-  портов или наши (`graphics/php74-gd`, `databases/php-redis`), ini
+  портов или наши (`graphics/php74-gd`, `databases/php74-redis`), ini
   `ext-NN-<модуль>.ini`, у openswoole и gmagick выключен.
 
 ## Раскладка PHP на сервере

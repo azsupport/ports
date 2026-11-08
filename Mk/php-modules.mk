@@ -8,8 +8,9 @@
 # time too); a module without a line here is unknown to USE_PHP, but those built
 # into the core (PHP_EXT_INC). The bundled modules have the origins of the
 # official ports (the ports of the overlay take their places), the PECL
-# extensions those of our packages, <category>/php-<module> (no "pecl": aZ,
-# 08.11.2026; slave ports of lang/php74 as the others). openssl-legacy installs
+# extensions those of our packages, <category>/php${PHP_VER}-<module> as the
+# bundled ones (no "pecl": aZ, 08.11.2026; slave ports of lang/php${PHP_VER} as
+# the others: one scheme of origins for every module). openssl-legacy installs
 # openssl.so too, so USE_PHP=openssl takes it as well.
 #
 # <module>_PRIO=<NN>: the priority of its ini file, ext-<NN>-<module>.ini (PHP
@@ -24,7 +25,7 @@ ctype_DEPENDS=		textproc/php${PHP_VER}-ctype
 curl_DEPENDS=		ftp/php${PHP_VER}-curl
 dba_DEPENDS=		databases/php${PHP_VER}-dba
 dom_DEPENDS=		textproc/php${PHP_VER}-dom
-excimer_DEPENDS=	devel/php-excimer
+excimer_DEPENDS=	devel/php${PHP_VER}-excimer
 exif_DEPENDS=		graphics/php${PHP_VER}-exif
 ffi_DEPENDS=		devel/php${PHP_VER}-ffi
 fileinfo_DEPENDS=	sysutils/php${PHP_VER}-fileinfo
@@ -32,22 +33,22 @@ filter_DEPENDS=		security/php${PHP_VER}-filter
 ftp_DEPENDS=		ftp/php${PHP_VER}-ftp
 gd_DEPENDS=		graphics/php${PHP_VER}-gd
 gettext_DEPENDS=	devel/php${PHP_VER}-gettext
-gmagick_DEPENDS=	graphics/php-gmagick
+gmagick_DEPENDS=	graphics/php${PHP_VER}-gmagick
 gmp_DEPENDS=		math/php${PHP_VER}-gmp
 iconv_DEPENDS=		converters/php${PHP_VER}-iconv
-igbinary_DEPENDS=	converters/php-igbinary
-imagick_DEPENDS=	graphics/php-imagick
+igbinary_DEPENDS=	converters/php${PHP_VER}-igbinary
+imagick_DEPENDS=	graphics/php${PHP_VER}-imagick
 intl_DEPENDS=		devel/php${PHP_VER}-intl
 json_DEPENDS=		devel/php${PHP_VER}-json
 mbstring_DEPENDS=	converters/php${PHP_VER}-mbstring
-mcrypt_DEPENDS=		security/php-mcrypt
-memcache_DEPENDS=	databases/php-memcache
-memcached_DEPENDS=	databases/php-memcached
+mcrypt_DEPENDS=		security/php${PHP_VER}-mcrypt
+memcache_DEPENDS=	databases/php${PHP_VER}-memcache
+memcached_DEPENDS=	databases/php${PHP_VER}-memcached
 mysqli_DEPENDS=		databases/php${PHP_VER}-mysqli
 mysqlnd_DEPENDS=	databases/php${PHP_VER}-mysqlnd
 opcache_DEPENDS=	www/php${PHP_VER}-opcache
 openssl_DEPENDS=	security/php${PHP_VER}-openssl
-openswoole_DEPENDS=	devel/php-openswoole
+openswoole_DEPENDS=	devel/php${PHP_VER}-openswoole
 pcntl_DEPENDS=		devel/php${PHP_VER}-pcntl
 pdo_DEPENDS=		databases/php${PHP_VER}-pdo
 pdo_mysql_DEPENDS=	databases/php${PHP_VER}-pdo_mysql
@@ -55,7 +56,7 @@ pdo_sqlite_DEPENDS=	databases/php${PHP_VER}-pdo_sqlite
 phar_DEPENDS=		archivers/php${PHP_VER}-phar
 posix_DEPENDS=		sysutils/php${PHP_VER}-posix
 readline_DEPENDS=	devel/php${PHP_VER}-readline
-redis_DEPENDS=		databases/php-redis
+redis_DEPENDS=		databases/php${PHP_VER}-redis
 session_DEPENDS=	www/php${PHP_VER}-session
 shmop_DEPENDS=		devel/php${PHP_VER}-shmop
 simplexml_DEPENDS=	textproc/php${PHP_VER}-simplexml
@@ -63,7 +64,7 @@ soap_DEPENDS=		net/php${PHP_VER}-soap
 sockets_DEPENDS=	net/php${PHP_VER}-sockets
 sodium_DEPENDS=		security/php${PHP_VER}-sodium
 sqlite3_DEPENDS=	databases/php${PHP_VER}-sqlite3
-swoole_DEPENDS=		devel/php-swoole
+swoole_DEPENDS=		devel/php${PHP_VER}-swoole
 sysvmsg_DEPENDS=	devel/php${PHP_VER}-sysvmsg
 sysvsem_DEPENDS=	devel/php${PHP_VER}-sysvsem
 sysvshm_DEPENDS=	devel/php${PHP_VER}-sysvshm

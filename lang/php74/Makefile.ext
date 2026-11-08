@@ -10,7 +10,7 @@
 # of the nearest higher version that has it, or is ours:
 # - the PECL extensions, built from ext/<name> of the same release tarball of
 #   azsupport/php-src (it bundles them), their version that of php-src
-#   freebsd/pecl.conf; package php74-<name>, origin <category>/php-<name> (no
+#   freebsd/pecl.conf; package php74-<name>, origin <category>/php74-<name> (no
 #   "pecl": aZ, 08.11.2026). Their rules come from their ports of 036685c034ba
 #   (converters/pecl-igbinary, databases/pecl-memcache,
 #   databases/pecl-memcached, databases/pecl-redis, graphics/pecl-imagick with
@@ -24,7 +24,7 @@
 #   openssl-legacy (security/php74-openssl-legacy: openssl built with
 #   --with-openssl-legacy-provider of the fork, for RC4, Blowfish, DES, CAST5
 #   and MD4; the same files as php74-openssl, one of the two), openswoole
-#   (devel/php-openswoole: no port; its ini comes commented out, see its rules).
+#   (devel/php74-openswoole: no port; its ini comes commented out, see its rules).
 # - the ini of openswoole and of gmagick comes with its line commented out, and
 #   the message of the package says why and how to switch it on (AZ_INI_OFF
 #   below); installing php74-gmagick makes the CLI profile gmagick (gmagick on,
