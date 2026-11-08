@@ -35,10 +35,11 @@
 #   BUILD_, LIB_, RUN_ and PKG_DEPENDS of make -V, the origins that are ours), each
 #   after those it needs;
 # - the az_hash of each port: SHA-256 of its files (paths and contents; with those of
-#   its MASTERDIR and the other files of this tree its Makefile reads), of Mk/ of this
-#   tree, of the official commit, the level and tools/make.conf.in, and of the az_hash
-#   of each port of this tree it needs (so a change of az/az builds again what needs
-#   it); it goes to make as AZ_HASH (the annotation az_hash of the package,
+#   its MASTERDIR and the other files of this tree its Makefile reads, Mk/bsd.overlay.mk
+#   and the other makefiles of Mk/ of this tree it reads: Mk/Uses/php.mk for the PHP
+#   ports, not for az/az), of the official commit, the level and tools/make.conf.in,
+#   and of the az_hash of each port of this tree it needs (so a change of az/az builds
+#   again what needs it); it goes to make as AZ_HASH (the annotation az_hash of the package,
 #   Mk/bsd.overlay.mk), the revision as AZ_STAMP (PORTREVISION= ${AZ_STAMP}: each
 #   build is an upgrade for pkg);
 # - a port whose origin has a package with the same az_hash in the repository is not
@@ -236,12 +237,14 @@ port_info() {
 
 # port_files <origin>: the files of this tree a port is built from, "f <path relative
 # to the tree> <sha256>" a line each: those of its directory, of its MASTERDIR,
-# FILESDIR, PATCHDIR, PKGDIR and DISTINFO_FILE, and the makefiles it reads
-# (.MAKE.MAKEFILES), when they are in this tree but not in Mk/ (hashed as a whole)
+# FILESDIR, PATCHDIR, PKGDIR and DISTINFO_FILE, and the makefiles of this tree it reads
+# (.MAKE.MAKEFILES: Mk/bsd.overlay.mk, which every port reads, taken also when make
+# does not say; Mk/Uses/php.mk only by the ports that read it)
 port_files() {
     _k="$(key "$1")"
     {
         find "$topr/$1" -type f ! -path '*/work/*'
+        [ -f "$topr/Mk/bsd.overlay.mk" ] && echo "$topr/Mk/bsd.overlay.mk"
         for _p in $(sed -n '11,16p' "$q/info/$_k"); do
             if [ -d "$_p" ]; then find "$_p" -type f ! -path '*/work/*'; elif [ -f "$_p" ]; then echo "$_p"; fi
         done
@@ -251,7 +254,6 @@ port_files() {
             # tree (the make.conf of the run names the paths of the machine)
             case "$_f" in
                 "$workr"/*|"$portsr"/*|"$topr"/work/*|"$topr"/packages/*|"$topr"/distfiles/*|"$topr"/results/*|"$topr"/repo/*|"$topr"/.git/*) continue ;;
-                "$topr"/Mk/*) continue ;;
                 "$topr"/*) ;;
                 *) continue ;;
             esac
@@ -394,15 +396,12 @@ say "the queue: $(wc -l < "$q/queue.txt" | tr -d ' ') ports (results/queue.txt)"
 
 # --- the az_hash of each port, in the order of the queue -------------------------------
 base_hash="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; cat "$top/tools/make.conf.in"; } | hin)"
-mk_hash="$(find "$topr/Mk" -type f 2>/dev/null | LC_ALL=C sort | while read -r f; do
-    printf '%s %s\n' "${f#"$topr"/}" "$(hfile "$f")"; done | hin)"
 : > "$res/hashes.txt"
 for o in $(cat "$q/queue.txt"); do
     k="$(key "$o")"
     [ -f "$q/info/$k.bad" ] && continue
     {
         echo "base $base_hash"
-        echo "mk $mk_hash"
         port_files "$o"
         for d in $(LC_ALL=C sort -u "$q/deps/$k"); do echo "dep $d $(cat "$q/hash/$(key "$d")" 2>/dev/null || echo none)"; done
     } > "$q/hash/$k.in"
