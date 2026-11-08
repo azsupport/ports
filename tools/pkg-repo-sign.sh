@@ -49,6 +49,31 @@ trap 'exit 1' HUP INT TERM
 (umask 077 && printf '%s' "$b64" | openssl base64 -d -A > "$kd/az.key") 2>> "$log"
 b64=""
 chmod 600 "$kd/az.key"
+# the forms of the secret: PEM (as in php-src); the base64 of a PEM pasted as the secret
+# (decoded once more); CR LF line ends; a PEM on one line (header, body, footer apart
+# by blanks). An OpenSSH key is not one pkg can use.
+tr -d '\r' < "$kd/az.key" > "$kd/k" && cat "$kd/k" > "$kd/az.key" && rm -f "$kd/k"
+if ! grep -q -e '-----BEGIN' "$kd/az.key"; then
+    if (umask 077 && openssl base64 -d -A < "$kd/az.key" | tr -d '\r' > "$kd/k") 2>> "$log" &&
+        grep -q -e '-----BEGIN' "$kd/k"; then
+        cat "$kd/k" > "$kd/az.key"; line "the key: the base64 of a PEM key, decoded once more"
+    fi
+    rm -f "$kd/k"
+fi
+if [ "$(awk 'END { print NR }' "$kd/az.key")" -le 1 ] && grep -q -e '-----BEGIN [A-Z ]*-----.*-----END' "$kd/az.key"; then
+    awk '{
+        match($0, /-----BEGIN [A-Z ]+-----/); h = substr($0, RSTART, RLENGTH); r = substr($0, RSTART + RLENGTH)
+        match(r, /-----END [A-Z ]+-----/); f = substr(r, RSTART, RLENGTH); b = substr(r, 1, RSTART - 1)
+        gsub(/[ \t]/, "", b); print h
+        while (length(b) > 64) { print substr(b, 1, 64); b = substr(b, 65) }
+        if (length(b)) print b; print f
+    }' "$kd/az.key" > "$kd/k" && cat "$kd/k" > "$kd/az.key" && rm -f "$kd/k"
+    line "the key: a PEM key on one line, put back into lines"
+fi
+if grep -q -e '-----BEGIN OPENSSH PRIVATE KEY' "$kd/az.key"; then
+    rm -f "$kd/az.key"; fail "PKG_SIGNING_KEY is an OpenSSH key, not an RSA private key in PEM (ssh-keygen -p -m PEM -f <file> converts a copy)"
+fi
+line "the key: $(sed -n 's/^-----BEGIN \([A-Z ]*\)-----$/\1/p' "$kd/az.key" | head -n 1 | sed 's/^$/no PEM header/')"
 openssl rsa -in "$kd/az.key" -pubout -out "$kd/az.pub" >> "$log" 2>&1 ||
     { rm -f "$kd/az.key"; fail "PKG_SIGNING_KEY is not an RSA private key in PEM"; }
 pkg repo "$dir" "$kd/az.key" >> "$log" 2>&1
