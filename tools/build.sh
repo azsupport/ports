@@ -37,7 +37,8 @@
 # - the az_hash of each port: SHA-256 of its files (paths and contents; with those of
 #   its MASTERDIR and the other files of this tree its Makefile reads, Mk/bsd.overlay.mk
 #   and the other makefiles of Mk/ of this tree it reads: Mk/Uses/php.mk for the PHP
-#   ports, not for az/az), of the official commit, the level and tools/make.conf.in,
+#   ports, not for az/az; the files of tools/ its makefiles name, and those these
+#   name: tools/az-build.sh of az/az), of the official commit, the level and tools/make.conf.in,
 #   and of the az_hash of each port of this tree it needs (so a change of az/az builds
 #   again what needs it); it goes to make as AZ_HASH (the annotation az_hash of the package,
 #   Mk/bsd.overlay.mk), the revision as AZ_STAMP (PORTREVISION= ${AZ_STAMP}: each
@@ -240,7 +241,22 @@ port_info() {
 # to the tree> <sha256>" a line each: those of its directory, of its MASTERDIR,
 # FILESDIR, PATCHDIR, PKGDIR and DISTINFO_FILE, and the makefiles of this tree it reads
 # (.MAKE.MAKEFILES: Mk/bsd.overlay.mk, which every port reads, taken also when make
-# does not say; Mk/Uses/php.mk only by the ports that read it)
+# does not say; Mk/Uses/php.mk only by the ports that read it); and the files of
+# tools/ that those makefiles name (comments too: the wrapper ports run the builds of
+# tools/, az/az tools/az-build.sh), with the files of tools/ those name in turn
+tree_file() {
+    case "$1" in
+        "$workr"/*|"$portsr"/*|"$topr"/work/*|"$topr"/packages/*|"$topr"/distfiles/*|"$topr"/results/*|"$topr"/repo/*|"$topr"/.git/*) return 1 ;;
+        "$topr"/*) return 0 ;;
+    esac
+    return 1
+}
+# tools_named <file>...: the files of tools/ of this tree the files name
+tools_named() {
+    [ $# -gt 0 ] || return 0
+    grep -h -o 'tools/[A-Za-z0-9_.-]*' "$@" 2> /dev/null | sed 's/\.*$//' | LC_ALL=C sort -u |
+        while read -r _n; do [ -f "$topr/$_n" ] && echo "$topr/$_n"; done
+}
 port_files() {
     _k="$(key "$1")"
     {
@@ -250,16 +266,18 @@ port_files() {
             if [ -d "$_p" ]; then find "$_p" -type f ! -path '*/work/*'; elif [ -f "$_p" ]; then echo "$_p"; fi
         done
     } 2> /dev/null | while read -r _f; do realpath "$_f" 2> /dev/null; done | LC_ALL=C sort -u |
-        while read -r _f; do
-            # not the work, the official tree, the packages and the results under the
-            # tree (the make.conf of the run names the paths of the machine)
-            case "$_f" in
-                "$workr"/*|"$portsr"/*|"$topr"/work/*|"$topr"/packages/*|"$topr"/distfiles/*|"$topr"/results/*|"$topr"/repo/*|"$topr"/.git/*) continue ;;
-                "$topr"/*) ;;
-                *) continue ;;
-            esac
-            printf 'f %s %s\n' "${_f#"$topr"/}" "$(hfile "$_f")"
-        done
+        while read -r _f; do tree_file "$_f" && echo "$_f"; done > "$q/files-$_k"
+    # the makefiles among them (Makefile*, *.mk), the files of tools/ they name, and
+    # those these name (one level more)
+    # shellcheck disable=SC2046
+    set -- $(grep -E '/(Makefile[^/]*|[^/]*\.mk)$' "$q/files-$_k")
+    tools_named "$@" > "$q/tools1-$_k"
+    # shellcheck disable=SC2046
+    set -- $(cat "$q/tools1-$_k")
+    tools_named "$@" > "$q/tools2-$_k"
+    LC_ALL=C sort -u "$q/files-$_k" "$q/tools1-$_k" "$q/tools2-$_k" | while read -r _f; do
+        printf 'f %s %s\n' "${_f#"$topr"/}" "$(hfile "$_f")"
+    done
 }
 
 # pkgbase <origin[@flavor]>: the name of the package of an official port (PKGBASE of
