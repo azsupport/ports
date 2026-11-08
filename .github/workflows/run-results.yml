@@ -40,7 +40,8 @@ jobs:
           echo "artifacts: $(ls artifacts | tr '\n' ' ')"
           n=0
           for g in $FILES; do
-            for f in $(find artifacts -type f -path "artifacts/*/$g" | sort); do
+            # one artifact comes into artifacts/ itself, several each into its directory
+            for f in $(find artifacts -type f \( -path "artifacts/$g" -o -path "artifacts/*/$g" \) | sort -u); do
               n=$((n + 1))
               echo "===== ${f#artifacts/} ($(wc -c < "$f") bytes)"
               cat "$f"
