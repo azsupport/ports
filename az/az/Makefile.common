@@ -1,0 +1,43 @@
+# What the ports az/az, ftp/curl, multimedia/ffmpeg, graphics/ImageMagick6 and
+# graphics/ImageMagick7 share (the design: the head of az/az/Makefile). Each of
+# them includes this file before bsd.port.mk; AZ_PREFIX (/usr/local/az),
+# AZ_STATIC (/usr/local/az/static) and AZ_STAMP come from Mk/bsd.overlay.mk.
+
+MAINTAINER=	github@azsupport.com
+
+# The revision of the build: AZ_STAMP, the yymmddhh of the run, given by the
+# builder (Mk/bsd.overlay.mk: 0 without it); above the PORTREVISION of the
+# official port, so that a new build is an upgrade of the official package.
+PORTREVISION=	${AZ_STAMP}
+
+# our release files (the take lines, the bundled curl) in one place of DISTDIR
+DIST_SUBDIR=	az
+
+# The scripts of this tree; the commit of the official tree (deps.conf of az/az)
+AZ_TOOLS=	${.CURDIR:H:H}/tools
+AZ_DEPS_CONF=	${.CURDIR:H:H}/az/az/files/deps.conf
+AZ_PORTS_COMMIT!=	/usr/bin/awk '$$1 == "ports" { print $$2 }' ${AZ_DEPS_CONF}
+
+# The environment of a script: its stage in WRKDIR (do-install copies it into
+# STAGEDIR), its results (AZ_RESULTS: the builder may give a place that stays
+# after make clean), the work directories of the official ports it makes, the
+# distfiles (those of the official ports in DISTDIR, ours in DISTDIR/az).
+AZ_STAGEDIR=	${WRKDIR}/az-stage
+AZ_RESULTS?=	${WRKDIR}/az-results
+AZ_ENV=		AZ_PREFIX=${AZ_PREFIX} AZ_WORK=${WRKDIR}/az-work \
+		AZ_STAGEDIR=${AZ_STAGEDIR} AZ_RESULTS=${AZ_RESULTS} \
+		AZ_DEPS_CONF=${AZ_DEPS_CONF} AZ_DISTDIR=${DISTDIR} \
+		AZ_TAKE_DISTFILES=${DISTDIR}/${DIST_SUBDIR} PORTSDIR=${PORTSDIR}
+
+# The annotations of the packages of tools/build-az.sh of azsupport/php-src
+PKG_NOTES+=	cputype freebsd_ports built_by
+PKG_NOTE_cputype=	${CPUTYPE:Ux86-64-v3}
+PKG_NOTE_freebsd_ports=	${AZ_PORTS_COMMIT}
+PKG_NOTE_built_by=	the port ${PKGORIGIN} of https://github.com/azsupport/ports
+
+# The plist: every file of the stage (tools/az-plist.sh)
+AZ_PLIST=	${SH} ${AZ_TOOLS}/az-plist.sh ${STAGEDIR} ${PREFIX} >> ${TMPPLIST}
+
+# The stage of the script into STAGEDIR, as it is (modes, links)
+AZ_COPY_STAGE=	${MKDIR} ${STAGEDIR} && (cd ${AZ_STAGEDIR} && ${TAR} -cf - .) | \
+		(cd ${STAGEDIR} && ${TAR} -xpf -)
