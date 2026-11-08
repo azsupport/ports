@@ -224,8 +224,10 @@ As poudriere: each port that a run builds gets `AZ_STAMP` (the hour of the start
 the run, `yymmddhh` UTC) as its `PORTREVISION`, so that each build is an upgrade for
 pkg (`php74-7.4.33_26110817`), and `AZ_HASH`, which goes into the package as the
 annotation `az_hash` (`pkg info -A php74`): the SHA-256 of the files of the port (with
-those of its `MASTERDIR`), of `Mk/` of this tree, of the official commit, the level and
-`tools/make.conf.in`, and of the `az_hash` of each port of this tree it needs. A port
+those of its `MASTERDIR`), of the makefiles of `Mk/` of this tree it reads
+(`Mk/bsd.overlay.mk`; `Mk/Uses/php.mk` only for the PHP ports), of the official commit,
+the level and `tools/make.conf.in`, and of the `az_hash` of each port of this tree it
+needs. A port
 whose package in the repository has the same `az_hash` is not built again; a change of
 a port builds it and every port that needs it again (a change of `az/az`: all that
 link it). No revisions bumped by hand.
@@ -249,8 +251,11 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | `force` | build them also when their package with the same `az_hash` is in the release already |
 | `publish` | publish the repository when everything built and every check passed (off by default: the repository the servers read is published on aZ's word) |
 
-It downloads the files of the release `az-fbsd15-amd64-<level>` (the packages built
-before), runs `tools/build.sh` in a FreeBSD VM
+It takes the repository of the last run (an actions/cache, saved also when a run
+fails, so that a run that fails in PHP keeps `az` and the libraries) and the files of
+the release `az-fbsd15-amd64-<level>`, checks the ports with `make -V` against a sparse
+official tree on the runner ([`tools/check-tree.sh`](tools/check-tree.sh), bmake: a
+FAIL stops the run there), runs `tools/build.sh` in a FreeBSD VM
 ([vmactions/freebsd-vm](https://github.com/vmactions/freebsd-vm)), then, for each PHP
 version a package of which was built, installs its packages from the new repository and
 checks them (`tools/install-php.sh`, `tools/check-php.sh`; a line each in
