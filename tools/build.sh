@@ -7,16 +7,18 @@
 #   sh tools/build.sh [--force] [--repo <dir>] [<origin> ...]
 #
 #   <origin>      the ports to build (category/port of this tree) and the ports of
-#                 this tree they depend on; none: every <category>/<port> with a Makefile
-#   --force       build every port of the queue, also those whose package is in the
-#                 repository already
+#                 this tree they need; none: every <category>/<port> with a Makefile
+#   --force       build every port of the queue, also those whose package with the
+#                 same az_hash is in the repository already
 #   --repo <dir>  the repository: the files of the release az-fbsd<major>-amd64-<level>
 #                 downloaded into <dir> (default: work/repo; empty or missing on the
-#                 first run); the new packages take the place of those of the same name
-#                 there, and the catalog of pkg repo is written there, signed
+#                 first run); the new packages take the place of those of the same
+#                 origin there, and the catalog of pkg repo is written there, signed
 #
 # Environment:
 #   AZ_CPUTYPE       the x86-64 level, CPUTYPE of make.conf (default x86-64-v3)
+#   AZ_STAMP         the revision of the packages of the run (default: the hour of its
+#                    start, yymmddhh UTC)
 #   AZ_WORK          the work directory (default: work/ of the tree): the official
 #                    ports tree (freebsd-ports/), WRKDIRPREFIX (wrk/), make.conf, the queue
 #   AZ_PORTSDIR      an official ports tree to take as it is instead of the checkout of
@@ -31,26 +33,31 @@
 #   JPEG_PORT, OPTIONS_UNSET of aZ, the paths), as __MAKE_CONF: /etc/make.conf is not read;
 # - the queue: the ports and those of this tree they need (FETCH_, EXTRACT_, PATCH_,
 #   BUILD_, LIB_, RUN_ and PKG_DEPENDS of make -V, the origins that are ours), each
-#   after those it needs; a port whose CONFLICTS_BUILD or CONFLICTS_INSTALL names the
-#   package of another port of the queue (lang/php74-static) last, with the ports that
-#   need it, and the installed packages it names deleted before its build;
+#   after those it needs;
+# - the az_hash of each port: SHA-256 of its files (paths and contents; with those of
+#   its MASTERDIR and the other files of this tree its Makefile reads), of Mk/ of this
+#   tree, of the official commit, the level and tools/make.conf.in, and of the az_hash
+#   of each port of this tree it needs (so a change of az/az builds again what needs
+#   it); it goes to make as AZ_HASH (the annotation az_hash of the package,
+#   Mk/bsd.overlay.mk), the revision as AZ_STAMP (PORTREVISION= ${AZ_STAMP}: each
+#   build is an upgrade for pkg);
+# - a port whose origin has a package with the same az_hash in the repository is not
+#   built again (an incremental build) unless --force; a port that fails stops those
+#   that need it (skipped, with the reason);
+# - each port: the official packages of its dependencies by pkg install (the FreeBSD
+#   repository of the host), ours by pkg add of the packages built before (or of the
+#   repository), then make clean package with USE_PACKAGE_DEPENDS_ONLY=yes (nothing is
+#   built from source but the port itself); its log, its time, OK or FAIL;
 # - a NEED_ROOT port (az/az builds into the real prefix and refuses files of a package
 #   there): its installed package deleted before its build, the new one added after
 #   it (the old one back when it fails);
-# - a port whose package (PKGNAME of make -V) is in the repository already is skipped
-#   (an incremental build) unless --force or a port of this tree it needs was built in
-#   this run; a port that fails stops those that need it (skipped, with the reason);
-# - each port: the official packages of its dependencies that are not ours by pkg
-#   install (the FreeBSD repository of the host), ours by pkg add of the packages built
-#   before (or of the repository), then make clean package with
-#   USE_PACKAGE_DEPENDS_ONLY=yes (nothing is built from source but the port itself);
-#   its log, its time, OK or FAIL;
-# - the repository: the new packages in the place of the old ones of the same name or
-#   origin (on a run of every port also away with the packages of origins this tree has
-#   no more), pkg repo, signed and checked (tools/pkg-repo-sign.sh).
+# - the repository: one package per origin, the new ones in the place of the old ones
+#   of the same name or origin, away with the packages of origins this tree has no
+#   more, pkg repo, signed and checked (tools/pkg-repo-sign.sh).
 #
 # Results: results/ of the tree: summary.txt (a line per port, "result: OK" or
-# "result: FAIL (...)" at the end), queue.txt, logs/<category>_<port>.log, pkg-repo.log.
+# "result: FAIL (...)" at the end), queue.txt, hashes.txt, logs/<category>_<port>.log,
+# pkg-repo.log.
 # Exit status: 0 every port of the queue built or kept and the repository signed (or
 # unsigned without a key), 1 otherwise, 2 a wrong call.
 
@@ -88,6 +95,10 @@ case "$cputype" in
     x86-64-v[234]) ;;
     *) die "AZ_CPUTYPE=$cputype: not x86-64-v2, x86-64-v3 or x86-64-v4" ;;
 esac
+az_stamp="${AZ_STAMP:-$(date -u +%y%m%d%H)}"
+case "$az_stamp" in
+    ''|*[!0-9]*) die "AZ_STAMP=$az_stamp: not a number (yymmddhh)" ;;
+esac
 work="${AZ_WORK:-$top/work}"
 res="$top/results"
 packages="$top/packages"
@@ -99,8 +110,10 @@ export ASSUME_ALWAYS_YES=yes
 mkdir -p "$work" "$q" "$packages/All" "$distdir" "$repo" "$work/db" || die "cannot make the work directories"
 work="$(cd "$work" && pwd)"
 repo="$(cd "$repo" && pwd)"
+# the real path of the tree: the files of the hashes are named relative to it
+topr="$(cd "$top" && pwd -P)"
 rm -rf "${q:?}"/* "${res:?}"
-mkdir -p "$res/logs" "$q/info" "$q/deps" "$q/rdeps" "$q/odeps" "$q/orun" "$q/pkgbase" "$q/state" "$q/file" ||
+mkdir -p "$res/logs" "$q/info" "$q/deps" "$q/rdeps" "$q/odeps" "$q/orun" "$q/pkgbase" "$q/state" "$q/file" "$q/hash" ||
     die "cannot make $res and $q"
 # make package writes packages/All/<pkgname>.pkg (the directory must exist, else
 # the package goes into the directory of the port); those of an earlier run go
@@ -139,6 +152,7 @@ else
         [ "$ok" = 1 ] || die "no official ports tree at $ports_commit (results/logs/ports-tree.log)"
     fi
 fi
+ports_head="$(git -C "$ports" rev-parse HEAD 2>/dev/null || echo unknown)"
 
 # --- the make.conf of the run --------------------------------------------------------
 sed -e "s|@CPUTYPE@|$cputype|" -e "s|@PORTSDIR@|$ports|" -e "s|@OVERLAYS@|$top|" \
@@ -154,7 +168,7 @@ cp "$work/make.conf" "$res/make.conf"
 key() { printf '%s' "$1" | tr '/@' '__'; }
 # ours <origin>: a port of this tree (not a directory of the tools or the work)
 ours() {
-    case "${1%%/*}" in Mk|Templates|Keywords|Tools|tools|work|packages|distfiles|results|keys|docs) return 1 ;; esac
+    case "${1%%/*}" in Mk|Templates|Keywords|Tools|tools|work|packages|distfiles|results|repo|keys|docs) return 1 ;; esac
     [ -f "$top/${1%%@*}/Makefile" ]
 }
 all_ports() {
@@ -172,24 +186,35 @@ catalog() {
 st() { cat "$q/state/$(key "$1")" 2>/dev/null; }
 # npkg <dir>: the number of packages in a directory (not the files of the catalog)
 npkg() { ls "$1" | grep '\.pkg$' | while read -r _f; do catalog "$_f" || echo "$_f"; done | wc -l | tr -d ' '; }
+# SHA-256 of a file, of the standard input (sha256 of the base system; sha256sum elsewhere)
+if command -v sha256 > /dev/null 2>&1; then
+    hfile() { sha256 -q "$1"; }
+    hin() { sha256; }
+else
+    hfile() { sha256sum "$1" | cut -d ' ' -f 1; }
+    hin() { sha256sum | cut -d ' ' -f 1; }
+fi
+# the az_hash of a package file (its annotation), or nothing
+pkg_hash() { pkg query -F "$1" '%At %Av' 2>/dev/null | awk '$1 == "az_hash" { print $2; exit }'; }
 # the origins of a list of dependencies (target:origin[:what] each, as make -V prints)
 dep_origins() {
     tr -s ' \t' '\n\n' | sed -n 's/^[^:]*:\([^:]*\).*$/\1/p' | sed -e "s|^$ports/||" -e "s|^$top/||" | LC_ALL=C sort -u
 }
 
-# port_info <origin>: PKGNAME, IGNORE and the dependencies of a port of this tree into
-# $q/info/<key> (lines: PKGNAME, IGNORE, then FETCH_ EXTRACT_ PATCH_ BUILD_ LIB_ RUN_
-# PKG_DEPENDS, CONFLICTS_BUILD, CONFLICTS_INSTALL, NEED_ROOT); our dependencies into $q/deps/<key> (all kinds) and $q/rdeps/<key>
-# (LIB_ and RUN_DEPENDS: what pkg add of its package needs), the official ones into
-# $q/odeps/<key> and $q/orun/<key>
+# port_info <origin>: what make -V says of a port of this tree into $q/info/<key>
+# (lines: 1 PKGNAME, 2 IGNORE, 3-9 FETCH_ EXTRACT_ PATCH_ BUILD_ LIB_ RUN_ PKG_DEPENDS,
+# 10 NEED_ROOT, 11 MASTERDIR, 12 FILESDIR, 13 PATCHDIR, 14 PKGDIR, 15 DISTINFO_FILE,
+# 16 .MAKE.MAKEFILES); our dependencies into $q/deps/<key> (all kinds) and
+# $q/rdeps/<key> (LIB_ and RUN_DEPENDS: what pkg add of its package needs), the
+# official ones into $q/odeps/<key> and $q/orun/<key>
 port_info() {
     _k="$(key "$1")"
     [ -f "$q/info/$_k" ] && return 0
     : > "$q/deps/$_k"; : > "$q/rdeps/$_k"; : > "$q/odeps/$_k"; : > "$q/orun/$_k"
-    if ! make -C "$top/$1" -V PKGNAME -V IGNORE -V FETCH_DEPENDS -V EXTRACT_DEPENDS -V PATCH_DEPENDS \
-            -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS -V CONFLICTS_BUILD -V CONFLICTS_INSTALL \
-            -V NEED_ROOT > "$q/info/$_k" 2> "$q/info/$_k.err" ||
-            [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
+    if ! make -C "$top/$1" AZ_STAMP="$az_stamp" -V PKGNAME -V IGNORE -V FETCH_DEPENDS -V EXTRACT_DEPENDS \
+            -V PATCH_DEPENDS -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS -V NEED_ROOT \
+            -V MASTERDIR -V FILESDIR -V PATCHDIR -V PKGDIR -V DISTINFO_FILE -V .MAKE.MAKEFILES \
+            > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
         echo "make -V failed: $(grep . "$q/info/$_k.err" | head -n 1)" > "$q/info/$_k.bad"
         return 1
     fi
@@ -204,6 +229,24 @@ port_info() {
         if ours "$_d"; then echo "${_d%%@*}" >> "$q/rdeps/$_k"; else echo "$_d" >> "$q/orun/$_k"; fi
     done
     return 0
+}
+
+# port_files <origin>: the files of this tree a port is built from, "f <path relative
+# to the tree> <sha256>" a line each: those of its directory, of its MASTERDIR,
+# FILESDIR, PATCHDIR, PKGDIR and DISTINFO_FILE, and the makefiles it reads
+# (.MAKE.MAKEFILES), when they are in this tree but not in Mk/ (hashed as a whole)
+port_files() {
+    _k="$(key "$1")"
+    {
+        find "$topr/$1" -type f ! -path '*/work/*'
+        for _p in $(sed -n '11,16p' "$q/info/$_k"); do
+            if [ -d "$_p" ]; then find "$_p" -type f ! -path '*/work/*'; elif [ -f "$_p" ]; then echo "$_p"; fi
+        done
+    } 2> /dev/null | while read -r _f; do realpath "$_f" 2> /dev/null; done | LC_ALL=C sort -u |
+        while read -r _f; do
+            case "$_f" in "$topr"/Mk/*) continue ;; "$topr"/*) ;; *) continue ;; esac
+            printf 'f %s %s\n' "${_f#"$topr"/}" "$(hfile "$_f")"
+        done
 }
 
 # pkgbase <origin[@flavor]>: the name of the package of an official port (PKGBASE of
@@ -231,7 +274,6 @@ ours_back() {
     done < "$q/installed"
     return 0
 }
-
 # gone: our packages that pkg delete removed are no longer installed for the ports after
 gone() {
     : > "$q/installed.new"
@@ -337,51 +379,45 @@ while [ -s "$q/left.txt" ]; do
         break
     fi
 done
-# a port that conflicts with packages of other ports of the queue (CONFLICTS_BUILD or
-# CONFLICTS_INSTALL: lang/php74-static has the files of php74 and its modules) goes
-# last, with the ports that need it: before its build those packages are deleted
-: > "$q/late.txt"
-for o in $(cat "$q/queue.txt"); do
-    pats="$(sed -n '10,11p' "$q/info/$(key "$o")" 2>/dev/null | tr -s '\n\t ' '   ' | sed 's/^ //; s/ $//')"
-    [ -n "$(printf '%s' "$pats" | tr -d ' \t')" ] || continue
-    for d in $(cat "$q/queue.txt"); do
-        [ "$d" = "$o" ] && continue
-        n="$(sed -n 1p "$q/info/$(key "$d")" 2>/dev/null)"; n="${n%-*}"
-        [ -n "$n" ] || continue
-        hit=0
-        set -f
-        for pt in $pats; do
-            # shellcheck disable=SC2254
-            case "$n" in $pt) hit=1 ;; esac
-        done
-        set +f
-        if [ "$hit" = 1 ]; then
-            say "$o: conflicts with $n of $d (CONFLICTS_BUILD/CONFLICTS_INSTALL $pats): it goes last"
-            echo "$o" >> "$q/late.txt"
-            break
-        fi
-    done
-done
-if [ -s "$q/late.txt" ]; then
-    grow=1
-    while [ "$grow" = 1 ]; do
-        grow=0
-        for o in $(grep -vxF -f "$q/late.txt" "$q/queue.txt"); do
-            if grep -qxF -f "$q/late.txt" "$q/deps/$(key "$o")"; then echo "$o" >> "$q/late.txt"; grow=1; fi
-        done
-    done
-    { grep -vxF -f "$q/late.txt" "$q/queue.txt"; grep -xF -f "$q/late.txt" "$q/queue.txt"; } > "$q/queue.new"
-    mv "$q/queue.new" "$q/queue.txt"
-fi
 cp "$q/queue.txt" "$res/queue.txt"
 say "the queue: $(wc -l < "$q/queue.txt" | tr -d ' ') ports (results/queue.txt)"
 
+# --- the az_hash of each port, in the order of the queue -------------------------------
+base_hash="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; cat "$top/tools/make.conf.in"; } | hin)"
+mk_hash="$(find "$topr/Mk" -type f 2>/dev/null | LC_ALL=C sort | while read -r f; do
+    printf '%s %s\n' "${f#"$topr"/}" "$(hfile "$f")"; done | hin)"
+: > "$res/hashes.txt"
+for o in $(cat "$q/queue.txt"); do
+    k="$(key "$o")"
+    [ -f "$q/info/$k.bad" ] && continue
+    {
+        echo "base $base_hash"
+        echo "mk $mk_hash"
+        port_files "$o"
+        for d in $(LC_ALL=C sort -u "$q/deps/$k"); do echo "dep $d $(cat "$q/hash/$(key "$d")" 2>/dev/null || echo none)"; done
+    } > "$q/hash/$k.in"
+    hin < "$q/hash/$k.in" > "$q/hash/$k"
+    echo "$o $(cat "$q/hash/$k")" >> "$res/hashes.txt"
+done
+
+# the packages of the repository before: name origin az_hash file
+: > "$q/repo-had"
+for f in "$repo"/*.pkg; do
+    [ -f "$f" ] || continue
+    catalog "${f##*/}" && continue
+    nm="$(pkg query -F "$f" '%n %o' 2>/dev/null)"
+    if [ -z "$nm" ]; then say "the repository: ${f##*/} is not a package: removed"; rm -f "$f"; continue; fi
+    h="$(pkg_hash "$f")"
+    echo "$nm ${h:--} ${f##*/}" >> "$q/repo-had"
+done
+
 overlay_rev="$(git -C "$top" log -1 --format='%h %s' 2>/dev/null)"
 {
-    echo "ports:    freebsd-ports $(git -C "$ports" rev-parse HEAD 2>/dev/null || echo "? (AZ_PORTSDIR $ports)")"
+    echo "ports:    freebsd-ports $ports_head${AZ_PORTSDIR:+ (AZ_PORTSDIR $ports)}"
     echo "overlay:  ${overlay_rev:-?}"
     echo "host:     $(uname -sr), $(cc --version 2>/dev/null | head -n 1)"
     echo "cputype:  $cputype; CFLAGS: $(sed -n 's/^CFLAGS=//p' "$work/make.conf")"
+    echo "stamp:    $az_stamp (AZ_STAMP: the revision of the packages built in this run)"
     echo "pkg:      $(pkg -v 2>/dev/null); the official packages from: $(pkg -vv 2>/dev/null | awk '
         /^Repositories:/ { r = 1; next }
         r && /^[^ ]/ { r = 0 }
@@ -400,39 +436,42 @@ record() {
     echo "$_s" > "$q/state/$(key "$_o")"
     case "$_s" in
         ok) _w=OK ;;
-        repo) _w=SKIP ;;
         fail) _w=FAIL ;;
         *) _w=SKIP ;;
     esac
     printf '%-34s %-4s %s\n' "$_o" "$_w" "$*" >> "$sum"
     say "$_o: $_w $*"
 }
-pkgname_of() { sed -n 1p "$q/info/$(key "$1")"; }
 
 for o in $(cat "$q/queue.txt"); do
     k="$(key "$o")"
     log="$res/logs/$k.log"
     : > "$log"
     if [ -f "$q/info/$k.bad" ]; then record "$o" fail "$(cat "$q/info/$k.bad")"; continue; fi
-    pn="$(pkgname_of "$o")"
+    pn="$(sed -n 1p "$q/info/$k")"
     ign="$(sed -n 2p "$q/info/$k")"
-    # the ports of this tree it needs: failed (or skipped for that), or built now
-    bad=""; fresh=""
+    h="$(cat "$q/hash/$k")"
+    hs="$(printf '%s' "$h" | cut -c1-12)"
+    # the ports of this tree it needs: failed, or skipped for that
+    bad=""
     for d in $(cat "$q/deps/$k"); do
-        case "$(st "$d")" in
-            fail|skip) bad="$bad $d" ;;
-            ok) fresh="$fresh $d" ;;
-        esac
+        case "$(st "$d")" in fail|skip) bad="$bad $d" ;; esac
     done
     if [ -n "$bad" ]; then record "$o" skip "$pn: needs$bad, which failed or was skipped"; continue; fi
     if [ -n "$ign" ]; then record "$o" fail "$pn: the port says IGNORE: $ign"; continue; fi
-    if [ "$force" = 0 ] && [ -z "$fresh" ] && [ -f "$repo/$pn.pkg" ]; then
-        echo "$repo/$pn.pkg" > "$q/file/$k"
-        record "$o" repo "$pn: in the repository already"
+    # its package in the repository: the same az_hash, another one, none
+    had="$(awk -v o="$o" '$2 == o { print $3, $4; exit }' "$q/repo-had")"
+    if [ -n "$had" ] && [ "${had%% *}" = "$h" ] && [ "$force" = 0 ]; then
+        echo "$repo/${had#* }" > "$q/file/$k"
+        record "$o" repo "${had#* }: in the repository already with the same az_hash $hs"
         continue
     fi
-    [ "$force" = 0 ] && [ -n "$fresh" ] && [ -f "$repo/$pn.pkg" ] && say "$o: $pn is in the repository, built again: it needs$fresh, built in this run"
-    say "$o: $pn"
+    if [ "$force" = 1 ]; then why="--force"
+    elif [ -z "$had" ]; then why="no package of $o in the repository"
+    elif [ "${had%% *}" = - ]; then why="${had#* } in the repository has no az_hash"
+    else why="az_hash $hs, not $(printf '%s' "${had%% *}" | cut -c1-12) of ${had#* } in the repository"
+    fi
+    say "$o: $pn ($why)"
     why=""
     if ! official "$q/odeps/$k"; then record "$o" fail "$pn: the official dependencies: $why"; continue; fi
     okd=1
@@ -440,39 +479,25 @@ for o in $(cat "$q/queue.txt"); do
         inst_port "$d" || { okd=0; break; }
     done
     if [ "$okd" = 0 ]; then record "$o" fail "$pn: our dependencies: $why"; continue; fi
-    # the installed packages its CONFLICTS_BUILD and CONFLICTS_INSTALL name: deleted
-    # (with those that need them: pkg delete -R)
-    pats="$(sed -n '10,11p' "$q/info/$k" | tr '\n' ' ')"
-    if [ -n "$(printf '%s' "$pats" | tr -d ' \t')" ]; then
-        set -f
-        del="$(for pt in $pats; do pkg query -g '%n' "$pt" 2>/dev/null; done | LC_ALL=C sort -u | tr '\n' ' ')"
-        set +f
-        if [ -n "$(printf '%s' "$del" | tr -d ' ')" ]; then
-            say "  pkg delete -R $del(the port conflicts with them)"
-            # shellcheck disable=SC2086
-            pkg delete -y -R $del >> "$log" 2>&1 || say "  pkg delete of $del failed (logs/$k.log)"
-            gone
-        fi
-    fi
     # NEED_ROOT (az/az: it installs into the real prefix while it builds, and refuses
     # files there of a package): its installed package deleted first (pkg delete -f,
     # those that need it stay), the new one added after the build, the old one back
     # when the build fails
     old=""
-    nr="$(sed -n 12p "$q/info/$k")"
-    if [ -n "$nr" ] && [ "$nr" != no ] && pkg info -e "${pn%-*}"; then
+    nr="$(sed -n 10p "$q/info/$k")"
+    case "$nr" in ''|no|NO) nr="" ;; esac
+    if [ -n "$nr" ] && pkg info -e "${pn%-*}"; then
         old="$(awk -v n="${pn%-*}" '$2 == n { print $4 }' "$q/installed" | tail -n 1)"
-        [ -z "$old" ] && [ -f "$q/file/$k" ] && old="$(cat "$q/file/$k")"
-        [ -z "$old" ] && [ -f "$repo/$pn.pkg" ] && old="$repo/$pn.pkg"
+        [ -z "$old" ] && [ -n "$had" ] && old="$repo/${had#* }"
         say "  pkg delete -f ${pn%-*} (NEED_ROOT: it builds into the real prefix)"
         pkg delete -y -f "${pn%-*}" >> "$log" 2>&1 || say "  pkg delete -f ${pn%-*} failed (logs/$k.log)"
         gone
     fi
-    stamp="$q/stamp-$k"
-    : > "$stamp"
+    mark="$q/mark-$k"
+    : > "$mark"
     rm -f "$packages/All/$pn.pkg"
     start="$(date +%s)"
-    make -C "$top/$o" clean package USE_PACKAGE_DEPENDS_ONLY=yes >> "$log" 2>&1
+    make -C "$top/$o" clean package USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" >> "$log" 2>&1
     rc=$?
     secs=$(( $(date +%s) - start ))
     # the config.log files of a failed build next to its log, then the work directory away
@@ -494,32 +519,31 @@ for o in $(cat "$q/queue.txt"); do
         fi
         continue
     fi
-    echo "$packages/All/$pn.pkg" > "$q/file/$k"
+    f="$packages/All/$pn.pkg"
+    echo "$f" > "$q/file/$k"
     rm -f "$q/inst-$k"
     # every package the build made (a port with subpackages makes more than one)
-    find "$packages/All" -name '*.pkg' -newer "$stamp" > "$q/made-$k"
-    grep -qxF "$packages/All/$pn.pkg" "$q/made-$k" || echo "$packages/All/$pn.pkg" >> "$q/made-$k"
-    record "$o" ok "$pn: ${secs}s, $(( $(wc -c < "$packages/All/$pn.pkg") / 1024 )) KB"
-    if [ -n "$nr" ] && [ "$nr" != no ]; then
+    find "$packages/All" -name '*.pkg' -newer "$mark" > "$q/made-$k"
+    grep -qxF "$f" "$q/made-$k" || echo "$f" >> "$q/made-$k"
+    note=""
+    [ "$(pkg_hash "$f")" = "$h" ] ||
+        note="; warning: no annotation az_hash $hs in the package (PKG_NOTES of Mk/bsd.overlay.mk): the next run builds it again"
+    case "$pn" in
+        *_"$az_stamp"|*_"$az_stamp",*) ;;
+        *) note="$note; warning: the version has not the revision $az_stamp (PORTREVISION= \${AZ_STAMP}): no upgrade for pkg" ;;
+    esac
+    record "$o" ok "$pn: ${secs}s, $(( $(wc -c < "$f") / 1024 )) KB, az_hash $hs$note"
+    if [ -n "$nr" ]; then
         why=""
         inst_port "$o" || say "  the new package of $o did not install: $why"
     fi
 done
 
 # --- the repository --------------------------------------------------------------------
-# the packages of the repository before: name origin file
-: > "$q/repo-had"
-for f in "$repo"/*.pkg; do
-    [ -f "$f" ] || continue
-    catalog "${f##*/}" && continue
-    nm="$(pkg query -F "$f" '%n %o' 2>/dev/null)"
-    if [ -z "$nm" ]; then say "the repository: ${f##*/} is not a package: removed"; rm -f "$f"; continue; fi
-    echo "$nm ${f##*/}" >> "$q/repo-had"
-done
 cat "$q"/made-* 2> /dev/null > "$q/made"
 : > "$q/made-names"
 for f in $(cat "$q/made"); do pkg query -F "$f" '%n %o' >> "$q/made-names"; done
-while read -r n og f; do
+while read -r n og hh f; do
     if awk -v n="$n" -v o="$og" '$1 == n || $2 == o { f = 1 } END { exit !f }' "$q/made-names"; then
         say "the repository: $f gives way to the package built now"
         rm -f "$repo/$f"
@@ -538,19 +562,19 @@ fi
 echo "repository: $nrepo packages; $(tail -n 1 "$res/pkg-repo.log" 2>/dev/null)" >> "$sum"
 
 # --- the result ------------------------------------------------------------------------
-nok=0; nrepo_kept=0; failed=""; skipped=""
+nok=0; nkept=0; failed=""; skipped=""
 for o in $(cat "$q/queue.txt"); do
     case "$(st "$o")" in
         ok) nok=$((nok + 1)) ;;
-        repo) nrepo_kept=$((nrepo_kept + 1)) ;;
+        repo) nkept=$((nkept + 1)) ;;
         fail) failed="$failed $o" ;;
         *) skipped="$skipped $o" ;;
     esac
 done
-echo "built:    $nok, kept from the repository: $nrepo_kept${failed:+, failed:$failed}${skipped:+, not built:$skipped}" >> "$sum"
+echo "built:    $nok, kept from the repository: $nkept${failed:+, failed:$failed}${skipped:+, not built:$skipped}" >> "$sum"
 if [ -z "$failed" ] && [ -z "$skipped" ] && [ "$repo_ok" = 1 ]; then
     echo "result:   OK" >> "$sum"
-    say "OK: $nok built, $nrepo_kept kept from the repository ($repo)"
+    say "OK: $nok built, $nkept kept from the repository ($repo)"
     exit 0
 fi
 r=""
