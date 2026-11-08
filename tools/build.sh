@@ -276,6 +276,17 @@ pkgbase() {
     cat "$_f"
 }
 
+# pkg_said <file of the output of pkg> <what failed>: all the lines of a pkg command
+# that failed on the screen (the job log) and in the log of the port; $why gets the
+# first line that says something
+pkg_said() {
+    cat "$1" >> "$log"
+    say "  $2; what pkg said:"
+    sed 's/^/    | /' "$1"
+    why="$2: $(grep -v -E '^(Updating|Installing|Extracting|Checking|Processing|All repositories|The following|New packages|Number of packages|\[)' "$1" |
+        grep . | head -n 1 | cut -c1-200)"
+}
+
 # our installed packages: origin name version file, one per line (put back when pkg
 # install of an official package replaced one by the official package of the same name)
 : > "$q/installed"
@@ -283,7 +294,8 @@ ours_back() {
     while read -r _io _n _v _f; do
         [ "$(pkg query %v "$_n" 2>/dev/null)" = "$_v" ] && continue
         say "pkg install put another $_n in the place of ours ($_v): pkg add -f ${_f##*/}"
-        pkg add -f "$_f" >> "$log" 2>&1 || { why="pkg add -f ${_f##*/} failed"; return 1; }
+        if ! pkg add -f "$_f" > "$q/pkg.out" 2>&1; then pkg_said "$q/pkg.out" "pkg add -f ${_f##*/} failed"; return 1; fi
+        cat "$q/pkg.out" >> "$log"
     done < "$q/installed"
     return 0
 }
@@ -307,10 +319,11 @@ official() {
     [ -z "$_want" ] && return 0
     say "  pkg install$_want"
     # shellcheck disable=SC2086
-    pkg install -y $_want >> "$log" 2>&1
+    pkg install -y $_want > "$q/pkg.out" 2>&1
     _miss=""
     for _p in $_want; do pkg info -e "$_p" || _miss="$_miss $_p"; done
-    [ -z "$_miss" ] || { why="pkg install did not install$_miss"; return 1; }
+    if [ -n "$_miss" ]; then pkg_said "$q/pkg.out" "pkg install did not install$_miss"; return 1; fi
+    cat "$q/pkg.out" >> "$log"
     ours_back
 }
 
@@ -329,6 +342,8 @@ inst_port() {
     for _c in $(grep -xF -f "$q/cl.all" "$q/queue.txt"); do
         _ck="$(key "$_c")"
         [ -f "$q/inst-$_ck" ] && continue
+        # it did not install for a port before: the same reason, not the same pkg add again
+        if [ -s "$q/instfail-$_ck" ]; then why="$(cat "$q/instfail-$_ck")"; return 1; fi
         _f="$(cat "$q/file/$_ck" 2>/dev/null)"
         [ -n "$_f" ] && [ -f "$_f" ] || { why="no package of $_c ($(st "$_c"))"; return 1; }
         official "$q/orun/$_ck" || return 1
@@ -337,10 +352,12 @@ inst_port() {
         pkg info -e "$_n" && _af=-f
         say "  pkg add ${_af:+$_af }${_f##*/}"
         # shellcheck disable=SC2086
-        if ! pkg add $_af "$_f" >> "$log" 2>&1 || [ "$(pkg query %v "$_n" 2>/dev/null)" != "$_v" ]; then
-            why="pkg add ${_f##*/} failed: $(tail -n 1 "$log")"
+        if ! pkg add $_af "$_f" > "$q/pkg.out" 2>&1 || [ "$(pkg query %v "$_n" 2>/dev/null)" != "$_v" ]; then
+            pkg_said "$q/pkg.out" "pkg add ${_f##*/} failed"
+            echo "$why" > "$q/instfail-$_ck"
             return 1
         fi
+        cat "$q/pkg.out" >> "$log"
         echo "$_c $_n $_v $_f" >> "$q/installed"
         : > "$q/inst-$_ck"
     done
@@ -538,8 +555,10 @@ for o in $(cat "$q/queue.txt"); do
     fi
     make -C "$top/$o" clean > /dev/null 2>&1
     if [ "$rc" != 0 ] || [ ! -f "$packages/All/$pn.pkg" ]; then
-        e="$(grep -E ' error:|Error code|^\*\*\*|^===>.*(IGNORE|not found|failed)' "$log" | tail -n 1 | cut -c1-200)"
+        e="$(grep -E ' error:|Error code|^\*\*\*|^===>.*(IGNORE|not found|failed)' "$log" | head -n 1 | cut -c1-200)"
         [ "$rc" = 0 ] && e="make package made no $pn.pkg"
+        say "$o: make package failed, the last 40 lines of logs/$k.log:"
+        tail -n 40 "$log" | sed 's/^/    | /'
         record "$o" fail "$pn: ${secs}s, ${e:-make package failed} (logs/$k.log)"
         if [ -n "$old" ] && [ -f "$old" ]; then
             say "  pkg add ${old##*/}: the package of before back"
@@ -586,6 +605,12 @@ if sh "$top/tools/pkg-repo-sign.sh" "$repo" "$res/pkg-repo.log"; then
     repo_ok=1
 else
     repo_ok=0
+    # no catalog rather than one that is not signed or not whole: the packages stay
+    # (the cache of the workflow keeps them), the next run writes the catalog
+    for f in "$repo"/*; do
+        [ -f "$f" ] && catalog "${f##*/}" && rm -f "$f"
+    done
+    say "the repository: no catalog (results/pkg-repo.log: $(tail -n 1 "$res/pkg-repo.log" 2>/dev/null)); its $nrepo packages stay for the next run"
 fi
 echo "repository: $nrepo packages; $(tail -n 1 "$res/pkg-repo.log" 2>/dev/null)" >> "$sum"
 
