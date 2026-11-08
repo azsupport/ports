@@ -91,10 +91,14 @@ done
 if [ -n "$want" ]; then
     say "pkg install -f$want"
     # shellcheck disable=SC2086
-    pkg install -y -f $want > "$res/test-programs-install.log" 2>&1 || say "pkg install says it failed (test-programs-install.log)"
+    # CONSERVATIVE_UPGRADE=no: the official curl a build dependency brought stays
+    # from its repository otherwise (pkg install -f reinstalled it from FreeBSD-ports)
+    CONSERVATIVE_UPGRADE=no pkg install -y -f $want > "$res/test-programs-install.log" 2>&1 || say "pkg install says it failed (test-programs-install.log)"
     cat "$res/test-programs-install.log" >> "$log"
 fi
-inst() { [ "$(pkg query '%R' "$1" 2>/dev/null)" = azbuild ]; }
+# from the repository: the annotation repository of the installed package (pkg query
+# %R of pkg 2 says nothing for installed packages)
+inst() { [ "$(pkg query '%At %Av' "$1" 2>/dev/null | awk '$1 == "repository" { print $2; exit }')" = azbuild ]; }
 for p in $want; do
     inst "$p" && continue
     say "$p did not install from the repository; what pkg said:"
