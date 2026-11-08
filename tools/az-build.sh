@@ -1,89 +1,109 @@
 #!/bin/sh
-# build-deps.sh - build the libraries of /usr/local/azsupport from the FreeBSD ports
-# listed in freebsd/deps.conf, as the kinds of their lib lines say, into two trees:
+# az-build.sh - build the libraries of the package az (the port
+# az/az) from the FreeBSD ports listed in az/az/files/deps.conf,
+# as the kinds of their lib lines say, into two trees:
 # static and position independent into the static tree
-# /usr/local/azsupport/static (lib/, include/, bin/), shared into the shared tree
-# /usr/local/azsupport (lib/*.so with their SONAME and the run path
-# /usr/local/azsupport/lib, include/, lib/pkgconfig/, bin/pkg-config without
-# --static, the *-config scripts; no ldconfig), for the PHP modules of pkg mode;
-# and the curl program (bin/curl). The shared builds take the patched source of
+# /usr/local/az/static (lib/, include/, bin/), shared into the shared tree
+# /usr/local/az (lib/*.so with their SONAME and the run path
+# /usr/local/az/lib, include/, lib/pkgconfig/, bin/pkg-config without
+# --static, the *-config scripts; no ldconfig), for the PHP modules of pkg mode.
+# The shared builds take the patched source of
 # the static one (a copy of the work directory of the port, or out of the tree of
 # the bundled curl), the same options, the OpenSSL of the base system and the
 # other libraries of the shared tree; nothing of the static tree (its headers of
 # the OpenSSL of the port, its archives, which the linker would take as they are
 # or leave for a .so of the same name) is seen by them. VERSIONS and LICENSES/
 # are one for both, at the root. PHP built against the static tree (php, php-fpm, php-cgi,
-# libphp.so) and the programs of /usr/local/azsupport (FFmpeg, ImageMagick) need no
+# libphp.so) and the programs built against it (curl, FFmpeg, ImageMagick) need no
 # library of /usr/local/lib: a pkg upgrade or packages of another FreeBSD version
 # cannot break them, and in Apache the copies of the libraries in PHP do not mix
-# with those of other modules (their symbols stay hidden). tools/build-az.sh runs
-# this first, then the programs, the tests and the tarball.
+# with those of other modules (their symbols stay hidden). Moved from
+# tools/build-deps.sh of https://github.com/azsupport/php-src (08.11.2026).
 #
-# Usage (FreeBSD, as root, from the top of a php-src checkout of master):
-#   sh tools/build-deps.sh --tools     install the build tools (pkg)
-#   sh tools/build-deps.sh             build everything (into an empty directory)
-#   sh tools/build-deps.sh icu curl    rebuild only these (the rest must be there)
+# Usage (FreeBSD, as root; the port az/az runs it in its do-build, see the
+# head of its Makefile):
+#   sh tools/az-build.sh --tools     install the build tools (pkg)
+#   sh tools/az-build.sh --fetch     fetch the distfiles of the ports of
+#                                           deps.conf into AZ_DISTDIR (make fetch
+#                                           of each; the port's post-fetch)
+#   sh tools/az-build.sh             build everything (into an empty AZ_PREFIX)
+#   sh tools/az-build.sh icu curl    rebuild only these (the rest must be there)
 #
 # For every library the ports framework fetches the distfiles of the port at the
 # commit of deps.conf, checks them against its distinfo, extracts them and
-# applies the port's patches (make patch); this script then configures and builds
+# applies the port's patches (make patch, in the official tree PORTSDIR, which
+# has to be at that commit); this script then configures and builds
 # the source tree that way with its own options. A "take" line of deps.conf (a
 # new upstream release the port does not have yet) gives the release file
-# instead: fetched here, checked against the SHA-256 of the line, handed to the
+# instead: taken from AZ_TAKE_DISTFILES (the distfiles of the port az/az),
+# else fetched here, checked against the SHA-256 of the line, handed to the
 # framework with a distinfo of its own, with the port's patches or those of
-# freebsd/deps/<name>-<version>/. curl and the libraries it needs
+# files/deps/<name>-<version>/. curl and the libraries it needs
 # ("bundle" in deps.conf) are the ones of --with-curl=bundled instead: the
-# release files of freebsd/curl.conf and freebsd/curl-deps.conf (tools/curl-sources.sh),
-# built by freebsd/curl/build-libcurl.sh, with only what PHP needs; the curl
-# program and libcurl.so of the package curl are a build of their own, with the
-# options of the port ftp/curl, into a stage (the line "program curl", see
-# build_curl_program). The static libraries: -fPIC, into AZ_PREFIX/static
-# (AZ_PREFIX: default /usr/local/azsupport); the shared ones into AZ_PREFIX; in
+# release files of files/curl.conf and files/curl-deps.conf
+# (tools/az-curl-sources.sh), built by files/curl/build-libcurl.sh, with
+# only what PHP needs; the curl program and libcurl.so of the package curl are a
+# build of their own, with the options of the port ftp/curl, against this tree
+# (the port ftp/curl, tools/curl-build.sh). The static libraries: -fPIC, into AZ_PREFIX/static
+# (AZ_PREFIX: default /usr/local/az); the shared ones into AZ_PREFIX; in
 # AZ_WORK/deps (default /var/tmp/az-work/deps); the licences go to
-# AZ_PREFIX/LICENSES/. Results go to deps-results/ (summary.txt with the status of
+# AZ_PREFIX/LICENSES/. AZ_PREFIX is the place the libraries have on the servers
+# (their .pc files, *-config scripts and run paths name it): a full build installs
+# into it, on a build machine (the port copies it into its stage). It does not
+# start while a package has files there, or files are there that are neither of a
+# package nor of an unfinished build of this script (AZ_PREFIX/.az-build marks
+# one, which is then removed). Results go to AZ_RESULTS (default az-results/
+# of the current directory: summary.txt with the status of
 # the static and of the shared build of every library, one log per library,
 # shared.txt and shared-bad.txt of the checks of the shared tree, see finish_so;
-# VERSIONS, also installed as AZ_PREFIX/share/doc/azsupport/VERSIONS).
+# VERSIONS, also installed as AZ_PREFIX/share/doc/az/VERSIONS); the summary
+# is printed at the end.
 #
 # Compiler flags as on the servers: CPUTYPE and CFLAGS of /etc/make.conf (such as
 # CPUTYPE?=x86-64-v3 and CFLAGS=-O3 -pipe) with -fstack-protector-strong and
-# -fno-strict-aliasing, and -fPIC. AZ_CPUTYPE and AZ_CFLAGS (the inputs of the
-# workflow az.yml) win over make.conf (MAKE_CONF, default /etc/make.conf);
+# -fno-strict-aliasing, and -fPIC. AZ_CPUTYPE and AZ_CFLAGS win over make.conf
+# (MAKE_CONF, default /etc/make.conf);
 # without either: x86-64-v3 and -O3 -pipe. The build runs what it compiles
 # (configure tests, the data tools of ICU), so it stops at once on a CPU that
 # cannot run code of that level; PHP built against the bundle needs it too.
 #
 # Exit status: 0 everything built, 1 a library failed (the others are still
-# built where they can be) or this CPU cannot run the level, 2 usage.
+# built where they can be) or this CPU cannot run the level, 2 usage, or
+# AZ_PREFIX is not free for a full build.
 
 set -u
-top="$(pwd)"
-conf="$top/freebsd/deps.conf"
-# A: the root of the package azsupport (VERSIONS, LICENSES/); P: the static tree,
+tools="$(cd "$(dirname "$0")" && pwd)"
+# the confs and patches: files/ of the port az/az
+files="${AZ_FILESDIR:-$tools/../az/az/files}"
+conf="$files/deps.conf"
+# A: the root of the package az (VERSIONS, LICENSES/); P: the static tree,
 # S: the shared tree (see the head comment)
-A="${AZ_PREFIX:-/usr/local/azsupport}"
+A="${AZ_PREFIX:-/usr/local/az}"
 P="$A/static"
 S="$A"
 work="${AZ_WORK:-/var/tmp/az-work}/deps"
-res="$top/deps-results"
-dist="$top/dist"
-ports="${PORTSDIR:-$work/ports}"
+res="${AZ_RESULTS:-$(pwd)/az-results}"
+# the official tree at the commit of deps.conf
+ports="${PORTSDIR:-/usr/ports}"
+# the distfiles of the ports (their make fetch, make patch) and those of the take lines
+distdir="${AZ_DISTDIR:-$work/distfiles}"
+takedist="${AZ_TAKE_DISTFILES:-$(pwd)/distfiles}"
 ncpu="$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 major="$(uname -r | cut -d. -f1)"
 
 if [ "${1:-}" = "--tools" ]; then
     # Build tools only; none of their libraries is linked into the bundle (the
     # compiler does not search /usr/local, pkg-config only the bundle and base).
-    tools="git cmake ninja meson python3 gmake nasm perl5 pkgconf lzip bison autoconf automake libtool gettext-tools m4 gperf tcl86"
+    pkgs="git cmake ninja meson python3 gmake nasm perl5 pkgconf lzip bison autoconf automake libtool gettext-tools m4 gperf tcl86"
     # shellcheck disable=SC2086
-    env ASSUME_ALWAYS_YES=yes pkg install -y $tools
+    env ASSUME_ALWAYS_YES=yes pkg install -y $pkgs
     rc=$?
-    for t in $tools; do pkg info -e "$t" || echo "build-deps: package $t is not installed"; done
+    for t in $pkgs; do pkg info -e "$t" || echo "az-build: package $t is not installed"; done
     exit $rc
 fi
-[ -f "$conf" ] || { echo "build-deps: no $conf (run from the top of a php-src checkout of master)" >&2; exit 2; }
+[ -f "$conf" ] || { echo "az-build: no $conf (AZ_FILESDIR: files/ of the port az/az)" >&2; exit 2; }
 
-say() { printf '[build-deps %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
+say() { printf '[az-build %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
 # A variable of make.conf (VAR=, ?=, := and += lines; comments dropped), as in
 # tools/config-check.sh.
@@ -139,29 +159,28 @@ has_kind() { awk -v n="$1" -v k="$2" '$1 == "lib" && $2 == n { m = split($4, t, 
 # take_of <name>: "version release-file SHA-256 source-dir" of its take line, if any
 take_of() { awk -v n="$1" '$1 == "take" && $2 == n { print $3, $4, $5, $6 }' "$conf"; }
 
-# A sparse checkout of freebsd-ports at the commit of deps.conf: the framework
-# (Mk, Templates, Keywords) and the ports of deps.conf, with what they include
-# (devel/gettext; multimedia/x264, the master port of libx264; lang/perl5.* and
-# lang/python3* for the version files that USES=perl5 and USES=python read).
-ports_checkout() {
-    if [ "$(git -C "$ports" rev-parse HEAD 2>/dev/null)" = "$ports_commit" ]; then return 0; fi
-    say "freebsd-ports at $ports_commit into $ports"
-    rm -rf "$ports"
-    mkdir -p "$ports"
-    # shellcheck disable=SC2046
-    git -C "$ports" init -q &&
-        git -C "$ports" remote add origin https://github.com/freebsd/freebsd-ports &&
-        git -C "$ports" fetch -q --depth 1 --filter=blob:none origin "$ports_commit" &&
-        git -C "$ports" sparse-checkout set --no-cone /Mk/ /Templates/ /Keywords/ \
-            $(awk '$1 == "lib" && $3 != "bundle" { printf "/%s/ ", $3 }' "$conf") /devel/gettext/ \
-            /multimedia/x264/ '/lang/perl5*/' '/lang/python3*/' &&
-        git -C "$ports" checkout -q FETCH_HEAD
+# The official tree PORTSDIR has to be at the commit of deps.conf (the builder
+# checks it out there; a tree that is not a git checkout is taken for it, with a
+# warning). It is only read here, never changed.
+ports_check() {
+    [ -f "$ports/Mk/bsd.port.mk" ] || { echo "az-build: no ports tree in $ports (PORTSDIR)" >&2; return 1; }
+    h="$(git -C "$ports" rev-parse HEAD 2>/dev/null)"
+    if [ -z "$h" ]; then
+        echo "az-build: $ports is not a git checkout: taken for freebsd-ports $ports_commit of deps.conf" >&2
+        return 0
+    fi
+    [ "$h" = "$ports_commit" ] && return 0
+    echo "az-build: $ports is at $h, deps.conf has $ports_commit: build with the tree at that commit, or change the ports line of deps.conf" >&2
+    return 1
 }
-# JPEG_PORT as in make.conf of the servers: the ports with USES=jpeg (gd, ImageMagick) take mozjpeg
+# JPEG_PORT as in make.conf of the servers: the ports with USES=jpeg (gd, ImageMagick) take mozjpeg.
+# A make of its own, as from a shell: nothing of the make of the port that runs this
+# script (MAKEFLAGS: its command line, its job server) reaches the official ports.
 pmake() {
     p="$1"; shift
-    make -C "$ports/$p" BATCH=yes NO_DEPENDS=yes DISABLE_VULNERABILITIES=yes JPEG_PORT=graphics/mozjpeg \
-        PORTSDIR="$ports" WRKDIRPREFIX="$work/wrk" DISTDIR="$work/distfiles" "$@"
+    env -u MAKEFLAGS -u MFLAGS -u __MKLVL__ make -C "$ports/$p" BATCH=yes NO_DEPENDS=yes \
+        DISABLE_VULNERABILITIES=yes JPEG_PORT=graphics/mozjpeg \
+        PORTSDIR="$ports" WRKDIRPREFIX="$work/wrk" DISTDIR="$distdir" "$@"
 }
 
 # Builds: $1 is the source tree after the ports' patches.
@@ -356,7 +375,7 @@ ms_so() {
         --default-library=shared --wrap-mode=nodownload "$@" &&
         ninja -C _az -j "$ncpu" && ninja -C _az install)
 }
-# The libraries of the bundled curl: out of the tree of tools/curl-sources.sh (it
+# The libraries of the bundled curl: out of the tree of tools/az-curl-sources.sh (it
 # stays as build-libcurl.sh builds it), in $work/obj-so/<name>, with the options
 # of build-libcurl.sh; the make variables of notools there keep the autotools
 # from running.
@@ -426,7 +445,7 @@ EOF
 s_curl() {
     # libcurl.so.4 with the features of the static libcurl of PHP (build-libcurl.sh
     # --features), the OpenSSL of the base system; no curl program
-    feats="$(sh "$top/freebsd/curl/build-libcurl.sh" --features)" || return 1
+    feats="$(sh "$files/curl/build-libcurl.sh" --features)" || return 1
     o="$work/obj-so/curl"
     rm -rf "$o" && mkdir -p "$o" || return 1
     # shellcheck disable=SC2086
@@ -593,13 +612,14 @@ take_args() {
     mkdir -p "$work/distfiles"
     if [ ! -f "$work/distfiles/$tf" ] || [ "$(sha256 -q "$work/distfiles/$tf")" != "$3" ]; then
         rm -f "$work/distfiles/$tf"
-        if [ -f "$top/distfiles/$tf" ] && [ "$(sha256 -q "$top/distfiles/$tf")" = "$3" ]; then
-            # fetched on the runner before the VM (tools/take-fetch.sh): the runner
-            # reaches GitHub better than the VM does
-            cp "$top/distfiles/$tf" "$work/distfiles/$tf"
-            echo "== $tf: the file fetched on the runner (distfiles/, tools/take-fetch.sh)" >&2
+        if [ -f "$takedist/$tf" ] && [ "$(sha256 -q "$takedist/$tf")" = "$3" ]; then
+            # a distfile of the port az/az (its fetch phase, checked against its
+            # distinfo), or fetched before the build some other way
+            cp "$takedist/$tf" "$work/distfiles/$tf"
+            echo "== $tf: from $takedist" >&2
         else
             # every address up to three times: a release file of GitHub sometimes stalls
+            echo "== $tf: not in $takedist, fetched here" >&2
             for try in 1 2 3; do
                 for u in $(echo "$2" | tr ',' ' '); do
                     fetch -q -T 60 -o "$work/distfiles/$tf" "$u" && break 2
@@ -618,8 +638,9 @@ take_args() {
     printf 'TIMESTAMP = %s\nSHA256 (%s) = %s\nSIZE (%s) = %s\n' "$(date +%s)" "$tf" "$3" "$tf" \
         "$(stat -f %z "$work/distfiles/$tf")" > "$work/distinfo-take-$n"
     wd="$(pmake "$5" -V WRKDIR)"
-    pd="$top/freebsd/deps/$n-$take_ver"
-    printf '%s\n' "DISTFILES=$tf" "PATCHFILES=" "DISTINFO_FILE=$work/distinfo-take-$n" "WRKSRC=$wd/$4"
+    pd="$files/deps/$n-$take_ver"
+    # its own DISTDIR: the ports' one (AZ_DISTDIR) may not be writable
+    printf '%s\n' "DISTDIR=$work/distfiles" "DISTFILES=$tf" "PATCHFILES=" "DISTINFO_FILE=$work/distinfo-take-$n" "WRKSRC=$wd/$4"
     if [ -d "$pd" ]; then printf '%s\n' "PATCHDIR=$pd"; fi
 }
 
@@ -714,14 +735,14 @@ summ() {
         printf '%-14s static %-4s shared %-4s %-22s %-24s %4ss\n' "$1" "$st_s" "$st_d" "$2" "$3" "$(( $(date +%s) - start ))" >> "$res/summary.txt"
         printf '%s %s %s\n' "$1" "$pkgname" "$3" >> "$res/built.txt"
     else
-        printf '%-14s static %-4s shared %-4s %-22s %-24s %4ss (deps-results/%s.log)\n' "$1" "$st_s" "$st_d" "$2" "$3" "$(( $(date +%s) - start ))" "$1" >> "$res/summary.txt"
+        printf '%-14s static %-4s shared %-4s %-22s %-24s %4ss (az-results/%s.log)\n' "$1" "$st_s" "$st_d" "$2" "$3" "$(( $(date +%s) - start ))" "$1" >> "$res/summary.txt"
         tail -n 25 "$log" > "$res/$1.tail"
     fi
     say "$1: static $st_s, shared $st_d"
 }
 
 # One library of the bundled curl (port "bundle" in deps.conf): the sources of
-# tools/curl-sources.sh (once per run), built by freebsd/curl/build-libcurl.sh as
+# tools/az-curl-sources.sh (once per run), built by files/curl/build-libcurl.sh as
 # for --with-curl=bundled; curl takes its libraries into libcurl.a with their
 # symbols local (swoole carries a copy of nghttp2, libzip links zstd). The shared
 # build (s_<name>) runs out of the source tree, which stays as it is.
@@ -736,9 +757,11 @@ build_bundle() {
     n="$1"
     if [ "$n" = curl ]; then bs="$work/curl-src/libcurl"; else bs="$work/curl-src/deps/$n"; fi
     (
-        echo "== $n: the bundled curl (freebsd/curl.conf, freebsd/curl-deps.conf)"
+        echo "== $n: the bundled curl (files/curl.conf, files/curl-deps.conf)"
         if [ ! -f "$work/curl-src/deps/VERSIONS" ]; then
-            sh "$top/tools/curl-sources.sh" "$work/curl-src" || { echo "tools/curl-sources.sh failed"; exit 1; }
+            # the release files: distfiles of the port az/az (AZ_TAKE_DISTFILES)
+            CURL_DISTFILES="${CURL_DISTFILES:-$takedist}" AZ_FILESDIR="$files" \
+                sh "$tools/az-curl-sources.sh" "$work/curl-src" || { echo "tools/az-curl-sources.sh failed"; exit 1; }
         fi
         lic "$n" "$bs"
     ) > "$log" 2>&1
@@ -749,7 +772,7 @@ build_bundle() {
         if [ "$prc" = 0 ] && (
             echo "== static build into $P"
             : > "$work/stamp-$n"
-            b="$top/freebsd/curl/build-libcurl.sh"
+            b="$files/curl/build-libcurl.sh"
             case "$n" in
                 curl) LIBICONV_PREFIX="$P" OBJDIR="$work/obj-curl" sh "$b" --curl "$bs" "$P" "$P" ;;
                 libidn2) LIBICONV_PREFIX="$P" OBJDIR="$work/obj-curl" sh "$b" --lib libidn2 "$bs" "$P" ;;
@@ -820,7 +843,7 @@ finish() {
     pc_add "$P/lib/pkgconfig/libmemcached.pc" Libs -lhashkit
     pc_add "$P/lib/pkgconfig/libmemcached.pc" Libs.private -lc++ -lm -lexecinfo -lpthread
     pc_add "$P/lib/pkgconfig/libevent_extra.pc" Libs.private -levent_core
-    # curl-config: --libs gives the static link line, as in freebsd/curl/build-libcurl.sh.
+    # curl-config: --libs gives the static link line, as in files/curl/build-libcurl.sh.
     if [ -f "$P/bin/curl-config" ] && [ ! -f "$P/bin/curl-config.orig" ]; then
         libs="$(pkgconf --static --libs libcurl)"
         mv "$P/bin/curl-config" "$P/bin/curl-config.orig"
@@ -863,7 +886,7 @@ finish() {
     # Every .pc names the archives of the bundle that its archives need (a short one
     # fails the PHP builds at the link only); a finding stops the tarball.
     : > "$res/links.txt"
-    if ! python3 "$top/tools/check-deps-links.py" "$P" /usr/libdata/pkgconfig > "$res/links.log" 2>&1; then
+    if ! python3 -I "$tools/az-check-links.py" "$P" /usr/libdata/pkgconfig > "$res/links.log" 2>&1; then
         cp "$res/links.log" "$res/links.txt"
     fi
 }
@@ -871,7 +894,7 @@ finish() {
 # After the builds, the shared tree: only shared libraries in lib/ (with their .pc
 # in lib/pkgconfig, the cmake files), the *-config scripts and bin/pkg-config, the
 # headers; no programs, sbin, manual pages, documentation or translations. Then the
-# checks (deps-results/shared.txt: every library with SONAME, size, DT_NEEDED and run
+# checks (az-results/shared.txt: every library with SONAME, size, DT_NEEDED and run
 # path; a finding goes to shared-bad.txt and fails the build): every library has a
 # SONAME and RELRO, every DT_NEEDED resolves (ldd) from S/lib or the base system
 # (/lib, /usr/lib), never from /usr/local/lib or the static tree, with the run path
@@ -950,7 +973,7 @@ manifest() {
             printf '%-14s %-28s %-24s %s\n' "$n" "$pkgname" "$port" "$(awk -v n="$n" '$1 == "lib" && $2 == n { print $4 }' "$conf")"
             if [ "$port" = bundle ]; then
                 if [ "$n" = curl ]; then
-                    awk '!/^#/ && NF >= 4 { u = $3; s = $4 } END { n = split(u, p, "/"); print "    " p[n] " sha256 " s }' "$top/freebsd/curl.conf"
+                    awk '!/^#/ && NF >= 4 { u = $3; s = $4 } END { n = split(u, p, "/"); print "    " p[n] " sha256 " s }' "$files/curl.conf"
                 else
                     awk -v n="$n" '$1 == n { print "    " $4 " sha256 " $3 }' "$work/curl-src/deps/VERSIONS"
                 fi
@@ -961,9 +984,9 @@ manifest() {
                 # shellcheck disable=SC2086
                 set -- $t
                 echo "    ${2##*/} sha256 $3 (upstream release $1, ahead of the port: take line of deps.conf)"
-                if [ -d "$top/freebsd/deps/$n-$1" ]; then
-                    np="$(ls "$top/freebsd/deps/$n-$1" | grep -c '^patch-')"
-                    [ "$np" -gt 0 ] && echo "    $np patches of the port, brought up to $1 (freebsd/deps/$n-$1)"
+                if [ -d "$files/deps/$n-$1" ]; then
+                    np="$(ls "$files/deps/$n-$1" | grep -c '^patch-')"
+                    [ "$np" -gt 0 ] && echo "    $np patches of the port, brought up to $1 (files/deps/$n-$1)"
                 else
                     np="$(ls "$ports/$port/files" 2>/dev/null | grep -c '^patch-')"
                     [ "$np" -gt 0 ] && echo "    $np patches of the port"
@@ -976,8 +999,8 @@ manifest() {
         done < "$res/built.txt"
         echo
         echo "curl above: the static libcurl.a in $P for the builds of PHP, with only what PHP needs. The package"
-        echo "curl (tools/build-az.sh): bin/curl and lib/libcurl.so.4 of /usr/local, a build of its own of the same"
-        echo "release with the options of the port ftp/curl, against the libraries above."
+        echo "curl (the port ftp/curl of azsupport/ports): bin/curl and lib/libcurl.so.4 of /usr/local, a build of its own of the same"
+        echo "release with the options of the port ftp/curl, against the static libraries above."
         echo
         echo "The shared tree $S (lib/, include/, lib/pkgconfig/, bin/pkg-config and the *-config"
         echo "scripts), for the PHP modules of pkg mode: the libraries of the kind shared above, built"
@@ -985,142 +1008,69 @@ manifest() {
         echo "OpenSSL of the base system (libcurl, libzip); SONAME and DT_NEEDED of each:"
         sed 's/^/    /' "$res/shared.txt" 2>/dev/null
     } > "$res/VERSIONS"
-    mkdir -p "$A/share/doc/azsupport"
-    cp "$res/VERSIONS" "$A/share/doc/azsupport/VERSIONS"
-}
-
-# The curl program and libcurl.so (deps.conf: "program curl"), for the package curl
-# of tools/build-az.sh, which takes the place of the curl of the ports (git and the
-# other packages that link libcurl.so get this one). A build of its own, apart
-# from the curl of PHP above (the static libcurl.a of /usr/local/azsupport, in azsupport,
-# with only what PHP needs): the same release, with the options of the port
-# ftp/curl (its CONFIGURE_ARGS and its default options: the protocols DICT, FTP,
-# GOPHER, HTTP, HTTP/2, IMAP, IPFS, MQTT, POP3, RTSP, SMTP, TELNET, TFTP,
-# WebSocket, NTLM, IDN, PSL, brotli, zstd, the threaded resolver), without SCP and
-# SFTP (libssh2) and GSSAPI, which the libraries of /usr/local/azsupport do not have;
-# against the static libraries of /usr/local/azsupport. Into the stage AZ_STAGE/curl
-# (default AZ_WORK/stage/curl) as files of /usr/local: bin/curl, static, PIE,
-# RELRO, BIND_NOW, stripped; lib/libcurl.so.4 of the libcurl.a of this build
-# (curl_* made visible by tools/elf-export.py and exported, the libraries inside
-# hidden), so that both need only libz and libthr of the base system;
-# include/curl/, libdata/pkgconfig/libcurl.pc, curl-config, libcurl.m4, the
-# manual pages, the licence.
-build_curl_program() {
-    ob="$work/obj-curl-sys"
-    cs="$work/curl-src/libcurl"
-    r="${AZ_STAGE:-${AZ_WORK:-/var/tmp/az-work}/stage}/curl/usr/local"
-    log="$res/curl-program.log"
-    start=$(date +%s)
-    cv="$(bundle_ver curl)"
-    (
-        [ -x "$cs/configure" ] || { echo "== no source of curl in $cs (tools/curl-sources.sh)"; exit 1; }
-        rm -rf "$ob" "${r%/usr/local}" "$work/curl-sys-dest"
-        mkdir -p "$ob" "$r/bin" "$r/lib" "$r/libdata/pkgconfig" "$r/share/licenses/curl" || exit 1
-        echo "== configure (the options of the port ftp/curl)"
-        # LIBS: libidn2 of the tree uses the libiconv of the tree
-        (cd "$ob" && LIBS="-liconv" LDFLAGS="-L$P/lib -pie -Wl,-z,relro,-z,now" "$cs/configure" \
-            --prefix=/usr/local --disable-shared --enable-static --with-pic --disable-dependency-tracking \
-            --with-openssl="$P" --enable-openssl-auto-load-config --with-ca-path=/etc/ssl/certs --without-ca-bundle \
-            --enable-threaded-resolver --disable-ares \
-            --with-nghttp2="$P" --with-brotli="$P" --with-zstd="$P" --with-libidn2="$P" --with-libpsl="$P" \
-            --enable-alt-svc --enable-cookies --enable-dict --enable-ftp --enable-file --enable-gopher \
-            --enable-http --enable-imap --enable-ipfs --enable-ipv6 --enable-mqtt --enable-ntlm \
-            --enable-pop3 --enable-proxy --enable-rtsp --enable-smtp --enable-telnet --enable-tftp \
-            --enable-websockets --disable-ldap --disable-ldaps \
-            --without-libssh2 --without-libssh --without-gssapi \
-            --disable-httpsig --disable-unity --disable-werror --enable-aws --enable-dateparse \
-            --enable-dnsshuffle --enable-headers-api --enable-hsts --enable-http-auth --enable-manual \
-            --enable-mime --enable-netrc --enable-progress-meter --enable-ssls-export --enable-typecheck \
-            --without-zsh-functions-dir --without-fish-functions-dir) || exit 1
-        echo "== build"
-        gmake -C "$ob" -j"$ncpu" || exit 1
-        gmake -C "$ob" install-strip DESTDIR="$work/curl-sys-dest" || exit 1
-        d="$work/curl-sys-dest/usr/local"
-        install -s -m 755 "$d/bin/curl" "$r/bin/curl" || exit 1
-        cp -R "$d/include" "$r/" || exit 1
-        [ -d "$d/share/man" ] && { mkdir -p "$r/share" && cp -R "$d/share/man" "$r/share/"; }
-        [ -d "$d/share/aclocal" ] && { mkdir -p "$r/share" && cp -R "$d/share/aclocal" "$r/share/"; }
-        # the name of libcurl.so of curl's libtool numbers (lib/Makefile.soname):
-        # libcurl.so.<change - del>.<del>.<add>, as the port has it (libcurl.so.4.8.0)
-        eval "$(sed -n -E 's/^(VERSIONCHANGE|VERSIONADD|VERSIONDEL)=([0-9]+).*/\1=\2/p' "$cs/lib/Makefile.soname")"
-        so="libcurl.so.$((VERSIONCHANGE - VERSIONDEL))"
-        full="$so.$VERSIONDEL.$VERSIONADD"
-        echo "== $full of the libcurl.a of this build"
-        # libcurl.a is built with its functions hidden (CURL_STATICLIB, -fvisibility=hidden):
-        # one object of it with curl_* visible again (tools/elf-export.py), exported by
-        # the version script, the libraries inside hidden (--exclude-libs)
-        lo="$work/libcurl-so"
-        rm -rf "$lo" && mkdir -p "$lo" || exit 1
-        ld -r --whole-archive "$ob/lib/.libs/libcurl.a" -o "$lo/libcurl.o" || exit 1
-        nv="$(python3 -I "$top/tools/elf-export.py" "$lo/libcurl.o" curl_)" || { echo "== tools/elf-export.py: no curl_* in libcurl.a"; exit 1; }
-        echo "== curl_* made visible: $nv"
-        printf '%s\n' '{' '  global: curl_*;' '  local: *;' '};' > "$lo/libcurl.vers"
-        # the static link line of libcurl, without its first word (libcurl.a) and the
-        # flags of programs (-pie, -z relro, -z now)
-        deps="$(sh "$ob/curl-config" --static-libs | tr ' ' '\n' | sed '1d' | grep -v -E '^(-pie|-Wl,-z,.*)$' | tr '\n' ' ')"
-        echo "== the libraries inside: $deps"
-        # shellcheck disable=SC2086
-        cc -shared -o "$r/lib/$full" -Wl,-soname,"$so" "$lo/libcurl.o" $deps -lm -lpthread \
-            -Wl,--exclude-libs,ALL -Wl,--version-script="$lo/libcurl.vers" \
-            -Wl,-z,relro,-z,now -Wl,--no-undefined || exit 1
-        strip --strip-unneeded "$r/lib/$full" || exit 1
-        ln -sf "$full" "$r/lib/$so" && ln -sf "$full" "$r/lib/libcurl.so" || exit 1
-        bad="$(nm -D --defined-only "$r/lib/$full" | awk 'NF >= 3 && $3 !~ /^(curl_|_init$|_fini$|_edata$|_end$|__bss_start$)/ { print $3 }' | head -n 5 | tr '\n' ' ')"
-        [ -z "$bad" ] || { echo "== $full exports more than curl_*: $bad"; exit 1; }
-        n="$(nm -D --defined-only "$r/lib/$full" | grep -c ' curl_')"
-        for f in curl_global_init curl_easy_init curl_easy_setopt curl_easy_perform curl_multi_perform curl_version_info; do
-            nm -D --defined-only "$r/lib/$full" | grep -q " $f\$" || { echo "== $full does not export $f ($n curl_* functions)"; exit 1; }
-        done
-        echo "== $full exports $n curl_* functions"
-        # libcurl.pc and curl-config for libcurl.so: no static libraries in this package
-        pcf="$(ls "$d"/lib/pkgconfig/libcurl.pc "$d"/libdata/pkgconfig/libcurl.pc 2>/dev/null | head -n 1)"
-        [ -n "$pcf" ] || { echo "== no libcurl.pc in $d"; exit 1; }
-        sed -e 's|^Libs:.*|Libs: -L${libdir} -lcurl|' -e '/^Libs.private:/d' -e '/^Requires.private:/d' \
-            "$pcf" > "$r/libdata/pkgconfig/libcurl.pc" || exit 1
-        awk '/^ *--static-libs\)/ { print; print "    echo \"curl-config: the libcurl of this package is libcurl.so only\" >&2"; print "    exit 1"; skip = 1; next }
-            skip && /;;/ { skip = 0 }
-            !skip { print }' "$d/bin/curl-config" > "$r/bin/curl-config" && chmod 755 "$r/bin/curl-config" || exit 1
-        cp "$cs/COPYING" "$r/share/licenses/curl/COPYING" || exit 1
-        # the program and libcurl.so as they are, with the libraries of the base system only
-        LD_LIBRARY_PATH="$r/lib" "$r/bin/curl" --version > "$res/curl-version.txt" 2>&1 || exit 1
-        cat "$res/curl-version.txt"
-    ) > "$log" 2>&1
-    rc=$?
-    : > "$res/curl-bins.txt"
-    if [ "$rc" = 0 ]; then
-        for f in "$r/bin/curl" "$r/lib/$(cd "$r/lib" && ls libcurl.so.*.*.* | head -n 1)"; do
-            b="${f##*/}"
-            type="$(readelf -h "$f" | awk '/Type:/ { print $2 }')"
-            relro="$(readelf -l "$f" | grep -c GNU_RELRO)"
-            now="$(readelf -d "$f" | grep -c -E 'BIND_NOW|FLAGS_1.*NOW')"
-            libs="$(ldd "$f" 2>/dev/null | awk 'NF > 2 && $2 == "=>" { print $3 }' | tr '\n' ' ' | sed 's/ *$//')"
-            printf '%s: %s KB, ELF type %s, RELRO %s, BIND_NOW %s; libraries: %s\n' "$b" \
-                "$(du -Ak "$f" | cut -f1)" "$type" "$relro" "$now" "$libs" >> "$res/curl-bins.txt"
-            case "$libs" in *"/usr/local/"*) echo "$b: links a library of /usr/local" >> "$res/bins-bad.txt" ;; esac
-            [ "$type" = DYN ] || echo "$b: not position independent (ELF type $type)" >> "$res/bins-bad.txt"
-            [ "$relro" -gt 0 ] || echo "$b: no RELRO" >> "$res/bins-bad.txt"
-            [ "$now" -gt 0 ] || echo "$b: no BIND_NOW" >> "$res/bins-bad.txt"
-        done
-        printf '%-14s OK    %-22s %-24s %4ss\n' "curl program" "$cv" "bin/curl, libcurl.so" "$(( $(date +%s) - start ))" >> "$res/summary.txt"
-    else
-        printf '%-14s FAIL  %-22s %-24s %4ss (deps-results/curl-program.log)\n' "curl program" "$cv" "bin/curl, libcurl.so" "$(( $(date +%s) - start ))" >> "$res/summary.txt"
-        tail -n 25 "$log" > "$res/curl-program.tail"
-    fi
-    say "curl program: $(tail -n 1 "$res/summary.txt" | awk '{ print $3 }')"
-    return "$rc"
+    mkdir -p "$A/share/doc/az"
+    cp "$res/VERSIONS" "$A/share/doc/az/VERSIONS"
 }
 
 mkdir -p "$res" "$work"
 cpu_model="$(sysctl -n hw.model 2>/dev/null)"
+
+# report: the summary and what went wrong, to the screen (the log of the port)
+report() {
+    echo "== $res/summary.txt"
+    cat "$res/summary.txt"
+    for f in "$res"/*.tail "$res/shared-bad.txt" "$res/pic.txt" "$res/links.txt" "$res/bins-bad.txt"; do
+        [ -s "$f" ] || continue
+        echo "== $f"
+        cat "$f"
+    done
+}
+
+# --fetch: the distfiles of the ports of deps.conf, by their own make fetch into
+# AZ_DISTDIR (checked against their distinfo when make patch extracts them), so
+# that the build needs no network: the post-fetch of the port az/az. Not those of
+# a port with a take line, nor the bundled curl: their release files are
+# distfiles of the port az/az itself.
+if [ "${1:-}" = "--fetch" ]; then
+    ports_check || exit 1
+    rc=0
+    for n in $libs_all; do
+        port="$(port_of "$n")"
+        [ "$port" != bundle ] || continue
+        if [ -n "$(take_of "$n")" ]; then
+            echo "az-build: $n: not fetched from $port: the release of its take line is a distfile of az/az"
+            continue
+        fi
+        say "fetch $n ($port)"
+        pmake "$port" fetch || { echo "az-build: $n: make fetch of $port failed" >&2; rc=1; }
+    done
+    exit "$rc"
+fi
+
 if [ $# -eq 0 ]; then
     set -- $libs_all
-    # a full build starts from an empty tree; the PHP builds of a server in it
-    # (phpXY directories, bin/phpXY) are never removed
-    if [ -n "$(ls -d "$A"/php* "$A"/bin/php* "$A"/etc/php* "$P"/php* "$P"/bin/php* "$P"/etc/php* 2>/dev/null | head -n 1)" ]; then
-        echo "build-deps: $A has PHP builds in it; build into an empty directory (AZ_PREFIX=...)" >&2
-        exit 2
+    # a full build starts from an empty tree; never one with files of a package
+    # (az, and ImageMagick7 and the PHP packages put files into it) or the PHP
+    # builds of a server (phpXY directories, bin/phpXY); a tree left by an
+    # unfinished build of this script (its mark .az-build) is removed
+    if [ -n "$(ls -A "$A" 2>/dev/null | head -n 1)" ]; then
+        owners="$(pkg query -a '%n %Fp' 2>/dev/null | awk -v a="$A/" 'index($2, a) == 1 { print $1 }' | sort -u | tr '\n' ' ')"
+        if [ -n "$owners" ]; then
+            echo "az-build: $A has files of the packages $owners: build on a machine or in a jail without them" >&2
+            exit 2
+        fi
+        if [ -n "$(ls -d "$A"/php* "$A"/bin/php* "$A"/etc/php* "$P"/php* "$P"/bin/php* "$P"/etc/php* 2>/dev/null | head -n 1)" ]; then
+            echo "az-build: $A has PHP builds in it; build into an empty directory (AZ_PREFIX=...)" >&2
+            exit 2
+        fi
+        if [ ! -f "$A/.az-build" ]; then
+            echo "az-build: $A has files of no package and no mark of an unfinished build of this script ($A/.az-build): not removed; remove it yourself if they are not needed" >&2
+            exit 2
+        fi
+        echo "az-build: $A was left by an unfinished build of this script ($(cat "$A/.az-build")): removed"
+        rm -rf "$A"
     fi
-    rm -rf "$A"
+    mkdir -p "$A" && date '+%Y-%m-%d %H:%M:%S %Z' > "$A/.az-build" || { echo "az-build: cannot write $A" >&2; exit 2; }
     rm -f "$res"/*.tail "$res/bins-bad.txt"
     : > "$res/summary.txt"; : > "$res/built.txt"
     printf 'flags:    %s\ncpu:      %s\n' "$CFLAGS" "${cpu_model:-?}" >> "$res/summary.txt"
@@ -1139,31 +1089,28 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
     why="${lacks:+lacks $lacks of}"
     printf '%-14s FAIL  this CPU (%s) %s -march=%s: code built for it cannot run here\n' \
         cpu "${cpu_model:-?}" "${why:-cannot tell the features of}" "$cputype" >> "$res/summary.txt"
-    echo "build-deps: this CPU ${why:-cannot tell the features of} -march=$cputype; build on a CPU that has them, or set AZ_CPUTYPE to a lower level" >&2
+    echo "az-build: this CPU ${why:-cannot tell the features of} -march=$cputype; build on a CPU that has them, or set AZ_CPUTYPE to a lower level" >&2
     exit 1
 fi
 for n in "$@"; do
-    [ -n "$(port_of "$n")" ] || { echo "build-deps: $n is not in $conf" >&2; exit 2; }
+    [ -n "$(port_of "$n")" ] || { echo "az-build: $n is not in $conf" >&2; exit 2; }
 done
-ports_checkout || { echo "build-deps: cannot check out freebsd-ports $ports_commit" > "$res/summary.txt"; exit 1; }
+ports_check || { echo "ports tree     FAIL  $ports is not freebsd-ports $ports_commit of deps.conf" >> "$res/summary.txt"; report; exit 1; }
 mkdir -p "$P" "$S"
 rc=0
 for n in "$@"; do
     say "$n ($(port_of "$n"))"
     build_one "$n" || rc=1
 done
-# the curl program first: it links with the .la files of curl's libraries, which finish removes
-if grep -q '^program curl' "$conf" && grep -q '^curl ' "$res/built.txt" 2>/dev/null; then
-    build_curl_program || rc=1
-fi
 finish
 finish_so
 if [ -s "$res/shared-bad.txt" ]; then
-    printf '%-14s FAIL  %s\n' "shared tree" "$(wc -l < "$res/shared-bad.txt" | tr -d ' ') findings (deps-results/shared-bad.txt): $(head -n 3 "$res/shared-bad.txt" | tr '\n' ' ')" >> "$res/summary.txt"
+    printf '%-14s FAIL  %s\n' "shared tree" "$(wc -l < "$res/shared-bad.txt" | tr -d ' ') findings (shared-bad.txt): $(head -n 3 "$res/shared-bad.txt" | tr '\n' ' ')" >> "$res/summary.txt"
     rc=1
 fi
 manifest
-# Known vulnerabilities of these versions (FreeBSD VuXML), for the report.
+# Known vulnerabilities of these versions (FreeBSD VuXML), for the report (none
+# without network: the build of a port has none in poudriere).
 pkg audit -F -q $(awk '{ print $2 }' "$res/built.txt") > "$res/audit.txt" 2>&1 || true
 if [ "$rc" = 0 ] && [ ! -s "$res/pic.txt" ] && [ ! -s "$res/links.txt" ] && [ ! -s "$res/bins-bad.txt" ]; then
     echo "installed: $A (static tree $P: $(du -Ask "$P" | cut -f1) KB, all: $(du -Ask "$A" | cut -f1) KB)" >> "$res/summary.txt"
@@ -1172,4 +1119,5 @@ if [ "$rc" = 0 ] && [ ! -s "$res/pic.txt" ] && [ ! -s "$res/links.txt" ] && [ ! 
 else
     rc=1
 fi
+report
 exit "$rc"

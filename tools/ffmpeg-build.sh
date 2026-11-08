@@ -1,34 +1,39 @@
 #!/bin/sh
-# build-ffmpeg.sh - build ffmpeg and ffprobe for the video sites (the package
-# ffmpeg of tools/build-az.sh, in the place of that of the ports:
-# /usr/local/bin/ffmpeg, /usr/local/bin/ffprobe) from the FreeBSD port of
-# freebsd/ffmpeg.conf, with only the formats, codecs and protocols listed there
-# (see the head of that file for why), against the static libraries of the static
-# tree of azsupport, /usr/local/azsupport/static (tools/build-deps.sh first;
-# tools/build-az.sh runs both, the tests and the packages).
+# ffmpeg-build.sh - build ffmpeg and ffprobe for the video sites (the package
+# ffmpeg of the port multimedia/ffmpeg, in the place of that of the ports:
+# /usr/local/bin/ffmpeg, /usr/local/bin/ffprobe) from the official FreeBSD port of
+# multimedia/ffmpeg/files/ffmpeg.conf, with only the formats, codecs and protocols
+# listed there (see the head of that file for why), against the static libraries of
+# the static tree of the package az, /usr/local/az/static (installed). Moved from
+# tools/build-ffmpeg.sh of https://github.com/azsupport/php-src (08.11.2026).
 #
-# Usage (FreeBSD, as root, from the top of a php-src checkout of master):
-#   sh tools/build-ffmpeg.sh --tools    install the build tools (pkg)
-#   sh tools/build-ffmpeg.sh            build FFmpeg
+# Usage (FreeBSD; the port multimedia/ffmpeg runs it in its post-fetch and do-build):
+#   sh tools/ffmpeg-build.sh --tools    install the build tools (pkg)
+#   sh tools/ffmpeg-build.sh --fetch    fetch the distfiles of the official port
+#                                       into AZ_DISTDIR (its make fetch)
+#   sh tools/ffmpeg-build.sh            build FFmpeg
 #
-# As tools/build-deps.sh: the ports framework fetches the distfiles of the port at
-# the ports commit of freebsd/deps.conf, checks them against its distinfo,
-# extracts them and applies the port's patches (make patch), then those of
-# freebsd/ffmpeg/; this script then builds the source tree with its own options.
-# A take line gives a new upstream release instead (with the port's patches, or
-# those of freebsd/deps/<name>-<version>/). FFmpeg links x264, dav1d and libwebp
-# of AZ_PREFIX/static (AZ_PREFIX: default /usr/local/azsupport; the shared libraries
+# As tools/az-build.sh: the ports framework fetches the distfiles of the port at
+# the ports commit of az/az/files/deps.conf (the official tree PORTSDIR, at that
+# commit), checks them against its distinfo, extracts them and applies the port's
+# patches (make patch), then those of files/ffmpeg/; this script then builds the
+# source tree with its own options. A take line gives a new upstream release
+# instead (from AZ_TAKE_DISTFILES, else fetched; with the port's patches, or those
+# of files/deps/<name>-<version>/). FFmpeg links x264, dav1d and libwebp
+# of AZ_PREFIX/static (AZ_PREFIX: default /usr/local/az; the shared libraries
 # of AZ_PREFIX itself are not used) in, so that ffmpeg and ffprobe need no
 # library of /usr/local (only libc, libm, libthr and libz of the base system), and
 # is installed (prefix /usr/local) into the stage AZ_STAGE/ffmpeg (default
 # AZ_WORK/stage/ffmpeg): usr/local/bin/ffmpeg, usr/local/bin/ffprobe,
-# usr/local/share/licenses/ffmpeg/. Its work directory is AZ_WORK/ffmpeg (default
-# /var/tmp/az-work/ffmpeg). Results go to ffmpeg-results/ (summary.txt, the log,
-# VERSIONS). tools/ffmpeg-test.sh tests it, once installed.
+# usr/local/share/licenses/ffmpeg/, usr/local/share/doc/ffmpeg/VERSIONS
+# (AZ_STAGEDIR: the stage itself). Its work directory is AZ_WORK/ffmpeg (default
+# /var/tmp/az-work/ffmpeg). Results go to AZ_RESULTS (default ffmpeg-results/ of
+# the current directory: summary.txt, the log, VERSIONS); the summary is printed at
+# the end. tools/ffmpeg-test.sh tests it, once installed.
 #
 # Compiler flags as for PHP and the libraries: CPUTYPE and CFLAGS of
 # /etc/make.conf with -fstack-protector-strong and -fno-strict-aliasing;
-# AZ_CPUTYPE and AZ_CFLAGS (the inputs of the workflow az.yml) win over make.conf
+# AZ_CPUTYPE and AZ_CFLAGS win over make.conf
 # (MAKE_CONF, default /etc/make.conf); without either: x86-64-v3 and -O3 -pipe.
 # FFmpeg: LTO, PIE, RELRO and BIND_NOW (configure lines of ffmpeg.conf); its own
 # assembly picks the instructions of the CPU at run time.
@@ -37,29 +42,35 @@
 # cannot run the level, 2 usage.
 
 set -u
-top="$(pwd)"
-conf="$top/freebsd/ffmpeg.conf"
+tools="$(cd "$(dirname "$0")" && pwd)"
+# the conf and patches: files/ of the port multimedia/ffmpeg; the ports commit: deps.conf of az/az
+files="${AZ_FILESDIR:-$tools/../multimedia/ffmpeg/files}"
+conf="$files/ffmpeg.conf"
+deps_conf="${AZ_DEPS_CONF:-$tools/../az/az/files/deps.conf}"
 # the static tree of azsupport (static archives, their .pc files and headers)
-L="${AZ_PREFIX:-/usr/local/azsupport}/static"
+L="${AZ_PREFIX:-/usr/local/az}/static"
 work="${AZ_WORK:-/var/tmp/az-work}/ffmpeg"
 F=/usr/local
-stage="${AZ_STAGE:-${AZ_WORK:-/var/tmp/az-work}/stage}/ffmpeg"
-res="$top/ffmpeg-results"
-ports="${PORTSDIR:-$work/ports}"
+stage="${AZ_STAGEDIR:-${AZ_WORK:-/var/tmp/az-work}/stage/ffmpeg}"
+res="${AZ_RESULTS:-$(pwd)/ffmpeg-results}"
+ports="${PORTSDIR:-/usr/ports}"
+distdir="${AZ_DISTDIR:-$work/distfiles}"
+takedist="${AZ_TAKE_DISTFILES:-$(pwd)/distfiles}"
 ncpu="$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 major="$(uname -r | cut -d. -f1)"
 
 if [ "${1:-}" = "--tools" ]; then
-    tools="git meson ninja nasm gmake perl5 pkgconf python3"
+    pkgs="git meson ninja nasm gmake perl5 pkgconf python3"
     # shellcheck disable=SC2086
-    env ASSUME_ALWAYS_YES=yes pkg install -y $tools
+    env ASSUME_ALWAYS_YES=yes pkg install -y $pkgs
     rc=$?
-    for t in $tools; do pkg info -e "$t" || echo "build-ffmpeg: package $t is not installed"; done
+    for t in $pkgs; do pkg info -e "$t" || echo "ffmpeg-build: package $t is not installed"; done
     exit $rc
 fi
-[ -f "$conf" ] || { echo "build-ffmpeg: no $conf (run from the top of a php-src checkout of master)" >&2; exit 2; }
+[ -f "$conf" ] || { echo "ffmpeg-build: no $conf (AZ_FILESDIR: files/ of the port multimedia/ffmpeg)" >&2; exit 2; }
+[ -f "$deps_conf" ] || { echo "ffmpeg-build: no $deps_conf (AZ_DEPS_CONF: deps.conf of the port az/az)" >&2; exit 2; }
 
-say() { printf '[build-ffmpeg %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
+say() { printf '[ffmpeg-build %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
 mk_conf="${MAKE_CONF:-/etc/make.conf}"
 mc_get() {
@@ -95,33 +106,33 @@ if ! ar --version 2>/dev/null | grep -q LLVM && command -v llvm-ar >/dev/null 2>
     export AR=llvm-ar RANLIB=llvm-ranlib NM=llvm-nm
 fi
 
-ports_commit="$(awk '$1 == "ports" { print $2 }' "$top/freebsd/deps.conf")"
+ports_commit="$(awk '$1 == "ports" { print $2 }' "$deps_conf")"
 libs_all="$(awk '$1 == "program" { print $2 }' "$conf")"
 port_of() { awk -v n="$1" '$1 == "program" && $2 == n { print $3 }' "$conf"; }
 take_of() { awk -v n="$1" '$1 == "take" && $2 == n { print $3, $4, $5, $6 }' "$conf"; }
 conf_opts() { awk '$1 == "configure" { for (i = 2; i <= NF; i++) print $i }' "$conf"; }
 
-# The framework and the port of ffmpeg.conf, with what it includes (lang/perl5.*
-# and lang/python3*: the version files of USES=perl5 and USES=python).
-ports_checkout() {
-    if [ "$(git -C "$ports" rev-parse HEAD 2>/dev/null)" = "$ports_commit" ]; then return 0; fi
-    say "freebsd-ports at $ports_commit into $ports"
-    rm -rf "$ports"
-    mkdir -p "$ports"
-    # shellcheck disable=SC2046
-    git -C "$ports" init -q &&
-        git -C "$ports" remote add origin https://github.com/freebsd/freebsd-ports &&
-        git -C "$ports" fetch -q --depth 1 --filter=blob:none origin "$ports_commit" &&
-        git -C "$ports" sparse-checkout set --no-cone /Mk/ /Templates/ /Keywords/ \
-            $(awk '$1 == "program" { printf "/%s/ ", $3 }' "$conf") \
-            '/lang/perl5*/' '/lang/python3*/' &&
-        git -C "$ports" checkout -q FETCH_HEAD
+# The official tree PORTSDIR has to be at the commit of deps.conf (as in
+# tools/az-build.sh); it is only read here, never changed.
+ports_check() {
+    [ -f "$ports/Mk/bsd.port.mk" ] || { echo "ffmpeg-build: no ports tree in $ports (PORTSDIR)" >&2; return 1; }
+    h="$(git -C "$ports" rev-parse HEAD 2>/dev/null)"
+    if [ -z "$h" ]; then
+        echo "ffmpeg-build: $ports is not a git checkout: taken for freebsd-ports $ports_commit of deps.conf" >&2
+        return 0
+    fi
+    [ "$h" = "$ports_commit" ] && return 0
+    echo "ffmpeg-build: $ports is at $h, deps.conf has $ports_commit: build with the tree at that commit" >&2
+    return 1
 }
-# JPEG_PORT as in make.conf of the servers: the ports with USES=jpeg (gd, ImageMagick) take mozjpeg
+# JPEG_PORT as in make.conf of the servers: the ports with USES=jpeg (gd, ImageMagick) take mozjpeg.
+# A make of its own, as from a shell: nothing of the make of the port that runs this
+# script (MAKEFLAGS: its command line, its job server) reaches the official port.
 pmake() {
     p="$1"; shift
-    make -C "$ports/$p" BATCH=yes NO_DEPENDS=yes DISABLE_VULNERABILITIES=yes JPEG_PORT=graphics/mozjpeg \
-        PORTSDIR="$ports" WRKDIRPREFIX="$work/wrk" DISTDIR="$work/distfiles" "$@"
+    env -u MAKEFLAGS -u MFLAGS -u __MKLVL__ make -C "$ports/$p" BATCH=yes NO_DEPENDS=yes \
+        DISABLE_VULNERABILITIES=yes JPEG_PORT=graphics/mozjpeg \
+        PORTSDIR="$ports" WRKDIRPREFIX="$work/wrk" DISTDIR="$distdir" "$@"
 }
 
 fix_guess() {
@@ -129,14 +140,14 @@ fix_guess() {
         cp "$ports/Templates/${f##*/}" "$f" && chmod a+rx "$f"
     done
 }
-# FFmpeg: after the port's patches those of freebsd/ffmpeg/ (in the order of their
+# FFmpeg: after the port's patches those of files/ffmpeg/ (in the order of their
 # names), then configure with the options of the script and the configure lines
 # of ffmpeg.conf
 b_ffmpeg() {
     rm -rf "$stage"
-    for p in "$top"/freebsd/ffmpeg/*.patch; do
+    for p in "$files"/ffmpeg/*.patch; do
         [ -f "$p" ] || continue
-        echo "== freebsd/ffmpeg/${p##*/}"
+        echo "== files/ffmpeg/${p##*/}"
         patch -p1 -N -s -d "$1" < "$p" || { echo "== ${p##*/} does not apply"; return 1; }
     done
     (
@@ -164,13 +175,13 @@ take_args() {
     mkdir -p "$work/distfiles"
     if [ ! -f "$work/distfiles/$tf" ] || [ "$(sha256 -q "$work/distfiles/$tf")" != "$3" ]; then
         rm -f "$work/distfiles/$tf"
-        if [ -f "$top/distfiles/$tf" ] && [ "$(sha256 -q "$top/distfiles/$tf")" = "$3" ]; then
-            # fetched on the runner before the VM (tools/take-fetch.sh): the runner
-            # reaches GitHub better than the VM does
-            cp "$top/distfiles/$tf" "$work/distfiles/$tf"
-            echo "== $tf: the file fetched on the runner (distfiles/, tools/take-fetch.sh)" >&2
+        if [ -f "$takedist/$tf" ] && [ "$(sha256 -q "$takedist/$tf")" = "$3" ]; then
+            # a distfile of the port (its fetch phase, checked against its distinfo)
+            cp "$takedist/$tf" "$work/distfiles/$tf"
+            echo "== $tf: from $takedist" >&2
         else
             # every address up to three times: a release file of GitHub sometimes stalls
+            echo "== $tf: not in $takedist, fetched here" >&2
             for try in 1 2 3; do
                 for u in $(echo "$2" | tr ',' ' '); do
                     fetch -q -T 60 -o "$work/distfiles/$tf" "$u" && break 2
@@ -189,8 +200,9 @@ take_args() {
     printf 'TIMESTAMP = %s\nSHA256 (%s) = %s\nSIZE (%s) = %s\n' "$(date +%s)" "$tf" "$3" "$tf" \
         "$(stat -f %z "$work/distfiles/$tf")" > "$work/distinfo-take-$n"
     wd="$(pmake "$5" -V WRKDIR)"
-    pd="$top/freebsd/deps/$n-$take_ver"
-    printf '%s\n' "DISTFILES=$tf" "PATCHFILES=" "DISTINFO_FILE=$work/distinfo-take-$n" "WRKSRC=$wd/$4"
+    pd="$files/deps/$n-$take_ver"
+    # its own DISTDIR: the ports' one (AZ_DISTDIR) may not be writable
+    printf '%s\n' "DISTDIR=$work/distfiles" "DISTFILES=$tf" "PATCHFILES=" "DISTINFO_FILE=$work/distinfo-take-$n" "WRKSRC=$wd/$4"
     if [ -d "$pd" ]; then printf '%s\n' "PATCHDIR=$pd"; fi
 }
 
@@ -242,7 +254,7 @@ build_one() {
         printf '%-8s OK    %-22s %-22s %4ss\n' "$n" "$ver" "$port" "$(( $(date +%s) - start ))" >> "$res/summary.txt"
         printf '%s %s %s\n' "$n" "$pkgname" "$port" >> "$res/built.txt"
     else
-        printf '%-8s FAIL  %-22s %-22s %4ss (ffmpeg-results/%s.log)\n' "$n" "$ver" "$port" "$(( $(date +%s) - start ))" "$n" >> "$res/summary.txt"
+        printf '%-8s FAIL  %-22s %-22s %4ss (%s.log)\n' "$n" "$ver" "$port" "$(( $(date +%s) - start ))" "$n" >> "$res/summary.txt"
         tail -n 40 "$log" > "$res/$n.tail"
     fi
     say "$n: $(tail -n 1 "$res/summary.txt" | awk '{ print $2 }')"
@@ -253,7 +265,7 @@ manifest() {
     {
         echo "FFmpeg for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $ffcflags"
-        echo "x264, dav1d and libwebp: the static libraries of $L (azsupport, the static tree)"
+        echo "x264, dav1d and libwebp: the static libraries of $L (the package az, the static tree)"
         echo
         while read -r n pkgname port; do
             printf '%-8s %-24s %s\n' "$n" "$pkgname" "$port"
@@ -275,8 +287,8 @@ manifest() {
             np="$(port_patches "$port")"
             [ "$np" -gt 0 ] && echo "    $np patches of the port"
             if [ "$n" = ffmpeg ]; then
-                for p in "$top"/freebsd/ffmpeg/*.patch; do
-                    [ -f "$p" ] && echo "    freebsd/ffmpeg/${p##*/}: $(head -n 1 "$p")"
+                for p in "$files"/ffmpeg/*.patch; do
+                    [ -f "$p" ] && echo "    files/ffmpeg/${p##*/}: $(head -n 1 "$p")"
                 done
             fi
         done < "$res/built.txt"
@@ -285,9 +297,9 @@ manifest() {
         conf_opts | sed 's/^/    /'
         echo
         echo "Licence: GPL version 2 or later (FFmpeg with --enable-gpl, x264); the licences are in"
-        echo "share/licenses/ffmpeg/ (x264, dav1d and webp: LICENSES/ of /usr/local/azsupport, azsupport)."
+        echo "share/licenses/ffmpeg/ (x264, dav1d and webp: LICENSES/ of /usr/local/az, the package az)."
         echo "Sources: the distfiles above (their SHA-256), the patches of the port at the commit above,"
-        echo "freebsd/ffmpeg/ and tools/build-ffmpeg.sh of https://github.com/azsupport/php-src (freebsd/ffmpeg.conf)."
+        echo "files/ffmpeg/ and tools/ffmpeg-build.sh of https://github.com/azsupport/ports (multimedia/ffmpeg/files/ffmpeg.conf)."
     } > "$res/VERSIONS"
 }
 
@@ -312,6 +324,29 @@ check_bins() {
 }
 
 mkdir -p "$res" "$work"
+# --fetch: the distfiles of the port, by its own make fetch into AZ_DISTDIR (the
+# post-fetch of the port multimedia/ffmpeg), so that the build needs no network;
+# not for a program with a take line (its release file is a distfile of our port)
+if [ "${1:-}" = "--fetch" ]; then
+    ports_check || exit 1
+    rc=0
+    for n in $libs_all; do
+        if [ -n "$(take_of "$n")" ]; then echo "ffmpeg-build: $n: the release of its take line is a distfile of the port"; continue; fi
+        say "fetch $n ($(port_of "$n"))"
+        pmake "$(port_of "$n")" fetch || { echo "ffmpeg-build: $n: make fetch of $(port_of "$n") failed" >&2; rc=1; }
+    done
+    exit "$rc"
+fi
+[ $# -eq 0 ] || { echo "usage: sh tools/ffmpeg-build.sh [--tools | --fetch]" >&2; exit 2; }
+report() {
+    echo "== $res/summary.txt"
+    cat "$res/summary.txt" "$res/bins.txt" 2>/dev/null
+    for f in "$res"/*.tail "$res/bins-bad.txt"; do
+        [ -s "$f" ] || continue
+        echo "== $f"
+        cat "$f"
+    done
+}
 rm -f "$res"/*.tail "$res/bins-bad.txt"
 : > "$res/summary.txt"; : > "$res/built.txt"
 cpu_model="$(sysctl -n hw.model 2>/dev/null)"
@@ -328,17 +363,17 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
     why="${lacks:+lacks $lacks of}"
     printf '%-8s FAIL  this CPU (%s) %s -march=%s: code built for it cannot run here\n' \
         cpu "${cpu_model:-?}" "${why:-cannot tell the features of}" "$cputype" >> "$res/summary.txt"
-    echo "build-ffmpeg: this CPU ${why:-cannot tell the features of} -march=$cputype" >&2
+    echo "ffmpeg-build: this CPU ${why:-cannot tell the features of} -march=$cputype" >&2
     exit 1
 fi
 for pc in x264 dav1d libwebp; do
     if [ ! -f "$L/lib/pkgconfig/$pc.pc" ]; then
-        printf '%-8s FAIL  no %s of the static libraries in %s/lib/pkgconfig: build them first (tools/build-deps.sh)\n' libs "$pc" "$L" >> "$res/summary.txt"
-        echo "build-ffmpeg: no $L/lib/pkgconfig/$pc.pc; build the libraries first (tools/build-deps.sh)" >&2
+        printf '%-8s FAIL  no %s of the static libraries in %s/lib/pkgconfig: install the package az first (az/az)\n' libs "$pc" "$L" >> "$res/summary.txt"
+        echo "ffmpeg-build: no $L/lib/pkgconfig/$pc.pc; install the package az first (the port az/az)" >&2
         exit 1
     fi
 done
-ports_checkout || { echo "build-ffmpeg: cannot check out freebsd-ports $ports_commit" >> "$res/summary.txt"; exit 1; }
+ports_check || { echo "ports    FAIL  $ports is not freebsd-ports $ports_commit of deps.conf" >> "$res/summary.txt"; report; exit 1; }
 rc=0
 for n in $libs_all; do
     say "$n ($(port_of "$n"))"
@@ -347,6 +382,8 @@ done
 if [ "$rc" = 0 ]; then
     manifest
     check_bins
+    mkdir -p "$stage$F/share/doc/ffmpeg" && cp "$res/VERSIONS" "$stage$F/share/doc/ffmpeg/VERSIONS" ||
+        echo "ffmpeg: VERSIONS not into the stage" >> "$res/bins-bad.txt"
     if [ ! -s "$res/bins-bad.txt" ]; then
         echo "installed: bin/ffmpeg, bin/ffprobe of $F into the stage $stage ($(du -Ak "$stage$F/bin/ffmpeg" | cut -f1) KB, $(du -Ak "$stage$F/bin/ffprobe" | cut -f1) KB)" >> "$res/summary.txt"
     else
@@ -354,4 +391,5 @@ if [ "$rc" = 0 ]; then
     fi
     rm -rf "$work/wrk"
 fi
+report
 exit "$rc"
