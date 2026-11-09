@@ -113,7 +113,9 @@ tree() {
     d="$1"; cache="${2:-}"; dd="${3:-}"
     commit="$(awk '$1 == "ports" { print $2 }' "$conf")"
     [ -n "$commit" ] || { echo "lib-bench: no ports line in $conf" >&2; return 1; }
-    paths="/Mk/ /Templates/ /Keywords/"
+    # what the framework reads besides the ports: Mk, Templates, Keywords, the users and
+    # groups, MOVED, the version of perl (USES=perl5)
+    paths="/Mk/ /Templates/ /Keywords/ /UIDs /GIDs /MOVED /lang/perl5*/version.mk"
     for n in $libs_all; do
         p="$(port_line "$n")"
         case "$p" in
@@ -142,7 +144,7 @@ tree() {
             if [ -f "$cache/$f" ] && [ "$(sha256_of "$cache/$f")" = "$sum" ]; then
                 mkdir -p "$dd/$(dirname "$f")" && cp "$cache/$f" "$dd/$f" && echo "lib-bench: $f: from $cache"
             else
-                echo "lib-bench: $f: not in $cache (the make fetch of $p gets it)"
+                echo "lib-bench: $f: not in $cache, or not as its distinfo has it (the make fetch of $p gets it)"
             fi
         done
         # the release of a take line: a distfile of the port az/az (DISTDIR/az)
@@ -376,7 +378,11 @@ fi
 
 # --- the sources ----------------------------------------------------------------------
 # $work/src/<name>: "<dir> <source>": the patched tree of a library (the work directory
-# of its port) and its source tree inside it; each compiler builds in a copy, <dir>.<cc>
+# of its port, or the tree given to --local) and its source tree inside it; each
+# compiler builds in a copy of <dir> (copy_of)
+copy_of() {
+    if [ "$local" = 0 ]; then echo "$1.$2"; else echo "$work/build/$2/$3"; fi
+}
 ok_libs=""
 if [ "$local" = 0 ]; then
     if [ ! -f "$ports/Mk/bsd.port.mk" ]; then
@@ -425,8 +431,7 @@ else
         d="$(printf '%s\n' $srcs | sed -n "s/^$n=//p" | head -n 1)"
         if [ -z "$d" ] || [ ! -d "$d" ]; then fail "$n" "--local: no source tree (--src $n=<dir>)"; continue; fi
         d="$(cd "$d" && pwd)"
-        mkdir -p "$work/srccopy/$n" && cp -Rp "$d/." "$work/srccopy/$n/" || { fail "$n" "cannot copy $d"; continue; }
-        echo "$work/srccopy/$n $work/srccopy/$n" > "$work/src/$n"
+        echo "$d $d" > "$work/src/$n"
         ok_libs="$ok_libs $n"
     done
 fi
@@ -456,10 +461,11 @@ built=""
 for c in "$c1" "$c2"; do
     for n in $ok_libs; do
         read -r wd sd < "$work/src/$n"
+        cp_="$(copy_of "$wd" "$c" "$n")"
         dest="$stage/$c/$n"
         log="$logs/build-$c-$n.log"
-        rm -rf "$wd.$c" "$dest"
-        if ! cp -Rp "$wd" "$wd.$c"; then fail "$c $n" "cannot copy $wd"; continue; fi
+        rm -rf "$cp_" "$dest"
+        if ! mkdir -p "$(dirname "$cp_")" || ! cp -Rp "$wd" "$cp_"; then fail "$c $n" "cannot copy $wd to $cp_"; rm -rf "$cp_"; continue; fi
         say "$n: build with $c"
         t0=$(date +%s)
         (
@@ -476,7 +482,7 @@ for c in "$c1" "$c2"; do
             echo "== $n with $c: CC=$CC CFLAGS=$CFLAGS CPPFLAGS=$CPPFLAGS LDFLAGS=$LDFLAGS DESTDIR=$DESTDIR"
             echo "== s_$n of tools/az-build.sh:"
             fn "s_$n"
-            "s_$n" "$wd.$c${sd#"$wd"}"
+            "s_$n" "$cp_${sd#"$wd"}"
         ) > "$log" 2>&1
         brc=$?
         dt=$(( $(date +%s) - t0 ))
@@ -547,7 +553,7 @@ speedtest1=""
 if [ -f "$work/src/sqlite3" ] && [ -d "$stage/$c1/sqlite3$S/lib" ]; then
     read -r wd sd < "$work/src/sqlite3"
     # shellcheck disable=SC2086
-    if "$cc1" $cflags1 -I"$stage/$c1/sqlite3$S/include" -o "$bin/speedtest1" "$wd.$c1${sd#"$wd"}/test/speedtest1.c" \
+    if "$cc1" $cflags1 -I"$stage/$c1/sqlite3$S/include" -o "$bin/speedtest1" "$sd/test/speedtest1.c" \
             -L"$stage/$c1/sqlite3$S/lib" -lsqlite3 -Wl,-rpath,"$S/lib" -lm -lpthread > "$logs/speedtest1.log" 2>&1; then
         speedtest1="$bin/speedtest1"
     else
@@ -565,7 +571,10 @@ case " $libs " in *" expat "*) lb_expat="$(drv expat LB_EXPAT expat)" ;; esac
 case " $libs " in *" lcms2 "*) lb_lcms2="$(drv lcms2 LB_LCMS2 lcms2)" ;; esac
 data="$work/data"
 say "the inputs (lib-bench.php --gen${cjpeg:+, the JPEG files with cjpeg})"
-if ! env -u LD_LIBRARY_PATH "$php" $php_args "$tools/lib-bench.php" --gen "$data" "$cjpeg" > "$logs/gen.log" 2>&1; then
+# with the libraries of az; --local: cjpeg wants the mozjpeg it was built with, not the
+# libjpeg of the system
+if [ "$local" = 1 ] && [ -n "$cjpeg" ]; then set -- env LD_LIBRARY_PATH="$(vdir "$c1" mozjpeg)"; else set -- env -u LD_LIBRARY_PATH; fi
+if ! "$@" "$php" $php_args "$tools/lib-bench.php" --gen "$data" "$cjpeg" > "$logs/gen.log" 2>&1; then
     cat "$logs/gen.log"; echo "lib-bench: no inputs" >&2; exit 1
 fi
 sed 's/^/  /' "$logs/gen.log"
@@ -604,7 +613,7 @@ cmd_of() {
     case "$1" in
         php-*) echo "$php $php_args $tools/lib-bench.php $1 $2 $data" ;;
         xmllint) echo "$php $php_args $tools/lib-bench.php --time $2 - $xmllint --noout --timing --repeat $data/catalog.xml" ;;
-        speedtest1) echo "$php $php_args $tools/lib-bench.php --time $2 - $speedtest1 --memdb --size 25 --testset main" ;;
+        speedtest1) echo "$php $php_args $tools/lib-bench.php --time $2 none $speedtest1 --memdb --size 25 --testset main" ;;
         cjpeg) echo "$php $php_args $tools/lib-bench.php --time $2 $work/tmp/cjpeg.jpg $cjpeg -outfile $work/tmp/cjpeg.jpg $data/photo.ppm" ;;
         djpeg) echo "$php $php_args $tools/lib-bench.php --time $2 $work/tmp/djpeg.ppm $djpeg -outfile $work/tmp/djpeg.ppm $data/photo-moz.jpg" ;;
         expat) echo "$lb_expat $2 $data/catalog.xml" ;;
@@ -720,12 +729,17 @@ while read -r b kind bl what; do
     nd="$(need_of "$b")"
     if [ -z "$nd" ]; then fail "$b" "its program was not built"; continue; fi
     [ "$kind" = php ] && what="$(awk -F '\t' -v b="$b" '$1 == b { print $2 }' "$work/php-list")"
-    # the work of a run: the control once with n=1, then n for about LB_TARGET seconds
-    if ! one_run "$b" "$ctl" 1 "$work/out.txt"; then
-        fail "$b" "the run of $ctl: $(grep -v '^ *$' "$work/out.txt" | tail -n 2 | tr '\n' ' ' | cut -c1-300)"; continue
-    fi
-    t1="$(sed -n 's/^time //p' "$work/out.txt")"
-    [ -n "$t1" ] || { fail "$b" "the run of $ctl printed no time: $(head -n 2 "$work/out.txt" | tr '\n' ' ')"; continue; }
+    # the work of a run: the control once with n=1, then n for about LB_TARGET seconds;
+    # a control that does not run is left out of the benchmark, and the first variant
+    # that runs sets the work
+    t1=""
+    for v in $vs; do
+        if one_run "$b" "$v" 1 "$work/out.txt"; then t1="$(sed -n 's/^time //p' "$work/out.txt")"; fi
+        [ -z "$t1" ] || break
+        fail "$b $v" "the first run: $(grep -v '^ *$' "$work/out.txt" | tail -n 2 | tr '\n' ' ' | cut -c1-300)"
+        vs="$(echo " $vs " | sed "s# $v # #; s/^ *//; s/ *$//")"
+    done
+    if [ -z "$t1" ]; then fail "$b" "no variant ran"; continue; fi
     it="$(awk -v t="$t1" -v g="$target" 'BEGIN { n = (t > 0) ? int(g / t + 0.5) : 1; print (n < 1) ? 1 : n }')"
     printf '%s %s %s %s %s\n' "$b" "$kind" "$(echo $sel | tr ' ' ',')" "$it" "$vs" >> "$work/plan"
     printf '%s\t%s\t%s\t%s\n' "$b" "$kind" "$it" "$what" >> "$res/plan.txt"
@@ -777,6 +791,8 @@ table() {
         function stats(m,   k) { isort(A, m); M = (m % 2) ? A[(m + 1) / 2] : (A[m / 2] + A[m / 2 + 1]) / 2; k = cik(m); LO = A[k]; HI = A[m + 1 - k] }
         function cell(k,   i, m) { m = cnt[k]; if (!m) return ""; delete A; for (i = 1; i <= m; i++) A[i] = val[k, i]; stats(m); SP = (M > 0) ? (A[m] - A[1]) / M * 100 : 0; return M }
         function pct(x) { return sprintf("%+.1f%%", (x - 1) * 100) }
+        # a median, or why there is none: every run failed, or the variant did not run
+        function fmtm(m, k) { return (m != "") ? sprintf("%.3f", m) : (k in nfail) ? "failed" : "-" }
         function verdict(m, lo, hi) {
             if (m <= 1 - gain / 100 && hi < 1) return ">= " gain "% faster"
             if (hi < 1) return "faster, < " gain "%"
@@ -814,10 +830,13 @@ table() {
                     if ((m = ratios(b, vg, vc))) { stats(m); ch = sprintf("%s (%s .. %s)", pct(M), pct(LO), pct(HI)); vd = verdict(M, LO, HI); if (m < R) ch = ch " [" m "/" R "]" }
                     cz = "-"; if ((m = ratios(b, ctl, vc))) { stats(m); cz = pct(M) }
                     oz = chk[b SUBSEP ctl]; oc = chk[b SUBSEP vc]; og = chk[b SUBSEP vg]
-                    out = "same"
-                    if (oc != oz && og != oz) out = "both differ"; else if (og != oz) out = c2 " differs"; else if (oc != oz) out = c1 " differs"
+                    if (oz == "") out = (og == oc) ? "same, no " ctl : c2 " differs from " c1
+                    else if (oc == oz && og == oz) out = "same"
+                    else if (oc == oz) out = c2 " differs"
+                    else if (og == oz) out = c1 " differs"
+                    else out = (oc == og) ? c1 " and " c2 " differ from " ctl : "all differ"
                     if ((b SUBSEP ctl) in chkv || (b SUBSEP vc) in chkv || (b SUBSEP vg) in chkv) out = out ", varies"
-                    fz = (mz == "") ? "failed" : sprintf("%.3f", mz); fc = (mc == "") ? "failed" : sprintf("%.3f", mc); fg = (mg == "") ? "failed" : sprintf("%.3f", mg)
+                    fz = fmtm(mz, b SUBSEP ctl); fc = fmtm(mc, b SUBSEP vc); fg = fmtm(mg, b SUBSEP vg)
                     if (fmt == "md") printf "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %.1f%% | %s |\n", lib, b, nit[b], fz, fc, fg, ch, vd, cz, sp, out
                     else printf "%-10s %-17s %5s %8s %8s %8s  %-28s %-14s %17s %6.1f%%  %s\n", lib, b, nit[b], fz, fc, fg, ch, vd, cz, sp, out
                 }

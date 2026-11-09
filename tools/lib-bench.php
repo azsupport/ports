@@ -17,7 +17,8 @@
 //   php lib-bench.php --time <n> <out> <program> [<arg>...]
 //                                              one run of a program: <n> times in turn;
 //                                              <out>: the file it writes (its MD5 is the
-//                                              check), or - for its standard output
+//                                              check), - for its standard output, none for
+//                                              no check (an output with times in it)
 //   php lib-bench.php --maps <name>...         the files of the libraries this process has
 //                                              mapped whose names begin with <name>
 //                                              (procstat -v on FreeBSD, /proc/self/maps)
@@ -678,7 +679,7 @@ function b_php_zip(int $n, string $d): void
 
 function time_prog(int $n, string $out, array $cmd): void
 {
-    $md5 = '';
+    $md5 = '-';
     $t = 0;
     for ($i = 0; $i < $n; $i++) {
         $o = $out === '-' ? ['pipe', 'w'] : ['file', '/dev/null', 'w'];
@@ -701,8 +702,8 @@ function time_prog(int $n, string $out, array $cmd): void
             $md5 = md5($so);
         }
     }
-    if ($out !== '-') {
-        $md5 = is_file($out) ? md5_file($out) : 'none';
+    if ($out !== '-' && $out !== 'none') {
+        $md5 = is_file($out) ? md5_file($out) : 'no-output';
     }
     printf("time %.6f\ncheck %s\n", $t / 1e9, $md5);
 }
