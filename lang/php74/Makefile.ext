@@ -76,7 +76,9 @@
 #   readline_cli.c of readline (in the source already), config.m4 of fileinfo,
 #   mbstring, phar and simplexml (only for the PCRE2 of the ports), and those of
 #   swoole for swoole_admin_server.cc, server/manager.cc and server/master.cc
-#   (in 4.8.13 already).
+#   (in 4.8.13 already); ours: php_xsl.c of xsl without xsltCleanupGlobals() at
+#   module shutdown (files/patch-php__xsl.c of textproc/php74-xsl), as the
+#   official 8.3 and our 5.6, 8.1 and 8.2 (aZ, 09.11.2026: 7.4 too).
 # - zlib: ZLIB_LIBS=-lz instead of the libs of zlib.pc of the base system, whose
 #   -L/lib configure put into the run path of zlib.so (the run path of a module
 #   is ${AZ_PREFIX}/lib only; the run-time linker finds libz.so.6 in /lib).
