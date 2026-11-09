@@ -1,0 +1,7 @@
+intl: internationalization with ICU of the package az (collation,
+number and date formats, normalization, transliteration).
+
+The module intl of PHP 8.1 for php81 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20210902/intl.so,
+loaded by its ini in etc/php81/conf.d, its headers in
+include/php81/php/ext/intl.
