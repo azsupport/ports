@@ -1,0 +1,6 @@
+Sodium: modern cryptography with libsodium of the package az.
+
+The module sodium of PHP 8.1 for php81 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20210902/sodium.so, loaded by its ini in etc/php81/conf.d, its
+headers in include/php81/php/ext/sodium.

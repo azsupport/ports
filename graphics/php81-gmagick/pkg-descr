@@ -1,0 +1,11 @@
+Provides a wrapper to the GraphicsMagick library; here with the
+GraphicsMagick of the package GraphicsMagick in /usr/local/az.
+
+PECL gmagick for php81 of azsupport/ports, built from ext/gmagick of
+the release tarball of azsupport/php-src, which bundles it:
+lib/php/20210902/gmagick.so. Off by default: imagick and gmagick must
+not be loaded into one PHP (GraphicsMagick and ImageMagick have the
+same function names), so its ini in etc/php81/conf.d comes with its
+line commented out, and the installation makes the CLI profile gmagick
+(etc/php81-gmagick: gmagick on, imagick off), run by
+php81-profile gmagick <script>.

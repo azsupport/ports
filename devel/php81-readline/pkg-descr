@@ -1,0 +1,7 @@
+Readline: line editing and history of the interactive CLI (php81 -a),
+with GNU readline of the package az.
+
+The module readline of PHP 8.1 for php81 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20210902/readline.so, loaded by its ini in etc/php81/conf.d,
+its headers in include/php81/php/ext/readline.

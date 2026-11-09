@@ -1,0 +1,10 @@
+OpenSSL with the legacy provider: the openssl module of php81-openssl
+built with --with-openssl-legacy-provider (of azsupport/php-src), so
+that the ciphers and digests of the legacy provider of OpenSSL work
+too: RC4, Blowfish, DES, CAST5, MD4. The same files as php81-openssl:
+install one of the two.
+
+The module openssl of PHP 8.1 for php81 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20210902/openssl.so, loaded by its ini in etc/php81/conf.d, its
+headers in include/php81/php/ext/openssl.

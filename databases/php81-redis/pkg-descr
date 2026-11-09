@@ -1,0 +1,7 @@
+This extension provides an API for communicating with Redis database,
+a persistent key-value database with built-in net interface written
+in ANSI-C for Posix systems.
+
+PECL redis for php81 of azsupport/ports, built from ext/redis of the
+release tarball of azsupport/php-src, which bundles it:
+lib/php/20210902/redis.so, loaded by its ini in etc/php81/conf.d.

@@ -1,0 +1,6 @@
+Sockets: the low-level socket interface (BSD sockets).
+
+The module sockets of PHP 8.1 for php81 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20210902/sockets.so, loaded by its ini in etc/php81/conf.d, its
+headers in include/php81/php/ext/sockets.
