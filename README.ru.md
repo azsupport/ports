@@ -161,6 +161,12 @@ PHP 7.4 с модулями:
 pkg install -r az php74 mod_php74 php74-opcache php74-gd php74-mbstring php74-openssl-legacy
 ```
 
+PHP 8.3 с модулями (ставится рядом с 7.4: свои `etc/php83`, `lib/php/20230831`, `include/php83`):
+
+```sh
+pkg install -r az php83 mod_php83 php83-opcache php83-gd php83-mbstring php83-openssl-legacy
+```
+
 Программы:
 
 ```sh
