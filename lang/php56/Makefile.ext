@@ -406,6 +406,11 @@ USES+=		pkgconfig
 AZ_LIBS=	libxml2.so
 CONFIGURE_ARGS+=--enable-soap \
 		--with-libxml-dir=${AZ_PREFIX}
+# session at build and run time: the official files/patch-soap.c compiles the
+# session persistence of SoapServer in whenever the headers of php56-session
+# are installed, and soap.so then needs session.so (ps_globals); with USE_PHP
+# that is so in every build, not by the order of the builds
+USE_PHP=	session
 .endif
 
 .if ${PHP_MODNAME} == "sockets"
