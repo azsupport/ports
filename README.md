@@ -110,6 +110,11 @@ Names and origins as the ports, files at the paths of the ports:
   its shared `libGraphicsMagick` and `libGraphicsMagickWand` (symbol prefix `Gm`) and
   `GraphicsMagick-config` in `/usr/local/az`, for gmagick of PHP
   (`--with-gmagick=/usr/local/az`). Build and run: az.
+- These six: the version of the official port at the pinned commit (or of the take
+  line of its conf) with the build stamp as `PORTREVISION`; every distfile in the fetch
+  phase; tests after the install: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
+  [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
+  [`az-test.sh`](tools/az-test.sh).
 - **`www/yt-dlp`**: the package `yt-dlp` in the place of the official one: the official
   port as it is, at a newer release of yt-dlp (the grabbers of the video sites need the
   extractors of the latest), depending on our `multimedia/ffmpeg`; its Python packages are
@@ -118,11 +123,6 @@ Names and origins as the ports, files at the paths of the ports:
   [`distinfo.yml`](.github/workflows/distinfo.yml) when the sandbox cannot fetch it). Tests
   after the install: [`tools/ytdlp-test.sh`](tools/ytdlp-test.sh) (an HLS stream from a
   local server, fixed by our ffmpeg into MP4, as the grabbers download).
-- These six: the version of the official port at the pinned commit (or of the take
-  line of its conf) with the build stamp as `PORTREVISION`; every distfile in the fetch
-  phase; tests after the install: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
-  [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
-  [`az-test.sh`](tools/az-test.sh).
 - **`lang/php74`** and **`www/mod_php74`**: the core `php74` and the Apache module
   `libphp74.so`; PCRE2 10.49 is the one the fork bundles (a port `devel/pcre2` later, aZ 08.11.2026).
 - **60 module ports** `php74-<module>`: the names without "pecl", the origins as the
