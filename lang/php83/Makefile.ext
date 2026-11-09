@@ -526,32 +526,37 @@ SASL_LIB_DEPENDS=	libsasl2.so:security/cyrus-sasl2
 .endif
 
 .if ${PHP_MODNAME} == "redis"
-# zstd (ext.conf) and lz4 compression, the options ZSTD and LZ4 of the port
-# (on by default), with libzstd and liblz4 of az; json: the json serializer of
-# redis is on by default
+# databases/php-redis of eb0100f974b6 (the release of GitHub there, ext/redis of
+# the tarball here): its options LZ4 and ZSTD (on by default; zstd also in
+# ext.conf) with liblz4 and libzstd of az; IGBINARY on (ext.conf); the json
+# serializer of redis is on by default (json is in the core)
 COMMENT=	Extension to access Redis
-WWW=		https://pecl.php.net/package/redis
+WWW=		https://github.com/phpredis/phpredis
 
 LICENSE=	PHP301
-# LICENSE in 6.3.0 (COPYING in 5.3.7 of the port)
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-AZ_LIBS=	libzstd.so liblz4.so
+USE_PHP=	session:build
 
-USE_PHP=	hash:build json:build session:build
+CONFIGURE_ARGS+=--enable-redis
 
-CONFIGURE_ARGS+=--enable-redis \
-		--enable-redis-zstd \
-		--with-libzstd=${AZ_PREFIX} \
-		--enable-redis-lz4 \
-		--with-liblz4=${AZ_PREFIX}
+OPTIONS_DEFINE=	IGBINARY LZ4 ZSTD
+OPTIONS_DEFAULT=IGBINARY LZ4 ZSTD
 
-OPTIONS_DEFINE=	IGBINARY
-OPTIONS_DEFAULT=IGBINARY
 IGBINARY_DESC=	Build with Igbinary serializer
+LZ4_DESC=	Build with lz4 support
+ZSTD_DESC=	Build with zstd support
 
-IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
 IGBINARY_USE=			PHP=igbinary:build
+IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
+
+LZ4_CONFIGURE_ON=	--enable-redis-lz4 \
+			--with-liblz4=${AZ_PREFIX}
+LZ4_VARS=		AZ_LIBS+=liblz4.so
+
+ZSTD_CONFIGURE_ON=	--enable-redis-zstd \
+			--with-libzstd=${AZ_PREFIX}
+ZSTD_VARS=		AZ_LIBS+=libzstd.so
 .endif
 
 .if ${PHP_MODNAME} == "swoole"
