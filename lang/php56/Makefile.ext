@@ -623,14 +623,19 @@ SASL_LIB_DEPENDS=	libsasl2.so:security/cyrus-sasl2
 
 .if ${PHP_MODNAME} == "redis"
 # databases/pecl-redis of d2c06ef5efae (4.2.0 there): IGBINARY on (ext.conf);
-# not its CONFLICTS_INSTALL of pecl-redis3, a package that is not ours
+# not its CONFLICTS_INSTALL of pecl-redis3, a package that is not ours. Ours:
+# hash in USE_PHP too, a module of 5.6 (the core has it from 7.4):
+# redis_array_impl.c includes ext/hash/php_hash.h and calls
+# php_hash_fetch_ops() (RedisArray with the option algorithm), so the build
+# needs its headers and redis.so its symbol (without hash.so the call ends PHP:
+# symbol lookup error)
 COMMENT=	Extension to access Redis
 WWW=		https://pecl.php.net/package/redis
 
 LICENSE=	PHP301
 LICENSE_FILE=	${WRKSRC}/COPYING
 
-USE_PHP=	session:build
+USE_PHP=	hash:build session:build
 
 CONFIGURE_ARGS+=--enable-redis
 
