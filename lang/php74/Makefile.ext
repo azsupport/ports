@@ -262,6 +262,8 @@ CONFIGURE_ARGS+=--enable-mysqlnd
 
 CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
+# config9.m4 adds them to MYSQLND_SHARED_LIBADD without PHP_SUBST: not linked
+LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl -lz
 USES+=		ssl pkgconfig
 .endif
 
