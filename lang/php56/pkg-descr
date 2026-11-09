@@ -5,4 +5,9 @@ Java, and Perl, and is easy to learn.  The main goal of the language is to
 allow web developers to write dynamically generated webpages quickly, but
 you can do much more with PHP.
 
-WWW: http://www.php.net/
+This is PHP 5.6.40 of https://github.com/azsupport/php-src (the security
+backports of Remi Collet, the patches of the FreeBSD port applied), built as
+the overlay azsupport/ports. Versions side by side: bin/php56, php-fpm56
+with the rc.d script php_fpm56, etc/php56 (the ini files of the modules in
+etc/php56/conf.d), phpize56 and the headers in include/php56; the modules
+are the packages php56-<module>, in lib/php/20131226.
