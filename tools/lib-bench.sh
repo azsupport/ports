@@ -44,19 +44,24 @@
 # line, if deps.conf has one), its function s_<name> and those it calls, read out of
 # az-build.sh at run time, the CFLAGS of the az installed (its VERSIONS: -O3 -pipe
 # -march=x86-64-v3 -fstack-protector-strong -fno-strict-aliasing -fPIC), the prefix,
-# run path and libraries of /usr/local/az. Twice, each in a copy of the patched tree:
-# with the base cc (clang) and with gcc<N> of the packages, which gets -std=gnu17 too
-# (the C of clang 19; GCC 15 and later default to C23) and -static-libgcc (no
-# libgcc_s of the package); GCC links with its own linker (ld of binutils, as the
-# port lang/gcc16 is configured), the base cc with lld. Both install with DESTDIR
-# into lib-bench-work/stage/<compiler>/<library>, and /usr/local/az is immutable
-# meanwhile (chflags uchg): nothing gets into the az of the system. A GCC build must
-# need nothing of the gcc package (NEEDED, run path, ldd), and each of its libraries
-# has a SONAME that /usr/local/az/lib has.
+# run path and libraries of /usr/local/az. Three times, each in a copy of the patched
+# tree: with the base cc (clang<N>), and with gcc<N> of the packages twice: gcc<N> as
+# it would be shipped, with -fno-semantic-interposition (with -fPIC GCC takes every
+# exported function of a shared library as replaceable at load time and so does not
+# inline it, nor call it directly, in the library itself; clang inlines them anyway),
+# and gcc<N>-si without it (the default of GCC), to show what it is worth. GCC gets
+# -std=gnu17 too (the C of clang 19; GCC 15 and later default to C23) and
+# -static-libgcc (no libgcc_s of the package); it links with its own linker (ld of
+# binutils, as the port lang/gcc16 is configured), the base cc with lld. All install
+# with DESTDIR into lib-bench-work/stage/<variant>/<library>, and /usr/local/az is
+# immutable meanwhile where the file system has file flags (chflags uchg); pkg check
+# -s az after the builds proves it unchanged. A GCC build must need nothing of the
+# gcc package (NEEDED, run path, ldd), and each of its libraries has a SONAME that
+# /usr/local/az/lib has.
 #
 # The variants of a library: az (the file of the release in /usr/local/az/lib: the
-# control, which the clang build should match), <clang> and <gcc>: the lib/ of that
-# build in front by LD_LIBRARY_PATH, which rtld searches before the DT_RUNPATH
+# control, which the clang build should match), <clang>, <gcc> and <gcc>-si: the lib/
+# of that build in front by LD_LIBRARY_PATH, which rtld searches before the DT_RUNPATH
 # /usr/local/az/lib of PHP, its modules and the libraries of az; one library at a
 # time, the others stay those of az. The proof, before the runs: ldd of the module
 # (or program) with that LD_LIBRARY_PATH, and the file a PHP process has mapped
@@ -73,15 +78,16 @@
 # turning from round to round, pinned to the last CPU (cpuset -l, taskset -c).
 #
 # The report (lib-bench-results/report.txt, report.md for the job summary): per
-# library and benchmark the median seconds of each variant, the change of gcc against
-# clang (the median of the ratios of the runs of the same round, and its interval of
-# about 95%: the order statistics of the sign test), the spread of the runs
-# ((max - min) / median, the largest of the three variants) and whether the outputs
-# are the same; per library, over its PHP benchmarks (expat and lcms2: their drivers),
-# the geometric mean of the ratios of each round, its median and interval: ">= 2%
-# faster" when the median is -2% or less and the whole interval is below 0. Every
-# build, proof or run that fails is printed with its reason (and kept in
-# failures.txt), and the rest goes on.
+# library and benchmark the median seconds of each variant, the change of gcc and of
+# gcc-si against clang (the median of the ratios of the runs of the same round, and
+# its interval of about 95%: the order statistics of the sign test), the spread of
+# the runs ((max - min) / median, the largest of the variants) and whether the
+# outputs are the same; per library, over its PHP benchmarks (expat and lcms2: their
+# drivers), the geometric mean of the ratios of each round, its median and interval:
+# ">= 2% faster" (gcc, as it would be shipped) when the median is -2% or less and the
+# whole interval is below 0. Every build, proof or run that fails is printed with its
+# reason (and kept in failures.txt), a build or make patch with the end of its log,
+# and the rest goes on.
 #
 # Environment: LB_TARGET (seconds of a run, default 3), LB_GAIN (the gain asked in
 # %, default 2), LB_GCC (the GCC, default the newest gcc<N>), LB_CLANG (--local: the
@@ -117,8 +123,9 @@ tree() {
     commit="$(awk '$1 == "ports" { print $2 }' "$conf")"
     [ -n "$commit" ] || { echo "lib-bench: no ports line in $conf" >&2; return 1; }
     # what the framework reads besides the ports: Mk, Templates, Keywords, the users and
-    # groups, MOVED, the version of perl (USES=perl5)
-    paths="/Mk/ /Templates/ /Keywords/ /UIDs /GIDs /MOVED /lang/perl5*/version.mk"
+    # groups, MOVED, the versions of perl (USES=perl5) and python (USES=python, expat2:
+    # Mk/Uses/python.mk includes lang/python3<N>/Makefile.version)
+    paths="/Mk/ /Templates/ /Keywords/ /UIDs /GIDs /MOVED /lang/perl5*/version.mk /lang/python3*/Makefile.version"
     for n in $libs_all; do
         p="$(port_line "$n")"
         case "$p" in
@@ -235,6 +242,15 @@ info="$res/info.txt"
 : > "$info"; : > "$res/failures.txt"; : > "$res/variants.txt"; : > "$res/runs.txt"; : > "$res/proof.txt"
 # fail <what> <reason>: printed, and kept for the report and the annotations of the workflow
 fail() { say "FAIL $1: $2"; printf '%s: %s\n' "$1" "$2" >> "$res/failures.txt"; }
+# fail_log <what> <reason> <log>: fail, and the end of the log, to the screen (the
+# job log) and to the report
+fail_log() {
+    fail "$1" "$2"
+    {
+        echo "== $1: the end of ${3#"$res"/}"
+        tail -n 30 "$3" 2>/dev/null | cut -c1-300 | sed 's/^/    | /'
+    } | tee -a "$res/failure-logs.txt"
+}
 first_errors() {
     grep -E ' error:|error: |Error [0-9]+|\*\*\* Error|undefined reference|undefined symbol|cannot find|not found|No such file|Killed|failed' "$1" |
         grep -v -E '^checking |^-- (Looking|Performing|Check)' | head -n 3 | cut -c1-240 | tr '\n' ' ' | grep . || tail -n 3 "$1" | cut -c1-240 | tr '\n' ' '
@@ -282,6 +298,10 @@ c1=""; c2=""
 [ -n "$cc2" ] && ! is_clang "$cc2" && c2="gcc$(cc_major "$cc2")"
 [ -n "$c1" ] || { echo "lib-bench: no clang (${cc1:-none found}; LB_CLANG)" >&2; exit 1; }
 [ -n "$c2" ] || { echo "lib-bench: no GCC (${cc2:-none found}; --deps, LB_GCC)" >&2; exit 1; }
+# the variants of a library: clang, gcc as it would be shipped, gcc with the semantic
+# interposition of its default
+c3="$c2-si"
+vars="$c1 $c2 $c3"
 [ -x "$php" ] || { echo "lib-bench: no PHP $php (--deps, LB_PHP)" >&2; exit 1; }
 ctl=az; [ "$local" = 1 ] && ctl=system
 
@@ -310,7 +330,8 @@ if [ -n "$march" ]; then
     fi
 fi
 cflags1="$cflags"
-cflags2="$cflags -std=gnu17 -static-libgcc"
+cflags2="$cflags -std=gnu17 -static-libgcc -fno-semantic-interposition"
+cflags3="$cflags -std=gnu17 -static-libgcc"
 ld2="$("$cc2" -print-prog-name=ld 2>/dev/null)"
 
 # PHP: -n and the modules that are not built in, each loaded after those it needs; one
@@ -347,7 +368,8 @@ elif command -v taskset > /dev/null 2>&1 && taskset -c "$pincpu" true > /dev/nul
     echo "$c1: $cc1 ($(first_line "$cc1" --version)), linker $(first_line "$cc1" -Wl,--version -x c /dev/null -o /dev/null 2>&1 | cut -c1-80)"
     echo "$c2: $cc2 ($(first_line "$cc2" --version)), linker ${ld2:-?} ($(first_line "${ld2:-ld}" --version | cut -c1-80))"
     echo "CFLAGS of $c1: $cflags1 ($cflags_from)"
-    echo "CFLAGS of $c2: $cflags2"
+    echo "CFLAGS of $c2: $cflags2 (as it would be shipped)"
+    echo "CFLAGS of $c3: $cflags3 (the semantic interposition of GCC's default: exported functions not inlined)"
     echo "runs: $runs rounds of about ${target}s per run, the variants interleaved${pin:+, pinned to CPU $pincpu ($pin)}"
 } > "$info"
 cat "$info"
@@ -416,10 +438,14 @@ if [ "$local" = 0 ]; then
             # shellcheck disable=SC2086
             wd="$(pmake "$port" $targs -V WRKDIR)"; sd="$(pmake "$port" $targs -V WRKSRC)"
             [ -n "$wd" ] && [ -n "$sd" ] || { echo "== no WRKDIR or WRKSRC of $port"; exit 1; }
+            # NOCLEANDEPENDS: the clean of a port cleans the ports it depends on too
+            # (limited-clean-depends), which took the patched trees of libxml2 (by
+            # libxslt), png (by mozjpeg) and mozjpeg (by lcms2) away in run 42611793836
             # shellcheck disable=SC2086
-            pmake "$port" $targs clean > /dev/null 2>&1
+            pmake "$port" $targs NOCLEANDEPENDS=yes clean > /dev/null 2>&1
             # shellcheck disable=SC2086
             pmake "$port" $targs patch || { echo "== make patch of $port failed"; exit 1; }
+            [ -d "$sd" ] || { echo "== no $sd after make patch of $port"; exit 1; }
             # as build_one of az-build.sh: what the configure stage would fix before configure
             for fx in run-autotools-fixup patch-libtool; do
                 # shellcheck disable=SC2086
@@ -429,7 +455,7 @@ if [ "$local" = 0 ]; then
         ) > "$logs/patch-$n.log" 2>&1; then
             ok_libs="$ok_libs $n"
         else
-            fail "$n" "make patch of $port: $(first_errors "$logs/patch-$n.log") (logs/patch-$n.log)"
+            fail_log "$n" "make patch of $port: $(first_errors "$logs/patch-$n.log") (logs/patch-$n.log)" "$logs/patch-$n.log"
         fi
     done
 else
@@ -471,7 +497,7 @@ if [ "$local" = 0 ]; then
     fi
 fi
 built=""
-for c in "$c1" "$c2"; do
+for c in $vars; do
     for n in $ok_libs; do
         read -r wd sd < "$work/src/$n"
         cp_="$(copy_of "$wd" "$c" "$n")"
@@ -482,8 +508,11 @@ for c in "$c1" "$c2"; do
         say "$n: build with $c"
         t0=$(date +%s)
         (
-            if [ "$c" = "$c1" ]; then CC="$cc1"; CXX="$cxx1"; CFLAGS="$cflags1"; CXXFLAGS="$cflags1"; ldx=""
-            else CC="$cc2"; CXX="$cxx2"; CFLAGS="$cflags2"; CXXFLAGS="$cflags -static-libgcc"; ldx="-static-libgcc"; fi
+            case "$c" in
+                "$c1") CC="$cc1"; CXX="$cxx1"; CFLAGS="$cflags1"; CXXFLAGS="$cflags1"; ldx="" ;;
+                "$c2") CC="$cc2"; CXX="$cxx2"; CFLAGS="$cflags2"; CXXFLAGS="$cflags -static-libgcc -fno-semantic-interposition"; ldx="-static-libgcc" ;;
+                *) CC="$cc2"; CXX="$cxx2"; CFLAGS="$cflags3"; CXXFLAGS="$cflags -static-libgcc"; ldx="-static-libgcc" ;;
+            esac
             ncpu="$ncpu_build"
             export CC CXX CFLAGS CXXFLAGS
             unset MAKEFLAGS MFLAGS MAKELEVEL __MKLVL__
@@ -500,8 +529,8 @@ for c in "$c1" "$c2"; do
         brc=$?
         dt=$(( $(date +%s) - t0 ))
         vd="$(vdir "$c" "$n")"
-        if [ $brc -ne 0 ]; then fail "$c $n" "build: $(first_errors "$log") (logs/build-$c-$n.log)"; continue; fi
-        if [ -z "$(so_files "$vd")" ]; then fail "$c $n" "no library in $vd (logs/build-$c-$n.log)"; continue; fi
+        if [ $brc -ne 0 ]; then fail_log "$c $n" "build: $(first_errors "$log") (logs/build-$c-$n.log)" "$log"; continue; fi
+        if [ -z "$(so_files "$vd")" ]; then fail_log "$c $n" "no library in $vd (logs/build-$c-$n.log)" "$log"; continue; fi
         say "$n: built with $c in ${dt}s"
         echo "$n $c ${dt}s" >> "$work/built"
         built="$built $c:$n"
@@ -530,7 +559,7 @@ for v in $built; do
             if [ -e "$S/lib/$sn" ]; then az_f="$(realpath "$S/lib/$sn")"
             else bad="$bad $sn: az has no such library (the variant would not be loaded);"; fi
         fi
-        if [ "$c" = "$c2" ]; then
+        if [ "$c" != "$c1" ]; then
             # the runtime libraries of GCC, by name or in its directory (/usr/local/lib/gcc16)
             gb="$( (echo "$nd" | tr ' ' '\n' | grep -E '^lib(gcc_s|stdc\+\+|gomp|atomic|quadmath|ssp)\.'
                 echo "$rp" | tr ' :' '\n\n' | grep -E '/lib/gcc') | tr '\n' ' ')"
@@ -570,25 +599,27 @@ if [ -f "$work/src/sqlite3" ] && [ -d "$stage/$c1/sqlite3$S/lib" ]; then
             -L"$stage/$c1/sqlite3$S/lib" -lsqlite3 -Wl,-rpath,"$S/lib" -lm -lpthread > "$logs/speedtest1.log" 2>&1; then
         speedtest1="$bin/speedtest1"
     else
-        fail speedtest1 "build: $(first_errors "$logs/speedtest1.log")"
+        fail_log speedtest1 "build: $(first_errors "$logs/speedtest1.log")" "$logs/speedtest1.log"
     fi
 fi
-drv() {  # drv <name> <define> <lib>: a driver of tools/lib-bench.c, against the library of az
+# drv <name> <define> <lib> <variable>: a driver of tools/lib-bench.c, against the
+# library of az, its path into <variable> (empty when it does not build)
+drv() {
     # shellcheck disable=SC2086
     if "$cc1" $cflags1 "-D$2" -I"$S/include" -o "$bin/lb-$1" "$tools/lib-bench.c" -L"$S/lib" "-l$3" -Wl,-rpath,"$S/lib" -lm \
-            > "$logs/lb-$1.log" 2>&1; then echo "$bin/lb-$1"
-    else fail "lb-$1" "build: $(first_errors "$logs/lb-$1.log")"; fi
+            > "$logs/lb-$1.log" 2>&1; then eval "$4=\"\$bin/lb-\$1\""
+    else fail_log "lb-$1" "build: $(first_errors "$logs/lb-$1.log")" "$logs/lb-$1.log"; fi
 }
 lb_expat=""; lb_lcms2=""
-case " $libs " in *" expat "*) lb_expat="$(drv expat LB_EXPAT expat)" ;; esac
-case " $libs " in *" lcms2 "*) lb_lcms2="$(drv lcms2 LB_LCMS2 lcms2)" ;; esac
+case " $libs " in *" expat "*) drv expat LB_EXPAT expat lb_expat ;; esac
+case " $libs " in *" lcms2 "*) drv lcms2 LB_LCMS2 lcms2 lb_lcms2 ;; esac
 data="$work/data"
 say "the inputs (lib-bench.php --gen${cjpeg:+, the JPEG files with cjpeg})"
 # with the libraries of az; --local: cjpeg wants the mozjpeg it was built with, not the
 # libjpeg of the system
 if [ "$local" = 1 ] && [ -n "$cjpeg" ]; then set -- env LD_LIBRARY_PATH="$(vdir "$c1" mozjpeg)"; else set -- env -u LD_LIBRARY_PATH; fi
 if ! "$@" "$php" $php_args "$tools/lib-bench.php" --gen "$data" "$cjpeg" > "$logs/gen.log" 2>&1; then
-    cat "$logs/gen.log"; echo "lib-bench: no inputs" >&2; exit 1
+    fail_log inputs "lib-bench.php --gen failed" "$logs/gen.log"; echo "lib-bench: no inputs" >&2; exit 1
 fi
 sed 's/^/  /' "$logs/gen.log"
 cp "$logs/gen.log" "$res/inputs.txt"
@@ -741,7 +772,7 @@ while read -r b kind bl what; do
     [ -n "$sel" ] || continue
     vs="$ctl"; have=0
     for n in $sel; do
-        for c in "$c1" "$c2"; do
+        for c in $vars; do
             case " $proved " in *" $c:$n "*) vs="$vs $c:$n"; have=1 ;; esac
         done
     done
@@ -802,8 +833,8 @@ say "the runs took $(( $(date +%s) - t0 ))s"
 # --- the report ---------------------------------------------------------------------------
 # table <txt|md>: per library and benchmark, then the verdict per library
 table() {
-    awk -v fmt="$1" -v planf="$work/plan" -v c1="$c1" -v c2="$c2" -v ctl="$ctl" -v R="$runs" -v gain="$gain" \
-        -v order="$libs" '
+    awk -v fmt="$1" -v planf="$work/plan" -v c1="$c1" -v c2="$c2" -v c3="$c3" -v ctl="$ctl" -v R="$runs" \
+        -v gain="$gain" -v order="$libs" '
         function isort(a, m,   i, j, t) { for (i = 2; i <= m; i++) { t = a[i]; for (j = i - 1; j >= 1 && a[j] > t; j--) a[j + 1] = a[j]; a[j + 1] = t } }
         # the index k of the interval [x(k), x(n+1-k)] of a median, about 95% (sign test)
         function cik(n,   j, p, c, k) { c = 1; p = 0; k = 1; for (j = 0; j < n; j++) { p += c / (2 ^ n); if (p > 0.025) break; k = j + 1; c = c * (n - j) / (j + 1) } return k }
@@ -821,6 +852,36 @@ table() {
         }
         # ratios of the runs of the same round of variants a and b of a benchmark into A
         function ratios(b, va, vb,   r, m) { delete A; m = 0; for (r = 1; r <= R; r++) if (((b, va, r) in byr) && ((b, vb, r) in byr) && byr[b, vb, r] > 0) A[++m] = byr[b, va, r] / byr[b, vb, r]; return m }
+        # change <benchmark> <a> <b>: "median (lo .. hi)" of a against b, VD its verdict; "-"
+        function change(b, va, vb,   m, t) {
+            VD = "-"; if (!(m = ratios(b, va, vb))) return "-"
+            stats(m); VD = verdict(M, LO, HI)
+            t = sprintf("%s (%s .. %s)", pct(M), pct(LO), pct(HI)); if (m < R) t = t " [" m "/" R "]"
+            return t
+        }
+        # libchange <library> <a> <b> <php|tool>: over the benchmarks of that kind of the
+        # library, the geometric mean of the ratios a/b of each round; its median and
+        # interval, VD the verdict ("" when no round has them all)
+        function libchange(lib, va, vb, want,   r, bi, b, s, k, okr, m, nbx, i, t) {
+            delete G; m = 0; nbx = 0; VD = ""
+            for (r = 1; r <= R; r++) {
+                s = 0; k = 0; okr = 1
+                for (bi = 1; bi <= nb; bi++) {
+                    b = B[bi]; if (!((b, lib) in has)) continue
+                    if ((want == "php") != (kind[b] == "php")) continue
+                    if (((b, va ":" lib, r) in byr) && ((b, vb ":" lib, r) in byr) && byr[b, vb ":" lib, r] > 0) { s += log(byr[b, va ":" lib, r] / byr[b, vb ":" lib, r]); k++ }
+                    else okr = 0
+                }
+                if (okr && k) G[++m] = exp(s / k)
+                if (k > nbx) nbx = k
+            }
+            if (!m) return "-"
+            delete A; for (i = 1; i <= m; i++) A[i] = G[i]; stats(m)
+            VD = verdict(M, LO, HI); if (m < 7) VD = "no verdict: " m " rounds, 7 needed (" VD ")"
+            t = sprintf("%s (%s .. %s) over %d %s, %d rounds", pct(M), pct(LO), pct(HI), nbx,
+                (want == "php") ? (nbx == 1 ? "PHP benchmark" : "PHP benchmarks") : (nbx == 1 ? "program" : "programs"), m)
+            return t
+        }
         BEGIN {
             while ((getline line < planf) > 0) {
                 split(line, f, " "); nb++; B[nb] = f[1]; kind[f[1]] = f[2]; nit[f[1]] = f[4]; nl = split(f[3], L, ",")
@@ -828,10 +889,10 @@ table() {
             }
             nlib = split(order, LIB, " ")
             if (fmt == "md") {
-                printf "| library | benchmark | n | %s | %s | %s | %s vs %s (95%%) | verdict | %s vs %s | spread | output |\n", ctl, c1, c2, c2, c1, ctl, c1
-                printf "|---|---|--:|--:|--:|--:|--:|---|--:|--:|---|\n"
+                printf "| library | benchmark | n | %s | %s | %s | %s | %s vs %s (95%%) | verdict | %s vs %s (95%%) | %s vs %s | spread | output |\n", ctl, c1, c2, c3, c2, c1, c3, c1, ctl, c1
+                printf "|---|---|--:|--:|--:|--:|--:|--:|---|--:|--:|--:|---|\n"
             } else {
-                printf "%-10s %-17s %5s %8s %8s %8s  %-28s %-14s %17s %7s  %s\n", "library", "benchmark", "n", ctl, c1, c2, c2 " vs " c1 " (95%)", "verdict", ctl " vs " c1, "spread", "output"
+                printf "%-10s %-17s %5s %8s %8s %8s %8s  %-27s %-14s %-27s %13s %7s  %s\n", "library", "benchmark", "n", ctl, c1, c2, c3, c2 " vs " c1 " (95%)", "verdict", c3 " vs " c1 " (95%)", ctl " vs " c1, "spread", "output"
             }
         }
         $4 != "fail" { k = $1 SUBSEP $2; cnt[k]++; val[k, cnt[k]] = $4 + 0; byr[$1, $2, $3] = $4 + 0; if (!((k) in chk)) chk[k] = $5; else if (chk[k] != $5) chkv[k] = 1 }
@@ -841,59 +902,47 @@ table() {
                 lib = LIB[li]; rows = 0
                 for (bi = 1; bi <= nb; bi++) {
                     b = B[bi]; if (!((b, lib) in has)) continue
-                    vc = c1 ":" lib; vg = c2 ":" lib
-                    mz = cell(b SUBSEP ctl); sz = SP; mc = cell(b SUBSEP vc); sc = SP; mg = cell(b SUBSEP vg); sg = SP
-                    if (mc == "" && mg == "") continue
+                    vc = c1 ":" lib; vg = c2 ":" lib; vs = c3 ":" lib
+                    mz = cell(b SUBSEP ctl); sp = SP
+                    mc = cell(b SUBSEP vc); if (mc != "" && SP > sp) sp = SP
+                    mg = cell(b SUBSEP vg); if (mg != "" && SP > sp) sp = SP
+                    ms = cell(b SUBSEP vs); if (ms != "" && SP > sp) sp = SP
+                    if (mc == "" && mg == "" && ms == "") continue
                     rows++
-                    sp = sz; if (sc > sp) sp = sc; if (sg > sp) sp = sg
-                    ch = "-"; vd = "-"
-                    if ((m = ratios(b, vg, vc))) { stats(m); ch = sprintf("%s (%s .. %s)", pct(M), pct(LO), pct(HI)); vd = verdict(M, LO, HI); if (m < R) ch = ch " [" m "/" R "]" }
+                    ch2 = change(b, vg, vc); vd = VD
+                    ch3 = change(b, vs, vc)
                     cz = "-"; if ((m = ratios(b, ctl, vc))) { stats(m); cz = pct(M) }
-                    oz = chk[b SUBSEP ctl]; oc = chk[b SUBSEP vc]; og = chk[b SUBSEP vg]
-                    if (oz == "") out = (og == oc) ? "same, no " ctl : c2 " differs from " c1
-                    else if (oc == oz && og == oz) out = "same"
-                    else if (oc == oz) out = c2 " differs"
-                    else if (og == oz) out = c1 " differs"
-                    else out = (oc == og) ? c1 " and " c2 " differ from " ctl : "all differ"
-                    if ((b SUBSEP ctl) in chkv || (b SUBSEP vc) in chkv || (b SUBSEP vg) in chkv) out = out ", varies"
-                    fz = fmtm(mz, b SUBSEP ctl); fc = fmtm(mc, b SUBSEP vc); fg = fmtm(mg, b SUBSEP vg)
-                    if (fmt == "md") printf "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %.1f%% | %s |\n", lib, b, nit[b], fz, fc, fg, ch, vd, cz, sp, out
-                    else printf "%-10s %-17s %5s %8s %8s %8s  %-28s %-14s %17s %6.1f%%  %s\n", lib, b, nit[b], fz, fc, fg, ch, vd, cz, sp, out
+                    # output: the variants whose check is not that of the control (or of clang without one)
+                    base = chk[b SUBSEP ctl]; against = ""
+                    if (base == "") { base = chk[b SUBSEP vc]; against = " (no " ctl ": against " c1 ")" }
+                    diff = ""; nd = 0
+                    if (chk[b SUBSEP ctl] != "" && chk[b SUBSEP vc] != "" && chk[b SUBSEP vc] != base) { diff = diff ", " c1; nd++ }
+                    if (chk[b SUBSEP vg] != "" && chk[b SUBSEP vg] != base) { diff = diff ", " c2; nd++ }
+                    if (chk[b SUBSEP vs] != "" && chk[b SUBSEP vs] != base) { diff = diff ", " c3; nd++ }
+                    out = (nd == 0) ? "same" : substr(diff, 3) ((nd == 1) ? " differs" : " differ")
+                    out = out against
+                    if ((b SUBSEP ctl) in chkv || (b SUBSEP vc) in chkv || (b SUBSEP vg) in chkv || (b SUBSEP vs) in chkv) out = out ", varies"
+                    fz = fmtm(mz, b SUBSEP ctl); fc = fmtm(mc, b SUBSEP vc); fg = fmtm(mg, b SUBSEP vg); fs = fmtm(ms, b SUBSEP vs)
+                    if (fmt == "md") printf "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %.1f%% | %s |\n", lib, b, nit[b], fz, fc, fg, fs, ch2, vd, ch3, cz, sp, out
+                    else printf "%-10s %-17s %5s %8s %8s %8s %8s  %-27s %-14s %-27s %13s %6.1f%%  %s\n", lib, b, nit[b], fz, fc, fg, fs, ch2, vd, ch3, cz, sp, out
                 }
-                # the verdict of the library: its PHP benchmarks (else its programs), the
-                # geometric mean of the ratios of each round
                 if (!rows) continue
-                for (pass = 1; pass <= 2; pass++) {
-                    want = (pass == 1) ? "php" : "tool"
-                    if (pass == 1 && !nphp[lib]) want = "tool"
-                    if (pass == 2 && (!nphp[lib] || !ntool[lib])) break
-                    delete G; m = 0; nbx = 0
-                    for (r = 1; r <= R; r++) {
-                        s = 0; k = 0; okr = 1
-                        for (bi = 1; bi <= nb; bi++) {
-                            b = B[bi]; if (!((b, lib) in has)) continue
-                            if ((want == "php") != (kind[b] == "php")) continue
-                            if (((b, c2 ":" lib, r) in byr) && ((b, c1 ":" lib, r) in byr) && byr[b, c1 ":" lib, r] > 0) { s += log(byr[b, c2 ":" lib, r] / byr[b, c1 ":" lib, r]); k++ }
-                            else okr = 0
-                        }
-                        if (okr && k) G[++m] = exp(s / k)
-                        nbx = k
-                    }
-                    if (!m) { VL[lib, pass] = "no complete round"; continue }
-                    delete A; for (i = 1; i <= m; i++) A[i] = G[i]; stats(m)
-                    VL[lib, pass] = sprintf("%s (%s .. %s) over %d %s, %d rounds", pct(M), pct(LO), pct(HI), nbx, (want == "php") ? (nbx == 1 ? "PHP benchmark" : "PHP benchmarks") : (nbx == 1 ? "program" : "programs"), m)
-                    if (pass == 1) { VM[lib] = verdict(M, LO, HI); if (m < 7) VM[lib] = "no verdict: " m " rounds, 7 needed (" VM[lib] ")" }
-                }
+                # the verdict of the library: its PHP benchmarks (else its programs)
+                want = nphp[lib] ? "php" : "tool"
+                L2[lib] = libchange(lib, c2, c1, want); VM[lib] = VD
+                L3[lib] = libchange(lib, c3, c1, want)
+                LT[lib] = (nphp[lib] && ntool[lib]) ? libchange(lib, c2, c1, "tool") : ""
+                done[lib] = 1
             }
             printf "\n"
-            if (fmt == "md") printf "**Per library** (%s against %s; the geometric mean of a round over its PHP benchmarks, expat and lcms2 their drivers; median and interval of about 95%%):\n\n| library | change | verdict | its programs |\n|---|---|---|---|\n", c2, c1
-            else printf "Per library, %s against %s: the geometric mean of a round over its PHP benchmarks (expat, lcms2: their drivers), the median and interval of about 95%% of the rounds:\n", c2, c1
+            if (fmt == "md") printf "**Per library**: the geometric mean of a round over its PHP benchmarks (expat and lcms2: their drivers), its median and interval of about 95%%; the verdict is that of `%s` (as it would be shipped) against `%s`:\n\n| library | %s vs %s | verdict | %s vs %s | its programs, %s vs %s |\n|---|---|---|---|---|\n", c2, c1, c2, c1, c3, c1, c2, c1
+            else printf "Per library: the geometric mean of a round over its PHP benchmarks (expat, lcms2: their drivers), its median and\ninterval of about 95%% of the rounds; the verdict is that of %s (as it would be shipped) against %s:\n", c2, c1
             yes = ""; no = ""
             for (li = 1; li <= nlib; li++) {
-                lib = LIB[li]; if (!((lib, 1) in VL)) continue
-                v = (lib in VM) ? VM[lib] : "-"; t2 = ((lib, 2) in VL) ? VL[lib, 2] : ""
-                if (fmt == "md") printf "| %s | %s | %s | %s |\n", lib, VL[lib, 1], v, t2
-                else printf "  %-10s %s: %s%s\n", lib, VL[lib, 1], v, (t2 != "") ? "; its programs: " t2 : ""
+                lib = LIB[li]; if (!(lib in done)) continue
+                v = (VM[lib] != "") ? VM[lib] : "-"
+                if (fmt == "md") printf "| %s | %s | %s | %s | %s |\n", lib, L2[lib], v, L3[lib], LT[lib]
+                else printf "  %-10s %s %s: %s\n  %-10s %s %s%s\n", lib, c2, L2[lib], v, "", c3, L3[lib], (LT[lib] != "") ? "; its programs, " c2 ": " LT[lib] : ""
                 if (v ~ /^>=/) yes = yes " " lib; else no = no " " lib
             }
             printf "\n%s%s: %s\n", (fmt == "md") ? "**" : "", "GCC (" c2 ", >= " gain "% faster)" ((fmt == "md") ? "**" : ""), (yes == "") ? "none" : substr(yes, 2)
@@ -902,13 +951,13 @@ table() {
 }
 rw=runs; [ "$runs" = 1 ] && rw=run
 {
-    echo "=== C libraries of az: $c1 (the base cc) against $c2 (tools/lib-bench.sh)"
+    echo "=== C libraries of az: $c1 (the base cc) against $c2 and $c3 (tools/lib-bench.sh)"
     cat "$info"
     echo
-    echo "The median of $runs $rw in seconds (n: the work of a run, the times of the benchmark's loop); the change of $c2 against $c1:"
-    echo "the median of the ratios of the runs of one round, with its interval of about 95% (negative: $c2 faster); $ctl vs $c1:"
-    echo "the release against our $c1 build (about 0 when the build is the same); spread: (max - min) / median, the largest of"
-    echo "the three variants; output: the checks of the runs against those of $ctl."
+    echo "The median of $runs $rw in seconds (n: the work of a run, the times of the benchmark's loop); the change of $c2 and of"
+    echo "$c3 against $c1: the median of the ratios of the runs of one round, with its interval of about 95% (negative:"
+    echo "faster); the verdict is that of $c2; $ctl vs $c1: the release against our $c1 build (about 0 when the build is the"
+    echo "same); spread: (max - min) / median, the largest of the variants; output: the checks of the runs against those of $ctl."
     echo
     table txt
     echo
@@ -925,16 +974,21 @@ rw=runs; [ "$runs" = 1 ] && rw=run
         echo "failures:"
         sed 's/^/  /' "$res/failures.txt"
     fi
+    if [ -s "$res/failure-logs.txt" ]; then
+        echo
+        echo "the ends of the logs of the failures:"
+        sed 's/^/  /' "$res/failure-logs.txt"
+    fi
     echo
     echo "The runs, seconds, in the order of the rounds:"
     awk '{ k = $1 " " $2; if (!(k in s)) o[++n] = k; s[k] = s[k] " " $4 } END { for (i = 1; i <= n; i++) printf "  %-40s%s\n", o[i], s[o[i]] }' "$res/runs.txt"
 } > "$res/report.txt"
 {
-    echo "### C libraries of az: $c1 against $c2"
+    echo "### C libraries of az: $c1 against $c2 and $c3"
     echo
     sed 's/^/- /' "$info"
     echo
-    echo "The median of $runs $rw in seconds; the change of \`$c2\` against \`$c1\` (median of the ratios of a round, interval of about 95%, negative: faster); \`$ctl\` against \`$c1\`: the release against our build (about 0); spread: (max - min) / median."
+    echo "The median of $runs $rw in seconds; the change of \`$c2\` (as it would be shipped: \`-fno-semantic-interposition\`) and of \`$c3\` (GCC's default) against \`$c1\` (median of the ratios of a round, interval of about 95%, negative: faster), the verdict that of \`$c2\`; \`$ctl\` against \`$c1\`: the release against our build (about 0); spread: (max - min) / median."
     echo
     table md
     echo

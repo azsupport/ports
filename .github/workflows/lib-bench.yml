@@ -4,9 +4,10 @@ name: Libraries of az with the base clang and with GCC 16
 # of the ports instead of the base clang 19 (tools/lib-bench.sh)? aZ, 09.11.2026: a
 # library goes to GCC 16 when it is at least 2% faster through what the sites do. In a
 # FreeBSD VM: PHP 8.3 and its modules from the repository az (the release
-# az-fbsd15-amd64-v3, as a server installs them), each library built twice as
+# az-fbsd15-amd64-v3, as a server installs them), each library built as
 # tools/az-build.sh builds it (the source and patches of its port at the commit of
-# az/az/files/deps.conf, its options and flags), with the base cc and with gcc16, and
+# az/az/files/deps.conf, its options and flags) with the base cc, with gcc16 as it
+# would be shipped (-fno-semantic-interposition) and with gcc16-si (GCC's default), and
 # the benchmarks of tools/lib-bench.php and of the programs of the libraries, each run
 # with one build of one library in front of that of az (LD_LIBRARY_PATH), az itself
 # as the control. The table goes to the job log (step Report) and to the job
@@ -32,7 +33,7 @@ permissions:
 jobs:
   bench:
     runs-on: ubuntu-latest
-    # gcc16 and the build tools, 2 builds of 11 libraries, 9 rounds of about 80 runs of 3s
+    # gcc16 and the build tools, 3 builds of 11 libraries, 9 rounds of about 110 runs of 3s
     timeout-minutes: 300
     name: lib-bench
     steps:
