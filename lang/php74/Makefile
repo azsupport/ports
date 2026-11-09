@@ -41,6 +41,12 @@
 #   (--sync, from the modules); the rc.d script php_fpm74 runs their php-fpm74
 #   as the profiles of www/apache24. Nothing of a profile is a file of the
 #   package; pkg-message says how.
+# - The compiler (aZ, 09.11.2026): GCC of the ports (lang/gcc16) for the C,
+#   at build time only, by USES=azgcc of the overlay (Mk/Uses/azgcc.mk: why,
+#   and how no file needs a library of GCC at run time): the core, mod_php74
+#   and the modules (they take it from here), but those with C++ (intl, swoole,
+#   openswoole) and imagick and gmagick (OpenMP), which keep the base clang
+#   (AZ_GCC=no in their rules).
 # - No DEPRECATED/EXPIRATION_DATE: the fork carries the security fixes.
 # - The Apache module (PKGNAMEPREFIX mod_) with the idioms of the framework of
 #   f16b6dd (USES=apache before bsd.port.pre.mk, as lang/php84 there).
@@ -56,8 +62,8 @@
 # version first), PORTREVISION (the stamp), CATEGORIES?=, MASTER_SITES,
 # DISTNAME (the top directory of the tarball, without DISTVERSION),
 # DIST_SUBDIR, distinfo (through MASTERDIR), MAINTAINER, WWW, LICENSE and USES
-# (compiler:c11 cpe gnome pkgconfig tar:xz); it sets COMMENT, CONFLICTS_INSTALL,
-# USES+= php:ext
+# (azgcc compiler:c11 cpe gnome pkgconfig tar:xz); it sets COMMENT,
+# CONFLICTS_INSTALL, USES+= php:ext
 # (php:zend), PHP_VER=74, PHP_MODNAME, WRKSRC and EXTRACT_AFTER_ARGS (only
 # ${DISTNAME}/ext/<module>), PLIST=${NONEXISTENT}, the options and arguments of
 # each module, and includes bsd.port.options.mk and bsd.port.pre.mk itself.
@@ -79,6 +85,8 @@ WWW=		https://github.com/azsupport/php-src
 LICENSE=	PHP301
 
 USES+=		compiler:c11 tar:xz cpe gnome pkgconfig
+# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
+USES+=		azgcc
 CPE_PRODUCT=	php
 NO_OPTIONS_SORT=yes
 

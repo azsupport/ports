@@ -32,6 +32,9 @@
 # - Options: no MYSQLND (the module php83-mysqlnd), no PCRE (above); EMBED and
 #   DTRACE off by default; PHPDBG off is --disable-phpdbg. OPcache is the
 #   module php83-opcache; this PHP loads modules.
+# - The compiler: GCC of the ports for the C, at build time only (USES=azgcc,
+#   Mk/Uses/azgcc.mk), as lang/php74: the core, mod_php83 and the modules but
+#   intl, swoole, openswoole, imagick and gmagick (the base clang).
 # - Profiles: bin/php83-profile (files/php-profile.in, the template of every
 #   version) and the profiles of the rc.d script php_fpm83, as lang/php74.
 # - The Apache module (PKGNAMEPREFIX mod_): libphp83.so (8.x builds
@@ -48,7 +51,7 @@
 # PORTNAME, DISTVERSION?= (a PECL extension sets its own version first),
 # PORTREVISION, CATEGORIES?=, MASTER_SITES, DISTNAME (without DISTVERSION),
 # DIST_SUBDIR, distinfo (through MASTERDIR), MAINTAINER, WWW, LICENSE, USES
-# (compiler:c11 cpe gnome pkgconfig tar:xz) and PHP_VER (83).
+# (azgcc compiler:c11 cpe gnome pkgconfig tar:xz) and PHP_VER (83).
 
 PORTNAME=	php83
 DISTVERSION?=	8.3.36
@@ -65,6 +68,8 @@ WWW=		https://github.com/azsupport/php-src
 LICENSE=	PHP301
 
 USES+=		compiler:c11 cpe gnome pkgconfig tar:xz
+# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
+USES+=		azgcc
 CPE_PRODUCT=	php
 PHP_VER=	83
 
