@@ -109,10 +109,13 @@ full_commit() {
 # commits: <module> <origin> <commit> (the head of our Makefile.ext says so)
 PECL_ELSEWHERE="gmagick graphics/pecl-gmagick 57eddb3fa57f0798f57bfaeb6eff73ce64d2ec58"
 # The official port of a PECL module when it is not <category>/pecl-<module>:
-# imagick links ImageMagick 7, as pecl-imagick-im7 (a slave of pecl-imagick)
+# imagick links ImageMagick 7, as pecl-imagick-im7 (a slave of pecl-imagick);
+# memcached of 5.6 is memcached 2, databases/pecl-memcached2 (pecl-memcached of
+# d2c06ef5efae is 3.x, IGNORE_WITH_PHP=56)
 pecl_candidates() { # <category> <module>
     case "$2" in
     imagick) echo "$1/pecl-imagick-im7 $1/pecl-imagick" ;;
+    memcached) [ "$V" = 56 ] && echo "$1/pecl-memcached2 $1/pecl-memcached" || echo "$1/pecl-$2" ;;
     *) echo "$1/pecl-$2" ;;
     esac
 }
@@ -403,11 +406,14 @@ udiff() { diff -u "$1" "$2" | sed '1,2d'; }
 fence() { printf '%s\n' '```diff'; cat; printf '%s\n' '```'; }
 details() { printf '<details><summary>%s</summary>\n\n' "$1"; fence; printf '\n</details>\n'; }
 
-# patch_state <patch> <dir>: what the patch is to the source in <dir>
+# patch_state <patch> <dir>: what the patch is to the source in <dir>; reversed
+# without fuzz (-F0): with the fuzz of patch a hunk that only removes lines
+# applies reversed to the unpatched source too (its context cut down to the
+# lines around them), so a patch the source lacks read as in it
 patch_state() {
     [ -n "$srcdir" ] || return 0
     if [ ! -d "$2" ]; then printf ' (no %s in SRCDIR)' "${2#"$srcdir"/}"; return 0; fi
-    if patch -p0 -R -f -s --dry-run -d "$2" < "$1" > /dev/null 2>&1; then printf ' (in the source)'
+    if patch -p0 -R -F0 -f -s --dry-run -d "$2" < "$1" > /dev/null 2>&1; then printf ' (in the source)'
     elif patch -p0 --forward -f -s --dry-run -d "$2" < "$1" > /dev/null 2>&1; then printf ' (**not in the source**: it applies)'
     else printf ' (**does not apply** to the source, either way)'
     fi
