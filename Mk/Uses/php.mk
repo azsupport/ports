@@ -211,13 +211,12 @@ PHP_EXT_DIR!=	${PHPBASE}/bin/php-config${PHP_VER} --extension-dir | ${SED} -ne '
 
 # The core of the version is not installed yet: what it will have. The module
 # API of each version (the extension dir lib/php/<API>, which our cores set) and
-# the extensions built into the core (those of our cores for 5.6, 7.4, 8.1, 8.2
-# and 8.3; those of the official ports for the versions not written in the
-# overlay yet).
+# the extensions built into the core (those of our cores, 5.6 to 8.4).
 .  if empty(PHP_EXT_DIR) || empty(PHP_EXT_INC)
 .    if ${PHP_VER:U} == 84
+# lang/php84 of the overlay: openssl is a module (php84-openssl), not in the core
 PHP_EXT_DIR=	20240924
-PHP_EXT_INC=	hash json openssl pcre random spl
+PHP_EXT_INC=	hash json pcre random spl
 .    elif ${PHP_VER:U} == 83
 # lang/php83 of the overlay: openssl is a module (php83-openssl), not in the core
 PHP_EXT_DIR=	20230831
