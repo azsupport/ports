@@ -29,9 +29,9 @@
 # process would have two C++ runtimes of different ABIs. imagick and gmagick
 # too: their configure links the OpenMP runtime of the compiler, which for GCC
 # is libgomp of the gcc package.
-# AZ_GCC_CFLAGS: more flags for the C compiled by GCC (lang/php56:
-# -Wno-error=incompatible-pointer-types, an error of GCC 14 and later that the
-# base clang has as a warning).
+# AZ_GCC_CFLAGS: more flags for the C compiled by GCC, for a port that needs
+# them (none now: lang/php56 had -Wno-error=incompatible-pointer-types until
+# its tarball fixed the three places, 09.11.2026).
 #
 # What it does:
 # - USE_GCC=${AZ_GCC}:build of the framework (Mk/bsd.gcc.mk): CC, CPP and CXX
