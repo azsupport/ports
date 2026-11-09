@@ -74,6 +74,8 @@ sysvsem_DEPENDS=	devel/php${PHP_VER}-sysvsem
 sysvshm_DEPENDS=	devel/php${PHP_VER}-sysvshm
 tidy_DEPENDS=		www/php${PHP_VER}-tidy
 tokenizer_DEPENDS=	devel/php${PHP_VER}-tokenizer
+# wddx: PHP 5.6 only (moved to PECL in PHP 7.4)
+wddx_DEPENDS=		textproc/php${PHP_VER}-wddx
 xml_DEPENDS=		textproc/php${PHP_VER}-xml
 xmlreader_DEPENDS=	textproc/php${PHP_VER}-xmlreader
 xmlrpc_DEPENDS=		net/php${PHP_VER}-xmlrpc
