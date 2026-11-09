@@ -1,11 +1,15 @@
+# The Apache module of PHP 8.2 of azsupport/php-src: the official www/mod_php82
+# of freebsd-ports 438e512499a9. The module is libphp82.so (see
+# lang/php82/Makefile), so it conflicts with no mod_php of another version: no
+# CONFLICTS_INSTALL. PHP_PORT for the WARNING of the master, as mod_php74.
+
 CATEGORIES=	www devel
 PKGNAMEPREFIX=	mod_
 
-MAINTAINER=	bofh@FreeBSD.org
+MAINTAINER=	github@azsupport.com
 
-CONFLICTS_INSTALL=	mod_php[0-9][0-9]
-
-MASTERDIR=	${.CURDIR}/../../lang/php82
+PHP_PORT=	lang/php82
+MASTERDIR=	${.CURDIR}/../../${PHP_PORT}
 
 OPTIONS_DEFINE=		AP2FILTER
 OPTIONS_EXCLUDE=	CGI CLI EMBED FPM
