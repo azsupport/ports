@@ -58,6 +58,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` and `ffprobe` with only the formats the video sites need |
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, the programs with 6 at the end (`convert6`, `identify6`, ...) |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); its `libMagickWand-7.so` in `/usr/local/az/lib` for the module imagick |
+| `yt-dlp` | `www/yt-dlp` | yt-dlp of a release newer than the official port, with our `ffmpeg` |
 | `php74` | `lang/php74` | the core of PHP 7.4: CLI, php-fpm, phpize |
 | `mod_php74` | `www/mod_php74` | the Apache module `libphp74.so` |
 | `php74-<module>` | `<category>/php74-<module>` | a package per module (`php74-gd`: `graphics/php74-gd`); the PECL ones without "pecl": `php74-redis`, `php74-swoole`, `php74-igbinary`, `php74-memcached`, `php74-memcache`, `php74-imagick`, `php74-gmagick`, `php74-mcrypt`, `php74-excimer`, `php74-openswoole`; OPcache and json are modules too (`php74-opcache`, `php74-json`), mysqlnd as well (`php74-mysqlnd`: the database modules use it) |
@@ -109,6 +110,14 @@ Names and origins as the ports, files at the paths of the ports:
   its shared `libGraphicsMagick` and `libGraphicsMagickWand` (symbol prefix `Gm`) and
   `GraphicsMagick-config` in `/usr/local/az`, for gmagick of PHP
   (`--with-gmagick=/usr/local/az`). Build and run: az.
+- **`www/yt-dlp`**: the package `yt-dlp` in the place of the official one: the official
+  port as it is, at a newer release of yt-dlp (the grabbers of the video sites need the
+  extractors of the latest), depending on our `multimedia/ffmpeg`; its Python packages are
+  the official ones. A new release: `DISTVERSION` and `distinfo` (the size and SHA-256 of
+  `yt-dlp.tar.gz`, compared with the `SHA2-256SUMS` of the release, by
+  [`distinfo.yml`](.github/workflows/distinfo.yml) when the sandbox cannot fetch it). Tests
+  after the install: [`tools/ytdlp-test.sh`](tools/ytdlp-test.sh) (an HLS stream from a
+  local server, fixed by our ffmpeg into MP4, as the grabbers download).
 - These six: the version of the official port at the pinned commit (or of the take
   line of its conf) with the build stamp as `PORTREVISION`; every distfile in the fetch
   phase; tests after the install: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
@@ -177,6 +186,13 @@ The programs:
 
 ```sh
 pkg install -r az curl ffmpeg ImageMagick6 ImageMagick7
+```
+
+yt-dlp without `-r az`: its Python packages are in the repository of FreeBSD, and pkg
+takes `yt-dlp` of az by `priority: 100`:
+
+```sh
+pkg install yt-dlp
 ```
 
 The nonfree FFmpeg: `ffmpeg-nonfree` (multimedia/ffmpeg with the AAC encoder
