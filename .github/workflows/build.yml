@@ -231,6 +231,26 @@ jobs:
             rm -rf work packages
             exit 0
 
+      # vmactions copies repo/ back without deleting: what tools/build.sh removed there (an
+      # older package of an origin, an origin the tree has no more, a name with a comma)
+      # would stay here, in the cache and in the release. results/repo-files.txt has the
+      # files the VM left in repo/
+      - name: The repository as the VM left it
+        if: ${{ always() && steps.build.outcome != 'skipped' }}
+        run: |
+          if [ ! -f results/repo-files.txt ]; then
+            echo "no results/repo-files.txt (tools/build.sh did not get that far): repo/ stays as it is"
+            exit 0
+          fi
+          for f in repo/*; do
+            [ -e "$f" ] || continue
+            if ! grep -qxF "${f##*/}" results/repo-files.txt; then
+              echo "removed, not in the repository of the VM: ${f##*/}"
+              rm -rf "$f"
+            fi
+          done
+          ls repo | wc -l
+
       # the repository of this run for the next one, also when the run failed (only repo/:
       # the caches of a repository have 10 GB)
       - name: The repository of this run, kept for the next one
