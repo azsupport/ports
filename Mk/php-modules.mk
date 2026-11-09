@@ -35,6 +35,8 @@ gd_DEPENDS=		graphics/php${PHP_VER}-gd
 gettext_DEPENDS=	devel/php${PHP_VER}-gettext
 gmagick_DEPENDS=	graphics/php${PHP_VER}-gmagick
 gmp_DEPENDS=		math/php${PHP_VER}-gmp
+# hash: a module of PHP 5.6 (a part of the core from 7.4: PHP_EXT_INC)
+hash_DEPENDS=		security/php${PHP_VER}-hash
 iconv_DEPENDS=		converters/php${PHP_VER}-iconv
 igbinary_DEPENDS=	converters/php${PHP_VER}-igbinary
 imagick_DEPENDS=	graphics/php${PHP_VER}-imagick
@@ -44,6 +46,8 @@ mbstring_DEPENDS=	converters/php${PHP_VER}-mbstring
 mcrypt_DEPENDS=		security/php${PHP_VER}-mcrypt
 memcache_DEPENDS=	databases/php${PHP_VER}-memcache
 memcached_DEPENDS=	databases/php${PHP_VER}-memcached
+# mysql: PHP 5.6 only (removed in PHP 7.0)
+mysql_DEPENDS=		databases/php${PHP_VER}-mysql
 mysqli_DEPENDS=		databases/php${PHP_VER}-mysqli
 mysqlnd_DEPENDS=	databases/php${PHP_VER}-mysqlnd
 opcache_DEPENDS=	www/php${PHP_VER}-opcache
