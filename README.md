@@ -119,6 +119,16 @@ Names and origins as the ports, files at the paths of the ports:
 - **60 module ports** `php74-<module>`: the names without "pecl", the origins as the
   official ports or ours (`graphics/php74-gd`, `databases/php74-redis`), the ini
   `ext-NN-<module>.ini`, those of openswoole and gmagick off.
+- **The compiler of PHP** (every version, aZ 09.11.2026): GCC 16 of the ports
+  (`lang/gcc16`) builds the cores, the Apache modules and the modules, a build dependency
+  only: no file needs a library of GCC (`-static-libgcc`, the run path `/usr/local/az/lib`
+  only). The Zend VM of PHP 7 and later keeps its registers in global register variables
+  with GCC, not with clang: the CLI of 7.4 is 33–44% faster than with the base clang 19,
+  that of 8.3 36–38% without OPcache and 5–15% with OPcache and its JIT
+  ([bench.sh](https://github.com/azsupport/php-src/blob/master/tools/bench.sh) of php-src).
+  The modules with C++ (intl, swoole, openswoole) and imagick and gmagick (they link the
+  OpenMP runtime of the compiler) keep the base clang. The annotation `az_cc` of each
+  package says which (`pkg info -A php74`); [`Mk/Uses/azgcc.mk`](Mk/Uses/azgcc.mk).
 
 ## The layout of PHP on a server
 
