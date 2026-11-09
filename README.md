@@ -44,8 +44,7 @@ servers (amd64), so that nothing is built on the servers.
   [`php-7.4.33-fbsd-20261104-397aa202.tar.xz`](https://github.com/azsupport/php-src/releases/download/freebsd-7.4-20261104-397aa202/php-7.4.33-fbsd-20261104-397aa202.tar.xz)),
   which carry the patches of the FreeBSD port, the PECL extensions in `ext/` and the
   PCRE2 the fork bundles: our PHP ports apply no patches of their own.
-- Now only PHP 7.4 and x86-64-v3: everything is worked out there first, the other
-  versions and x86-64-v2 come after.
+- PHP 5.6, 7.4, 8.1, 8.2, 8.3 and 8.4, for x86-64-v3 first; x86-64-v2 comes after.
 
 ## The packages
 
@@ -59,15 +58,15 @@ Names and origins as the ports, files at the paths of the ports:
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, the programs with 6 at the end (`convert6`, `identify6`, ...) |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); its `libMagickWand-7.so` in `/usr/local/az/lib` for the module imagick |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp of a release newer than the official port, with our `ffmpeg` |
-| `php74` | `lang/php74` | the core of PHP 7.4: CLI, php-fpm, phpize |
-| `mod_php74` | `www/mod_php74` | the Apache module `libphp74.so` |
-| `php74-<module>` | `<category>/php74-<module>` | a package per module (`php74-gd`: `graphics/php74-gd`); the PECL ones without "pecl": `php74-redis`, `php74-swoole`, `php74-igbinary`, `php74-memcached`, `php74-memcache`, `php74-imagick`, `php74-gmagick`, `php74-mcrypt`, `php74-excimer`, `php74-openswoole`; OPcache and json are modules too (`php74-opcache`, `php74-json`), mysqlnd as well (`php74-mysqlnd`: the database modules use it) |
+| `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
+| `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
+| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 58 per version, 60 for 7.4; the list of one: `pkg search -r az '^php84-'` |
 
-- openssl in two kinds, one of the two: `php74-openssl` and `php74-openssl-legacy` (the
+- openssl in two kinds, one of the two: `phpXY-openssl` and `phpXY-openssl-legacy` (the
   legacy provider of OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
-- `php74-swoole` and `php74-openswoole` can both be installed; the ini of openswoole is
+- `phpXY-swoole` and `phpXY-openswoole` can both be installed; the ini of openswoole is
   off (they define the same classes), its package message says how to switch.
-- `php74-imagick` and `php74-gmagick` can both be installed, but must not be loaded into one
+- `phpXY-imagick` and `phpXY-gmagick` can both be installed, but must not be loaded into one
   PHP (GraphicsMagick and ImageMagick have the same function names): the ini of gmagick is
   off, and installing it makes the CLI profile gmagick (`/usr/local/etc/php74-gmagick`:
   gmagick on, imagick off; `php74-profile gmagick script.php`), which stays when the
@@ -123,11 +122,14 @@ Names and origins as the ports, files at the paths of the ports:
   [`distinfo.yml`](.github/workflows/distinfo.yml) when the sandbox cannot fetch it). Tests
   after the install: [`tools/ytdlp-test.sh`](tools/ytdlp-test.sh) (an HLS stream from a
   local server, fixed by our ffmpeg into MP4, as the grabbers download).
-- **`lang/php74`** and **`www/mod_php74`**: the core `php74` and the Apache module
-  `libphp74.so`; PCRE2 10.49 is the one the fork bundles (a port `devel/pcre2` later, aZ 08.11.2026).
-- **60 module ports** `php74-<module>`: the names without "pecl", the origins as the
-  official ports or ours (`graphics/php74-gd`, `databases/php74-redis`), the ini
-  `ext-NN-<module>.ini`, those of openswoole and gmagick off.
+- **`lang/phpXY`** and **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): the core
+  `phpXY` and the Apache module `libphpXY.so`, each from the official port of the commit
+  of its version (the table above); PCRE2 10.49 is the one the fork bundles (a port
+  `devel/pcre2` later, aZ 08.11.2026).
+- **The module ports** `phpXY-<module>` (58 per version, 60 for 7.4): the names without
+  "pecl", the origins as the official ports or ours (`graphics/php74-gd`,
+  `databases/php74-redis`), the ini `ext-NN-<module>.ini`, those of openswoole and
+  gmagick off.
 - **The compiler of PHP** (every version, aZ 09.11.2026): GCC 16 of the ports
   (`lang/gcc16`) builds the cores, the Apache modules and the modules, a build dependency
   only: no file needs a library of GCC (`-static-libgcc`, the run path `/usr/local/az/lib`
@@ -141,7 +143,9 @@ Names and origins as the ports, files at the paths of the ports:
 
 ## The layout of PHP on a server
 
-The versions side by side, nothing shared between them:
+The versions side by side, nothing shared between them; for 7.4 (the others the same
+with their own number, and the API of their modules: 5.6 `20131226`, 8.1 `20210902`,
+8.2 `20220829`, 8.3 `20230831`, 8.4 `20240924`):
 
 | | |
 |---|---|
@@ -173,6 +177,10 @@ pkg update -r az
 
 `priority: 100`: for a package both have (`curl`), pkg prefers az to the repository
 of FreeBSD. `pkg update -r az` refuses a catalog whose signature does not verify.
+`ffmpeg`, `ImageMagick6`, `ImageMagick7` and `GraphicsMagick` of az do not have the
+shared libraries of the official packages (`libavcodec.so`, `libMagickWand-7.so` in
+`/usr/local/lib`, ...): when another package needs them (`pkg info -r ffmpeg`), keep the
+official package.
 
 PHP 7.4 with its modules:
 
@@ -202,6 +210,12 @@ PHP 8.2 with its modules (side by side as well: `etc/php82`, `lib/php/20220829`,
 
 ```sh
 pkg install -r az php82 mod_php82 php82-opcache php82-gd php82-mbstring php82-openssl-legacy
+```
+
+PHP 8.4 with its modules (side by side as well: `etc/php84`, `lib/php/20240924`, `include/php84`):
+
+```sh
+pkg install -r az php84 mod_php84 php84-opcache php84-gd php84-mbstring php84-openssl-legacy
 ```
 
 The programs:
