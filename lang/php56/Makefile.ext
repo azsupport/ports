@@ -344,6 +344,15 @@ CONFIGURE_ARGS+=--with-pdo-sqlite=${AZ_PREFIX}
 USE_PHP=	pdo:build
 .endif
 
+# the headers of pdo for its drivers: PHP_CHECK_PDO_INCLUDES of PHP 5.6
+# (acinclude.m4, for phpize too) looks for them in ${prefix}/include/php only,
+# the layout of the official port (from PHP 7.0 in the include directory of
+# phpize), so configure stops with "Cannot find php_pdo_driver.h." here: those
+# of php56-pdo by its cache variable
+.if ${PHP_MODNAME} == "pdo_mysql" || ${PHP_MODNAME} == "pdo_sqlite"
+CONFIGURE_ENV+=	pdo_cv_inc_path=${PHPBASE}/include/php${PHP_VER}/php/ext
+.endif
+
 .if ${PHP_MODNAME} == "phar"
 CONFIGURE_ARGS+=--enable-phar
 
