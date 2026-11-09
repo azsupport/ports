@@ -61,6 +61,9 @@
 # - Options: no MYSQLND in the core (the module php56-mysqlnd: no
 #   --enable-mysqlnd); EMBED off by default, as lang/php74. OPcache is the
 #   module php56-opcache; this PHP loads modules.
+# - The compiler: GCC of the ports for the C, at build time only (USES=azgcc,
+#   Mk/Uses/azgcc.mk), as lang/php74 (aZ, 09.11.2026: for 5.6 too): the core,
+#   mod_php56 and the modules but intl and imagick (the base clang).
 # - No DEPRECATED/EXPIRATION_DATE (upstream end of life 31.12.2018 in the
 #   official port): the fork carries the security fixes, as for 7.4.
 # - Profiles: bin/php56-profile (files/php-profile.in, the template of every
@@ -81,7 +84,8 @@
 # from here PORTNAME, DISTVERSION?= (a PECL extension sets its own version
 # first), PORTREVISION, CATEGORIES?=, MASTER_SITES, DISTNAME (without
 # DISTVERSION), DIST_SUBDIR, distinfo (through MASTERDIR), MAINTAINER, WWW,
-# LICENSE, USES (cpe tar:xz), PHP_VER (56) and AZ_XML2_CONFIG.
+# LICENSE, USES (azgcc cpe tar:xz), PHP_VER (56), AZ_XML2_CONFIG and
+# AZ_GCC_CFLAGS.
 
 PORTNAME=	php56
 DISTVERSION?=	5.6.40
@@ -98,6 +102,20 @@ WWW=		https://github.com/azsupport/php-src
 LICENSE=	PHP301
 
 USES+=		tar:xz cpe
+# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
+USES+=		azgcc
+# GCC 14 and later stop at incompatible pointer types, which the base clang
+# warns about: PHP 5.6 has three, none a fault (a Linux build of the core and
+# of every C module of 5.6 with GCC 14 and with GCC 16.1, -std=gnu17:
+# ext/session/session.c:867 and ext/wddx/wddx.c:542, a char ** for an
+# unsigned char ** or a non-const one; ext/mbstring/libmbfl/filters/
+# mbfilter_iso2022jp_mobile.c:51, an array for a pointer to it), so they stay
+# warnings for 5.6, as with the base clang. The other errors of GCC 14
+# (implicit declarations of functions, implicit int, conversions between
+# integers and pointers) do not occur there and stay errors, being faults
+# (sapi/cli/ps_title.c called setproctitle() undeclared on FreeBSD until the
+# tarball of 09.11.2026); the code built on FreeBSD only shows in its builds
+AZ_GCC_CFLAGS=	-Wno-error=incompatible-pointer-types
 CPE_PRODUCT=	php
 NO_OPTIONS_SORT=yes
 PHP_VER=	56
