@@ -3,21 +3,39 @@
 # PKGNAMESUFFIX (-<module>; a PECL extension also DISTVERSION, its version) and
 # includes the Makefile of lang/php83, which includes this file.
 #
-# Base: lang/php74/Makefile.ext of this overlay (the head there says what it
-# changes of the official rules and why: the libraries of az, the options of
-# php-src freebsd/ext.conf, USE_PHP, CONFLICTS_INSTALL, the ini of openswoole
-# and gmagick, the profiles, ZLIB_LIBS of zlib), with the rules of the
-# official lang/php83 of freebsd-ports eb0100f974b6 (inline in its Makefile
-# there) for what 8.3 changes. What differs from the rules of 7.4:
+# Base: the rules of the modules of the official lang/php83 of freebsd-ports
+# eb0100f974b6 (the ports commit of PHP 8.3 in php-src freebsd/targets.conf;
+# inline in its Makefile there), its slave ports (their files/) and the PECL
+# ports of that commit, with the changes of this overlay as
+# lang/php74/Makefile.ext has them (its head says what and why: the libraries
+# of az, the options of php-src freebsd/ext.conf, USE_PHP, CONFLICTS_INSTALL,
+# the ini of openswoole and gmagick, the profiles, ZLIB_LIBS of zlib), as
+# lang/php81/Makefile.ext for 8.1. What 8.3 has otherwise:
 # - no json (built into the core since PHP 8.0: PHP_EXT_INC, so USE_PHP=json
 #   needs no package) and no xmlrpc (removed from PHP 8.0; PECL xmlrpc is not
-#   in php-src freebsd/pecl.conf);
+#   in php-src freebsd/pecl.conf); ext.conf has the lines of 7.4 only, so the
+#   modules and their options are those of 7.4 but these two;
 # - the PECL extensions are those of ext/<name> of the 8.3 tarball, their
 #   versions those of php-src freebsd/pecl.conf for 8.3 (memcache 8.2, swoole
 #   6.2.5; the others as for 7.4); package php83-<name>, origin
-#   <category>/php83-<name>, as every module (Mk/php-modules.mk);
-# - swoole 6: no options HTTP2 and JSON (HTTP/2 is always on, json is in the
-#   core of PHP 8), OpenSSL of the base system with --with-openssl-dir;
+#   <category>/php83-<name>, as every module (Mk/php-modules.mk). Their rules:
+#   converters/pecl-igbinary, databases/pecl-memcache, databases/pecl-memcached,
+#   databases/php-redis, devel/pecl-excimer, devel/php-swoole,
+#   graphics/pecl-imagick and security/pecl-mcrypt of eb0100f974b6; gmagick as
+#   for 7.4 (no port has it for PHP 7 or 8); openswoole ours, as for 7.4;
+# - TEST_TARGET and the CPPFLAGS of intl here, as the official file has them
+#   (7.4: in the slaves); the slaves are those of eb0100f974b6 with a
+#   pkg-descr; no lang/php83-extensions (the meta-port), as for 7.4;
+# - the patches of the official slaves (files/ of zlib, dba, xml, xsl, and the
+#   post-patch of xsl in its slave) as they are; ours: the config.m4 of
+#   readline (GNU readline under phpize) and of imagick (its m4 path);
+# - swoole and redis with the options of their ports and the libraries of az;
+#   mysqli with mysqlnd only and dba with lmdb0, as the official 8.3;
+# - the options of dba, gd, mbstring and pdo_mysql in the form of
+#   lang/php74/Makefile.ext (.if on PORT_OPTIONS after bsd.port.options.mk,
+#   where the libraries of az and USE_PHP go too); the official 8.3 has option
+#   helpers with the same arguments (its GDBM, LMDB and QDBM _CONFIGURE_ARGS
+#   are no helpers: those options passed nothing);
 # - IGNORE_WITH_PHP that of the official lang/php83.
 #
 # The modules, by the priority of their ini (ext-<NN>-<module>.ini): opcache
@@ -47,6 +65,8 @@ PLIST=		${NONEXISTENT}
 DESCR=		${.CURDIR}/pkg-descr
 
 EXTRACT_AFTER_ARGS?=	${EXTSUBDIR}
+
+TEST_TARGET=	test
 
 # AZ_LIBS (per module): the libraries of ${AZ_PREFIX}/lib the module links
 # (Mk/Uses/php.mk links them with their run path, found by the pkg-config of az)
@@ -124,6 +144,8 @@ CONFIGURE_ARGS+=--enable-filter
 .endif
 
 .if ${PHP_MODNAME} == "ftp"
+# FTP over SSL with the OpenSSL of the base system: --with-openssl-dir of
+# ext.conf (the port: PHP_OPENSSL=yes; ext/ftp/config.m4 takes either)
 CONFIGURE_ARGS+=--enable-ftp \
 		--with-openssl-dir=/usr
 
@@ -173,9 +195,12 @@ CONFIGURE_ARGS+=--with-iconv=${AZ_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "intl"
+# ICU of az; ext/intl/config.m4 of 8.3 builds with C++17 for ICU 74 and later
+# itself (7.4: USES=compiler:c++17-lang in its slave)
 AZ_LIBS=	libicui18n.so
 CONFIGURE_ARGS+=--enable-intl
 USES+=		pkgconfig
+CPPFLAGS+=	-DU_USING_ICU_NAMESPACE=1
 .endif
 
 .if ${PHP_MODNAME} == "mbstring"
@@ -191,13 +216,13 @@ PHP_HEADER_DIRS=libmbfl libmbfl/filters libmbfl/mbfl libmbfl/nls
 .endif
 
 .if ${PHP_MODNAME} == "mysqli"
-# --with-mysql-sock only for mysqli (ext.conf)
-CONFIGURE_ARGS+=--with-mysql-sock=/tmp/mysql.sock
+# as the official 8.3: mysqli of PHP 8.2 and later has mysqlnd only (configure
+# stops at another value of --with-mysqli), so no option MYSQLND; mysqlnd is a
+# module here; --with-mysql-sock only for mysqli (ext.conf)
+CONFIGURE_ARGS+=--with-mysqli \
+		--with-mysql-sock=/tmp/mysql.sock
 
-OPTIONS_DEFINE=	MYSQLND
-OPTIONS_DEFAULT=MYSQLND
-
-MYSQLND_DESC=	Use MySQL Native Driver
+USE_PHP=	mysqlnd:build
 .endif
 
 .if ${PHP_MODNAME} == "mysqlnd"
@@ -218,7 +243,7 @@ CONFIGURE_ENV+=		OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 			OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
 .  if ${PKGNAMESUFFIX} == "-openssl-legacy"
 # Ours: the legacy provider of OpenSSL loaded too (RC4, Blowfish, DES, CAST5,
-# MD4; aZ's sites need RC4); the same files as php74-openssl
+# MD4; aZ's sites need RC4); the same files as php83-openssl
 COMMENT=	The openssl shared extension for php, with the legacy provider
 CONFIGURE_ARGS+=	--with-openssl-legacy-provider
 CONFLICTS_INSTALL=	php${PHP_VER}-openssl
@@ -427,25 +452,31 @@ AZ_MSG_REMOVE=	"The CLI profile gmagick, ${AZ_PROFILE}, stays; to" \
 
 .if ${PHP_MODNAME} == "igbinary"
 COMMENT=	Replacement for the standard PHP serializer
-WWW=		https://pecl.php.net/package/igbinary
+WWW=		https://pecl.php.net/package/igbinary \
+		https://github.com/igbinary/igbinary
 
 LICENSE=	BSD3CLAUSE
 LICENSE_FILE=	${WRKSRC}/COPYING
 
 CONFIGURE_ARGS+=--enable-igbinary
-# Its session serializer
+# Its session serializer (ext.conf), which the official tree builds in a port
+# of its own, converters/pecl-igbinary-session: one package here, so not the
+# CONFLICTS_INSTALL=php*-pecl-igbinary-session of the port (no such package
+# is ours; pkg stops at a conflict of files anyway)
 USE_PHP=	session:build
 # not files/patch-php85 of the port: zend_smart_string.h for PHP 8.5 only
 .endif
 
 .if ${PHP_MODNAME} == "imagick"
-# graphics/pecl-imagick-im7: ImageMagick 7, that of the overlay in
-# ${AZ_PREFIX} (libraries, MagickWand-config) with its configuration in
-# ${LOCALBASE}/etc/ImageMagick-7
-COMMENT=	PHP wrapper to the ImageMagick/GraphicsMagick library version 7
+# graphics/pecl-imagick of eb0100f974b6 (USES=magick: ImageMagick 7 by
+# default; pecl-imagick-im7 was merged into it in 2023): ImageMagick 7 of the
+# overlay in ${AZ_PREFIX} (libraries, MagickWand-config) with its
+# configuration in ${LOCALBASE}/etc/ImageMagick-7
+COMMENT=	PHP wrapper to the ImageMagick/GraphicsMagick library
 WWW=		https://pecl.php.net/package/imagick
 
 LICENSE=	PHP301
+LICENSE_FILE=	${WRKSRC}/LICENSE
 
 CPE_VENDOR=	php
 CPE_PRODUCT=	imagick
@@ -470,9 +501,13 @@ CONFIGURE_ARGS+=--with-mcrypt=${AZ_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "memcache"
-# Not the USES=dos2unix and USE_CSTD=gnu89 of the port: they were for its 8.0
+# Not the USES=dos2unix and USE_CSTD=gnu89 of the port (8.2 there too):
+# ext/memcache of the tarball has no CRLF line ends, no patch of the port is
+# applied here, and its headers pick extern inline for C11 themselves; not its
+# option EXAMPLES (example.php; EXAMPLES is in the OPTIONS_UNSET of aZ)
 COMMENT=	Memcached extension
-WWW=		https://github.com/websupport-sk/pecl-memcache
+WWW=		https://pecl.php.net/package/memcache \
+		https://github.com/websupport-sk/pecl-memcache
 
 LICENSE=	PHP30
 LICENSE_FILE=	${WRKSRC}/LICENSE
@@ -489,10 +524,16 @@ CONFIGURE_ARGS+=--enable-memcache \
 # not the protocol and SASL of the port (ext.conf: libmemcachedprotocol needs
 # libevent, SASL cyrus-sasl2)
 COMMENT=	PHP extension for interfacing with memcached via libmemcached library
-WWW=		https://pecl.php.net/package/memcached
+WWW=		https://pecl.php.net/package/memcached \
+		https://github.com/php-memcached-dev/php-memcached
 
 LICENSE=	PHP30
 LICENSE_FILE=	${WRKSRC}/LICENSE
+
+# the CPE of the port (USES=cpe comes from lang/php83, whose PORTNAME and
+# CPE_PRODUCT are not those of memcached)
+CPE_VENDOR=	php
+CPE_PRODUCT=	memcached
 
 AZ_LIBS=	libmemcached.so
 
@@ -519,63 +560,103 @@ SASL_LIB_DEPENDS=	libsasl2.so:security/cyrus-sasl2
 .endif
 
 .if ${PHP_MODNAME} == "redis"
-# zstd (ext.conf) and lz4 compression, the options ZSTD and LZ4 of the port
-# (on by default), with libzstd and liblz4 of az; json: the json serializer of
-# redis is on by default
+# databases/php-redis of eb0100f974b6 (the release of GitHub there, ext/redis of
+# the tarball here): its options LZ4 and ZSTD (on by default; zstd also in
+# ext.conf) with liblz4 and libzstd of az; IGBINARY on (ext.conf); the json
+# serializer of redis is on by default (json is in the core)
 COMMENT=	Extension to access Redis
-WWW=		https://pecl.php.net/package/redis
+WWW=		https://github.com/phpredis/phpredis
 
 LICENSE=	PHP301
-# LICENSE in 6.3.0 (COPYING in 5.3.7 of the port)
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-AZ_LIBS=	libzstd.so liblz4.so
+USE_PHP=	session:build
 
-USE_PHP=	hash:build json:build session:build
+CONFIGURE_ARGS+=--enable-redis
 
-CONFIGURE_ARGS+=--enable-redis \
-		--enable-redis-zstd \
-		--with-libzstd=${AZ_PREFIX} \
-		--enable-redis-lz4 \
-		--with-liblz4=${AZ_PREFIX}
+OPTIONS_DEFINE=	IGBINARY LZ4 ZSTD
+OPTIONS_DEFAULT=IGBINARY LZ4 ZSTD
 
-OPTIONS_DEFINE=	IGBINARY
-OPTIONS_DEFAULT=IGBINARY
 IGBINARY_DESC=	Build with Igbinary serializer
+LZ4_DESC=	Build with lz4 support
+ZSTD_DESC=	Build with zstd support
 
-IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
 IGBINARY_USE=			PHP=igbinary:build
+IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
+
+LZ4_CONFIGURE_ON=	--enable-redis-lz4 \
+			--with-liblz4=${AZ_PREFIX}
+LZ4_VARS=		AZ_LIBS+=liblz4.so
+
+ZSTD_CONFIGURE_ON=	--enable-redis-zstd \
+			--with-libzstd=${AZ_PREFIX}
+ZSTD_VARS=		AZ_LIBS+=libzstd.so
 .endif
 
 .if ${PHP_MODNAME} == "swoole"
-# mysqlnd is a module here; brotli of az, OpenSSL of the base system
-# (ext.conf); not USES=localbase:ldflags: no library of the ports
+# devel/php-swoole of eb0100f974b6 (6.2.3 there), built from ext/swoole of the
+# tarball: mysqlnd is a module here (USE_PHP); the options BROTLI, with the
+# brotli of az, and SOCKETS on (ext.conf); not USES=localbase:ldflags: no
+# library of the ports by default. Brotli and OpenSSL by pkg-config, into
+# SWOOLE_SHARED_LIBADD: not the --with-brotli-dir and --with-openssl-dir of
+# ext.conf, whose branches of config.m4 add the libraries to LIBS only, which
+# phpize does not link (swoole.so needed no libssl, libcrypto, libbrotlienc and
+# libbrotlidec). Swoole 6.2 has no --enable-openssl (OpenSSL is always in), so
+# not that of the port either. The pkg-config of the modules is that of az
+# (Mk/Uses/php.mk): it searches ${AZ_PREFIX}/lib/pkgconfig, where az has no
+# OpenSSL (its OpenSSL is static, for the static tree only), then
+# /usr/libdata/pkgconfig, where FreeBSD 15 installs libssl.pc and libcrypto.pc
+# of its OpenSSL, and nothing else (PKG_CONFIG_PATH unset): never an OpenSSL of
+# the ports. Without them configure stops (PKG_CHECK_MODULES).
 COMMENT=	Asynchronous, concurrent, and distributed networking framework
-WWW=		https://pecl.php.net/package/swoole
+WWW=		https://github.com/swoole/swoole-src
 
 LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-USES+=		compiler:c11 ssl
-USE_PHP=	hash:build pcre mysqlnd:build
-AZ_LIBS=	libbrotlienc.so
+NOT_FOR_ARCHS=	i386 powerpc
+NOT_FOR_ARCHS_REASON=	upstream drop 32 bits support
+
+USES+=		compiler:c11 pkgconfig ssl
+USE_PHP=	mysqlnd:build
 
 CONFIGURE_ARGS+=	--enable-swoole \
-			--enable-mysqlnd \
-			--with-openssl-dir=/usr \
-			--enable-brotli \
-			--with-brotli-dir=${AZ_PREFIX}
+			--enable-mysqlnd
 
-OPTIONS_DEFINE=		CARES CURL SOCKETS
-OPTIONS_DEFAULT=	SOCKETS
-CARES_LIB_DEPENDS=	libcares.so:dns/c-ares
+OPTIONS_DEFINE=		BROTLI CARES CURL FIREBIRD ODBC PGSQL SOCKETS SQLITE \
+			SSH2 ZSTD
+OPTIONS_DEFAULT=	BROTLI SOCKETS
+BROTLI_CONFIGURE_OFF=	--disable-brotli
+BROTLI_CONFIGURE_ON=	--enable-brotli
+BROTLI_VARS=		AZ_LIBS+=libbrotlienc.so
 CARES_CONFIGURE_ON=	--enable-cares
-SOCKETS_USE=		PHP=sockets:build
-SOCKETS_DESC=		Use native php sockets extension
-SOCKETS_CONFIGURE_ON=	--enable-sockets
-CURL_LIB_DEPENDS=	libcurl.so:ftp/curl
+CARES_LIB_DEPENDS=	libcares.so:dns/c-ares
 CURL_CONFIGURE_ON=	--enable-swoole-curl
+CURL_LIB_DEPENDS=	libcurl.so:ftp/curl
 CURL_USE=		PHP=curl
+FIREBIRD_CONFIGURE_ON=	--with-swoole-firebird
+FIREBIRD_USE=		PHP=pdo:build
+FIREBIRD_USES=		firebird
+# ODBC needs the module odbc, which this overlay does not build (USE_PHP fails)
+ODBC_CONFIGURE_OFF=	--without-swoole-odbc
+ODBC_CONFIGURE_ON=	--with-swoole-odbc=unixODBC
+ODBC_USE=		PHP=odbc:build
+PGSQL_CONFIGURE_ON=	--enable-swoole-pgsql
+PGSQL_USE=		PHP=pdo:build
+PGSQL_USES=		pgsql
+SOCKETS_CONFIGURE_ON=	--enable-sockets
+SOCKETS_DESC=		Use native php sockets extension
+SOCKETS_USE=		PHP=sockets:build
+SQLITE_CONFIGURE_OFF=	--disable-swoole-sqlite
+SQLITE_CONFIGURE_ON=	--enable-swoole-sqlite
+SQLITE_USE=		PHP=pdo:build
+SQLITE_USES=		sqlite
+SSH2_CONFIGURE_ON=	--with-swoole-ssh2
+SSH2_DESC=		Enable SSH2 support
+SSH2_LIB_DEPENDS=	libssh2.so:security/libssh2
+ZSTD_CONFIGURE_OFF=	--disable-zstd
+ZSTD_CONFIGURE_ON=	--enable-zstd
+ZSTD_LIB_DEPENDS=	libzstd.so:archivers/zstd
 # not files/patch-src_core_misc.cc of the port (6.2.3): in 6.2.5 already
 .endif
 
@@ -651,19 +732,10 @@ CONFIGURE_ARGS+=--disable-flatfile
 .	endif
 
 .	if ${PORT_OPTIONS:MLMDB}
-LIB_DEPENDS+=	liblmdb.so:databases/lmdb
-CONFIGURE_ARGS+=	--with-lmdb=${LOCALBASE}
+# LMDB 0.9 of databases/lmdb0, as the official 8.3 (databases/lmdb is 1.0)
+LIB_DEPENDS+=	liblmdb0.so:databases/lmdb0
+CONFIGURE_ARGS+=	--with-lmdb=${LOCALBASE}/lmdb0
 .endif
-.endif
-
-.if ${PHP_MODNAME} == "mysqli"
-.	if ${PORT_OPTIONS:MMYSQLND}
-CONFIGURE_ARGS+=--with-mysqli=mysqlnd
-USE_PHP=	mysqlnd:build
-.	else
-CONFIGURE_ARGS+=--with-mysqli=${LOCALBASE}/bin/mysql_config
-USES+=	mysql
-.	endif
 .endif
 
 .if ${PHP_MODNAME} == "pdo_mysql"
