@@ -1,0 +1,7 @@
+Phar: PHP archives (an application in one file), tar and zip archives;
+their SHA-256 and SHA-512 signatures with the module hash.
+
+The module phar of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/phar.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/phar.

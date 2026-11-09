@@ -4,7 +4,8 @@
 # tools/check-php.sh) into the job log, the job summary ($GITHUB_STEP_SUMMARY) and
 # annotations (an error for each port that failed or was not built and for checks
 # that failed, a notice for the outcome), so that it shows on the page of the run
-# and in the API.
+# and in the API; the configure check of tools/build.sh (results/configure-check.txt)
+# as a section and an annotation of its own, which do not fail the run.
 #
 # Usage: sh tools/report.sh [<results>]    (default: results/ of the tree)
 # REPORT_TITLE: the title of the summary (default "azsupport/ports").
@@ -95,6 +96,28 @@ done
     echo '```'
     echo
 } >> "$summary"
+
+# the configure check (AZ_CONFIGURE_CHECK of tools/build.sh): results/configure-check.txt
+# in the summary (its first 5000 lines), and an annotation of its head (a warning
+# when a PHP port has differences); it does not fail the run
+if [ -s "$res/configure-check.txt" ]; then
+    echo "==================== the configure check"
+    cat "$res/configure-check.txt"
+    nd="$(sed -n 's/^PHP ports: [0-9]* configured, \([0-9]*\) with differences.*/\1/p' "$res/configure-check.txt")"
+    case "$nd" in ''|*[!0-9]*) nd="?"; level=warning ;; 0) level=notice ;; *) level=warning ;; esac
+    sed -n '/^PHP ports: /,/^$/p' "$res/configure-check.txt" | grep . | cut -c1-600 > "$tmp/cc.txt"
+    annot "$level" "$title: the configure check ($nd PHP ports with differences)" "$tmp/cc.txt"
+    {
+        echo "### $title: the configure check (each PHP port configured once more, permissive)"
+        echo
+        echo '```'
+        head -n 5000 "$res/configure-check.txt"
+        echo '```'
+        n="$(wc -l < "$res/configure-check.txt" | tr -d ' ')"
+        [ "$n" -gt 5000 ] && echo "($n lines: the rest in results/configure-check.txt)"
+        echo
+    } >> "$summary"
+fi
 
 # the checks of PHP: results/checks.txt (a line per version, written by the workflow)
 # and the output of tools/check-php.sh, results/check-php-<version>.txt

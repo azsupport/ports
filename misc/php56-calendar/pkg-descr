@@ -1,0 +1,7 @@
+Calendar: conversion between the Julian Day Count and the Gregorian,
+Julian, Jewish and French Republican calendars, and the date of Easter.
+
+The module calendar of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/calendar.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/calendar.

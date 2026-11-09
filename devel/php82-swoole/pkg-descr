@@ -1,0 +1,16 @@
+Asynchronous & concurrent & distributed networking framework for PHP.
+
+* event-driven
+* full asynchronous non-blocking
+* multi-thread reactor
+* multi-process worker
+* millisecond timer
+* async MySQL
+* async task
+* async read/write file system
+* async dns lookup
+* support IPv4/IPv6/UnixSocket/TCP/UDP
+
+PECL swoole for php82 of azsupport/ports, built from ext/swoole of the
+release tarball of azsupport/php-src, which bundles it:
+lib/php/20220829/swoole.so, loaded by its ini in etc/php82/conf.d.

@@ -14,7 +14,10 @@ name: Build the packages of the repository az
 # the new repository with the new ones. Before the VM, tools/check-tree.sh checks the
 # ports of this tree with make -V against a sparse official tree (bmake). Up to
 # "jobs" ports build at once (AZ_JOBS of tools/build.sh: waves of the ports whose
-# dependencies are done; 1: one after another, as before).
+# dependencies are done; 1: one after another, as before). With "configure_check"
+# each PHP port built is configured once more, with the errors of C of GCC 14+ and
+# clang 16+ as warnings, and compared with its build (AZ_CONFIGURE_CHECK of
+# tools/build.sh: results/configure-check.txt, a section of the report).
 # Started by hand: Actions, "Build the packages of the repository az", "Run workflow".
 
 on:
@@ -41,6 +44,11 @@ on:
         description: 'Ports built at once (AZ_JOBS of tools/build.sh, in waves); 1: one after another'
         required: false
         default: '4'
+      # AZ_CONFIGURE_CHECK of tools/build.sh: one more configure of each PHP port built
+      configure_check:
+        description: 'The configure check: each PHP port built configured once more, permissive, and compared (results/configure-check.txt); with force: every PHP port'
+        type: boolean
+        default: false
       # off by default: the repository the servers read is published on aZ's word
       publish:
         description: 'Publish the repository (the release the servers read) when everything built and every check passed'
@@ -176,13 +184,14 @@ jobs:
           AZ_PORTS: ${{ inputs.ports }}
           AZ_FORCE: ${{ inputs.force && '1' || '' }}
           AZ_JOBS: ${{ inputs.jobs || '4' }}
+          AZ_CONFIGURE_CHECK: ${{ inputs.configure_check && '1' || '' }}
           AZ_PKG_KEY: ${{ steps.key.outputs.b64 }}
         with:
           release: ${{ inputs.release }}
           # the runner has 16 GB: 12 GB for the VM (up to 4 builds at once, each with
           # make -j of the 4 vCPUs), about 4 GB left to the host
           mem: 12288
-          envs: 'AZ_CPUTYPE AZ_PORTS AZ_FORCE AZ_JOBS AZ_PKG_KEY'
+          envs: 'AZ_CPUTYPE AZ_PORTS AZ_FORCE AZ_JOBS AZ_CONFIGURE_CHECK AZ_PKG_KEY'
           prepare: |
             if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
             env ASSUME_ALWAYS_YES=yes pkg install -y git-lite
@@ -372,7 +381,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} publish=${{ inputs.publish }}
+          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} configure_check=${{ inputs.configure_check }} publish=${{ inputs.publish }}
           RUNS_STEPS: build=${{ steps.build.outcome }} outcome=${{ steps.outcome.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
           PART: ${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"

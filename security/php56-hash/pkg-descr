@@ -1,0 +1,9 @@
+Hash: message digests and HMAC (hash, hash_hmac, hash_file: MD5,
+SHA-1, SHA-2, RIPEMD, Whirlpool, CRC32 and others) and the mhash
+functions on them. A module in PHP 5.6 (a part of the core from PHP
+7.4); phar needs it.
+
+The module hash of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/hash.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/hash.

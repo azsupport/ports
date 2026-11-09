@@ -1,0 +1,6 @@
+iconv: character set conversion with GNU libiconv of the package az.
+
+The module iconv of PHP 8.2 for php82 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20220829/iconv.so, loaded by its ini in etc/php82/conf.d, its
+headers in include/php82/php/ext/iconv.

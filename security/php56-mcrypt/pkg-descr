@@ -1,0 +1,8 @@
+mcrypt: the mcrypt functions (block ciphers and their modes) with
+libmcrypt of the package az, bundled in PHP 5.6 (removed from PHP 7.2;
+PECL mcrypt there).
+
+The module mcrypt of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/mcrypt.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/mcrypt.

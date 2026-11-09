@@ -30,6 +30,8 @@
 #   AZ_DRYRUN        1: the queue, the hashes and the waves of the run (what the
 #                    repository has with the same az_hash left out), nothing installed
 #                    or built, no repository
+#   AZ_CONFIGURE_CHECK  1: the configure check of the PHP ports the run configures
+#                    (tools/configure-check.sh; results/configure-check.txt)
 #
 # How (the logic of poudriere, with make and pkg of the host):
 # - the official tree of freebsd-ports at the pinned commit below (git, depth 1, reused
@@ -75,11 +77,23 @@
 #   checked (tools/pkg-repo-sign.sh); <dir> keeps a signed catalog or none: without
 #   the signature (no key, or the key fails) its catalog goes, the packages stay, and
 #   an unsigned catalog of them in work/repo-unsigned serves the checks of the run
-#   only (never published).
+#   only (never published);
+# - AZ_CONFIGURE_CHECK=1: after the build of a PHP port (lang/phpXY, www/mod_phpXY,
+#   a module phpXY-<module>, PECL and clang ones too), whatever its result once its
+#   configure ran, what that configure found is kept (config.log, main/php_config.h
+#   or config.h, the generated Makefile), make configure runs once more in a
+#   WRKDIRPREFIX of its own with the same compiler and the permissive flags of
+#   tools/configure-check.sh (the errors of C of GCC 14+ and clang 16+ as warnings)
+#   in CFLAGS_<arch>, which bsd.port.mk appends to the CFLAGS of the port (so these
+#   stay, and nothing of Mk/ or of a hash changes), and tools/configure-check.sh
+#   compares the two: a test of configure whose result depends on those errors.
 #
 # Results: results/ of the tree: summary.txt (a line per port, "result: OK" or
 # "result: FAIL (...)" at the end), queue.txt, hashes.txt, waves.txt (AZ_JOBS above 1,
-# AZ_DRYRUN), logs/<category>_<port>.log, pkg-repo.log.
+# AZ_DRYRUN), logs/<category>_<port>.log, pkg-repo.log; with AZ_CONFIGURE_CHECK=1
+# configure-check.txt (each port with differences, the checks with their diagnostic,
+# then the others) and configure-check/ (a file per port, the two config.log files of
+# a port with differences).
 # Exit status: 0 every port of the queue built or kept and the repository signed (or
 # unsigned without a key), or a dry run; 1 otherwise, 2 a wrong call.
 
@@ -126,6 +140,7 @@ case "$jobs" in
     ''|*[!0-9]*|0*) die "AZ_JOBS=$jobs: not a number of 1 or more" ;;
 esac
 case "${AZ_DRYRUN:-}" in ''|0) dryrun=0 ;; *) dryrun=1 ;; esac
+case "${AZ_CONFIGURE_CHECK:-}" in ''|0) ccheck=0 ;; *) ccheck=1 ;; esac
 # one port after another as before AZ_JOBS: AZ_JOBS=1 (not a dry run)
 serial=0
 [ "$jobs" = 1 ] && [ "$dryrun" = 0 ] && serial=1
@@ -142,7 +157,7 @@ work="$(cd "$work" && pwd)"
 repo="$(cd "$repo" && pwd)"
 # the real path of the tree: the files of the hashes are named relative to it
 topr="$(cd "$top" && pwd -P)"
-rm -rf "${q:?}"/* "${res:?}" "$work/pk"
+rm -rf "${q:?}"/* "${res:?}" "$work/pk" "$work/cc" "$work/ccw"
 mkdir -p "$res/logs" "$q/info" "$q/deps" "$q/rdeps" "$q/odeps" "$q/orun" "$q/pkgbase" "$q/state" "$q/file" "$q/hash" ||
     die "cannot make $res and $q"
 # make package writes packages/All/<pkgname>.pkg (the directory must exist, else
@@ -560,7 +575,7 @@ overlay_rev="$(git -C "$top" log -1 --format='%h %s' 2>/dev/null)"
         r && /^ *url *:/ { u = $0; sub(/^ *url *: *"?/, "", u); sub(/"?,? *$/, "", u) }
         r && /^ *enabled *: *(yes|true)/ && n != "" { printf "%s%s %s", s, n, u; s = ", " }')"
     echo "repo:     $repo ($(npkg "$repo") packages before the run)"
-    echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')$( [ "$serial" = 0 ] && echo ", AZ_JOBS=$jobs")$( [ "$dryrun" = 1 ] && echo ', AZ_DRYRUN')"
+    echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')$( [ "$serial" = 0 ] && echo ", AZ_JOBS=$jobs")$( [ "$dryrun" = 1 ] && echo ', AZ_DRYRUN')$( [ "$ccheck" = 1 ] && echo ', AZ_CONFIGURE_CHECK')"
 } > "$sum"
 
 # --- the builds ------------------------------------------------------------------------
@@ -640,6 +655,83 @@ need_root() {
     printf '%s' "$_nr"
 }
 
+# --- the configure check (AZ_CONFIGURE_CHECK=1) -----------------------------------------
+# php_port <origin>: a port of PHP: a core lang/phpXY, mod_phpXY, a module phpXY-*
+php_port() {
+    case "$1" in lang/php[0-9][0-9]|www/mod_php[0-9][0-9]|*/php[0-9][0-9]-*) return 0 ;; esac
+    return 1
+}
+# cc_flags <cc>: the permissive flags the compiler takes (tools/configure-check.sh
+# probe), once for each compiler of the run ($q/ccflags-*, written whole: the
+# builds of a wave ask at once; none, a compiler not there, is not kept)
+cc_flags() {
+    _cf="$q/ccflags-$(printf '%s' "$1" | tr -c 'A-Za-z0-9' '_')"
+    if [ ! -s "$_cf" ]; then
+        sh "$top/tools/configure-check.sh" probe "$1" 2> /dev/null | grep . > "$_cf.$k"
+        if [ -s "$_cf.$k" ]; then
+            printf '%s\n' "$1" > "$_cf.cc.$k" && mv -f "$_cf.cc.$k" "$_cf.cc"
+            mv -f "$_cf.$k" "$_cf"
+        else
+            rm -f "$_cf.$k"
+            return 0
+        fi
+    fi
+    cat "$_cf"
+}
+# cc_check <origin>: after the build of a PHP port and its make clean (the results
+# of its configure saved before by make_port into $work/cc/<key>/strict): make
+# configure once more in the WRKDIRPREFIX $work/ccw/<key>, with the permissive
+# flags of its compiler in CFLAGS_<arch> (appended to its CFLAGS by bsd.port.mk;
+# what the port has in that variable stays first), the results saved, compared
+# (results/configure-check/<key>.txt, its exit status in <key>.rc; the two
+# config.log files there too when they differ), then away with both
+cc_check() {
+    _cd="$work/cc/$k"; _pw="$work/ccw/$k"
+    mkdir -p "$res/configure-check"
+    if [ -f "$_cd/strict/config.log" ]; then
+        rm -rf "$_pw"
+        # (the last one an expression of make, not of the shell)
+        # shellcheck disable=SC2016
+        make -C "$top/$1" WRKDIRPREFIX="$_pw" -V WRKDIR -V CONFIGURE_WRKSRC -V CC -V ARCH \
+            -V '${CFLAGS_${ARCH}}' > "$_cd/vars" 2> /dev/null
+        _pwd="$(sed -n 1p "$_cd/vars")"; _pcw="$(sed -n 2p "$_cd/vars")"; _cc="$(sed -n 3p "$_cd/vars")"
+        _arch="$(sed -n 4p "$_cd/vars")"; _own="$(sed -n 5p "$_cd/vars")"
+        _fl=""
+        [ -n "$_cc" ] && _fl="$(cc_flags "$_cc")"
+        if [ -z "$_pwd" ] || [ -z "$_arch" ] || [ -z "$_fl" ]; then
+            mkdir -p "$_cd/permissive"
+            echo "no permissive configure: make -V WRKDIR, CC, ARCH gave '${_pwd}', '${_cc}', '${_arch}'; the flags $_cc takes: '${_fl}'" > "$_cd/permissive/none"
+        else
+            say "$1: the configure check: make configure again, permissive ($_cc: $_fl)"
+            make -C "$top/$1" configure USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" \
+                WRKDIRPREFIX="$_pw" "CFLAGS_$_arch=${_own:+$_own }$_fl" > "$_cd/permissive.log" 2>&1
+            _prc=$?
+            sh "$top/tools/configure-check.sh" save "$_cd/permissive" "$_pwd" "$_pcw" "$_cc" "$_fl"
+            # make configure failed before configure ran: its last lines say why
+            if [ -f "$_cd/permissive/none" ]; then
+                echo "make configure: exit $_prc: $(grep . "$_cd/permissive.log" | tail -n 2 | tr '\n' ' ' | cut -c1-300)" >> "$_cd/permissive/none"
+            fi
+            make -C "$top/$1" WRKDIRPREFIX="$_pw" clean > /dev/null 2>&1
+            rm -rf "$_pw"
+        fi
+    fi
+    sh "$top/tools/configure-check.sh" compare "$1 ($pn)" "$_cd/strict" "$_cd/permissive" > "$res/configure-check/$k.txt"
+    _crc=$?
+    echo "$_crc" > "$res/configure-check/$k.rc"
+    if [ "$_crc" = 1 ]; then
+        cp "$_cd/strict/config.log" "$res/configure-check/$k.strict.config.log" 2> /dev/null
+        cp "$_cd/permissive/config.log" "$res/configure-check/$k.permissive.config.log" 2> /dev/null
+    fi
+    rm -rf "$_cd"
+    case "$_crc" in
+        0) _cw="the same" ;;
+        1) _cw="$(sed -n '1s/^== [^:]*: //p' "$res/configure-check/$k.txt" | cut -c1-120)" ;;
+        *) _cw="not compared" ;;
+    esac
+    say "$1: the configure check: $_cw (results/configure-check/$k.txt)"
+    echo "configure check: $_cw" >> "$log"
+}
+
 # make_port <origin> [<packages>]: make clean package of a port, its result said (the
 # line of the summary); with <packages> (AZ_JOBS above 1) the build writes its
 # packages into <packages>/All, moved into packages/All after it (each build its
@@ -664,15 +756,26 @@ make_port() {
         AZ_RESULTS="$res/az-results/$k" ${_pk:+PACKAGES="$_pk"} >> "$log" 2>&1
     rc=$?
     secs=$(( $(date +%s) - start ))
-    # the config.log files of a failed build next to its log, then the work directory away
-    if [ "$rc" != 0 ]; then
-        wd="$(make -C "$top/$1" -V WRKDIR 2>/dev/null)"
+    cck=0
+    [ "$ccheck" = 1 ] && php_port "$1" && cck=1
+    if [ "$rc" != 0 ] || [ "$cck" = 1 ]; then
+        make -C "$top/$1" -V WRKDIR -V CONFIGURE_WRKSRC -V CC > "$q/wd-$k" 2> /dev/null
+        wd="$(sed -n 1p "$q/wd-$k")"
+    fi
+    # the config.log files of a failed build next to its log (that of a module is in
+    # <WRKDIR>/<distname>/ext/<module>), then the work directory away
+    if [ "$rc" != 0 ] && [ -n "$wd" ]; then
         n=0
-        for c in $(find "$wd" -maxdepth 3 -name config.log 2>/dev/null); do
+        for c in $(find "$wd" -maxdepth 4 -name config.log 2>/dev/null); do
             n=$((n + 1)); cp "$c" "$res/logs/$k.config-$n.log"
         done
     fi
+    # the configure check: what the configure of the build found, before make clean
+    if [ "$cck" = 1 ]; then
+        sh "$top/tools/configure-check.sh" save "$work/cc/$k/strict" "$wd" "$(sed -n 2p "$q/wd-$k")" "$(sed -n 3p "$q/wd-$k")"
+    fi
     make -C "$top/$1" clean > /dev/null 2>&1
+    [ "$cck" = 1 ] && cc_check "$1"
     # the packages of a build of its own into packages/All
     if [ -n "$_pk" ] && [ "$rc" = 0 ] && [ -f "$_pk/All/$pn.pkg" ]; then
         : > "$q/made-$k"
@@ -908,6 +1011,77 @@ else
     done
     # the summary in the order of the queue
     for o in $(cat "$q/queue.txt"); do cat "$q/sum/$(key "$o")" 2> /dev/null; done >> "$sum"
+fi
+
+# the configure check: results/configure-check.txt, the PHP ports of the queue in
+# its order: those with differences (each with its checks and their diagnostics),
+# those not compared, those the same, those not configured in this run (kept from
+# the repository, failed or skipped before their configure); a line in the summary
+if [ "$ccheck" = 1 ] && [ "$dryrun" = 0 ]; then
+    cr="$res/configure-check"
+    mkdir -p "$cr"
+    : > "$q/cc.diff"; : > "$q/cc.not"; : > "$q/cc.same"; : > "$q/cc.none"
+    while read -r o; do
+        php_port "$o" || continue
+        k="$(key "$o")"
+        case "$(cat "$cr/$k.rc" 2> /dev/null)" in
+            0) echo "$o" >> "$q/cc.same" ;;
+            1) echo "$o" >> "$q/cc.diff" ;;
+            2) echo "$o" >> "$q/cc.not" ;;
+            *)
+                case "$(st "$o")" in
+                    repo) w="kept from the repository" ;;
+                    skip) w="not built: it needs a port that failed" ;;
+                    fail) w="failed before its build" ;;
+                    *) w="no result of the check" ;;
+                esac
+                echo "$o ($w)" >> "$q/cc.none" ;;
+        esac
+    done < "$q/queue.txt"
+    ndiff="$(grep -c . "$q/cc.diff")"; nnot="$(grep -c . "$q/cc.not")"
+    nsame="$(grep -c . "$q/cc.same")"; nnone="$(grep -c . "$q/cc.none")"
+    {
+        echo "The configure check (AZ_CONFIGURE_CHECK=1, tools/configure-check.sh): each PHP port"
+        echo "configured in this run configured once more after its build, with the same compiler"
+        echo "and the errors of C of GCC 14+ and clang 16+ as warnings (permissive), and compared"
+        echo "with the configure of its build (strict): the result of each \"checking\" of config.log,"
+        echo "the header (main/php_config.h, config.h of a module), the variables of the Makefile."
+        echo "A difference is a test whose result depends on those errors; the package has the"
+        echo "strict one. The diagnostic: the errors in the config.log of the failed test."
+        echo
+        for f in "$q"/ccflags-*; do
+            case "$f" in *.cc|*.cc.*) continue ;; esac
+            [ -f "$f" ] && echo "permissive flags of $(cat "$f.cc" 2> /dev/null): $(cat "$f")"
+        done
+        echo "PHP ports: $((ndiff + nnot + nsame)) configured, $ndiff with differences, $nsame the same, $nnot not compared; $nnone not configured in this run"
+        [ "$ndiff" -gt 0 ] && echo "with differences: $(tr '\n' ' ' < "$q/cc.diff" | sed 's/ $//')"
+        while read -r o; do
+            echo
+            cat "$cr/$(key "$o").txt"
+        done < "$q/cc.diff"
+        if [ "$nnot" -gt 0 ]; then
+            echo
+            echo "not compared:"
+            while read -r o; do sed 's/^== /  /' "$cr/$(key "$o").txt"; done < "$q/cc.not"
+        fi
+        if [ "$nsame" -gt 0 ]; then
+            echo
+            echo "the same:"
+            tr '\n' ' ' < "$q/cc.same" | sed 's/ $//' | fold -s -w 100 | sed 's/^/  /; s/ *$//'
+        fi
+        if [ "$nnone" -gt 0 ]; then
+            echo
+            echo "not configured in this run (kept from the repository, or failed or skipped before configure; force: every port):"
+            sed 's/^/  /' "$q/cc.none"
+        fi
+    } > "$res/configure-check.txt"
+    # the ports with differences in the summary, ten at most
+    dl=""
+    if [ "$ndiff" -gt 0 ]; then
+        dl=" ($(head -n 10 "$q/cc.diff" | tr '\n' ' ' | sed 's/ $//')$( [ "$ndiff" -gt 10 ] && echo " and $((ndiff - 10)) more"))"
+    fi
+    echo "configure check: $((ndiff + nnot + nsame)) PHP ports configured, $ndiff with differences$dl, $nnot not compared (results/configure-check.txt)" >> "$sum"
+    say "the configure check: $ndiff PHP ports with differences, $nsame the same, $nnot not compared, $nnone not configured (results/configure-check.txt)"
 fi
 
 if [ "$dryrun" = 1 ]; then

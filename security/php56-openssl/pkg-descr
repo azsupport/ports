@@ -1,0 +1,8 @@
+OpenSSL: encryption, signatures and certificates with the OpenSSL
+of the base system. php56-openssl-legacy is the same module with the
+legacy provider of OpenSSL; install one of the two.
+
+The module openssl of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/openssl.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/openssl.

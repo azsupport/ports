@@ -1,0 +1,6 @@
+Provides a wrapper to the ImageMagick/GraphicsMagick library; here with
+ImageMagick 7 (the package ImageMagick7).
+
+PECL imagick for php56 of azsupport/ports, built from ext/imagick
+of the release tarball of azsupport/php-src, which bundles it:
+lib/php/20131226/imagick.so, loaded by its ini in etc/php56/conf.d.

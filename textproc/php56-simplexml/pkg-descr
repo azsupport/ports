@@ -1,0 +1,6 @@
+SimpleXML: XML documents as objects, with libxml2 of the package az.
+
+The module simplexml of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/simplexml.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/simplexml.

@@ -33,6 +33,9 @@
 # - Options: no MYSQLND (the module php81-mysqlnd), no PCRE (above); EMBED and
 #   DTRACE off by default; PHPDBG off is --disable-phpdbg (8.1 builds phpdbg by
 #   default too). OPcache is the module php81-opcache; this PHP loads modules.
+# - The compiler: GCC of the ports for the C, at build time only (USES=azgcc,
+#   Mk/Uses/azgcc.mk), as lang/php74: the core, mod_php81 and the modules but
+#   intl, swoole, openswoole, imagick and gmagick (the base clang).
 # - No DEPRECATED/EXPIRATION_DATE (upstream end of life 31.12.2025 in the
 #   official port): the fork carries the security fixes, as for 7.4.
 # - Profiles: bin/php81-profile (files/php-profile.in, the template of every
@@ -51,7 +54,7 @@
 # here PORTNAME, DISTVERSION?= (a PECL extension sets its own version first),
 # PORTREVISION, CATEGORIES?=, MASTER_SITES, DISTNAME (without DISTVERSION),
 # DIST_SUBDIR, distinfo (through MASTERDIR), MAINTAINER, WWW, LICENSE, USES
-# (compiler:c11 cpe gnome pkgconfig tar:xz) and PHP_VER (81).
+# (azgcc compiler:c11 cpe gnome pkgconfig tar:xz) and PHP_VER (81).
 
 PORTNAME=	php81
 DISTVERSION?=	8.1.34
@@ -68,6 +71,8 @@ WWW=		https://github.com/azsupport/php-src
 LICENSE=	PHP301
 
 USES+=		compiler:c11 cpe gnome pkgconfig tar:xz
+# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
+USES+=		azgcc
 CPE_PRODUCT=	php
 PHP_VER=	81
 
