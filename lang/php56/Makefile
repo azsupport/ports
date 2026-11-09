@@ -30,7 +30,8 @@
 #     IMAGETYPE_SWC when zlib is a module; the PHP ports here take no patch of
 #     the port (PORTS-SPEC), as lang/php74, whose official port has none:
 #     IMAGETYPE_SWC is not defined, and getimagesize() of a compressed Flash
-#     file gives a notice, as with a shared zlib upstream (a question to aZ);
+#     file gives a notice, as with a shared zlib upstream (aZ, 09.11.2026: as
+#     7.4);
 #   . patch-ext_zlib_config0.m4: for the --with-zlib-dir of the core (below);
 #   . patch-sapi_apache2filter_config.m4: the INSTALL_IT of apxs only (make
 #     install), which do-install of mod_php56 does not use, as for
