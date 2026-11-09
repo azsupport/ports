@@ -26,7 +26,10 @@
 #   the official 5.6, a part of the core from PHP 7.4), mysql (--with-mysql=
 #   mysqlnd, the line ext.conf announces for 5.6) and mcrypt (bundled in PHP
 #   5.6: security/php56-mcrypt of the official tree, PECL mcrypt for 7.2 and
-#   later). json is a module, as for 7.4; xmlrpc too.
+#   later). json is a module, as for 7.4; xmlrpc too. wddx too (aZ,
+#   09.11.2026), which needs no library of the ports (libxml2 of az): PHP 7.4
+#   moved it to PECL, so ext.conf has no line of 7.4 for it, and the static
+#   build of 5.6 of php-src has it not.
 # - the PECL extensions are those of ext/<name> of the 5.6 tarball, their
 #   versions those of php-src freebsd/pecl.conf for 5.6 (igbinary 2.0.8,
 #   memcache 3.0.8, memcached 2.2.0, redis 4.3.0, imagick 3.8.1, gmagick
@@ -47,10 +50,12 @@
 #   ports: --with-pcre-dir, the bundled PCRE of the fork is in the core; that
 #   of phar also sets PHP_HASH=yes for a check that PHP_HASH, empty under
 #   phpize, passes anyway), readline_cli.c of readline (in the source already:
-#   it includes config.h first) and patch-openssl11 of openssl (in the source
+#   it includes config.h first), patch-openssl11 of openssl (in the source
 #   already: the branch of Remi Collet builds with OpenSSL 1.1 and the fork with
-#   OpenSSL 3). The slaves are those of d2c06ef5efae with a pkg-descr (the
-#   official slaves of 2019 took that of lang/php56).
+#   OpenSSL 3) and config.m4 of wddx (--with-libxml-dir and PHP_SETUP_LIBXML,
+#   which its config.m4 of PHP 5.6 has; the patch of 2004 does not apply to
+#   it). The slaves are those of d2c06ef5efae with a pkg-descr (the official
+#   slaves of 2019 took that of lang/php56).
 # - ours, for the libraries of az and for building alone (phpize): the patch
 #   of intl for ICU 70 and later (files/patch-icu70), that of tidy for
 #   tidy-html5 (tidybuffio.h), that of imagick for its m4 path (as for 7.4),
@@ -58,7 +63,7 @@
 # - libxml2 by xml2-config, which PHP 5.6 takes (PHP_SETUP_LIBXML): that of az
 #   without the -L/lib of its --libs (AZ_XML2_CONFIG of lang/php56/Makefile:
 #   the run path of a module is ${AZ_PREFIX}/lib only), for dom, simplexml,
-#   soap, xml, xmlreader, xmlrpc, xmlwriter and xsl.
+#   soap, wddx, xml, xmlreader, xmlrpc, xmlwriter and xsl.
 # - not TEST_TARGET: the official 5.6 has none.
 # - gd with the bundled libgd of PHP 5.6 (the official 5.6 and the static build
 #   of 5.6 of php-src: --with-gd), with FreeType, PNG and JPEG of az, not the
@@ -74,14 +79,12 @@
 # exif fileinfo filter ftp gd gettext gmp hash iconv intl json mbstring mcrypt
 # mysqlnd openssl openssl-legacy pcntl pdo posix readline shmop simplexml soap
 # sockets sqlite3 sysvmsg sysvsem sysvshm tidy tokenizer xml xmlwriter zip zlib
-# gmagick imagick; 30: mysql mysqli pdo_mysql pdo_sqlite phar xmlreader xmlrpc
-# xsl igbinary memcache memcached redis.
+# gmagick imagick; 30: mysql mysqli pdo_mysql pdo_sqlite phar wddx xmlreader
+# xmlrpc xsl igbinary memcache memcached redis.
 #
 # Not built, as for 7.4: enchant, imap, ldap, odbc, pdo_dblib, pdo_firebird,
 # pdo_odbc, pdo_pgsql, pgsql, pspell, snmp, and of 5.6 interbase, mssql,
-# recode and sybase_ct (a library of the ports: firebird, freetds, recode);
-# wddx neither, which needs none (libxml2): it is not in the modules of 7.4 of
-# ext.conf (removed from PHP 7.4) nor in the static build of 5.6 of php-src.
+# recode and sybase_ct (a library of the ports: firebird, freetds, recode).
 
 COMMENT=	The ${PHP_MODNAME} shared extension for php
 
@@ -106,7 +109,7 @@ BUILD_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
 RUN_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
 
 # the modules of libxml2: xml2-config of az without -L/lib (AZ_XML2_CONFIG)
-AZ_XML2_MODULES=	dom simplexml soap xml xmlreader xmlrpc xmlwriter xsl
+AZ_XML2_MODULES=	dom simplexml soap wddx xml xmlreader xmlrpc xmlwriter xsl
 .if !empty(AZ_XML2_MODULES:M${PHP_MODNAME})
 CONFIGURE_ENV+=	ac_cv_php_xml2_config_path=${AZ_XML2_CONFIG}
 .endif
@@ -444,6 +447,20 @@ AZ_LIBS=	libtidy.so
 
 .if ${PHP_MODNAME} == "tokenizer"
 CONFIGURE_ARGS+=--enable-tokenizer
+.endif
+
+.if ${PHP_MODNAME} == "wddx"
+# textproc/php56-wddx of d2c06ef5efae (aZ, 09.11.2026: built, libxml2 is all
+# it needs), with libxml2 of az; its files/patch-wddx.c as it is (the session
+# serializer wddx also with session as a module, which USE_PHP builds it
+# with), not its files/patch-config.m4 of 2004: --with-libxml-dir and
+# PHP_SETUP_LIBXML, which the config.m4 of PHP 5.6 has of its own (the patch
+# does not apply to it)
+AZ_LIBS=	libxml2.so
+CONFIGURE_ARGS+=--enable-wddx \
+		--with-libxml-dir=${AZ_PREFIX}
+
+USE_PHP=	xml:build session:build
 .endif
 
 .if ${PHP_MODNAME} == "xml"
