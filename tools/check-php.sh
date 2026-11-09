@@ -32,16 +32,29 @@
 #     needs when it links a library there (no ldconfig hints); /usr/local/lib only
 #     for a library of a package the package of the file depends on (libpcre2-8 of
 #     devel/pcre2 for the core and mod_phpXY);
+#   - the compiler of the same files (Mk/Uses/azgcc.mk), by the annotation az_cc
+#     of the package of each, its section .comment (the compilers of its objects)
+#     and its NEEDED: php, php-cgi, php-fpm and libphp of mod_phpXY GCC <N> (az_cc
+#     gcc<N>; N is AZ_GCC of Mk/Uses/azgcc.mk), a module that of its az_cc; GCC:
+#     "GCC: (...) <N>." in .comment and no libgcc_s.so.1 (-static-libgcc); clang
+#     (intl, swoole, openswoole, imagick, gmagick): no GCC in .comment (which the
+#     strip of the base system removes) and no libstdc++ of GCC (C++ with the
+#     libc++ of the base system);
 #   - php-fpm -t with the configs of the package (php-fpm.conf, php-fpm.d/www.conf);
 #   - Apache with mod_phpXY: apachectl -t with its sample as
 #     modules.d/280_mod_phpXY.conf (removed again), the module among those Apache
-#     loads.
+#     loads;
+#   - a note (no check) with the time of Zend/bench.php without OPcache (php -n),
+#     the script taken from the release tarball of the version in distfiles/php
+#     of this tree (or DISTDIR/php).
 #
 # Usage: sh tools/check-php.sh <version>            (sh tools/check-php.sh 7.4)
 #
 # Every check prints one line: OK, FAIL with the reason, or SKIP with the reason;
 # the same lines go to results/check-php-<version>.txt (RESULTS=<dir> for another
-# directory). PREFIX (/usr/local) and AZ_PREFIX (/usr/local/az) can be set.
+# directory). PREFIX (/usr/local), AZ_PREFIX (/usr/local/az), AZ_GCC (the version
+# of GCC, else that of Mk/Uses/azgcc.mk) and DISTDIR (distfiles/ of this tree) can
+# be set.
 # Exit status: 0 no check failed, 1 a check failed, 2 usage.
 
 set -u
@@ -60,6 +73,11 @@ modso="$P/libexec/apache24/libphp$short.so"
 modsample="$P/etc/apache24/modules.d/280_mod_php$short.conf.sample"
 case "$ver" in 5.*) apmod=php5_module ;; 7.*) apmod=php7_module ;; *) apmod=php_module ;; esac
 libdirs="/lib /usr/lib $AZ/lib"
+# this tree: the version of GCC of the PHP ports (AZ_GCC of Mk/Uses/azgcc.mk), the
+# release tarballs of PHP (distfiles/php, as tools/build.sh fetches them)
+top="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)"
+gccv="${AZ_GCC:-$(sed -n 's/^AZ_GCC?=[[:space:]]*\([0-9][0-9]*\).*$/\1/p' "$top/Mk/Uses/azgcc.mk" 2>/dev/null | head -n 1)}"
+distphp="${DISTDIR:-$top/distfiles}/php"
 
 res="${RESULTS:-results}"
 mkdir -p "$res" || { echo "check-php: cannot make the directory $res" >&2; exit 2; }
@@ -145,6 +163,67 @@ elf_libs() {
         fail "$_n" "$(printf '%s' "${_bad# }" | sed 's/;$//')"
     else
         ok "$_n" "${_libs# }${_rp:+ (run path $_rp)}"
+    fi
+}
+
+# cc_check <file> [gcc]: the compiler of a file against the annotation az_cc of
+# its package (Mk/Uses/azgcc.mk: gcc<N> or clang; "gcc": the file must be of GCC).
+# gcc<N> (N: $gccv, AZ_GCC of Mk/Uses/azgcc.mk): the strings "GCC: (...) <N>.<...>"
+# in its section .comment (each object leaves its compiler there; the start files
+# of the base system name clang too) and no NEEDED libgcc_s.so.1 (-static-libgcc);
+# clang: no GCC in .comment (which the strip of the base system removes) and no
+# NEEDED libstdc++ (its C++ with the libc++ of the base system)
+cc_check() {
+    _f="$1"; _n="compiler of ${1#"$P"/}"
+    [ -f "$_f" ] || { fail "$_n" "no $_f"; return; }
+    _p="$(pkg which -q "$_f" 2>/dev/null)"
+    [ -n "$_p" ] || { fail "$_n" "no package has $_f"; return; }
+    _a="$(pkg query '%At %Av' "$_p" 2>/dev/null | awk '$1 == "az_cc" { print $2; exit }')"
+    _c="$(readelf -p .comment "$_f" 2>/dev/null | sed -n 's/^ *\[ *[0-9a-fA-F]*\] *//p' | sort -u)"
+    _d="$(readelf -d "$_f" 2>/dev/null | sed -n 's/.*[Ss]hared library: \[\(.*\)\].*/\1/p')"
+    _g="$(printf '%s\n' "$_c" | sed -n 's/^GCC: (.*) \([0-9][0-9.]*\).*$/\1/p' | sort -u | tr '\n' ' ' | sed 's/ *$//')"
+    _l="$(printf '%s\n' "$_c" | sed -n 's/^.*clang version \([0-9][0-9.]*\).*$/\1/p' | sort -u | tr '\n' ' ' | sed 's/ *$//')"
+    _why=""
+    # what the file must be: the az_cc of its package, GCC of Mk/Uses/azgcc.mk for "gcc"
+    _w="$_a"
+    case "$_a" in
+        gcc[0-9]*|clang) ;;
+        '') _why=" $_p has no annotation az_cc (Mk/Uses/azgcc.mk);" ;;
+        *) _why=" $_p has az_cc $_a, neither gcc<N> nor clang;" ;;
+    esac
+    case "${2:-}:$_a" in
+        gcc:gcc[0-9]*) ;;
+        gcc:*) _w="gcc$gccv"; [ -n "$_a" ] && _why="$_why $_p has az_cc $_a, not GCC;" ;;
+    esac
+    case "$_w" in
+        gcc*)
+            if [ -n "$gccv" ] && [ "$_w" != "gcc$gccv" ]; then
+                _why="$_why $_p has az_cc $_w, not gcc$gccv (Mk/Uses/azgcc.mk);"
+            fi
+            if [ -z "$_c" ]; then
+                _why="$_why no section .comment (a strip that removes it: not the strip of the binutils of the ports, STRIPBIN);"
+            elif [ -z "$_g" ]; then
+                _why="$_why .comment names no GCC: $(printf '%s\n' "$_c" | head -n 2 | tr '\n' ';' | cut -c1-160);"
+            else
+                for _v in $_g; do
+                    case "$_v" in "${_w#gcc}".*) ;; *) _why="$_why .comment names GCC $_v, not ${_w#gcc}.x;" ;; esac
+                done
+            fi
+            if printf '%s\n' "$_d" | grep -qx 'libgcc_s\.so\.1'; then
+                _why="$_why NEEDED libgcc_s.so.1 (not linked with -static-libgcc);"
+            fi
+            _got="GCC $_g, no libgcc_s.so.1" ;;
+        clang)
+            [ -z "$_g" ] || _why="$_why .comment names GCC $_g;"
+            _s="$(printf '%s\n' "$_d" | grep '^libstdc++' | head -n 1)"
+            [ -z "$_s" ] || _why="$_why NEEDED $_s, the C++ library of GCC;"
+            _got="clang ${_l:-(no .comment: the strip of the base system removes it)}"
+            if printf '%s\n' "$_d" | grep -qx 'libc++\.so\.1'; then _got="$_got, C++ with libc++.so.1"; fi ;;
+    esac
+    if [ -n "$_why" ]; then
+        fail "$_n" "$(printf '%s' "${_why# }" | sed 's/;$//')"
+    else
+        ok "$_n" "$_got ($_p: az_cc $_a)"
     fi
 }
 
@@ -372,6 +451,15 @@ for f in "$php" "$P/bin/php-cgi$short" "$fpm"; do
     [ -f "$f" ] && elf_libs "$f"
 done
 
+# The compiler of the programs (GCC) and of the modules (that of the az_cc of
+# their packages)
+for f in "$php" "$P/bin/php-cgi$short" "$fpm"; do
+    [ -f "$f" ] && cc_check "$f" gcc
+done
+for so in "$extdir"/*.so; do
+    [ -f "$so" ] && cc_check "$so"
+done
+
 # php-fpm -t with the configs of the package (their @sample lines)
 if [ ! -x "$fpm" ]; then
     skip "php-fpm$short -t" "no $fpm (php$short without FPM)"
@@ -394,6 +482,7 @@ elif [ ! -f "$modso" ] || [ ! -f "$modsample" ]; then
     fail "$an" "mod_php$short is installed without $modso or $modsample"
 else
     elf_libs "$modso"
+    cc_check "$modso" gcc
     c="${modsample%.sample}"
     go=1
     if [ -f "$c" ]; then
@@ -417,6 +506,28 @@ else
         fi
     fi
     if [ -n "$apconf" ]; then rm -f "$apconf"; apconf=""; fi
+fi
+
+# The time of Zend/bench.php without OPcache, a note (no check): the script of
+# the release tarball of the version (the newest of distfiles/php), with php -n
+pv="$("$php" -n -r 'echo PHP_VERSION;' 2> /dev/null < /dev/null)"
+tb="$(ls "$distphp"/php-"$pv"-fbsd-*.tar.xz 2> /dev/null | sort | tail -n 1)"
+bm=""
+[ -n "$tb" ] && bm="$(tar -tf "$tb" 2> /dev/null | grep -m 1 '^[^/]*/Zend/bench\.php$')"
+if [ -z "$tb" ]; then
+    say "note: no time of Zend/bench.php: no php-${pv:-?}-fbsd-*.tar.xz in $distphp"
+elif [ -z "$bm" ]; then
+    say "note: no time of Zend/bench.php: ${tb##*/} has no Zend/bench.php"
+elif ! tar -xOf "$tb" "$bm" > "$tmp/bench.php" 2> /dev/null; then
+    say "note: no time of Zend/bench.php: it does not unpack from ${tb##*/}"
+else
+    o="$("$php" -n "$tmp/bench.php" 2>&1 < /dev/null)"
+    t="$(printf '%s\n' "$o" | sed -n 's/^Total[[:space:]]*\([0-9][0-9.]*\).*$/\1/p' | tail -n 1)"
+    if [ -n "$t" ]; then
+        say "note: Zend/bench.php without OPcache (php$short -n): Total $t s (the script of ${tb##*/})"
+    else
+        say "note: no time of Zend/bench.php: php$short -n $bm printed no Total: $(last3 "$o")"
+    fi
 fi
 
 say "result: $nok ok, $nfail failed, $nskip skipped ($sum)"
