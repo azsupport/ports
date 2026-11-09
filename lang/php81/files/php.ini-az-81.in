@@ -1,0 +1,85 @@
+@comment The defaults of az for PHP 8.1, appended to the php.ini-production of
+@comment the tarball to make etc/php81/php.ini.sample (@sample: pkg copies it
+@comment to php.ini and keeps a changed php.ini), as for 7.4 (the head of
+@comment lang/php74/files/php.ini-az-74.in). The block of 8.3
+@comment (lang/php83/files/php.ini-az-83.in) with the version in its first
+@comment line and in the name of the log: the block of 7.4 with the JIT of
+@comment OPcache on (aZ, 08.11.2026, for every 8.x): opcache.jit = tracing and
+@comment opcache.jit_buffer_size = 128M (PHP 8.1 comes with tracing and a
+@comment buffer of 0, which keeps it off), and OPcache on for the CLI too
+@comment (opcache.enable_cli = 1, as for 7.4). The buffer is in the shared
+@comment memory of OPcache, next to opcache.memory_consumption. None of the
+@comment modules of az turns the JIT off (an extension that overrides
+@comment zend_execute_ex or sets user opcode handlers does, with a warning at
+@comment each start; swoole 6.1 and openswoole set them only for EXIT and the
+@comment silence operator, which the JIT of 8.1 leaves out of that check, and
+@comment the others of swoole come only with --enable-swoole-stdext, which the
+@comment port does not use). Every other line holds in 8.1 as in 7.4:
+@comment session.sid_length and sid_bits_per_character are deprecated only in
+@comment 8.4, E_STRICT only in 8.4 (error_reporting is that of the
+@comment php.ini-production of 8.1), allow_url_include = Off raises no
+@comment deprecation (only On does). Lines that begin with @comment are not in
+@comment the file (SUB_FILES drops them).
+
+; --- az: defaults of PHP 8.1, on top of php.ini-production above ---
+[PHP]
+expose_php = Off
+short_open_tag = On
+output_buffering = Off
+memory_limit = 1024M
+max_execution_time = 1800
+max_input_time = 1800
+max_input_vars = 10000
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+display_errors = Off
+display_startup_errors = Off
+html_errors = Off
+log_errors = On
+error_log = /var/log/php%%PHP_VER%%_error.log
+zend.exception_ignore_args = On
+allow_url_include = Off
+upload_max_filesize = 500M
+post_max_size = 512M
+cgi.fix_pathinfo = 0
+date.timezone = UTC
+realpath_cache_size = 4096K
+realpath_cache_ttl = 600
+zlib.output_compression = Off
+
+[Pdo_mysql]
+pdo_mysql.default_socket = /tmp/mysql.sock
+
+[MySQLi]
+mysqli.default_socket = /tmp/mysql.sock
+
+[Session]
+session.save_handler = files
+; redis (php81-redis, redis on its socket); with it gc_probability = 0
+;session.save_handler = redis
+;session.save_path = "unix:///var/run/redis/redis.sock"
+;session.gc_probability = 0
+session.use_strict_mode = 1
+session.use_only_cookies = 1
+session.cookie_httponly = 1
+session.cookie_samesite = Lax
+session.sid_length = 48
+session.sid_bits_per_character = 6
+session.gc_probability = 1
+session.gc_divisor = 1000
+
+[opcache]
+opcache.enable = 1
+opcache.enable_cli = 1
+opcache.memory_consumption = 2048
+opcache.interned_strings_buffer = 256
+opcache.max_accelerated_files = 300000
+opcache.max_wasted_percentage = 10
+opcache.validate_timestamps = 1
+opcache.revalidate_freq = 2
+opcache.enable_file_override = 1
+opcache.validate_permission = 1
+opcache.validate_root = 1
+opcache.huge_code_pages = 1
+; JIT on; to switch it off: opcache.jit = disable
+opcache.jit = tracing
+opcache.jit_buffer_size = 128M
