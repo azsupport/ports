@@ -225,7 +225,7 @@ CONFIGURE_ENV+=		OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 			OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
 .  if ${PKGNAMESUFFIX} == "-openssl-legacy"
 # Ours: the legacy provider of OpenSSL loaded too (RC4, Blowfish, DES, CAST5,
-# MD4; aZ's sites need RC4); the same files as php74-openssl
+# MD4; aZ's sites need RC4); the same files as php83-openssl
 COMMENT=	The openssl shared extension for php, with the legacy provider
 CONFIGURE_ARGS+=	--with-openssl-legacy-provider
 CONFLICTS_INSTALL=	php${PHP_VER}-openssl
@@ -446,10 +446,11 @@ USE_PHP=	session:build
 .endif
 
 .if ${PHP_MODNAME} == "imagick"
-# graphics/pecl-imagick-im7: ImageMagick 7, that of the overlay in
-# ${AZ_PREFIX} (libraries, MagickWand-config) with its configuration in
-# ${LOCALBASE}/etc/ImageMagick-7
-COMMENT=	PHP wrapper to the ImageMagick/GraphicsMagick library version 7
+# graphics/pecl-imagick of eb0100f974b6 (USES=magick: ImageMagick 7 by
+# default; pecl-imagick-im7 was merged into it in 2023): ImageMagick 7 of the
+# overlay in ${AZ_PREFIX} (libraries, MagickWand-config) with its
+# configuration in ${LOCALBASE}/etc/ImageMagick-7
+COMMENT=	PHP wrapper to the ImageMagick/GraphicsMagick library
 WWW=		https://pecl.php.net/package/imagick
 
 LICENSE=	PHP301
