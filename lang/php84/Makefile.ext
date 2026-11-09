@@ -272,7 +272,11 @@ CONFIGURE_ARGS+=--enable-mysqlnd \
 CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
 # config9.m4 of 8.3 adds them to MYSQLND_SHARED_LIBADD without PHP_SUBST (not
-# linked); that of 8.4 links them itself: the same libraries
+# linked); that of 8.4 links them itself: the same libraries. With them it
+# would link the -L/lib of zlib.pc of the base system as the run path of
+# mysqlnd.so (PHP_SETUP_ZLIB): ZLIB_LIBS=-lz, as for zlib (CI run 42663621520:
+# the run path /usr/local/az/lib:/lib)
+CONFIGURE_ENV+=	ZLIB_LIBS="-lz"
 LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl -lz
 USES+=		ssl pkgconfig
 .endif
