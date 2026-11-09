@@ -1,0 +1,8 @@
+GD: image creation and manipulation with the libgd bundled in PHP 5.6,
+with FreeType, PNG and JPEG of the package az (GIF of libgd itself;
+no WebP: the libgd of PHP 5.6 takes it from libvpx, which az has not).
+
+The module gd of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/gd.so, loaded by its ini in etc/php56/conf.d, its
+headers in include/php56/php/ext/gd.

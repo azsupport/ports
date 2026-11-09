@@ -1,0 +1,7 @@
+mbstring: multibyte strings (encodings, conversion, case, regular
+expressions with oniguruma of the package az).
+
+The module mbstring of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/mbstring.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/mbstring.

@@ -1,0 +1,35 @@
+tidy-html5, the libtidy of az (www/tidy-html5; the official port took
+www/tidy-lib, the tidy of 2009), names buffio.h tidybuffio.h, which ext/tidy
+of PHP 5.6 does not know: the check of config.m4 and the include of tidy.c of
+ext/tidy of PHP 7.4.
+
+--- config.m4.orig
++++ config.m4
+@@ -25,6 +25,13 @@
+ 
+   if test -z "$TIDY_DIR"; then
+     AC_MSG_ERROR(Cannot find libtidy)
++  else
++    dnl Check for tidybuffio.h (as opposed to simply buffio.h) which indicates
++    dnl that we are building against tidy-html5 and not the legacy htmltidy. The
++    dnl two are compatible, except for with regard to this header file.
++    if test -f "$TIDY_INCDIR/tidybuffio.h"; then
++      AC_DEFINE(HAVE_TIDYBUFFIO_H,1,[defined if tidybuffio.h exists])
++    fi
+   fi
+ 
+   TIDY_LIBDIR=$TIDY_DIR/$PHP_LIBDIR
+--- tidy.c.orig
++++ tidy.c
+@@ -31,7 +31,11 @@
+ #include "ext/standard/info.h"
+ 
+ #include "tidy.h"
++#if HAVE_TIDYBUFFIO_H
++#include "tidybuffio.h"
++#else
+ #include "buffio.h"
++#endif
+ 
+ /* compatibility with older versions of libtidy */
+ #ifndef TIDY_CALL

@@ -1,0 +1,33 @@
+ICU 70 and later (ICU 76 of the package az) declare BreakIterator::operator==
+with the return type bool, so the override of PHP 5.6 (UBool) does not compile
+("conflicting return type"): bool with ICU 70 and later, as ext/intl of PHP
+7.4.33 has it.
+
+--- breakiterator/codepointiterator_internal.cpp.orig
++++ breakiterator/codepointiterator_internal.cpp
+@@ -72,7 +72,11 @@
+ 	clearCurrentCharIter();
+ }
+ 
++#if U_ICU_VERSION_MAJOR_NUM >= 70
++bool CodePointBreakIterator::operator==(const BreakIterator& that) const
++#else
+ UBool CodePointBreakIterator::operator==(const BreakIterator& that) const
++#endif
+ {
+ 	if (typeid(*this) != typeid(that)) {
+ 		return FALSE;
+--- breakiterator/codepointiterator_internal.h.orig
++++ breakiterator/codepointiterator_internal.h
+@@ -36,7 +36,11 @@
+ 
+ 		virtual ~CodePointBreakIterator();
+ 
++#if U_ICU_VERSION_MAJOR_NUM >= 70
++		virtual bool operator==(const BreakIterator& that) const;
++#else
+ 		virtual UBool operator==(const BreakIterator& that) const;
++#endif
+ 
+ 		virtual CodePointBreakIterator* clone(void) const;
+ 
