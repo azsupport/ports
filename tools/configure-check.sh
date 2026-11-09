@@ -227,7 +227,9 @@ cat > "$tmp/mk.awk" << 'EOF'
     l = $0
     while (l ~ /\\$/ && (getline nx) > 0) { sub(/\\$/, " ", l); l = l nx }
     nm = l; sub(/[ \t]*[+:?!]?=.*/, "", nm)
-    v = l; sub(/^[^=]*=/, "", v); gsub(/[ \t]+/, " ", v); sub(/^ /, "", v); sub(/ $/, "", v)
+    # the quotes out: PHP quotes the words of CONFIGURE_COMMAND, and taking the
+    # permissive flags out of a quoted word leaves its quote elsewhere
+    v = l; sub(/^[^=]*=/, "", v); gsub(/[\047"]/, "", v); gsub(/[ \t]+/, " ", v); sub(/^ /, "", v); sub(/ $/, "", v)
     print nm "\t" (++n[nm]) "\t" v
 }
 EOF
@@ -249,7 +251,8 @@ if [ -f "$S/Makefile" ] && [ -f "$P/Makefile" ]; then
                 if (!(k in p)) { print "- Makefile: " kk[1] ": strict only: " s[k]; continue }
                 if (s[k] == p[k]) continue
                 a = words(s[k], p[k]); b = words(p[k], s[k])
-                if (a == "" && b == "") print "- Makefile: " kk[1] ": the same words, in another order or repeated: strict " s[k] "; permissive " p[k]
+                # (not a difference: a list made in another order, as the sources of swoole)
+                if (a == "" && b == "") print "  note: Makefile: " kk[1] ": the same words, in another order or repeated"
                 else print "- Makefile: " kk[1] ":" (a != "" ? " strict only: " a : "") (a != "" && b != "" ? ";" : "") (b != "" ? " permissive only: " b : "") }
             for (i = 1; i <= np; i++) { k = po[i]; split(k, kk, "\t")
                 if (!(k in s)) print "- Makefile: " kk[1] ": permissive only: " p[k] }
