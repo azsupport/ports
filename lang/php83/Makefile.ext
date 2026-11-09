@@ -548,34 +548,69 @@ IGBINARY_USE=			PHP=igbinary:build
 .endif
 
 .if ${PHP_MODNAME} == "swoole"
-# mysqlnd is a module here; brotli of az, OpenSSL of the base system
-# (ext.conf); not USES=localbase:ldflags: no library of the ports
+# devel/php-swoole of eb0100f974b6 (6.2.3 there), built from ext/swoole of the
+# tarball: mysqlnd is a module here (USE_PHP); the options BROTLI, with the
+# brotli of az, and SOCKETS on (ext.conf); not USES=localbase:ldflags: no
+# library of the ports by default. Brotli and OpenSSL by pkg-config, into
+# SWOOLE_SHARED_LIBADD: not the --with-brotli-dir and --with-openssl-dir of
+# ext.conf, whose branches of config.m4 add the libraries to LIBS only, which
+# phpize does not link (swoole.so needed no libssl, libcrypto, libbrotlienc and
+# libbrotlidec). Swoole 6.2 has no --enable-openssl (OpenSSL is always in), so
+# not that of the port either. The pkg-config of the modules is that of az
+# (Mk/Uses/php.mk): it searches ${AZ_PREFIX}/lib/pkgconfig, where az has no
+# OpenSSL (its OpenSSL is static, for the static tree only), then
+# /usr/libdata/pkgconfig, where FreeBSD 15 installs libssl.pc and libcrypto.pc
+# of its OpenSSL, and nothing else (PKG_CONFIG_PATH unset): never an OpenSSL of
+# the ports. Without them configure stops (PKG_CHECK_MODULES).
 COMMENT=	Asynchronous, concurrent, and distributed networking framework
-WWW=		https://pecl.php.net/package/swoole
+WWW=		https://github.com/swoole/swoole-src
 
 LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-USES+=		compiler:c11 ssl
-USE_PHP=	hash:build pcre mysqlnd:build
-AZ_LIBS=	libbrotlienc.so
+NOT_FOR_ARCHS=	i386 powerpc
+NOT_FOR_ARCHS_REASON=	upstream drop 32 bits support
+
+USES+=		compiler:c11 pkgconfig ssl
+USE_PHP=	mysqlnd:build
 
 CONFIGURE_ARGS+=	--enable-swoole \
-			--enable-mysqlnd \
-			--with-openssl-dir=/usr \
-			--enable-brotli \
-			--with-brotli-dir=${AZ_PREFIX}
+			--enable-mysqlnd
 
-OPTIONS_DEFINE=		CARES CURL SOCKETS
-OPTIONS_DEFAULT=	SOCKETS
-CARES_LIB_DEPENDS=	libcares.so:dns/c-ares
+OPTIONS_DEFINE=		BROTLI CARES CURL FIREBIRD ODBC PGSQL SOCKETS SQLITE \
+			SSH2 ZSTD
+OPTIONS_DEFAULT=	BROTLI SOCKETS
+BROTLI_CONFIGURE_OFF=	--disable-brotli
+BROTLI_CONFIGURE_ON=	--enable-brotli
+BROTLI_VARS=		AZ_LIBS+=libbrotlienc.so
 CARES_CONFIGURE_ON=	--enable-cares
-SOCKETS_USE=		PHP=sockets:build
-SOCKETS_DESC=		Use native php sockets extension
-SOCKETS_CONFIGURE_ON=	--enable-sockets
-CURL_LIB_DEPENDS=	libcurl.so:ftp/curl
+CARES_LIB_DEPENDS=	libcares.so:dns/c-ares
 CURL_CONFIGURE_ON=	--enable-swoole-curl
+CURL_LIB_DEPENDS=	libcurl.so:ftp/curl
 CURL_USE=		PHP=curl
+FIREBIRD_CONFIGURE_ON=	--with-swoole-firebird
+FIREBIRD_USE=		PHP=pdo:build
+FIREBIRD_USES=		firebird
+# ODBC needs the module odbc, which this overlay does not build (USE_PHP fails)
+ODBC_CONFIGURE_OFF=	--without-swoole-odbc
+ODBC_CONFIGURE_ON=	--with-swoole-odbc=unixODBC
+ODBC_USE=		PHP=odbc:build
+PGSQL_CONFIGURE_ON=	--enable-swoole-pgsql
+PGSQL_USE=		PHP=pdo:build
+PGSQL_USES=		pgsql
+SOCKETS_CONFIGURE_ON=	--enable-sockets
+SOCKETS_DESC=		Use native php sockets extension
+SOCKETS_USE=		PHP=sockets:build
+SQLITE_CONFIGURE_OFF=	--disable-swoole-sqlite
+SQLITE_CONFIGURE_ON=	--enable-swoole-sqlite
+SQLITE_USE=		PHP=pdo:build
+SQLITE_USES=		sqlite
+SSH2_CONFIGURE_ON=	--with-swoole-ssh2
+SSH2_DESC=		Enable SSH2 support
+SSH2_LIB_DEPENDS=	libssh2.so:security/libssh2
+ZSTD_CONFIGURE_OFF=	--disable-zstd
+ZSTD_CONFIGURE_ON=	--enable-zstd
+ZSTD_LIB_DEPENDS=	libzstd.so:archivers/zstd
 # not files/patch-src_core_misc.cc of the port (6.2.3): in 6.2.5 already
 .endif
 
