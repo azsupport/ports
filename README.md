@@ -372,7 +372,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | Input | |
 |---|---|
 | `release` | the FreeBSD release of the VM, `15.1` |
-| `cputype` | `x86-64-v3` (default), `x86-64-v2` or `both` (a job each) |
+| `cputype` | `x86-64-v3` (default), `x86-64-v2` or `both` (a job each); one job of a level and a branch at a time, the levels side by side (each has its own release and cache) |
 | `ports` | the ports to build, separated by spaces; empty: all |
 | `force` | build them also when their package with the same `az_hash` is in the release already |
 | `jobs` | the ports built at once (`AZ_JOBS`, default 4; `1`: one after another) |
