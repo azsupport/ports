@@ -355,7 +355,11 @@ so_env() {
     export CPPFLAGS="-I$S/include"
     export LDFLAGS="-L$S/lib -Wl,-rpath,$S/lib -Wl,-z,relro,-z,now"
     export PKG_CONFIG=pkgconf
-    export PKG_CONFIG_LIBDIR="$S/lib/pkgconfig:/usr/libdata/pkgconfig"
+    # libdata/pkgconfig too, as for P: the patches of some ports put their .pc there
+    # (freetype2), and finish_so moves them only at the end; without it the shared gd
+    # found no freetype2 and was built without FreeType, and gd.so of PHP wanted
+    # gdFontCacheShutdown (build.yml 42535396922)
+    export PKG_CONFIG_LIBDIR="$S/lib/pkgconfig:$S/libdata/pkgconfig:/usr/libdata/pkgconfig"
     export PATH="$S/bin:$path0"
 }
 at_so() {
