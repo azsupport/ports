@@ -104,6 +104,27 @@ jobs:
           key: distfiles-${{ hashFiles('**/distinfo') }}
           restore-keys: distfiles-
 
+      # the release tarballs of azsupport/php-src the PHP ports need, fetched here with
+      # retries before the VM: GitHub answered the fetch of the VM with 504 more than
+      # once (run 42571397680), and the distfiles cache of FreeBSD has none of them.
+      # What does not download here, the VM tries again (MASTER_SITES of the port)
+      - name: The PHP tarballs of azsupport/php-src, fetched with retries
+        run: |
+          mkdir -p distfiles/php
+          sed -n 's/^SHA256 (php\/\(php-[0-9][^)]*-fbsd-[^)]*\.tar\.xz\)) = \([0-9a-f]*\)$/\1 \2/p' lang/php*/distinfo | sort -u > /tmp/php-tarballs
+          while read -r f sum; do
+            v="${f#php-}"; v="${v%%-fbsd-*}"; rel="${f#*-fbsd-}"; rel="${rel%.tar.xz}"
+            d="distfiles/php/$f"
+            if [ -f "$d" ] && [ "$(sha256sum < "$d" | cut -c1-64)" = "$sum" ]; then echo "have $f"; continue; fi
+            u="https://github.com/azsupport/php-src/releases/download/freebsd-${v%.*}-$rel/$f"
+            if curl -fsSL --retry 10 --retry-all-errors --retry-delay 15 -o "$d.part" "$u" &&
+              [ "$(sha256sum < "$d.part" | cut -c1-64)" = "$sum" ]; then
+              mv "$d.part" "$d"; echo "fetched $f"
+            else
+              rm -f "$d.part"; echo "::warning title=distfiles::$f did not download here ($u): the VM tries again"
+            fi
+          done < /tmp/php-tarballs
+
       # the ports of this tree with make -V against the official tree, before the VM:
       # a port that names a missing origin, a wrong PKGORIGIN, two ports of one PKGNAME
       # (tools/check-tree.sh) stop the run here, not after an hour of az/az
