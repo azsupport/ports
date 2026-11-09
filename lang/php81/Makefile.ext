@@ -42,6 +42,11 @@
 # - not the --with-zlib-dir=/usr of zip: ext/zip/config.m4 of 8.1 has no such
 #   option (configure only warns of it); not the --enable-openssl of swoole
 #   (see its rules);
+# - the options of dba, gd, mbstring, mysqli and pdo_mysql in the form of
+#   lang/php74/Makefile.ext (.if on PORT_OPTIONS after bsd.port.options.mk,
+#   where the libraries of az and USE_PHP go too); the official 8.1 has option
+#   helpers with the same arguments (its GDBM, LMDB and QDBM _CONFIGURE_ARGS
+#   are no helpers: those options passed nothing);
 # - IGNORE_WITH_PHP that of the official lang/php81.
 #
 # The modules, by the priority of their ini (ext-<NN>-<module>.ini): opcache
