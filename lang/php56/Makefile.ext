@@ -740,7 +740,8 @@ USES+=	mysql
 .	if ${PORT_OPTIONS:MMYSQLND}
 CONFIGURE_ARGS+=--with-pdo-mysql=mysqlnd
 
-USE_PHP+=	mysql mysqlnd:build
+# no mysql (aZ, 09.11.2026): mysqlnd is enough; mysql pulled in php56-mysql only
+USE_PHP+=	mysqlnd:build
 .	else
 CONFIGURE_ARGS+=--with-pdo-mysql=${LOCALBASE} \
 		--with-zlib-dir=/usr
