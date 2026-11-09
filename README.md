@@ -192,6 +192,18 @@ PHP 8.1 with its modules (side by side as well: `etc/php81`, `lib/php/20210902`,
 pkg install -r az php81 mod_php81 php81-opcache php81-gd php81-mbstring php81-openssl-legacy
 ```
 
+PHP 5.6 with its modules (side by side as well: `etc/php56`, `lib/php/20131226`, `include/php56`):
+
+```sh
+pkg install -r az php56 mod_php56 php56-opcache php56-gd php56-mbstring php56-openssl-legacy
+```
+
+PHP 8.2 with its modules (side by side as well: `etc/php82`, `lib/php/20220829`, `include/php82`):
+
+```sh
+pkg install -r az php82 mod_php82 php82-opcache php82-gd php82-mbstring php82-openssl-legacy
+```
+
 The programs:
 
 ```sh
