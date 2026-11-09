@@ -978,7 +978,11 @@ finish_so() {
         [ -n "$cmt" ] || cmt="$(grep -o 'clang version [0-9.]*' "$work/so-cmt.txt" | head -n 1)"
         printf '%s: SONAME %s, %s KB, NEEDED %s%s%s\n' "$b" "${sn:-none}" "$(du -Ak "$f" | cut -f1)" "${need:-none}" \
             "${rp:+, run path $rp}" "${cmt:+, $cmt}" >> "$res/shared.txt"
-        case " $need " in *" libgcc_s.so"*) echo "$b: NEEDED libgcc_s (GCC without -static-libgcc)" >> "$res/shared-bad.txt" ;; esac
+        # (a C++ library of the base clang needs the libgcc_s of the base system, its
+        # unwinder: ICU, libheif, libde265, libmemcached; one of GCC would need that of GCC)
+        case "$cmt" in GCC:*)
+            case " $need " in *" libgcc_s.so"*) echo "$b: of GCC, NEEDED libgcc_s (built without -static-libgcc)" >> "$res/shared-bad.txt" ;; esac ;;
+        esac
         [ -n "$sn" ] || echo "$b: no SONAME" >> "$res/shared-bad.txt"
         # every part of the run path is S/lib (libtool adds its own -rpath to ours: twice is fine)
         for part in $(printf '%s\n' "$rp" | tr ':' ' '); do
