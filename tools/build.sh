@@ -931,6 +931,15 @@ while read -r n og hh f; do
     fi
 done < "$q/repo-had"
 for f in $(cat "$q/made"); do cp -p "$f" "$repo/" || say "cannot copy ${f##*/} into $repo"; done
+# no comma in the file names: GitHub renames an asset whose name has one (the epoch of
+# a version: ffmpeg-9.0.2_1,1.pkg), so the release would not have the file the catalog
+# names. A dot instead: pkg takes the name and the version from the package, and the
+# catalog takes the file name as the path of the package
+for f in "$repo"/*,*.pkg; do
+    [ -f "$f" ] || continue
+    t="$(printf '%s' "${f##*/}" | tr ',' '.')"
+    mv -f "$f" "$repo/$t" && say "the repository: ${f##*/} as $t (a comma does not reach the release)"
+done
 nrepo="$(npkg "$repo")"
 sh "$top/tools/pkg-repo-sign.sh" "$repo" "$res/pkg-repo.log"
 src=$?
@@ -964,6 +973,9 @@ if [ "$signed" = 0 ]; then
         say "no unsigned catalog for the checks either: pkg repo $ur failed (results/pkg-repo-unsigned.log)"
     fi
 fi
+# the files of the repository now, for the runner: vmactions copies repo/ back without
+# deleting, so what this run removed here would stay there (build.yml removes it)
+ls "$repo" > "$res/repo-files.txt"
 [ -n "$unsigned" ] && echo "checks:   an unsigned catalog of these packages in $unsigned: checks only, not published" >> "$sum"
 echo "repository: $nrepo packages; $(tail -n 1 "$res/pkg-repo.log" 2>/dev/null)" >> "$sum"
 
