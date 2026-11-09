@@ -1,0 +1,82 @@
+name: The distinfo of a new release
+# The size and SHA-256 of distribution files that the sandbox of Claude cannot
+# fetch (the release downloads of GitHub), for the distinfo of a port of this
+# tree at a release ahead of the official tree (www/yt-dlp): each file fetched on
+# Ubuntu from every address given (they must give the same file) and, with a
+# checksum file of the publisher (sha256sum format), found there with the same
+# SHA-256. The lines for distinfo (TIMESTAMP, SHA256, SIZE) go into the summary
+# of the run and into the branch runs of azsupport/azsupport (tools/runs-report.sh).
+# Started by hand: Actions, "The distinfo of a new release", "Run workflow", or
+# gh api -X POST repos/azsupport/ports/actions/workflows/distinfo.yml/dispatches
+#   -f ref=main -f 'inputs[files]=<name>=<url>' -f 'inputs[sums]=<url>'
+on:
+  workflow_dispatch:
+    inputs:
+      files:
+        description: 'Files: <name in distinfo>=<url>[,<url>...], separated by spaces (yt-dlp/2026.10.26/yt-dlp.tar.gz=https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp.tar.gz)'
+        required: true
+      sums:
+        description: 'The checksum file of the publisher (sha256sum format), optional'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  distinfo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch and sum
+        id: sum
+        env:
+          FILES: ${{ inputs.files }}
+          SUMS: ${{ inputs.sums }}
+        run: |
+          set -u
+          rc=0
+          mkdir -p dl
+          : > notes.txt
+          { echo "# distinfo"; echo; echo '```'; echo "TIMESTAMP = $(date +%s)"; } > report.md
+          if [ -n "$SUMS" ]; then
+            if curl -fsSL --retry 3 -o dl/sums "$SUMS"; then echo "ok    the checksum file $SUMS" >> notes.txt
+            else echo "FAIL  the checksum file $SUMS: not fetched" >> notes.txt; rc=1; fi
+          fi
+          for f in $FILES; do
+            name="${f%%=*}"; sha=""; size=""
+            for u in $(echo "${f#*=}" | tr ',' ' '); do
+              rm -f dl/file
+              if ! curl -fsSL --retry 3 -o dl/file "$u"; then
+                echo "FAIL  $name: $u not fetched" >> notes.txt; rc=1; continue
+              fi
+              s="$(sha256sum dl/file | cut -d' ' -f1)"; z="$(stat -c %s dl/file)"
+              echo "ok    $name: $u, $z bytes, SHA-256 $s" >> notes.txt
+              if [ -z "$sha" ]; then sha="$s"; size="$z"
+              elif [ "$s:$z" != "$sha:$size" ]; then echo "FAIL  $name: $u gives another file" >> notes.txt; rc=1; fi
+            done
+            [ -n "$sha" ] || continue
+            if [ -s dl/sums ]; then
+              base="${name##*/}"
+              if awk -v f="$base" -v s="$sha" '$1 == s && ($2 == f || $2 == "*" f) { ok = 1 } END { exit !ok }' dl/sums; then
+                echo "ok    $name: the SHA-256 of $base in the checksum file" >> notes.txt
+              else
+                echo "FAIL  $name: $base is not in the checksum file with this SHA-256" >> notes.txt; rc=1
+              fi
+            fi
+            { echo "SHA256 ($name) = $sha"; echo "SIZE ($name) = $size"; } >> report.md
+          done
+          { echo '```'; echo; echo '```'; cat notes.txt; echo '```'; } >> report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
+
+      # the report into the branch runs of the private azsupport/azsupport (secret RUNS_TOKEN)
+      - name: Report to azsupport/azsupport
+        if: always()
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: files=${{ inputs.files }} sums=${{ inputs.sums }}
+          RUNS_STEPS: sum=${{ steps.sum.outcome }}
+        run: sh tools/runs-report.sh report.md files
