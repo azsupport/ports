@@ -157,6 +157,22 @@
 azsupport/php-src; SHA-256
 `2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6`).
 
+На сервере от root репозиторий записывает
+[`az-menu.sh`](https://github.com/azsupport/php-src/blob/master/README.ru.md#az-menush-пакеты-и-что-войдёт-в-php)
+из azsupport/php-src: x86-64-v3, если `cc -march=native` знает у процессора AVX2, BMI2,
+FMA, F16C, LZCNT и MOVBE, иначе x86-64-v2; открытый ключ — в
+`/usr/local/etc/pkg/keys/az.pub`, репозиторий — в `/usr/local/etc/pkg/repos/az.conf`,
+потом `pkg update -r az`. Он пишет, какой уровень взял и почему, и SHA-256 ключа (тот,
+что выше):
+
+```sh
+fetch https://github.com/azsupport/php-src/releases/download/az-menu/az-menu.sh
+sh az-menu.sh --repo
+```
+
+То же вручную, для x86-64-v3 (для x86-64-v2 — `amd64-v2` в адресе); `sha256` должен
+показать SHA-256 выше:
+
 ```sh
 mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
 fetch -o /usr/local/etc/pkg/keys/az.pub https://raw.githubusercontent.com/azsupport/ports/main/keys/az.pub

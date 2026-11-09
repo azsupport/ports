@@ -167,6 +167,21 @@ aZ; [`keys/az.pub`](keys/az.pub) is its public key (the same key as
 azsupport/php-src; SHA-256
 `2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6`).
 
+On a server, as root, [`az-menu.sh`](https://github.com/azsupport/php-src#az-menush-the-packages-and-what-goes-into-php)
+of azsupport/php-src writes the repository: x86-64-v3 when `cc -march=native` has AVX2,
+BMI2, FMA, F16C, LZCNT and MOVBE, else x86-64-v2; the public key into
+`/usr/local/etc/pkg/keys/az.pub`, the repository into
+`/usr/local/etc/pkg/repos/az.conf`, then `pkg update -r az`. It says the level it took
+and why, and the SHA-256 of the key (the one above):
+
+```sh
+fetch https://github.com/azsupport/php-src/releases/download/az-menu/az-menu.sh
+sh az-menu.sh --repo
+```
+
+The same by hand, for x86-64-v3 (for x86-64-v2: `amd64-v2` in the address); `sha256`
+must print the SHA-256 above:
+
 ```sh
 mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
 fetch -o /usr/local/etc/pkg/keys/az.pub https://raw.githubusercontent.com/azsupport/ports/main/keys/az.pub
