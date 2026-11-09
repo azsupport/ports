@@ -176,6 +176,7 @@ jobs:
         run: |
           if [ -z "$NONFREE_SSH_KEY" ] || [ -z "$NONFREE_SSH_TARGET" ] || [ -z "$NONFREE_KNOWN_HOSTS" ]; then
             echo "::warning title=nonfree::no NONFREE_SSH_KEY, NONFREE_SSH_TARGET or NONFREE_KNOWN_HOSTS: the package was built and tested, and not sent"
+            echo "sent=no (no NONFREE_SSH_KEY, NONFREE_SSH_TARGET or NONFREE_KNOWN_HOSTS)" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           case "$(tail -n 1 results/nonfree-repo.log 2>/dev/null)" in
@@ -198,6 +199,7 @@ jobs:
           # shellcheck disable=SC2086
           ssh $o -p "$port" "$NONFREE_SSH_TARGET" "cd www/az-nonfree && rm -rf .old-$dir; if [ -d $dir ]; then mv $dir .old-$dir; fi; mv .new-$dir $dir && rm -rf .old-$dir && chmod -R a+rX $dir && ls $dir"
           echo "sent: https://pkg.azsupport.com/az-nonfree/$dir/ ($(ls nonfree-repo | wc -l) files)"
+          echo "sent=https://pkg.azsupport.com/az-nonfree/$dir/" >> "$GITHUB_OUTPUT"
 
       - name: Report
         if: always()
@@ -205,14 +207,14 @@ jobs:
           {
             echo "# The nonfree FFmpeg (${{ inputs.cputype }}, FreeBSD ${{ inputs.release }})"
             echo
-            echo "build: ${{ steps.build.outcome }}, outcome: ${{ steps.outcome.outcome }}, sent: ${{ steps.send.outcome }}"
+            echo "build: ${{ steps.build.outcome }}, outcome: ${{ steps.outcome.outcome }}, sent: ${{ steps.send.outputs.sent || steps.send.outcome }}"
             echo
             echo '```'
             cat results/summary.txt 2>/dev/null || echo "no results/summary.txt"
             echo
             ls nonfree-repo 2>/dev/null
             echo
-            grep -E '^(FAIL|note|ok .*libfdk)' results/ffmpeg/tests.txt 2>/dev/null
+            grep -E '^(FAIL|note|ok .*libfdk|ok .*the limited range|ok +libx264: pixel formats)' results/ffmpeg/tests.txt 2>/dev/null
             tail -n 3 results/ffmpeg/tests.txt 2>/dev/null
             echo '```'
           } > report.md
