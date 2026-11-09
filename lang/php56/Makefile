@@ -84,8 +84,7 @@
 # from here PORTNAME, DISTVERSION?= (a PECL extension sets its own version
 # first), PORTREVISION, CATEGORIES?=, MASTER_SITES, DISTNAME (without
 # DISTVERSION), DIST_SUBDIR, distinfo (through MASTERDIR), MAINTAINER, WWW,
-# LICENSE, USES (azgcc cpe tar:xz), PHP_VER (56), AZ_XML2_CONFIG and
-# AZ_GCC_CFLAGS.
+# LICENSE, USES (azgcc cpe tar:xz), PHP_VER (56) and AZ_XML2_CONFIG.
 
 PORTNAME=	php56
 DISTVERSION?=	5.6.40
@@ -104,18 +103,12 @@ LICENSE=	PHP301
 USES+=		tar:xz cpe
 # GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
 USES+=		azgcc
-# GCC 14 and later stop at incompatible pointer types, which the base clang
-# warns about: PHP 5.6 has three, none a fault (a Linux build of the core and
-# of every C module of 5.6 with GCC 14 and with GCC 16.1, -std=gnu17:
-# ext/session/session.c:867 and ext/wddx/wddx.c:542, a char ** for an
-# unsigned char ** or a non-const one; ext/mbstring/libmbfl/filters/
-# mbfilter_iso2022jp_mobile.c:51, an array for a pointer to it), so they stay
-# warnings for 5.6, as with the base clang. The other errors of GCC 14
-# (implicit declarations of functions, implicit int, conversions between
-# integers and pointers) do not occur there and stay errors, being faults
-# (sapi/cli/ps_title.c called setproctitle() undeclared on FreeBSD until the
-# tarball of 09.11.2026); the code built on FreeBSD only shows in its builds
-AZ_GCC_CFLAGS=	-Wno-error=incompatible-pointer-types
+# The C of 5.6 builds with GCC 14 and later as it is (their errors as errors):
+# the three incompatible pointer types it had (ext/session/session.c,
+# ext/wddx/wddx.c, ext/mbstring/libmbfl/filters/mbfilter_iso2022jp_mobile.c)
+# and the configure check of ext/iconv for GNU libiconv (printf without
+# <stdio.h>) are fixed in the tarball (php-src freebsd/patches/5.6/
+# compat-c99.patch, tarball of 09.11.2026, the second)
 CPE_PRODUCT=	php
 NO_OPTIONS_SORT=yes
 PHP_VER=	56
