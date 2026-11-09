@@ -347,9 +347,11 @@ freetype2, png, mozjpeg, expat, libzip и lcms2; не меряются библ�
 или SIMD (zstd, brotli, lz4, webp, dav1d, x264, OpenSSL, libsodium, gmp), библиотеки на C++
 (ICU, libheif, libde265, libmemcached), ImageMagick и GraphicsMagick (OpenMP). В ВМ FreeBSD
 15.1 ([`tools/lib-bench.sh`](tools/lib-bench.sh)): PHP 8.3 и его модули из репозитория az,
-каждая библиотека собирается дважды так, как её собирает `tools/az-build.sh` (исходники и
-патчи её порта на коммите `deps.conf`, её опции, CFLAGS az; gcc16 ещё и с
-`-std=gnu17 -static-libgcc`), потом бенчмарки
+каждая библиотека собирается так, как её собирает `tools/az-build.sh` (исходники и патчи её
+порта на коммите `deps.conf`, её опции, CFLAGS az), трижды: clang19, gcc16 так, как он пошёл
+бы в сборку (`-std=gnu17 -static-libgcc -fno-semantic-interposition`), и gcc16-si — то же без
+`-fno-semantic-interposition` (умолчание GCC при `-fPIC`: экспортируемые функции библиотеки в
+ней самой не инлайнятся), потом бенчмарки
 [`tools/lib-bench.php`](tools/lib-bench.php) (DOM, SimpleXML, XMLReader, ext/xml, XSL,
 `mb_ereg*`, SQLite3 и PDO, GD: JPEG, PNG, ресемплинг и TrueType, ZipArchive) и программ
 (xmllint, speedtest1, cjpeg, djpeg, драйверы [`tools/lib-bench.c`](tools/lib-bench.c) для
@@ -357,8 +359,8 @@ expat и lcms2): каждый прогон — с одной сборкой од
 (`LD_LIBRARY_PATH`, подтверждается ldd и файлами, которые процесс отобразил в память),
 библиотека релиза — контроль; прогоны около 3 секунд, варианты вперемешку, на одном
 закреплённом CPU. Отчёт (лог шага Report, summary джоба, ветка `runs` azsupport/azsupport):
-для каждой библиотеки и бенчмарка медиана секунд каждого варианта, изменение gcc16
-относительно clang19 с интервалом около 95%, разброс, а для каждой библиотеки — вердикт
+для каждой библиотеки и бенчмарка медиана секунд каждого варианта, изменение gcc16 и gcc16-si
+относительно clang19 с интервалом около 95%, разброс, а для каждой библиотеки — вердикт gcc16
 «>= 2% faster». Ничего не публикует.
 
 ## Правила портов
