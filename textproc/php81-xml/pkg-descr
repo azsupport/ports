@@ -1,0 +1,7 @@
+XML Parser: the event-based xml_parser functions, on libxml2 of the
+package az.
+
+The module xml of PHP 8.1 for php81 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20210902/xml.so,
+loaded by its ini in etc/php81/conf.d, its headers in
+include/php81/php/ext/xml.
