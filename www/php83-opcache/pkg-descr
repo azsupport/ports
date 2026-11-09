@@ -2,7 +2,7 @@ OPcache: compiled scripts kept in shared memory, so that PHP does not
 compile them on each request. A Zend extension, loaded before the
 others.
 
-The module opcache of PHP 7.4 for php74 of azsupport/ports, which
+The module opcache of PHP 8.3 for php83 of azsupport/ports, which
 installs side by side with the other versions of PHP:
-lib/php/20190902/opcache.so, loaded by its ini in etc/php74/conf.d, its
-headers in include/php74/php/ext/opcache.
+lib/php/20230831/opcache.so, loaded by its ini in etc/php83/conf.d, its
+headers in include/php83/php/ext/opcache.

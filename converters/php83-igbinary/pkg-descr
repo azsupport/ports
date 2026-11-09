@@ -4,6 +4,6 @@ stores PHP data structures in a compact binary form. Savings are
 significant when using memcached or similar memory based storages for
 serialized data.
 
-PECL igbinary for php74 of azsupport/ports, built from ext/igbinary of
+PECL igbinary for php83 of azsupport/ports, built from ext/igbinary of
 the release tarball of azsupport/php-src, which bundles it:
-lib/php/20190902/igbinary.so, loaded by its ini in etc/php74/conf.d.
+lib/php/20230831/igbinary.so, loaded by its ini in etc/php83/conf.d.

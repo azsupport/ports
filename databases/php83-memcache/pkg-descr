@@ -2,6 +2,6 @@ Memcached is a caching daemon designed especially for dynamic web applications
 to decrease database load by storing objects in memory. This extension allows
 you to work with memcached through handy OO and procedural interfaces.
 
-PECL memcache for php74 of azsupport/ports, built from ext/memcache of
+PECL memcache for php83 of azsupport/ports, built from ext/memcache of
 the release tarball of azsupport/php-src, which bundles it:
-lib/php/20190902/memcache.so, loaded by its ini in etc/php74/conf.d.
+lib/php/20230831/memcache.so, loaded by its ini in etc/php83/conf.d.
