@@ -455,13 +455,20 @@ comment_of() { readelf -p .comment "$1" 2>/dev/null | sed -n 's/^ *\[ *[0-9a-fA-
 size_kb() { echo $(( $(wc -c < "$1") / 1024 )); }
 
 # the az of the system immutable while the builds run (FreeBSD): an install outside
-# DESTDIR fails instead of changing it
+# DESTDIR fails instead of changing it. Where the file system has no file flags (the
+# disk of the VM of vmactions: "Operation not supported"), the builds run without the
+# lock and pkg check -s az after them is what proves az unchanged.
 locked=0
 unlock() { if [ "$locked" = 1 ]; then chflags -R nouchg "$S"; locked=0; fi; }
 trap 'unlock' EXIT
 trap 'unlock; exit 1' INT TERM HUP
 if [ "$local" = 0 ]; then
-    if chflags -R uchg "$S"; then locked=1; else echo "lib-bench: chflags -R uchg $S failed" >&2; exit 1; fi
+    if chflags -R uchg "$S" 2> "$logs/chflags.log"; then
+        locked=1
+    else
+        chflags -R nouchg "$S" 2>/dev/null || true
+        echo "lib-bench: chflags -R uchg $S failed ($(sort -u "$logs/chflags.log" | sed 's/^chflags: [^:]*: //' | sort -u | head -n 1)): the builds run without the lock, pkg check -s az after them" >&2
+    fi
 fi
 built=""
 for c in "$c1" "$c2"; do
