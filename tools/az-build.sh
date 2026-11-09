@@ -150,6 +150,25 @@ export PKG_CONFIG_LIBDIR="$P/lib/pkgconfig:$P/libdata/pkgconfig:/usr/libdata/pkg
 unset PKG_CONFIG_PATH
 # the PATH without the static tree, for the shared builds (so_env)
 path0="$PATH"
+# The shared libraries built with GCC of the packages instead of the base clang: those
+# that tools/lib-bench.sh found at least 2% faster with it, the whole interval of
+# about 95% below zero (aZ, 09.11.2026; lib-bench run 42619158312: expat -12.6%,
+# lcms2 -6.7%, sqlite3 -3.7%; the others the same or slower with GCC, so clang).
+# Their static builds (b_*, for the static programs) stay with clang: not measured.
+# GCC as lib-bench measured it and as the PHP ports have it (Mk/Uses/azgcc.mk):
+# -std=gnu17 (the C of clang 19; GCC 15 and later default to C23),
+# -fno-semantic-interposition (with -fPIC GCC would not inline or bind the calls of
+# a library to its own exported functions), -static-libgcc in CC (libgcc linked into
+# each library: no NEEDED libgcc_s.so.1; in CC because libtool passes no
+# -static-libgcc of LDFLAGS to the link of a shared library). AZ_GCC_SO="": none.
+gcc_so="${AZ_GCC_SO-sqlite3 expat lcms2}"
+gcc_bin="${AZ_GCC_BIN:-gcc16}"
+gcc_env() {
+    g="$(command -v "$gcc_bin")" || { echo "== $1: no $gcc_bin (lang/${gcc_bin}, a BUILD_DEPENDS of az/az)"; return 1; }
+    export CC="$g -static-libgcc"
+    export CFLAGS="$CFLAGS -std=gnu17 -fno-semantic-interposition"
+    echo "== $1: shared build with $("$g" --version | head -n 1) (lib-bench: >= 2% faster than clang), CC=$CC, CFLAGS=$CFLAGS"
+}
 export PATH="$P/bin:$PATH"
 # LTO (x264, as its port) puts LLVM bitcode into static archives: their index
 # needs the ar of LLVM, taken by name when ar of the base system is another one.
@@ -732,6 +751,7 @@ build_one() {
         if [ "$prc" = 0 ] && (
             echo "== shared build into $S"
             so_env
+            case " $gcc_so " in *" $n "*) gcc_env "$n" || exit 1 ;; esac
             : > "$work/stamp-so-$n"
             "s_$n" "$wd.so${src#"$wd"}" || exit 1
             if [ -z "$(find "$S/lib" -maxdepth 1 -name '*.so*' -newer "$work/stamp-so-$n" | head -n 1)" ]; then
@@ -951,8 +971,14 @@ finish_so() {
         sn="$(sed -n 's/.*[Ll]ibrary soname: \[\(.*\)\].*/\1/p' "$work/so-dyn.txt")"
         need="$(sed -n 's/.*[Ss]hared library: \[\(.*\)\].*/\1/p' "$work/so-dyn.txt" | tr '\n' ' ' | sed 's/ *$//')"
         rp="$(sed -n 's/.*[Ll]ibrary r[a-z]*path: \[\(.*\)\].*/\1/p' "$work/so-dyn.txt" | tr '\n' ':' | sed 's/:*$//')"
-        printf '%s: SONAME %s, %s KB, NEEDED %s%s\n' "$b" "${sn:-none}" "$(du -Ak "$f" | cut -f1)" "${need:-none}" \
-            "${rp:+, run path $rp}" >> "$res/shared.txt"
+        # the compiler, by .comment (GCC first: the crt files of the base system in
+        # every library carry clang's); a library of GCC leaves no NEEDED libgcc_s
+        readelf -p .comment "$f" > "$work/so-cmt.txt" 2>/dev/null
+        cmt="$(grep -o 'GCC: ([^)]*) [0-9.]*' "$work/so-cmt.txt" | head -n 1)"
+        [ -n "$cmt" ] || cmt="$(grep -o 'clang version [0-9.]*' "$work/so-cmt.txt" | head -n 1)"
+        printf '%s: SONAME %s, %s KB, NEEDED %s%s%s\n' "$b" "${sn:-none}" "$(du -Ak "$f" | cut -f1)" "${need:-none}" \
+            "${rp:+, run path $rp}" "${cmt:+, $cmt}" >> "$res/shared.txt"
+        case " $need " in *" libgcc_s.so"*) echo "$b: NEEDED libgcc_s (GCC without -static-libgcc)" >> "$res/shared-bad.txt" ;; esac
         [ -n "$sn" ] || echo "$b: no SONAME" >> "$res/shared-bad.txt"
         # every part of the run path is S/lib (libtool adds its own -rpath to ours: twice is fine)
         for part in $(printf '%s\n' "$rp" | tr ':' ' '); do
@@ -980,6 +1006,13 @@ finish_so() {
         esac
     done
     [ -s "$res/shared.txt" ] || echo "no shared library in $S/lib" >> "$res/shared-bad.txt"
+    # the libraries of AZ_GCC_SO are those of GCC
+    for n in $gcc_so; do
+        f="$(ls "$S/lib/lib$n.so."* 2>/dev/null | head -n 1)"
+        [ -n "$f" ] || continue
+        readelf -p .comment "$f" 2>/dev/null | grep -q 'GCC:' ||
+            echo "${f##*/}: of AZ_GCC_SO, but its .comment names no GCC" >> "$res/shared-bad.txt"
+    done
     # the .pc files and *-config scripts (not the pkg-config wrapper): nothing of the
     # static tree, nothing of /usr/local outside S but the configuration and fonts of
     # the system that fontconfig reads
@@ -1033,7 +1066,9 @@ manifest() {
         echo "The shared tree $S (lib/, include/, lib/pkgconfig/, bin/pkg-config and the *-config"
         echo "scripts), for the PHP modules of pkg mode: the libraries of the kind shared above, built"
         echo "from the same patched sources with the same options, with the run path $S/lib and the"
-        echo "OpenSSL of the base system (libcurl, libzip); SONAME and DT_NEEDED of each:"
+        echo "OpenSSL of the base system (libcurl, libzip); built with the base clang, but ${gcc_so:-none} with"
+        echo "GCC of the packages (tools/lib-bench.sh: at least 2% faster with it); SONAME, DT_NEEDED,"
+        echo "run path and compiler of each:"
         sed 's/^/    /' "$res/shared.txt" 2>/dev/null
     } > "$res/VERSIONS"
     mkdir -p "$A/share/doc/az"
