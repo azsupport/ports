@@ -3,21 +3,39 @@
 # PKGNAMESUFFIX (-<module>; a PECL extension also DISTVERSION, its version) and
 # includes the Makefile of lang/php83, which includes this file.
 #
-# Base: lang/php74/Makefile.ext of this overlay (the head there says what it
-# changes of the official rules and why: the libraries of az, the options of
-# php-src freebsd/ext.conf, USE_PHP, CONFLICTS_INSTALL, the ini of openswoole
-# and gmagick, the profiles, ZLIB_LIBS of zlib), with the rules of the
-# official lang/php83 of freebsd-ports eb0100f974b6 (inline in its Makefile
-# there) for what 8.3 changes. What differs from the rules of 7.4:
+# Base: the rules of the modules of the official lang/php83 of freebsd-ports
+# eb0100f974b6 (the ports commit of PHP 8.3 in php-src freebsd/targets.conf;
+# inline in its Makefile there), its slave ports (their files/) and the PECL
+# ports of that commit, with the changes of this overlay as
+# lang/php74/Makefile.ext has them (its head says what and why: the libraries
+# of az, the options of php-src freebsd/ext.conf, USE_PHP, CONFLICTS_INSTALL,
+# the ini of openswoole and gmagick, the profiles, ZLIB_LIBS of zlib), as
+# lang/php81/Makefile.ext for 8.1. What 8.3 has otherwise:
 # - no json (built into the core since PHP 8.0: PHP_EXT_INC, so USE_PHP=json
 #   needs no package) and no xmlrpc (removed from PHP 8.0; PECL xmlrpc is not
-#   in php-src freebsd/pecl.conf);
+#   in php-src freebsd/pecl.conf); ext.conf has the lines of 7.4 only, so the
+#   modules and their options are those of 7.4 but these two;
 # - the PECL extensions are those of ext/<name> of the 8.3 tarball, their
 #   versions those of php-src freebsd/pecl.conf for 8.3 (memcache 8.2, swoole
 #   6.2.5; the others as for 7.4); package php83-<name>, origin
-#   <category>/php83-<name>, as every module (Mk/php-modules.mk);
-# - swoole 6: no options HTTP2 and JSON (HTTP/2 is always on, json is in the
-#   core of PHP 8), OpenSSL of the base system with --with-openssl-dir;
+#   <category>/php83-<name>, as every module (Mk/php-modules.mk). Their rules:
+#   converters/pecl-igbinary, databases/pecl-memcache, databases/pecl-memcached,
+#   databases/php-redis, devel/pecl-excimer, devel/php-swoole,
+#   graphics/pecl-imagick and security/pecl-mcrypt of eb0100f974b6; gmagick as
+#   for 7.4 (no port has it for PHP 7 or 8); openswoole ours, as for 7.4;
+# - TEST_TARGET and the CPPFLAGS of intl here, as the official file has them
+#   (7.4: in the slaves); the slaves are those of eb0100f974b6 with a
+#   pkg-descr; no lang/php83-extensions (the meta-port), as for 7.4;
+# - the patches of the official slaves (files/ of zlib, dba, xml, xsl, and the
+#   post-patch of xsl in its slave) as they are; ours: the config.m4 of
+#   readline (GNU readline under phpize) and of imagick (its m4 path);
+# - swoole and redis with the options of their ports and the libraries of az;
+#   mysqli with mysqlnd only and dba with lmdb0, as the official 8.3;
+# - the options of dba, gd, mbstring and pdo_mysql in the form of
+#   lang/php74/Makefile.ext (.if on PORT_OPTIONS after bsd.port.options.mk,
+#   where the libraries of az and USE_PHP go too); the official 8.3 has option
+#   helpers with the same arguments (its GDBM, LMDB and QDBM _CONFIGURE_ARGS
+#   are no helpers: those options passed nothing);
 # - IGNORE_WITH_PHP that of the official lang/php83.
 #
 # The modules, by the priority of their ini (ext-<NN>-<module>.ini): opcache
@@ -441,7 +459,10 @@ LICENSE=	BSD3CLAUSE
 LICENSE_FILE=	${WRKSRC}/COPYING
 
 CONFIGURE_ARGS+=--enable-igbinary
-# Its session serializer
+# Its session serializer (ext.conf), which the official tree builds in a port
+# of its own, converters/pecl-igbinary-session: one package here, so not the
+# CONFLICTS_INSTALL=php*-pecl-igbinary-session of the port (no such package
+# is ours; pkg stops at a conflict of files anyway)
 USE_PHP=	session:build
 # not files/patch-php85 of the port: zend_smart_string.h for PHP 8.5 only
 .endif
@@ -480,7 +501,10 @@ CONFIGURE_ARGS+=--with-mcrypt=${AZ_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "memcache"
-# Not the USES=dos2unix and USE_CSTD=gnu89 of the port: they were for its 8.0
+# Not the USES=dos2unix and USE_CSTD=gnu89 of the port (8.2 there too):
+# ext/memcache of the tarball has no CRLF line ends, no patch of the port is
+# applied here, and its headers pick extern inline for C11 themselves; not its
+# option EXAMPLES (example.php; EXAMPLES is in the OPTIONS_UNSET of aZ)
 COMMENT=	Memcached extension
 WWW=		https://pecl.php.net/package/memcache \
 		https://github.com/websupport-sk/pecl-memcache
