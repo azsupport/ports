@@ -1,0 +1,7 @@
+POSIX: the POSIX functions (process, user and group IDs, terminals,
+...).
+
+The module posix of PHP 8.2 for php82 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20220829/posix.so, loaded by its ini in etc/php82/conf.d, its
+headers in include/php82/php/ext/posix.
