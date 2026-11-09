@@ -1,0 +1,8 @@
+OpenSSL: encryption, signatures and certificates with the OpenSSL of
+the base system. php81-openssl-legacy is the same module with the
+legacy provider of OpenSSL; install one of the two.
+
+The module openssl of PHP 8.1 for php81 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20210902/openssl.so, loaded by its ini in etc/php81/conf.d, its
+headers in include/php81/php/ext/openssl.

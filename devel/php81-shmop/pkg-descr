@@ -1,0 +1,6 @@
+Shmop: System V shared memory segments, read and written as bytes.
+
+The module shmop of PHP 8.1 for php81 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20210902/shmop.so, loaded by its ini in etc/php81/conf.d, its
+headers in include/php81/php/ext/shmop.

@@ -1,0 +1,13 @@
+PHP, which stands for "PHP: Hypertext Preprocessor" is a widely-used Open
+Source general-purpose scripting language that is especially suited for
+Web development and can be embedded into HTML.  Its syntax draws upon C,
+Java, and Perl, and is easy to learn.  The main goal of the language is to
+allow web developers to write dynamically generated webpages quickly, but
+you can do much more with PHP.
+
+This is PHP 8.1.34 of https://github.com/azsupport/php-src (the security
+backports of Remi Collet, the patches of the FreeBSD port applied), built as
+the overlay azsupport/ports. Versions side by side: bin/php81, php-fpm81
+with the rc.d script php_fpm81, etc/php81 (the ini files of the modules in
+etc/php81/conf.d), phpize81 and the headers in include/php81; the modules
+are the packages php81-<module>, in lib/php/20210902.
