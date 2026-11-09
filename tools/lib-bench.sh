@@ -661,11 +661,13 @@ for v in $good; do
     if [ -n "$m" ]; then lt="$extdir/$m.so"
     elif [ "$n" = expat ]; then lt="$lb_expat"
     else lt="$lb_lcms2"; fi
+    : > "$work/ldd.txt"
+    [ -n "$lt" ] && [ -e "$lt" ] && env LD_LIBRARY_PATH="$vd" ldd "$lt" > "$work/ldd.txt" 2>&1
     {
         echo "== $v: LD_LIBRARY_PATH=$vd"
-        if [ -n "$lt" ] && [ -e "$lt" ]; then
+        if [ -s "$work/ldd.txt" ]; then
             echo "ldd $lt:"
-            env LD_LIBRARY_PATH="$vd" ldd "$lt" 2>&1 | grep -F "$(printf '%s\n' $names | sed 's/\.so$//')" | sed 's/^[[:space:]]*/  /'
+            grep -F "$(printf '%s\n' $names | sed 's/\.so$//')" "$work/ldd.txt" | sed 's/^[[:space:]]*/  /'
         fi
     } >> "$res/proof.txt"
     # what is loaded in fact: the files a PHP process maps, or the dladdr of the driver
@@ -677,6 +679,12 @@ for v in $good; do
         # shellcheck disable=SC2046
         env LD_LIBRARY_PATH="$vd" $(cmd_of "$n" 1) > "$work/maps.txt" 2>&1 < /dev/null
         loaded="$(sed -n 's/^lib //p' "$work/maps.txt")"
+    fi
+    if [ -z "$loaded" ] && [ -n "$m" ]; then
+        # procstat showed no path of them (a file not in the name cache): what rtld
+        # resolves for the module, by ldd
+        loaded="$(for nm in $names; do awk -v p="$nm" '$2 == "=>" && index($1, p) == 1 { print $3 }' "$work/ldd.txt"; done)"
+        [ -z "$loaded" ] || echo "  (no path in procstat -v: the files of ldd)" >> "$res/proof.txt"
     fi
     pok=1
     if [ -z "$loaded" ]; then pok=0; why="no file of $names among those loaded: $(head -n 2 "$work/maps.txt" | tr '\n' ' ')"; fi
@@ -704,8 +712,7 @@ for b in expat lcms2; do
     loaded="$loaded $(env -u LD_LIBRARY_PATH $(cmd_of "$b" 1) 2>&1 < /dev/null | sed -n 's/^lib //p')"
 done
 echo "== $ctl (no LD_LIBRARY_PATH):" >> "$res/proof.txt"
-for l in $(printf '%s\n' $loaded | sort -u); do
-    rl="$(real "$l")"
+for rl in $(for l in $loaded; do real "$l"; done | sort -u); do
     case "$rl" in
         "$(real "$stage")"/*) fail "$ctl" "without LD_LIBRARY_PATH $rl is loaded"; echo "  loaded: $rl: NOT the control" >> "$res/proof.txt" ;;
         *) echo "  loaded: $rl ($(comment_of "$rl"))" >> "$res/proof.txt"
