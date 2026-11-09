@@ -1,8 +1,9 @@
 #!/bin/sh
 # test-programs.sh - the tests of the programs and libraries of the repository that
 # tools/build.sh made, installed from it as a server installs them: az, curl,
-# ffmpeg, ImageMagick6, ImageMagick7 and GraphicsMagick, by tools/az-test.sh,
-# curl-test.sh, ffmpeg-test.sh, imagemagick-test.sh and graphicsmagick-test.sh.
+# ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick and yt-dlp, by
+# tools/az-test.sh, curl-test.sh, ffmpeg-test.sh, imagemagick-test.sh,
+# graphicsmagick-test.sh and ytdlp-test.sh (yt-dlp with our ffmpeg).
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -74,7 +75,8 @@ done
 # the official packages of a sample away before the next: ImageMagick7-nox11 of the
 # ports needs their ffmpeg, which conflicts with ffmpeg-nox11 of the ffmpeg samples
 # (pkg stopped, and the samples were made with ours: build.yml 42533903453)
-for t in ffmpeg imagemagick; do
+# the HLS stream of ytdlp-test.sh too, when the repository has yt-dlp
+for t in ffmpeg imagemagick $(in_repo yt-dlp && echo ytdlp); do
     say "$t-test.sh --samples"
     (cd "$res" && sh "$top/tools/$t-test.sh" --samples) >> "$log" 2>&1 ||
         say "$t-test.sh --samples failed: its test says so (test-programs.log)"
@@ -105,6 +107,18 @@ if [ -n "$want" ]; then
     CONSERVATIVE_UPGRADE=no pkg install -y -f -r azbuild $want > "$res/test-programs-install.log" 2>&1 || say "pkg install says it failed (test-programs-install.log)"
     cat "$res/test-programs-install.log" >> "$log"
 fi
+# yt-dlp by itself and without -r azbuild: its python packages are official ones
+# (FreeBSD-ports), which pkg autoremove took above; yt-dlp is still that of azbuild
+# (priority 100), as inst() checks
+if in_repo yt-dlp; then
+    say "pkg install -f yt-dlp"
+    pkg install -y -f yt-dlp > "$res/test-programs-install-yt-dlp.log" 2>&1 || say "pkg install yt-dlp says it failed (test-programs-install-yt-dlp.log)"
+    cat "$res/test-programs-install-yt-dlp.log" >> "$res/test-programs-install.log"
+    cat "$res/test-programs-install-yt-dlp.log" >> "$log"
+    want="$want yt-dlp"
+else
+    say "yt-dlp: not in the repository, its tests are skipped"
+fi
 # from the repository: the annotation repository of the installed package (pkg query
 # %R of pkg 2 says nothing for installed packages)
 inst() { [ "$(pkg query '%At %Av' "$1" 2>/dev/null | awk '$1 == "repository" { print $2; exit }')" = azbuild ]; }
@@ -117,7 +131,7 @@ done
 
 # 3. the tests: name, the packages it needs
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
-        "graphicsmagick GraphicsMagick"; do
+        "graphicsmagick GraphicsMagick" "ytdlp yt-dlp ffmpeg"; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
