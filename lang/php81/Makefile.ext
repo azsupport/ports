@@ -722,8 +722,10 @@ CONFIGURE_ARGS+=--disable-flatfile
 .	endif
 
 .	if ${PORT_OPTIONS:MLMDB}
-LIB_DEPENDS+=	liblmdb.so:databases/lmdb
-CONFIGURE_ARGS+=	--with-lmdb=${LOCALBASE}
+# LMDB 0.9: databases/lmdb of 6002588334a9 (0.9.33), which is databases/lmdb0 in
+# the pinned tree (databases/lmdb is 1.0 there), as for 8.3
+LIB_DEPENDS+=	liblmdb0.so:databases/lmdb0
+CONFIGURE_ARGS+=	--with-lmdb=${LOCALBASE}/lmdb0
 .endif
 .endif
 
