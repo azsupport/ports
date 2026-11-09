@@ -50,7 +50,9 @@
 # - not TEST_TARGET: the official 5.6 has none.
 # - gd with the bundled libgd of PHP 5.6 (the official 5.6 and the static build
 #   of 5.6 of php-src: --with-gd), with FreeType, PNG and JPEG of az, not the
-#   libgd of az of 7.4 (--with-external-gd is of PHP 7.4); see its rules.
+#   libgd of az of 7.4 (--with-external-gd is of PHP 7.4); see its rules. Its
+#   options are set before bsd.port.pre.mk (after it in the official 5.6):
+#   USES=xorg of X11 is read there in the framework of f16b6dd.
 # - openssl: not the BROKEN with openssl111 of the official port (the fork
 #   builds with OpenSSL 1.1 and 3; OpenSSL of the base system here).
 # - IGNORE_WITH_PHP that of the official lang/php56.
@@ -705,8 +707,8 @@ USES+=	mysql
 .	endif
 .endif
 
-.include <bsd.port.pre.mk>
-
+# (before bsd.port.pre.mk, unlike the official 5.6: USES=xorg of X11 is read
+# there in the framework of f16b6dd, as for 7.4)
 .if ${PHP_MODNAME} == "gd"
 .	if ${PORT_OPTIONS:MT1LIB}
 LIB_DEPENDS+=	libt1.so:devel/t1lib
@@ -731,6 +733,8 @@ LIB_DEPENDS+=	libvpx.so:multimedia/libvpx
 CONFIGURE_ARGS+=--with-vpx-dir=${LOCALBASE}
 .	endif
 .endif
+
+.include <bsd.port.pre.mk>
 
 .if ${PHP_MODNAME} == "mbstring"
 .	if ${PORT_OPTIONS:MREGEX}
