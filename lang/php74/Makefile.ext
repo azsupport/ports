@@ -77,6 +77,9 @@
 #   mbstring, phar and simplexml (only for the PCRE2 of the ports), and those of
 #   swoole for swoole_admin_server.cc, server/manager.cc and server/master.cc
 #   (in 4.8.13 already).
+# - zlib: ZLIB_LIBS=-lz instead of the libs of zlib.pc of the base system, whose
+#   -L/lib configure put into the run path of zlib.so (the run path of a module
+#   is ${AZ_PREFIX}/lib only; the run-time linker finds libz.so.6 in /lib).
 
 COMMENT=	The ${PHP_MODNAME} shared extension for php
 
@@ -427,6 +430,7 @@ USES+=		pkgconfig
 
 .if ${PHP_MODNAME} == "zlib"
 CONFIGURE_ARGS+=--with-zlib
+CONFIGURE_ENV+=	ZLIB_LIBS="-lz"
 USES+=		pkgconfig
 .endif
 
