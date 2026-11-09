@@ -4,6 +4,4 @@ MASTERDIR=	${.CURDIR}/../../lang/php83
 
 PKGNAMESUFFIX=	-zip
 
-TEST_TARGET=	test
-
 .include "${MASTERDIR}/Makefile"

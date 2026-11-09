@@ -48,6 +48,8 @@ DESCR=		${.CURDIR}/pkg-descr
 
 EXTRACT_AFTER_ARGS?=	${EXTSUBDIR}
 
+TEST_TARGET=	test
+
 # AZ_LIBS (per module): the libraries of ${AZ_PREFIX}/lib the module links
 # (Mk/Uses/php.mk links them with their run path, found by the pkg-config of az)
 BUILD_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
@@ -124,6 +126,8 @@ CONFIGURE_ARGS+=--enable-filter
 .endif
 
 .if ${PHP_MODNAME} == "ftp"
+# FTP over SSL with the OpenSSL of the base system: --with-openssl-dir of
+# ext.conf (the port: PHP_OPENSSL=yes; ext/ftp/config.m4 takes either)
 CONFIGURE_ARGS+=--enable-ftp \
 		--with-openssl-dir=/usr
 
@@ -173,9 +177,12 @@ CONFIGURE_ARGS+=--with-iconv=${AZ_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "intl"
+# ICU of az; ext/intl/config.m4 of 8.3 builds with C++17 for ICU 74 and later
+# itself (7.4: USES=compiler:c++17-lang in its slave)
 AZ_LIBS=	libicui18n.so
 CONFIGURE_ARGS+=--enable-intl
 USES+=		pkgconfig
+CPPFLAGS+=	-DU_USING_ICU_NAMESPACE=1
 .endif
 
 .if ${PHP_MODNAME} == "mbstring"
