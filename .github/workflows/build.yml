@@ -58,13 +58,6 @@ on:
 permissions:
   contents: write
 
-# one run at a time for a release and a branch: a run of main publishes, a run of
-# another branch only tries its ports (its caches are its own: GitHub gives a
-# branch the caches of main, never main those of another branch)
-concurrency:
-  group: az-ports-${{ inputs.release }}-${{ github.ref_name }}
-  cancel-in-progress: false
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -74,6 +67,15 @@ jobs:
       matrix:
         cputype: ${{ inputs.cputype == 'both' && fromJSON('["x86-64-v3", "x86-64-v2"]') || fromJSON(format('["{0}"]', inputs.cputype)) }}
     name: build (${{ matrix.cputype }})
+    # one job at a time for a release, a level and a branch: a run of main
+    # publishes the release of its level, a run of another branch only tries its
+    # ports (its caches are its own: GitHub gives a branch the caches of main, never
+    # main those of another branch). The levels have their own releases and caches,
+    # so a run of x86-64-v2 goes while one of x86-64-v3 does (and the two jobs of
+    # both); a job of a level waits for the one of the same level
+    concurrency:
+      group: az-ports-${{ inputs.release }}-${{ matrix.cputype }}-${{ github.ref_name }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v5
 
