@@ -1,10 +1,10 @@
 /*
  * lib-bench.c - the drivers of tools/lib-bench.sh for two libraries of the package
- * az that no PHP module of az loads: expat (fontconfig, and so ImageMagick and
- * GraphicsMagick, read their XML with it) and lcms2 (the colour profiles of
- * ImageMagick and GraphicsMagick). Built once, with the base cc, against the
- * libraries of az; the variants of a library are then put in front of it with
- * LD_LIBRARY_PATH, as for PHP.
+ * az that PHP loads only through imagick and gmagick: expat (fontconfig reads its
+ * configuration with it, once per process) and lcms2 (the colour profiles of
+ * ImageMagick and GraphicsMagick, also in their static programs). Built once, with
+ * the base cc, against the libraries of az; the variants of a library are then put
+ * in front of it with LD_LIBRARY_PATH, as for PHP.
  *
  *   cc -O2 -DLB_EXPAT -o lb-expat lib-bench.c -lexpat          lb-expat <n> <file.xml>
  *   cc -O2 -DLB_LCMS2 -o lb-lcms2 lib-bench.c -llcms2 -lm      lb-lcms2 <n>

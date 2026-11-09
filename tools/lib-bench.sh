@@ -29,12 +29,15 @@
 #
 # The libraries: libxml2 and libxslt (PHP dom, simplexml, xml, xmlreader, xsl),
 # oniguruma (mbstring, mb_ereg*), sqlite3 (sqlite3, pdo_sqlite), gd, freetype2 and
-# png (gd), mozjpeg (gd JPEG; cjpeg, djpeg), libzip (zip), expat and lcms2 (no PHP
-# module of az loads them: fontconfig, ImageMagick and GraphicsMagick do; the drivers
-# of tools/lib-bench.c). Not measured, they stay with clang: the libraries with
-# assembly or SIMD code of their own (zstd, brotli, lz4, webp, dav1d, x264, OpenSSL,
-# libsodium, gmp), the C++ ones (ICU, libheif, libde265, libmemcached), ImageMagick
-# and GraphicsMagick (their OpenMP would be libgomp of the ports with GCC).
+# png (gd), mozjpeg (gd JPEG; cjpeg, djpeg), libzip (zip), expat and lcms2 (PHP
+# loads them only through imagick and gmagick: the shared ImageMagick 7 and
+# GraphicsMagick of az, which stay with clang, take lcms2 for colour profiles and
+# fontconfig, which reads its configuration once with expat; the static programs link
+# them too; measured with the drivers of tools/lib-bench.c). Not measured, they stay
+# with clang: the libraries with assembly or SIMD code of their own (zstd, brotli,
+# lz4, webp, dav1d, x264, OpenSSL, libsodium, gmp), the C++ ones (ICU, libheif,
+# libde265, libmemcached), ImageMagick and GraphicsMagick (their OpenMP would be
+# libgomp of the ports with GCC).
 #
 # A library is built as tools/az-build.sh builds its shared kind: the source and
 # patches of its port at the commit of deps.conf (make patch; the release of its take
