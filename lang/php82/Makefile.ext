@@ -41,7 +41,9 @@
 #   config.m4 of 8.2, whose PCRE2 is the bundled one of the core,
 #   HAVE_BUNDLED_PCRE), and the PHP_HASH of the one of phar is for a check
 #   that 8.2 no longer has; ours: the config.m4 of readline (GNU readline
-#   under phpize) and of imagick (its m4 path);
+#   under phpize) and of imagick (its m4 path), and php_xsl.c of xsl without
+#   xsltCleanupGlobals() at module shutdown, as the official 8.3 and our 8.1
+#   and 5.6 (aZ, 09.11.2026, for 8.1; the official 8.2 has no such patch);
 # - swoole and redis with the options of their ports (swoole without four
 #   that could not be switched on here: see its rules) and the libraries of
 #   az;
