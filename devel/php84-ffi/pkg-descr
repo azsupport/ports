@@ -1,0 +1,7 @@
+FFI: the Foreign Function Interface, calls of the functions of C
+libraries from PHP, with libffi of the package az.
+
+The module ffi of PHP 8.4 for php84 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20240924/ffi.so,
+loaded by its ini in etc/php84/conf.d, its headers in
+include/php84/php/ext/ffi.

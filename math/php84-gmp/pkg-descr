@@ -1,0 +1,7 @@
+GMP: arbitrary length integers with the GNU MP library of the package
+az.
+
+The module gmp of PHP 8.4 for php84 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20240924/gmp.so,
+loaded by its ini in etc/php84/conf.d, its headers in
+include/php84/php/ext/gmp.
