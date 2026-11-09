@@ -2,6 +2,6 @@ Bindings for the libmcrypt library
 
 Pecl package available only for PHP 7.2 and above
 
-PECL mcrypt for php74 of azsupport/ports, built from ext/mcrypt of the
+PECL mcrypt for php83 of azsupport/ports, built from ext/mcrypt of the
 release tarball of azsupport/php-src, which bundles it:
-lib/php/20190902/mcrypt.so, loaded by its ini in etc/php74/conf.d.
+lib/php/20230831/mcrypt.so, loaded by its ini in etc/php83/conf.d.

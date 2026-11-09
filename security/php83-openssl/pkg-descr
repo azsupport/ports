@@ -1,8 +1,8 @@
 OpenSSL: encryption, signatures and certificates with the OpenSSL of
-the base system. php74-openssl-legacy is the same module with the
+the base system. php83-openssl-legacy is the same module with the
 legacy provider of OpenSSL; install one of the two.
 
-The module openssl of PHP 7.4 for php74 of azsupport/ports, which
+The module openssl of PHP 8.3 for php83 of azsupport/ports, which
 installs side by side with the other versions of PHP:
-lib/php/20190902/openssl.so, loaded by its ini in etc/php74/conf.d, its
-headers in include/php74/php/ext/openssl.
+lib/php/20230831/openssl.so, loaded by its ini in etc/php83/conf.d, its
+headers in include/php83/php/ext/openssl.
