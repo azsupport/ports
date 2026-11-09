@@ -605,7 +605,11 @@ ZSTD_VARS=		AZ_LIBS+=libzstd.so
 # --with-brotli-dir of ext.conf: that branch of config.m4 adds the libraries to
 # LIBS only, which phpize does not link, so swoole.so would need no
 # libbrotlienc and libbrotlidec and have their symbols undefined (checked on
-# Linux with phpize of the 8.1 tarball)
+# Linux with phpize of the 8.1 tarball).
+# Not the options ODBC and PGSQL of the port (aZ, 09.11.2026): each needs
+# what is not here, so it could not be switched on:
+#   ODBC: the module odbc, which this overlay does not build;
+#   PGSQL: pdo_pgsql and the PostgreSQL client library of the ports.
 COMMENT=	Asynchronous, concurrent, and distributed networking framework
 WWW=		https://pecl.php.net/package/swoole
 
@@ -622,7 +626,7 @@ CONFIGURE_ARGS+=	--enable-swoole \
 			--enable-mysqlnd \
 			--with-openssl-dir=/usr
 
-OPTIONS_DEFINE=		BROTLI CARES CURL ODBC PGSQL SOCKETS SQLITE ZSTD
+OPTIONS_DEFINE=		BROTLI CARES CURL SOCKETS SQLITE ZSTD
 OPTIONS_DEFAULT=	BROTLI SOCKETS
 CARES_LIB_DEPENDS=	libcares.so:dns/c-ares
 CARES_CONFIGURE_ON=	--enable-cares
@@ -632,19 +636,12 @@ SOCKETS_CONFIGURE_ON=	--enable-sockets
 CURL_LIB_DEPENDS=	libcurl.so:ftp/curl
 CURL_CONFIGURE_ON=	--enable-swoole-curl
 CURL_USE=		PHP=curl
-PGSQL_CONFIGURE_ON=	--enable-swoole-pgsql
-PGSQL_USES=		pgsql
-PGSQL_USE=		PHP=pdo:build
 BROTLI_CONFIGURE_ON=	--enable-brotli
 BROTLI_CONFIGURE_OFF=	--disable-brotli
 BROTLI_VARS=		AZ_LIBS+=libbrotlienc.so
 ZSTD_CONFIGURE_ON=	--enable-zstd
 ZSTD_CONFIGURE_OFF=	--disable-zstd
 ZSTD_LIB_DEPENDS=	libzstd.so:archivers/zstd
-# ODBC needs the module odbc, which this overlay does not build (USE_PHP fails)
-ODBC_CONFIGURE_ON=	--with-swoole-odbc=unixODBC
-ODBC_CONFIGURE_OFF=	--without-swoole-odbc
-ODBC_USE=		PHP=odbc:build
 SQLITE_CONFIGURE_ON=	--enable-swoole-sqlite
 SQLITE_CONFIGURE_OFF=	--disable-swoole-sqlite
 SQLITE_USE=		PHP=sqlite3
