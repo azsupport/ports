@@ -118,6 +118,17 @@
 - **60 портов модулей** `php74-<модуль>`: имена без «pecl», origin как у официальных
   портов или наши (`graphics/php74-gd`, `databases/php74-redis`), ini
   `ext-NN-<модуль>.ini`, у openswoole и gmagick выключен.
+- **Компилятор PHP** (все версии, aZ 09.11.2026): ядра, модули Apache и модули собирает
+  GCC 16 из портов (`lang/gcc16`), только как зависимость сборки: ни одному файлу не нужна
+  библиотека GCC (`-static-libgcc`, путь поиска библиотек только `/usr/local/az/lib`).
+  Zend VM PHP 7 и новее с GCC держит свои регистры в глобальных регистровых переменных,
+  с clang — нет: CLI 7.4 быстрее, чем с clang 19 базовой системы, на 33–44%, 8.3 — на
+  36–38% без OPcache и на 5–15% с OPcache и его JIT
+  ([bench.sh](https://github.com/azsupport/php-src/blob/master/tools/bench.sh) из php-src).
+  Модули с C++ (intl, swoole, openswoole), а также imagick и gmagick (они линкуют
+  OpenMP-рантайм компилятора) остаются на clang базовой системы. Какой компилятор у
+  пакета, говорит его аннотация `az_cc` (`pkg info -A php74`);
+  [`Mk/Uses/azgcc.mk`](Mk/Uses/azgcc.mk).
 
 ## Раскладка PHP на сервере
 
