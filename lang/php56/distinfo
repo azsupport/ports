@@ -1,5 +1,5 @@
-TIMESTAMP = 1794206367
-SHA256 (php/php-5.6.40-fbsd-20261108-5c2cc46b.tar.xz) = 86acdc456380c2a04bde6df6219ea8aa3f88a4d1e28c40b9b0241c3987e7ab9f
-SIZE (php/php-5.6.40-fbsd-20261108-5c2cc46b.tar.xz) = 22236376
+TIMESTAMP = 1794217217
+SHA256 (php/php-5.6.40-fbsd-20261109-5c2cc46b.tar.xz) = b9fd8d84defa3d60ac0ffaf5df4c7eb9ee517c65ade9d06ab23be4594a039eff
+SIZE (php/php-5.6.40-fbsd-20261109-5c2cc46b.tar.xz) = 22236440
 SHA256 (php/php-5.5.x-mail-header.patch) = f510672c4bf2c228e4d8c7837e16a82169de82139dcf33fafce51e9e55a1b9ed
 SIZE (php/php-5.5.x-mail-header.patch) = 4426
