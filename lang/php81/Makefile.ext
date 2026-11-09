@@ -599,7 +599,13 @@ ZSTD_VARS=		AZ_LIBS+=libzstd.so
 # swoole 6.1 of the tarball has no --enable-openssl of the port (the fork took
 # it out: inside php-src it turned the OpenSSL of mysqlnd off; swoole 6.2 has
 # none either); the options BROTLI, with the brotli of az, and SOCKETS on
-# (ext.conf); not USES=localbase:ldflags: no library of the ports by default
+# (ext.conf); not USES=localbase:ldflags: no library of the ports by default.
+# BROTLI as the port: --enable-brotli alone, so that config.m4 takes brotli by
+# its pkg-config (that of az) into SWOOLE_SHARED_LIBADD; not the
+# --with-brotli-dir of ext.conf: that branch of config.m4 adds the libraries to
+# LIBS only, which phpize does not link, so swoole.so would need no
+# libbrotlienc and libbrotlidec and have their symbols undefined (checked on
+# Linux with phpize of the 8.1 tarball)
 COMMENT=	Asynchronous, concurrent, and distributed networking framework
 WWW=		https://pecl.php.net/package/swoole
 
@@ -629,8 +635,7 @@ CURL_USE=		PHP=curl
 PGSQL_CONFIGURE_ON=	--enable-swoole-pgsql
 PGSQL_USES=		pgsql
 PGSQL_USE=		PHP=pdo:build
-BROTLI_CONFIGURE_ON=	--enable-brotli \
-			--with-brotli-dir=${AZ_PREFIX}
+BROTLI_CONFIGURE_ON=	--enable-brotli
 BROTLI_CONFIGURE_OFF=	--disable-brotli
 BROTLI_VARS=		AZ_LIBS+=libbrotlienc.so
 ZSTD_CONFIGURE_ON=	--enable-zstd
