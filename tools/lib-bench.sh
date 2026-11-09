@@ -310,16 +310,19 @@ cflags1="$cflags"
 cflags2="$cflags -std=gnu17 -static-libgcc"
 ld2="$("$cc2" -print-prog-name=ld 2>/dev/null)"
 
-# PHP: -n and the modules that are not built in
+# PHP: -n and the modules that are not built in, each loaded after those it needs; one
+# that does not load is left out (the benchmarks that need it fail with the reason)
 extdir="$("$php" -n -r 'echo ini_get("extension_dir");' 2>/dev/null)"
 php_args="-n -d memory_limit=2G"
 for m in $php_mods; do
-    if ! "$php" -n -r "exit(extension_loaded('$m') ? 0 : 1);" 2>/dev/null; then php_args="$php_args -d extension=$m"; fi
+    "$php" -n -r "exit(extension_loaded('$m') ? 0 : 1);" 2>/dev/null && continue
+    # shellcheck disable=SC2086
+    if o="$("$php" $php_args -d "extension=$m" -r "exit(extension_loaded('$m') ? 0 : 1);" 2>&1)"; then
+        php_args="$php_args -d extension=$m"
+    else
+        fail "PHP module $m" "does not load: $(echo "$o" | grep -v '^ *$' | head -n 2 | tr '\n' ' ' | cut -c1-240)"
+    fi
 done
-# shellcheck disable=SC2086
-if ! o="$("$php" $php_args -r 'foreach (["dom","xml","simplexml","xmlreader","xsl","mbstring","sqlite3","pdo_sqlite","gd","zip"] as $m) if (!extension_loaded($m)) echo "$m ";' 2>&1)" || [ -n "$o" ]; then
-    echo "lib-bench: PHP $php without the modules $o" >&2; exit 1
-fi
 phpv="$(first_line "$php" -n -v)"
 lb_php() { "$php" $php_args "$tools/lib-bench.php" "$@"; }
 
