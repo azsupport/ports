@@ -167,6 +167,12 @@ PHP 8.3 with its modules (installs side by side with 7.4: its own `etc/php83`, `
 pkg install -r az php83 mod_php83 php83-opcache php83-gd php83-mbstring php83-openssl-legacy
 ```
 
+PHP 8.1 with its modules (side by side as well: `etc/php81`, `lib/php/20210902`, `include/php81`):
+
+```sh
+pkg install -r az php81 mod_php81 php81-opcache php81-gd php81-mbstring php81-openssl-legacy
+```
+
 The programs:
 
 ```sh
