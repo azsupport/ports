@@ -1,0 +1,6 @@
+SQLite3: SQLite 3 databases, with SQLite of the package az.
+
+The module sqlite3 of PHP 8.4 for php84 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20240924/sqlite3.so, loaded by its ini in etc/php84/conf.d, its
+headers in include/php84/php/ext/sqlite3.
