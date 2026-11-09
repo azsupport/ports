@@ -31,6 +31,8 @@
 #       - the end of each configure (its header written, or its error);
 #       - each macro of the header with another value (or undefined in one);
 #       - each variable of the Makefile with other words (-liconv in LDFLAGS);
+#       - the options of the port that the configure does not know (its warning
+#         "unrecognized options", not the generic ones of the framework);
 #       the paths of each run (its WRKDIR) and the permissive flags left out first.
 #       Exit status: 0 the same, 1 differences, 2 not compared (said why).
 #
@@ -185,6 +187,18 @@ cfg_end() {
 se="$(cfg_end "$S" "$tmp/s.log")"; pe="$(cfg_end "$P" "$tmp/p.log")"
 if [ "$se" != "$pe" ]; then
     printf '%s\n' "- configure: strict: $se; permissive: $pe" >> "$tmp/out"
+fi
+# an option of the port that this configure does not know: autoconf only warns
+# ("unrecognized options") and builds without it, the same in both runs, so no
+# difference shows it (ftp of 8.4: --with-openssl-dir, gone in 8.4, built ftp
+# without SSL; p14 found it by hand). Counted as a difference of its own. Not
+# the options the framework gives every GNU configure, which a phpize configure
+# need not know.
+uo="$(sed -n 's/^configure:[0-9]*: WARNING: unrecognized options: //p' "$tmp/s.log" | tr ',' '\n' |
+    sed 's/^ *//; s/ *$//' | grep -v -e '^$' -e '^--disable-silent-rules$' -e '^--without-gssapi$' \
+        -e '^--with-gssapi$' -e '^--disable-nls$' -e '^--enable-nls$' | sort -u | tr '\n' ' ' | sed 's/ $//')"
+if [ -n "$uo" ]; then
+    printf '%s\n' "- configure: options it does not know (an unrecognized option is built without): $uo" >> "$tmp/out"
 fi
 
 # the header: "<name>\t<n>\t<value>" for each #define (its words, "(defined)"
