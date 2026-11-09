@@ -44,8 +44,7 @@
   [`php-7.4.33-fbsd-20261104-397aa202.tar.xz`](https://github.com/azsupport/php-src/releases/download/freebsd-7.4-20261104-397aa202/php-7.4.33-fbsd-20261104-397aa202.tar.xz)),
   в которых уже есть патчи порта FreeBSD, расширения PECL в `ext/` и PCRE2, которую
   форк вкладывает в себя: наши порты PHP своих патчей не накладывают.
-- Сейчас только PHP 7.4 и x86-64-v3: всё сначала отрабатывается там, остальные версии
-  и x86-64-v2 — потом.
+- PHP 5.6, 7.4, 8.1, 8.2, 8.3 и 8.4, сначала под x86-64-v3; x86-64-v2 — потом.
 
 ## Пакеты
 
@@ -58,15 +57,15 @@
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` и `ffprobe` только с теми форматами, что нужны видеосайтам |
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, программы с 6 на конце (`convert6`, `identify6`, ...) |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickWand-7.so` в `/usr/local/az/lib` для модуля imagick |
-| `php74` | `lang/php74` | ядро PHP 7.4: CLI, php-fpm, phpize |
-| `mod_php74` | `www/mod_php74` | модуль Apache `libphp74.so` |
-| `php74-<модуль>` | `<категория>/php74-<модуль>` | по пакету на модуль (`php74-gd`: `graphics/php74-gd`); PECL без «pecl»: `php74-redis`, `php74-swoole`, `php74-igbinary`, `php74-memcached`, `php74-memcache`, `php74-imagick`, `php74-gmagick`, `php74-mcrypt`, `php74-excimer`, `php74-openswoole`; OPcache и json — тоже модули (`php74-opcache`, `php74-json`), mysqlnd тоже (`php74-mysqlnd`: на нём модули баз данных) |
+| `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
+| `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
+| `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). 58 на версию, у 7.4 — 60; список одной версии: `pkg search -r az '^php84-'` |
 
-- openssl в двух видах, один из двух: `php74-openssl` и `php74-openssl-legacy` (с
+- openssl в двух видах, один из двух: `phpXY-openssl` и `phpXY-openssl-legacy` (с
   legacy-провайдером OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
-- `php74-swoole` и `php74-openswoole` ставятся оба; ini у openswoole выключен (у них
+- `phpXY-swoole` и `phpXY-openswoole` ставятся оба; ini у openswoole выключен (у них
   одни и те же классы), его сообщение пакета говорит, как переключить.
-- `php74-imagick` и `php74-gmagick` ставятся оба, но в один PHP их грузить нельзя (у
+- `phpXY-imagick` и `phpXY-gmagick` ставятся оба, но в один PHP их грузить нельзя (у
   GraphicsMagick и ImageMagick одинаковые имена функций): ini у gmagick выключен, а при
   установке создаётся CLI-профиль gmagick (`/usr/local/etc/php74-gmagick`: gmagick включён,
   imagick выключен; `php74-profile gmagick script.php`); при удалении пакета профиль остаётся.
@@ -113,9 +112,11 @@
   установки: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
   [`az-test.sh`](tools/az-test.sh).
-- **`lang/php74`** и **`www/mod_php74`**: ядро `php74` и модуль Apache `libphp74.so`;
-  PCRE2 10.49 — встроенная в исходники форка (порт `devel/pcre2` — позже, aZ 08.11.2026).
-- **60 портов модулей** `php74-<модуль>`: имена без «pecl», origin как у официальных
+- **`lang/phpXY`** и **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): ядро `phpXY` и
+  модуль Apache `libphpXY.so`, каждый — из официального порта коммита своей версии
+  (таблица выше); PCRE2 10.49 — встроенная в исходники форка (порт `devel/pcre2` — позже,
+  aZ 08.11.2026).
+- **Порты модулей** `phpXY-<модуль>` (58 на версию, у 7.4 — 60): имена без «pecl», origin как у официальных
   портов или наши (`graphics/php74-gd`, `databases/php74-redis`), ini
   `ext-NN-<модуль>.ini`, у openswoole и gmagick выключен.
 - **Компилятор PHP** (все версии, aZ 09.11.2026): ядра, модули Apache и модули собирает
@@ -132,7 +133,9 @@
 
 ## Раскладка PHP на сервере
 
-Версии рядом, ничего общего между ними:
+Версии рядом, ничего общего между ними; для 7.4 (у остальных так же со своим номером
+и API их модулей: 5.6 `20131226`, 8.1 `20210902`, 8.2 `20220829`, 8.3 `20230831`,
+8.4 `20240924`):
 
 | | |
 |---|---|
@@ -164,7 +167,10 @@ pkg update -r az
 
 `priority: 100`: для пакета, который есть в обоих (`curl`), pkg предпочитает az
 репозиторию FreeBSD. `pkg update -r az` отказывается от каталога, подпись которого не
-проверяется.
+проверяется. В `ffmpeg`, `ImageMagick6`, `ImageMagick7` и `GraphicsMagick` из az нет
+разделяемых библиотек официальных пакетов (`libavcodec.so`, `libMagickWand-7.so` в
+`/usr/local/lib`, …): если они нужны другому пакету (`pkg info -r ffmpeg`), оставьте
+официальный пакет.
 
 PHP 7.4 с модулями:
 
@@ -194,6 +200,12 @@ PHP 8.2 с модулями (так же рядом: `etc/php82`, `lib/php/20220
 
 ```sh
 pkg install -r az php82 mod_php82 php82-opcache php82-gd php82-mbstring php82-openssl-legacy
+```
+
+PHP 8.4 с модулями (так же рядом: `etc/php84`, `lib/php/20240924`, `include/php84`):
+
+```sh
+pkg install -r az php84 mod_php84 php84-opcache php84-gd php84-mbstring php84-openssl-legacy
 ```
 
 Программы:
