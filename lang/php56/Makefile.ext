@@ -77,10 +77,10 @@
 # The modules, by the priority of their ini (ext-<NN>-<module>.ini): opcache
 # 10 (a Zend extension), session 18, 20: bcmath bz2 calendar ctype curl dba dom
 # exif fileinfo filter ftp gd gettext gmp hash iconv intl json mbstring mcrypt
-# mysqlnd openssl openssl-legacy pcntl pdo posix readline shmop simplexml soap
+# mysqlnd openssl openssl-legacy pcntl pdo posix readline shmop simplexml
 # sockets sqlite3 sysvmsg sysvsem sysvshm tidy tokenizer xml xmlwriter zip zlib
-# gmagick imagick; 30: mysql mysqli pdo_mysql pdo_sqlite phar wddx xmlreader
-# xmlrpc xsl igbinary memcache memcached redis.
+# gmagick imagick; 30: mysql mysqli pdo_mysql pdo_sqlite phar soap wddx
+# xmlreader xmlrpc xsl igbinary memcache memcached redis.
 #
 # Not built, as for 7.4: enchant, imap, ldap, odbc, pdo_dblib, pdo_firebird,
 # pdo_odbc, pdo_pgsql, pgsql, pspell, snmp, and of 5.6 interbase, mssql,
