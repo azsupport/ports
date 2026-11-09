@@ -21,6 +21,11 @@
 #     loads at the start, not those of dlopen (PHP's, with RTLD_LAZY), whatever
 #     LD_BIND_NOW says (glibc applies it to dlopen too); PHP's dlopen then
 #     finds the module loaded;
+#   - intl (phpXY-intl), with php -n and only intl and the modules it depends
+#     on, a line each: Normalizer::normalize (the NFC of a decomposed letter),
+#     NumberFormatter, IntlDateFormatter (a fixed time, a pattern and UTC) and
+#     Collator (a German list) of de_DE, each against the exact string of ICU
+#     76 (the ICU of az);
 #   - readelf -d of every module of lib/php/<API> and of php, php-cgi, php-fpm and
 #     libphp of mod_phpXY: the libraries they name (NEEDED) in /lib, /usr/lib or
 #     /usr/local/az/lib, the run path (RUNPATH) none or /usr/local/az/lib, which it
@@ -167,6 +172,54 @@ dep_order() (
     printf '%s\n' "$1"
 )
 
+# intl_check <name> <PHP code> [<arguments of php>]: the code with php -n, the
+# extension directory and the arguments (-d lines of intl and the modules it
+# depends on); the code prints one line, "OK <what it got>" or "FAIL <what it
+# got, what it should be>"; any other output (a warning, an error) fails with
+# its first line that is not that of OK
+intl_check() {
+    _n="$1"; _c="$2"; shift 2
+    _o="$("$php" -n -d "extension_dir=$extdir" -d date.timezone=UTC "$@" -r "$_c" 2>&1 < /dev/null)"
+    case "$_o" in
+        *"
+"*) ;;
+        "OK "*) ok "$_n" "${_o#OK }"; return ;;
+        "FAIL "*) fail "$_n" "${_o#FAIL }"; return ;;
+    esac
+    fail "$_n" "$(printf '%s\n' "$_o" | sed -n '/^OK /d; /[^[:space:]]/{p;q;}')"
+}
+
+# intl_checks [<arguments of php>]: intl on the data of its ICU, each against
+# the exact string of ICU 76: the NFC of a decomposed letter, a number, a date
+# and an order of de_DE
+intl_checks() {
+    intl_check "intl: Normalizer::normalize" '
+        $s = Normalizer::normalize("Cafe\xCC\x81", Normalizer::FORM_C);
+        $h = is_string($s) ? bin2hex($s) : var_export($s, true);
+        echo $h === "436166c3a9" ? "OK \"Cafe\" U+0301 -> \"$s\" (NFC, 436166c3a9), ICU " . INTL_ICU_VERSION
+            : "FAIL \"Cafe\" U+0301 -> $h, not 436166c3a9";' "$@"
+    intl_check "intl: NumberFormatter de_DE" '
+        $f = new NumberFormatter("de_DE", NumberFormatter::DECIMAL);
+        $s = $f->format(1234567.891);
+        $w = "1.234.567,891";
+        echo $s === $w ? "OK 1234567.891 -> \"$s\"" : "FAIL 1234567.891 -> " . var_export($s, true) . ", not \"$w\"";' "$@"
+    intl_check "intl: IntlDateFormatter de_DE" '
+        $p = "EEEE, d. MMMM yyyy, HH:mm:ss";
+        $f = new IntlDateFormatter("de_DE", IntlDateFormatter::NONE, IntlDateFormatter::NONE, "UTC",
+            IntlDateFormatter::GREGORIAN, $p);
+        $s = $f->format(1234567890);
+        $w = "Freitag, 13. Februar 2009, 23:31:30";
+        echo $s === $w ? "OK 1234567890, UTC, \"$p\" -> \"$s\""
+            : "FAIL 1234567890, UTC, \"$p\" -> " . var_export($s, true) . ", not \"$w\"";' "$@"
+    intl_check "intl: Collator de_DE" '
+        $c = new Collator("de_DE");
+        $a = array("Zebra", "\xC3\x84pfel", "Ofen", "B\xC3\xA4r", "Apfel", "\xC3\x96sterreich", "Bar");
+        $c->sort($a);
+        $s = implode(" ", $a);
+        $w = "Apfel \xC3\x84pfel Bar B\xC3\xA4r Ofen \xC3\x96sterreich Zebra";
+        echo $s === $w ? "OK $s" : "FAIL $s, not $w";' "$@"
+}
+
 # the packages: the core, not the static PHP of az-menu.sh in its place
 pkg info -e "php$short" || fail "package php$short" "not installed"
 if pkg info -e "php$short-static"; then
@@ -201,6 +254,7 @@ done
 # the glob matches name-version too: php74-7.4.33_... is the core, not a module
 pkg query -g '%n' "php$short-*" 2>/dev/null | grep -v -x -e "php$short" -e "php$short-static" | sort -u > "$tmp/pkgs"
 [ -s "$tmp/pkgs" ] || skip "modules" "no package php$short-<module> installed"
+intl_done=""
 while read -r p; do
     s="$(pkg query '%Fp' "$p" | sed -n "s#^$etc/conf.d/\(ext-[0-9][0-9]-[^/]*\.ini\)\.sample\$#\1#p" | head -n 1)"
     if [ -z "$s" ]; then
@@ -300,7 +354,12 @@ while read -r p; do
     else
         ok "$bn" "php$short -n with $with"
     fi
+    # intl: its functions on the data of ICU, with php -n and the same modules
+    if [ "$mod" = intl ]; then
+        intl_checks "$@"; intl_done=1
+    fi
 done < "$tmp/pkgs"
+[ -n "$intl_done" ] || skip "intl" "the package php$short-intl is not installed"
 
 # The libraries of the modules and of the programs
 n=0
