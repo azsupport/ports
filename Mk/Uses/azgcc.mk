@@ -2,9 +2,9 @@
 # clang, GCC a build dependency only: nothing of it is needed at run time. A
 # USES of the overlay azsupport/ports (the official tree has no such file),
 # for its PHP ports: the masters lang/php56, lang/php74, lang/php81,
-# lang/php82 and lang/php83 have it in their USES, so the cores, www/mod_php*
-# and the modules php*-<module> (their slaves) are built with it (aZ,
-# 09.11.2026: the most speed there is, for 5.6 and the modules too).
+# lang/php82, lang/php83 and lang/php84 have it in their USES, so the cores,
+# www/mod_php* and the modules php*-<module> (their slaves) are built with it
+# (aZ, 09.11.2026: the most speed there is, for 5.6 and the modules too).
 #
 # Why: the Zend VM of PHP 7 and later keeps its frame and its instruction
 # pointer in global register variables, which GCC has and clang has not
