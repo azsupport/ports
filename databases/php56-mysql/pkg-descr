@@ -1,0 +1,7 @@
+MySQL: the original MySQL functions (mysql_connect, mysql_query,
+...), deprecated since PHP 5.5 and removed in PHP 7.0, through mysqlnd.
+
+The module mysql of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/mysql.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/mysql.

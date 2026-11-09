@@ -9,8 +9,9 @@
 # ports of that commit, with the changes of this overlay as
 # lang/php74/Makefile.ext has them (its head says what and why: the libraries
 # of az, the options of php-src freebsd/ext.conf, USE_PHP, CONFLICTS_INSTALL,
-# the ini of openswoole and gmagick, the profiles, ZLIB_LIBS of zlib), as
-# lang/php81/Makefile.ext for 8.1. What 8.3 has otherwise:
+# the ini of openswoole and gmagick, the profiles, ZLIB_LIBS of zlib, GCC but
+# for intl, swoole, openswoole, imagick and gmagick), as lang/php81/Makefile.ext
+# for 8.1. What 8.3 has otherwise:
 # - no json (built into the core since PHP 8.0: PHP_EXT_INC, so USE_PHP=json
 #   needs no package) and no xmlrpc (removed from PHP 8.0; PECL xmlrpc is not
 #   in php-src freebsd/pecl.conf); ext.conf has the lines of 7.4 only, so the
@@ -202,6 +203,8 @@ CONFIGURE_ARGS+=--with-iconv=${AZ_PREFIX}
 AZ_LIBS=	libicui18n.so
 CONFIGURE_ARGS+=--enable-intl
 USES+=		pkgconfig
+# C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
+AZ_GCC=		no
 CPPFLAGS+=	-DU_USING_ICU_NAMESPACE=1
 .endif
 
@@ -235,6 +238,8 @@ CONFIGURE_ARGS+=--enable-mysqlnd
 
 CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
+# config9.m4 adds them to MYSQLND_SHARED_LIBADD without PHP_SUBST: not linked
+LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl -lz
 USES+=		ssl pkgconfig
 .endif
 
@@ -426,6 +431,11 @@ BUILD_DEPENDS+=	${AZ_GMAGICK_DEP}
 RUN_DEPENDS+=	${AZ_GMAGICK_DEP}
 
 CONFIGURE_ARGS+=--with-gmagick=${AZ_PREFIX}
+# the base clang, not GCC (Mk/Uses/azgcc.mk): its configure links -lgomp
+# when omp.h builds (omp_pause_resource_all() at shutdown), with GCC the
+# libgomp of the gcc package, a library of it at run time (with the base
+# clang the libgomp.so of the base system, its libomp)
+AZ_GCC=		no
 
 AZ_PROFILE=	${PREFIX}/etc/php${PHP_VER}-gmagick
 AZ_INI_OFF=	"Off: imagick and gmagick must not be loaded into one PHP" \
@@ -487,6 +497,11 @@ BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
 RUN_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
 
 CONFIGURE_ARGS+=--with-imagick=${AZ_PREFIX}
+# the base clang, not GCC (Mk/Uses/azgcc.mk): its configure links the
+# OpenMP runtime of the compiler when omp.h builds (omp_pause_resource_all()
+# at shutdown), with GCC the libgomp of the gcc package, a library of it at
+# run time (with the base clang the libomp of the base system)
+AZ_GCC=		no
 # not the post-patch of the port: it is for PHP 8.6 only (PHP_VER >= 86)
 .endif
 
@@ -626,6 +641,8 @@ NOT_FOR_ARCHS=	i386 powerpc
 NOT_FOR_ARCHS_REASON=	upstream drop 32 bits support
 
 USES+=		compiler:c11 pkgconfig ssl
+# C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
+AZ_GCC=		no
 USE_PHP=	mysqlnd:build
 
 CONFIGURE_ARGS+=	--enable-swoole \
@@ -652,6 +669,10 @@ ZSTD_CONFIGURE_OFF=	--disable-zstd
 ZSTD_CONFIGURE_ON=	--enable-zstd
 ZSTD_LIB_DEPENDS=	libzstd.so:archivers/zstd
 # not files/patch-src_core_misc.cc of the port (6.2.3): in 6.2.5 already
+# backtrace() is in libexecinfo of the base system: files/patch-config.m4
+# finds it there (HAVE_EXECINFO) but does not link it, and swoole.so had
+# the symbol undefined (the load check of tools/check-php.sh)
+LDFLAGS+=	-lexecinfo
 .endif
 
 .if ${PHP_MODNAME} == "openswoole"
@@ -667,6 +688,8 @@ LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
 USES+=		compiler:c11 ssl
+# C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
+AZ_GCC=		no
 USE_PHP=	sockets:build mysqlnd:build
 AZ_LIBS=	libbrotlienc.so
 # its configure finds brotli by a link test only (AC_CHECK_LIB, through the -L of

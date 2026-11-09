@@ -8,10 +8,11 @@
 @comment no session.sid_length, session.sid_bits_per_character,
 @comment session.cookie_samesite, zend.exception_ignore_args,
 @comment opcache.validate_permission, opcache.validate_root and
-@comment opcache.huge_code_pages, has mysql.allow_persistent = Off and
-@comment mysql.default_socket, and opcache.max_accelerated_files at most
-@comment 100000; 8.4 has error_reporting = E_ALL & ~E_DEPRECATED and no
-@comment session.sid_length and session.sid_bits_per_character.
+@comment opcache.huge_code_pages and has mysql.allow_persistent = Off and
+@comment mysql.default_socket (opcache.max_accelerated_files = 300000 holds
+@comment there too: the limit of 5.6 is 1000000 since PHP 5.5.6); 8.4 has
+@comment error_reporting = E_ALL & ~E_DEPRECATED and no session.sid_length and
+@comment session.sid_bits_per_character.
 
 ; --- az: defaults of PHP 7.4, on top of php.ini-production above ---
 [PHP]

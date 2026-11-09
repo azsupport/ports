@@ -76,10 +76,17 @@
 #   readline_cli.c of readline (in the source already), config.m4 of fileinfo,
 #   mbstring, phar and simplexml (only for the PCRE2 of the ports), and those of
 #   swoole for swoole_admin_server.cc, server/manager.cc and server/master.cc
-#   (in 4.8.13 already).
+#   (in 4.8.13 already); ours: php_xsl.c of xsl without xsltCleanupGlobals() at
+#   module shutdown (files/patch-php__xsl.c of textproc/php74-xsl), as the
+#   official 8.3 and our 5.6, 8.1 and 8.2 (aZ, 09.11.2026: 7.4 too).
 # - zlib: ZLIB_LIBS=-lz instead of the libs of zlib.pc of the base system, whose
 #   -L/lib configure put into the run path of zlib.so (the run path of a module
 #   is ${AZ_PREFIX}/lib only; the run-time linker finds libz.so.6 in /lib).
+# - the compiler: GCC of the ports for the modules (USES=azgcc of
+#   lang/php74/Makefile; Mk/Uses/azgcc.mk says why and how), but intl, swoole
+#   and openswoole, whose C++ keeps the base clang, and imagick and gmagick,
+#   whose configure links the OpenMP runtime of the compiler (AZ_GCC=no in
+#   their rules).
 
 COMMENT=	The ${PHP_MODNAME} shared extension for php
 
@@ -225,6 +232,8 @@ CONFIGURE_ARGS+=--with-iconv=${AZ_PREFIX}
 AZ_LIBS=	libicui18n.so
 CONFIGURE_ARGS+=--enable-intl
 USES+=		pkgconfig
+# C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
+AZ_GCC=		no
 .endif
 
 .if ${PHP_MODNAME} == "json"
@@ -262,6 +271,8 @@ CONFIGURE_ARGS+=--enable-mysqlnd
 
 CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
+# config9.m4 adds them to MYSQLND_SHARED_LIBADD without PHP_SUBST: not linked
+LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl -lz
 USES+=		ssl pkgconfig
 .endif
 
@@ -463,6 +474,11 @@ BUILD_DEPENDS+=	${AZ_GMAGICK_DEP}
 RUN_DEPENDS+=	${AZ_GMAGICK_DEP}
 
 CONFIGURE_ARGS+=--with-gmagick=${AZ_PREFIX}
+# the base clang, not GCC (Mk/Uses/azgcc.mk): its configure links -lgomp
+# when omp.h builds (omp_pause_resource_all() at shutdown), with GCC the
+# libgomp of the gcc package, a library of it at run time (with the base
+# clang the libgomp.so of the base system, its libomp)
+AZ_GCC=		no
 
 AZ_PROFILE=	${PREFIX}/etc/php${PHP_VER}-gmagick
 AZ_INI_OFF=	"Off: imagick and gmagick must not be loaded into one PHP" \
@@ -517,6 +533,11 @@ BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
 RUN_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
 
 CONFIGURE_ARGS+=--with-imagick=${AZ_PREFIX}
+# the base clang, not GCC (Mk/Uses/azgcc.mk): its configure links the
+# OpenMP runtime of the compiler when omp.h builds (omp_pause_resource_all()
+# at shutdown), with GCC the libgomp of the gcc package, a library of it at
+# run time (with the base clang the libomp of the base system)
+AZ_GCC=		no
 .endif
 
 .if ${PHP_MODNAME} == "mcrypt"
@@ -615,6 +636,8 @@ LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
 USES+=		compiler:c11 ssl
+# C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
+AZ_GCC=		no
 USE_PHP=	hash:build pcre mysqlnd:build
 AZ_LIBS=	libbrotlienc.so
 
@@ -638,6 +661,10 @@ CURL_CONFIGURE_ON=	--enable-swoole-curl
 CURL_USE=		PHP=curl
 JSON_CONFIGURE_ON=	--enable-swoole-json
 JSON_USE=		PHP=json:build
+# backtrace() is in libexecinfo of the base system: files/patch-config.m4
+# finds it there (HAVE_EXECINFO) but does not link it, and swoole.so had
+# the symbol undefined (the load check of tools/check-php.sh)
+LDFLAGS+=	-lexecinfo
 .endif
 
 .if ${PHP_MODNAME} == "openswoole"
@@ -653,6 +680,8 @@ LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
 USES+=		compiler:c11 ssl
+# C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
+AZ_GCC=		no
 USE_PHP=	sockets:build mysqlnd:build
 AZ_LIBS=	libbrotlienc.so
 # its configure finds brotli by a link test only (AC_CHECK_LIB, through the -L of

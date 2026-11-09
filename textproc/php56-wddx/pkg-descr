@@ -1,0 +1,9 @@
+WDDX: the wddx_* functions, which serialize PHP values to WDDX packets
+(the XML of the Web Distributed Data eXchange) and back, and the wddx
+serializer of the session module, with libxml2 of the package az.
+PHP 7.4 moved the module out of PHP, to PECL.
+
+The module wddx of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/wddx.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/wddx.

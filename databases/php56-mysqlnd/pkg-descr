@@ -1,0 +1,9 @@
+mysqlnd: the MySQL Native Driver, the client library of mysql, mysqli
+and pdo_mysql in PHP itself (no libmysqlclient), with SSL on the
+OpenSSL and the compressed protocol on the zlib of the base system. A
+module of its own here (a part of the core in the official lang/php56).
+
+The module mysqlnd of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/mysqlnd.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/mysqlnd.

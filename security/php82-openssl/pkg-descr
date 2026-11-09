@@ -1,0 +1,8 @@
+OpenSSL: encryption, signatures and certificates with the OpenSSL of
+the base system. php82-openssl-legacy is the same module with the
+legacy provider of OpenSSL; install one of the two.
+
+The module openssl of PHP 8.2 for php82 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20220829/openssl.so, loaded by its ini in etc/php82/conf.d, its
+headers in include/php82/php/ext/openssl.

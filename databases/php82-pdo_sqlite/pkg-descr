@@ -1,0 +1,6 @@
+PDO_SQLITE: the SQLite 3 driver of PDO, with SQLite of the package az.
+
+The module pdo_sqlite of PHP 8.2 for php82 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20220829/pdo_sqlite.so, loaded by its ini in etc/php82/conf.d,
+its headers in include/php82/php/ext/pdo_sqlite.

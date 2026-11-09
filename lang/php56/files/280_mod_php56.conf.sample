@@ -1,0 +1,13 @@
+# PHP 5.6 as an Apache module (mod_php56 of azsupport/ports): copy this file to
+# 280_mod_php56.conf in modules.d of the Apache instance that is to load it
+# (one PHP module per instance), then restart that instance.
+LoadModule php5_module libexec/apache24/libphp56.so
+<IfModule php5_module>
+    <FilesMatch "\.php$">
+        SetHandler application/x-httpd-php
+    </FilesMatch>
+    <FilesMatch "\.phps$">
+        SetHandler application/x-httpd-php-source
+    </FilesMatch>
+    DirectoryIndex index.php index.html
+</IfModule>

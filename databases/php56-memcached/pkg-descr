@@ -1,0 +1,12 @@
+memcached is a high-performance, distributed memory object caching
+system, generic in nature, but intended for use in speeding up dynamic
+web applications by alleviating database load.
+
+This extension uses libmemcached library to provide API for
+communicating with memcached servers.
+
+See also: https://github.com/php-memcached-dev/php-memcached
+
+PECL memcached for php56 of azsupport/ports, built from ext/memcached
+of the release tarball of azsupport/php-src, which bundles it:
+lib/php/20131226/memcached.so, loaded by its ini in etc/php56/conf.d.
