@@ -116,7 +116,10 @@ elf_libs() {
         _libs="$_libs $_l"
         [ "$_w" = "$AZ/lib" ] && _inaz=1
     done
-    _rp="$(printf '%s\n' "$_d" | sed -n 's/.*[Ll]ibrary r[a-z]*path: \[\(.*\)\].*/\1/p' | tr '\n' ':' | sed 's/:$//')"
+    # each directory once: a module of phpize gets -rpath of az from LDFLAGS and again
+    # from its libtool (curl.so: /usr/local/az/lib:/usr/local/az/lib), the same path
+    _rp="$(printf '%s\n' "$_d" | sed -n 's/.*[Ll]ibrary r[a-z]*path: \[\(.*\)\].*/\1/p' | tr ':' '\n' |
+        awk 'NF && !s[$0]++ { printf "%s%s", (n++ ? ":" : ""), $0 }')"
     if [ -n "$_rp" ] && [ "$_rp" != "$AZ/lib" ]; then
         _bad="$_bad the run path is $_rp, not $AZ/lib;"
     fi
@@ -164,7 +167,8 @@ for i in "$etc"/conf.d/*.ini; do
 done
 
 # Per module package: its ini, the module in php -m
-pkg query -g '%n' "php$short-*" 2>/dev/null | grep -v -x "php$short-static" | sort > "$tmp/pkgs"
+# the glob matches name-version too: php74-7.4.33_... is the core, not a module
+pkg query -g '%n' "php$short-*" 2>/dev/null | grep -v -x -e "php$short" -e "php$short-static" | sort -u > "$tmp/pkgs"
 [ -s "$tmp/pkgs" ] || skip "modules" "no package php$short-<module> installed"
 while read -r p; do
     s="$(pkg query '%Fp' "$p" | sed -n "s#^$etc/conf.d/\(ext-[0-9][0-9]-[^/]*\.ini\)\.sample\$#\1#p" | head -n 1)"
