@@ -1,8 +1,9 @@
 name: The distinfo of a new release
-# The size and SHA-256 of distribution files that the sandbox of Claude cannot
-# fetch (the release downloads of GitHub), for the distinfo of a port of this
-# tree at a release ahead of the official tree (www/yt-dlp): each file fetched on
-# Ubuntu from every address given (they must give the same file) and, with a
+# The size and SHA-256 of distribution files, for the distinfo of a port of this
+# tree at a release ahead of the official tree (www/yt-dlp), when the sandbox of
+# Claude cannot fetch them (a host it does not reach; on 09.11.2026 the release
+# downloads of GitHub answered 504 for a while, on GitHub's side): each file
+# fetched on Ubuntu from every address given (they must give the same file) and, with a
 # checksum file of the publisher (sha256sum format), found there with the same
 # SHA-256. The lines for distinfo (TIMESTAMP, SHA256, SIZE) go into the summary
 # of the run and into the branch runs of azsupport/azsupport (tools/runs-report.sh).
