@@ -47,6 +47,16 @@
 #   passes -static-libgcc of LDFLAGS on to the link of a program only, not to
 #   that of a shared library (libphpXY.so, the modules), which it links with
 #   that CC; with -c GCC ignores it;
+# - -fno-semantic-interposition: with -fPIC GCC takes every exported function
+#   of a shared library as one another library may replace at load time, so
+#   it neither inlines nor binds the calls of the library to its own exported
+#   functions (they go through the PLT); clang does not (it inlines them
+#   anyway). For libphpXY.so (mod_php), where every ZEND_API function is
+#   exported, and for the modules: Zend/bench.php of PHP 8.3 through a shared
+#   libphp 0.330 s without it, 0.322 s with it (-2.4%; micro_bench.php -1.4%;
+#   7.4 within the spread), the CLI the same (an executable: no
+#   interposition); php-src tools/bench.sh, run 42623798085. Nothing of PHP
+#   replaces a function of libphp at load time;
 # - -std=gnu17 (USE_CSTD, unless the port has one): GCC 15 and later default
 #   to C23, which PHP 7.4 does not build with; gnu17 is the default of the base
 #   clang, so the C is that of the builds with clang;
@@ -86,7 +96,7 @@ _USES_POST+=	azgcc
 _INCLUDE_USES_AZGCC_POST_MK=	yes
 
 .  if ${AZ_GCC} != no && defined(_GCC_RUNTIME)
-CFLAGS:=	${CFLAGS:N-Wl,-rpath=${_GCC_RUNTIME}} ${AZ_GCC_CFLAGS}
+CFLAGS:=	${CFLAGS:N-Wl,-rpath=${_GCC_RUNTIME}} -fno-semantic-interposition ${AZ_GCC_CFLAGS}
 CXXFLAGS:=	${CXXFLAGS:N-Wl,-rpath=${_GCC_RUNTIME}}
 LDFLAGS:=	${LDFLAGS:N-Wl,-rpath=${_GCC_RUNTIME}:N-L${_GCC_RUNTIME}}
 # the CC of configure (the last CC= of its environment), which writes it into
