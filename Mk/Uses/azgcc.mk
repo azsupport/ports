@@ -53,7 +53,9 @@
 #   modules, libphpXY.so) with the strip of the binutils of the ports, which
 #   keeps the section .comment (the compilers of the objects of the file,
 #   "GCC: (FreeBSD Ports Collection) 16.1.0"); the strip of the base system
-#   removes it. tools/check-php.sh checks the compiler of the files by it.
+#   removes it. tools/check-php.sh checks the compiler of the files by it;
+# - the annotation az_cc of the package: gcc${AZ_GCC}, or clang with
+#   AZ_GCC=no (pkg info -A; tools/check-php.sh).
 #
 # MAINTAINER: github@azsupport.com
 
@@ -66,8 +68,14 @@ IGNORE=	USES=azgcc takes no arguments
 
 AZ_GCC?=	16
 
+# the compiler of the package as its annotation az_cc (pkg info -A), which
+# tools/check-php.sh compares with the files: gcc16, or clang (the base cc)
+PKG_NOTES+=	az_cc
 .  if ${AZ_GCC} != no
 USE_GCC=	${AZ_GCC}:build
+PKG_NOTE_az_cc=	gcc${AZ_GCC}
+.  else
+PKG_NOTE_az_cc=	clang
 .  endif
 
 _USES_POST+=	azgcc
