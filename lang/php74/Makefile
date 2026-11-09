@@ -84,7 +84,7 @@ NO_OPTIONS_SORT=yes
 
 # the dated release of the fork: its tag freebsd-7.4-<date>-<commit>; DISTNAME
 # without DISTVERSION, which the slaves of PECL extensions set to their version
-AZ_PHP_RELEASE=	20261104-397aa202
+AZ_PHP_RELEASE=	20261109-397aa202
 
 # the files of this port that the ports needing it need not see (tools/build.sh):
 # they are installed and used at run time only (post-install, USE_RC_SUBR,
