@@ -1,0 +1,133 @@
+name: Libraries of az with the base clang and with GCC 16
+
+# Would the C libraries of the package az make the PHP sites faster built with GCC 16
+# of the ports instead of the base clang 19 (tools/lib-bench.sh)? aZ, 09.11.2026: a
+# library goes to GCC 16 when it is at least 2% faster through what the sites do. In a
+# FreeBSD VM: PHP 8.3 and its modules from the repository az (the release
+# az-fbsd15-amd64-v3, as a server installs them), each library built twice as
+# tools/az-build.sh builds it (the source and patches of its port at the commit of
+# az/az/files/deps.conf, its options and flags), with the base cc and with gcc16, and
+# the benchmarks of tools/lib-bench.php and of the programs of the libraries, each run
+# with one build of one library in front of that of az (LD_LIBRARY_PATH), az itself
+# as the control. The table goes to the job log (step Report) and to the job
+# summary. Publishes nothing.
+# Started by hand: Actions, "Libraries of az with the base clang and with GCC 16",
+# "Run workflow".
+
+on:
+  workflow_dispatch:
+    inputs:
+      repeat:
+        description: 'Rounds: runs of each benchmark per variant (the report gives the median; at least 7 for a verdict)'
+        required: true
+        default: '9'
+      libs:
+        description: 'Libraries, separated by spaces; empty: all (libxml2 libxslt oniguruma sqlite3 gd freetype2 png mozjpeg expat libzip lcms2)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    # gcc16 and the build tools, 2 builds of 11 libraries, 9 rounds of about 80 runs of 3s
+    timeout-minutes: 300
+    name: lib-bench
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: The inputs
+        env:
+          REPEAT: ${{ inputs.repeat }}
+          LIBS: ${{ inputs.libs }}
+        run: |
+          case "$REPEAT" in ''|*[!0-9]*|0) echo "::error title=lib-bench::repeat is not a number of rounds: $REPEAT"; exit 1 ;; esac
+          [ "$REPEAT" -ge 7 ] || echo "::warning title=lib-bench::$REPEAT rounds: the report gives no verdict below 7"
+          for n in $LIBS; do
+            case " libxml2 libxslt oniguruma sqlite3 gd freetype2 png mozjpeg expat libzip lcms2 " in
+              *" $n "*) ;;
+              *) echo "::error title=lib-bench::not a library of the benchmark: $n"; exit 1 ;;
+            esac
+          done
+
+      # the distfiles of the runs of build.yml (its cache, only read): those of the ports
+      # of the libraries are copied from it, so that the VM fetches as little as it can
+      - name: The distribution files of the runs of build.yml
+        uses: actions/cache/restore@v4
+        with:
+          path: distfiles
+          key: distfiles-${{ hashFiles('**/distinfo') }}
+          restore-keys: distfiles-
+
+      # the official ports of the libraries at the commit of deps.conf (a sparse git
+      # checkout) and their distfiles, on the runner: the VM gets them with the checkout
+      - name: The official ports of the libraries and their distfiles
+        run: |
+          sh tools/lib-bench.sh --tree lib-bench-ports distfiles lib-bench-distfiles
+          rm -rf distfiles
+          du -sh lib-bench-ports lib-bench-distfiles
+
+      - name: Free space on the runner (the disk of the VM grows on it)
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost /usr/share/swift || true
+          sudo docker system prune --all --force > /dev/null 2>&1 || true
+          df -h /
+
+      - name: Build and benchmark in FreeBSD 15.1
+        id: bench
+        uses: vmactions/freebsd-vm@v1
+        env:
+          LB_REPEAT: ${{ inputs.repeat }}
+          LB_LIBS: ${{ inputs.libs }}
+        with:
+          release: '15.1'
+          mem: 8192
+          envs: 'LB_REPEAT LB_LIBS'
+          prepare: |
+            sh tools/lib-bench.sh --deps || true
+          # the script never stops the step: its report (or why there is none) comes back
+          # in lib-bench-results, and the step Report fails the job without one
+          run: |
+            sh tools/lib-bench.sh -r "$LB_REPEAT" $LB_LIBS || true
+            # not back to the runner: the build trees, the ports, the distfiles
+            rm -rf lib-bench-work lib-bench-ports lib-bench-distfiles
+
+      - name: Report
+        id: report
+        if: always()
+        run: |
+          r=lib-bench-results
+          if [ ! -s "$r/report.txt" ]; then
+            echo "::error title=lib-bench::no report (the log of the step before says why)"
+            printf '### lib-bench\n\nno report\n' | tee report.md >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          cat "$r/report.txt"
+          cp "$r/report.md" report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          # every build, proof or run that failed, with its reason, on the run page
+          if [ -s "$r/failures.txt" ]; then
+            head -n 40 "$r/failures.txt" | sed 's/^/::warning title=lib-bench::/'
+          fi
+          grep -q -v ' fail ' "$r/runs.txt" || { echo "::error title=lib-bench::no benchmark ran"; exit 1; }
+
+      - name: Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lib-bench
+          path: lib-bench-results/
+          if-no-files-found: ignore
+
+      # the report into the branch runs of the private azsupport/azsupport (secret RUNS_TOKEN)
+      - name: Report to azsupport/azsupport
+        if: always()
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: repeat=${{ inputs.repeat }} libs=${{ inputs.libs }}
+          RUNS_STEPS: bench=${{ steps.bench.outcome }} report=${{ steps.report.outcome }}
+        run: sh tools/runs-report.sh report.md x86-64-v3
