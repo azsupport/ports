@@ -1,24 +1,16 @@
-******************************************************************************
+[
+{ type: install
+  message: <<EOM
+The Apache module of PHP 8.2 is libexec/apache24/libphp82.so; it is not
+loaded by itself. To load it into an Apache instance (one PHP module per
+instance), copy
+  etc/apache24/modules.d/280_mod_php82.conf.sample
+of the prefix to 280_mod_php82.conf in the same directory, then restart
+Apache. The sample makes .php files go to PHP and adds index.php to
+DirectoryIndex.
 
-Consider switching to php-fpm and mod_fast_cgi as per Apache httpd project
-recommendation. See https://cwiki.apache.org/confluence/display/HTTPD/PHP-FPM
-
-******************************************************************************
-
-If you are building PHP-based ports in poudriere(8) or Synth with ZTS enabled,
-add WITH_MPM=event to /etc/make.conf to prevent build failures.
-
-******************************************************************************
-
-Make sure index.php is part of your DirectoryIndex.
-
-You should add the following to your Apache configuration file:
-
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-<FilesMatch "\.phps$">
-    SetHandler application/x-httpd-php-source
-</FilesMatch>
-
-******************************************************************************
+PHP reads etc/php82/php.ini and the ini files of the modules in
+etc/php82/conf.d (the packages php82-<module>).
+EOM
+}
+]
