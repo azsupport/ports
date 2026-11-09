@@ -654,6 +654,10 @@ ZSTD_CONFIGURE_OFF=	--disable-zstd
 ZSTD_CONFIGURE_ON=	--enable-zstd
 ZSTD_LIB_DEPENDS=	libzstd.so:archivers/zstd
 # not files/patch-src_core_misc.cc of the port (6.2.3): in 6.2.5 already
+# backtrace() is in libexecinfo of the base system: files/patch-config.m4
+# finds it there (HAVE_EXECINFO) but does not link it, and swoole.so had
+# the symbol undefined (the load check of tools/check-php.sh)
+LDFLAGS+=	-lexecinfo
 .endif
 
 .if ${PHP_MODNAME} == "openswoole"
