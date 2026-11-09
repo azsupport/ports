@@ -16,12 +16,14 @@
 @comment only the silence operator out of that check, exit being a function
 @comment in 8.4, and swoole 6.2 and openswoole set their handlers only for the
 @comment silence operator in 8.4, in the CLI, the others of swoole only with
-@comment --enable-swoole-stdext, which the port does not use). Every other
-@comment line holds in 8.4 as in 7.4, but two the deprecations of 8.4 touch:
-@comment session.sid_length = 48 and session.sid_bits_per_character = 6 still
-@comment work and raise E_DEPRECATED when PHP reads them at its start (8.4
-@comment does so for a value other than its default, 32 and 4), which the
-@comment error_reporting of this block does not report; E_STRICT is deprecated
+@comment --enable-swoole-stdext, which the port does not use). Left out as
+@comment deprecated in 8.4 (aZ, 09.11.2026: no leftovers): session.sid_length
+@comment = 48 and session.sid_bits_per_character = 6 of 7.4 to 8.3, which raise
+@comment E_DEPRECATED when PHP reads them at its start (for a value other than
+@comment the default of 8.4), so the session IDs are those of 8.4, 32
+@comment characters of 4 bits (128 bits); an ID of 48 characters an earlier
+@comment version gave stays valid (letters, digits, "," and "-", at most 256).
+@comment Every other line holds in 8.4 as in 7.4: E_STRICT is deprecated
 @comment in 8.4 and no longer in E_ALL, so "& ~E_STRICT" changes nothing
 @comment there, and a constant of php.ini raises no deprecation (the INI
 @comment parser takes it by zend_get_constant, without that check).
@@ -69,8 +71,6 @@ session.use_strict_mode = 1
 session.use_only_cookies = 1
 session.cookie_httponly = 1
 session.cookie_samesite = Lax
-session.sid_length = 48
-session.sid_bits_per_character = 6
 session.gc_probability = 1
 session.gc_divisor = 1000
 
