@@ -329,6 +329,38 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 | `PKG_SIGNING_KEY` | закрытый ключ RSA (PEM) к `keys/az.pub`: попадает в ВМ только файлом, используется `pkg repo` и удаляется |
 | `RUNS_TOKEN` | fine-grained токен с Contents на чтение и запись в azsupport/azsupport, для отчётов |
 
+### Библиотеки с GCC
+
+[`lib-bench.yml`](.github/workflows/lib-bench.yml), «Libraries of az with the base clang and
+with GCC 16»: https://github.com/azsupport/ports/actions/workflows/lib-bench.yml, кнопка
+**Run workflow**.
+
+| Вход | |
+|---|---|
+| `repeat` | раунды, по умолчанию 9 (для вердикта нужно не меньше 7) |
+| `libs` | библиотеки через пробел; пусто — все |
+
+Станет ли PHP быстрее, если собрать C-библиотеки `az` компилятором gcc16 из пакетов, а не
+базовым clang 19? (aZ 09.11.2026: библиотека переходит на GCC 16, если она быстрее хотя бы
+на 2% в том, что делают сайты.) Меряются libxml2, libxslt, oniguruma, sqlite3, gd,
+freetype2, png, mozjpeg, expat, libzip и lcms2; не меряются библиотеки со своим ассемблером
+или SIMD (zstd, brotli, lz4, webp, dav1d, x264, OpenSSL, libsodium, gmp), библиотеки на C++
+(ICU, libheif, libde265, libmemcached), ImageMagick и GraphicsMagick (OpenMP). В ВМ FreeBSD
+15.1 ([`tools/lib-bench.sh`](tools/lib-bench.sh)): PHP 8.3 и его модули из репозитория az,
+каждая библиотека собирается дважды так, как её собирает `tools/az-build.sh` (исходники и
+патчи её порта на коммите `deps.conf`, её опции, CFLAGS az; gcc16 ещё и с
+`-std=gnu17 -static-libgcc`), потом бенчмарки
+[`tools/lib-bench.php`](tools/lib-bench.php) (DOM, SimpleXML, XMLReader, ext/xml, XSL,
+`mb_ereg*`, SQLite3 и PDO, GD: JPEG, PNG, ресемплинг и TrueType, ZipArchive) и программ
+(xmllint, speedtest1, cjpeg, djpeg, драйверы [`tools/lib-bench.c`](tools/lib-bench.c) для
+expat и lcms2): каждый прогон — с одной сборкой одной библиотеки впереди библиотеки az
+(`LD_LIBRARY_PATH`, подтверждается ldd и файлами, которые процесс отобразил в память),
+библиотека релиза — контроль; прогоны около 3 секунд, варианты вперемешку, на одном
+закреплённом CPU. Отчёт (лог шага Report, summary джоба, ветка `runs` azsupport/azsupport):
+для каждой библиотеки и бенчмарка медиана секунд каждого варианта, изменение gcc16
+относительно clang19 с интервалом около 95%, разброс, а для каждой библиотеки — вердикт
+«>= 2% faster». Ничего не публикует.
+
 ## Правила портов
 
 - Порт этого дерева начинается с официального порта нужного коммита и меняет только то,

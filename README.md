@@ -347,6 +347,38 @@ The secrets (https://github.com/azsupport/ports/settings/secrets/actions, the bu
 | `PKG_SIGNING_KEY` | the RSA private key (PEM) of `keys/az.pub`: it goes into the VM as a file only, is used by `pkg repo` and removed |
 | `RUNS_TOKEN` | a fine-grained token with Contents read and write on azsupport/azsupport, for the reports |
 
+### The libraries with GCC
+
+[`lib-bench.yml`](.github/workflows/lib-bench.yml), "Libraries of az with the base clang and
+with GCC 16": https://github.com/azsupport/ports/actions/workflows/lib-bench.yml, the button
+**Run workflow**.
+
+| Input | |
+|---|---|
+| `repeat` | the rounds, default 9 (a verdict needs at least 7) |
+| `libs` | the libraries, separated by spaces; empty: all |
+
+Would the C libraries of `az` make PHP faster built with gcc16 of the packages instead of
+the base clang 19? (aZ 09.11.2026: a library goes to GCC 16 when it is at least 2% faster
+through what the sites do.) Measured: libxml2, libxslt, oniguruma, sqlite3, gd, freetype2,
+png, mozjpeg, expat, libzip and lcms2; not those with assembly or SIMD of their own (zstd,
+brotli, lz4, webp, dav1d, x264, OpenSSL, libsodium, gmp), the C++ ones (ICU, libheif,
+libde265, libmemcached), ImageMagick and GraphicsMagick (OpenMP). In a FreeBSD 15.1 VM
+([`tools/lib-bench.sh`](tools/lib-bench.sh)): PHP 8.3 and its modules from the repository
+az, each library built twice as `tools/az-build.sh` builds it (the source and patches of
+its port at the commit of `deps.conf`, its options, the CFLAGS of az; gcc16 with
+`-std=gnu17 -static-libgcc` too), then the benchmarks of
+[`tools/lib-bench.php`](tools/lib-bench.php) (DOM, SimpleXML, XMLReader, ext/xml, XSL,
+`mb_ereg*`, SQLite3 and PDO, GD JPEG, PNG, resampling and TrueType, ZipArchive) and of the
+programs (xmllint, speedtest1, cjpeg, djpeg, the drivers of
+[`tools/lib-bench.c`](tools/lib-bench.c) for expat and lcms2): each run with one build of
+one library in front of that of az (`LD_LIBRARY_PATH`, proved with ldd and the files the
+process maps), the library of the release as the control; runs of about 3 seconds, the
+variants interleaved, pinned to one CPU. The report (the log of the step Report, the job
+summary, the branch `runs` of azsupport/azsupport): per library and benchmark the median
+seconds of each variant, the change of gcc16 against clang19 with its interval of about
+95%, the spread, and per library the verdict ">= 2% faster". It publishes nothing.
+
 ## The rules of the ports
 
 - A port of this tree starts from the official port of the right commit and changes only
