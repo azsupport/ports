@@ -160,6 +160,10 @@ BUILD_DEPENDS=	bison:devel/bison \
 		ninja:devel/ninja \
 		python3:lang/python3 \
 		tclsh8.6:lang/tcl86
+# GCC of the packages for the shared libraries of AZ_GCC_SO of tools/az-build.sh
+# (sqlite3, expat, lcms2: at least 2% faster with it, tools/lib-bench.sh); a build
+# dependency only, nothing of it at run time (-static-libgcc)
+BUILD_DEPENDS+=	gcc16:lang/gcc16
 
 USES=		autoreconf:build gmake perl5 pkgconfig
 USE_PERL5=	build
