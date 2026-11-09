@@ -1,0 +1,6 @@
+Exif: the EXIF headers of JPEG and TIFF images.
+
+The module exif of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/exif.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/exif.

@@ -1,0 +1,6 @@
+Sockets: the low-level socket interface (BSD sockets).
+
+The module sockets of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/sockets.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/sockets.

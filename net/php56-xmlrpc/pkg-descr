@@ -1,0 +1,7 @@
+XML-RPC: XML-RPC clients and servers (the xmlrpc-epi library bundled),
+with libxml2 and GNU libiconv of the package az.
+
+The module xmlrpc of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/xmlrpc.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/xmlrpc.

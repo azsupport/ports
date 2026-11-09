@@ -1,0 +1,9 @@
+intl: internationalization with ICU of the package az (collation,
+number and date formats, normalization, transliteration), the intl
+bundled in PHP 5.6 (the official tree had it for 5.6 as the PECL
+port devel/pecl-intl).
+
+The module intl of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/intl.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/intl.
