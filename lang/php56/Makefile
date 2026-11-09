@@ -14,7 +14,28 @@
 #   leaves out (php-src freebsd/patches/5.6/SKIPPED), the include of
 #   ext/php_config.h in main/php_config.h (patch-configure.in) is added in
 #   post-configure, as in lang/php74. A new dated release of the same version:
-#   AZ_PHP_RELEASE and distinfo.
+#   AZ_PHP_RELEASE and distinfo. The others of SKIPPED are not taken:
+#   . patch-configure.in otherwise: its pthreads hunks are met by the
+#     CONFIGURE_ENV of the port (ac_cv_pthreads_*, pthreads_working); every
+#     build has a SAPI ("Nothing to build"); its nanosleep hunk drops a NEEDED
+#     librt.so.1 only; its PEAR include_path (share/pear) is not ours, as for
+#     7.4 (include_path .: by default); php-src has no include/ for the last;
+#   . patch-acinclude.m4 (its acinclude.m4 is the one phpize56 copies): its
+#     hunk for static CLI-only modules (readline is a module here), its
+#     PHP_ADD_EXTENSION_DEP error (under phpize the variable of the other
+#     module is empty, never "no": every module of 5.6 configured with the
+#     file as it is, phpize56 on Linux), its OpenSSL fallback (a no-op after
+#     test -z ... && PHP_OPENSSL=no) and its dtrace -xnolibs (DTRACE off);
+#   . patch-ext_standard_image.c: getimagesize() of compressed SWF files and
+#     IMAGETYPE_SWC when zlib is a module; the PHP ports here take no patch of
+#     the port (PORTS-SPEC), as lang/php74, whose official port has none:
+#     IMAGETYPE_SWC is not defined, and getimagesize() of a compressed Flash
+#     file gives a notice, as with a shared zlib upstream (a question to aZ);
+#   . patch-ext_zlib_config0.m4: for the --with-zlib-dir of the core (below);
+#   . patch-sapi_apache2filter_config.m4: the INSTALL_IT of apxs only (make
+#     install), which do-install of mod_php56 does not use, as for
+#     apache2handler; patch-TSRM_threads.m4: no effect on FreeBSD (SKIPPED);
+#   . files/php-fpm.in: the rc.d script is files/php_fpm56.in (below).
 # - PORTREVISION is the stamp of the build, AZ_STAMP of the builder (0 without
 #   it; Mk/bsd.overlay.mk); the modules take it from here.
 # - Versions side by side: every path of PHP 5.6 has 56 in it: bin/php56 ...
