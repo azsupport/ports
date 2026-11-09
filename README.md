@@ -228,6 +228,7 @@ env AZ_CPUTYPE=x86-64-v2 sh tools/build.sh
 env AZ_PORTSDIR=/usr/ports sh tools/build.sh
 env AZ_JOBS=1 sh tools/build.sh
 env AZ_DRYRUN=1 sh tools/build.sh
+env AZ_CONFIGURE_CHECK=1 sh tools/build.sh --force
 ```
 
 What it does, with the logic of poudriere:
@@ -262,11 +263,28 @@ What it does, with the logic of poudriere:
   `AZ_DRYRUN=1`: the waves of the run said, nothing built;
 - a `NEED_ROOT` port (`az/az`: it builds into the real `/usr/local/az`): alone, its
   installed package is deleted before its build and the new one added after it;
+- `AZ_CONFIGURE_CHECK=1`, the configure check: after the build of each PHP port (the
+  cores, `mod_phpXY`, every module, the PECL ones and those of clang too), also when
+  the build fails after its configure, `make configure` once more in a work directory
+  of its own, with the same compiler and the errors of C of GCC 14+ and clang 16+ as
+  warnings (`-Wno-error=implicit-function-declaration` and the like, as many as the
+  compiler knows, in `CFLAGS_<arch>`, which the framework appends to the `CFLAGS` of
+  the port: nothing of `Mk/` or of a hash changes), and
+  [`tools/configure-check.sh`](tools/configure-check.sh) compares the two: the result
+  of each `checking` of `config.log` (with the error of the compiler of the test in
+  the strict one), `main/php_config.h` or the `config.h` of a module, the variables of
+  the generated `Makefile`. A difference is a test of configure whose result depends
+  on those errors (printf without `<stdio.h>` in the test "if using GNU libiconv" of
+  `ext/iconv`: `php74-iconv` without `-liconv` and `ICONV_SUPPORTS_ERRNO`), the
+  package has the strict result; `results/configure-check.txt` and a section of the
+  report; the ports a run keeps from the repository are not configured (`--force`:
+  every PHP port);
 - the repository (`--repo <dir>`, default `work/repo`): one package per origin, the new
   ones in the place of the old ones, `pkg repo`, signed with the key of
   `AZ_PKG_KEY_FILE` and checked ([`tools/pkg-repo-sign.sh`](tools/pkg-repo-sign.sh));
 - the results in `results/`: `summary.txt` (a line per port, `result: OK` or
-  `result: FAIL (...)` at the end), `queue.txt`, `hashes.txt`, `waves.txt`, `logs/`.
+  `result: FAIL (...)` at the end), `queue.txt`, `hashes.txt`, `waves.txt`, `logs/`,
+  `configure-check.txt` (`AZ_CONFIGURE_CHECK`).
 
 ### Versions and rebuilds
 
@@ -304,6 +322,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | `ports` | the ports to build, separated by spaces; empty: all |
 | `force` | build them also when their package with the same `az_hash` is in the release already |
 | `jobs` | the ports built at once (`AZ_JOBS`, default 4; `1`: one after another) |
+| `configure_check` | the configure check (`AZ_CONFIGURE_CHECK`, off by default): each PHP port built configured once more, permissive, and compared; with `force` every PHP port |
 | `publish` | publish the repository when everything built and every check passed (off by default: the repository the servers read is published on aZ's word) |
 
 It takes the repository of the last run (an actions/cache, saved also when a run

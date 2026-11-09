@@ -229,6 +229,7 @@ env AZ_CPUTYPE=x86-64-v2 sh tools/build.sh
 env AZ_PORTSDIR=/usr/ports sh tools/build.sh
 env AZ_JOBS=1 sh tools/build.sh
 env AZ_DRYRUN=1 sh tools/build.sh
+env AZ_CONFIGURE_CHECK=1 sh tools/build.sh --force
 ```
 
 Что он делает, по логике poudriere:
@@ -263,11 +264,26 @@ env AZ_DRYRUN=1 sh tools/build.sh
   только показать волны прогона, ничего не собирая;
 - порт с `NEED_ROOT` (`az/az`: собирается прямо в `/usr/local/az`): один, его
   установленный пакет удаляется перед сборкой, новый ставится после неё;
+- `AZ_CONFIGURE_CHECK=1`, проверка configure: после сборки каждого порта PHP (ядра,
+  `mod_phpXY`, все модули, и PECL, и те, что собирает clang), и тогда, когда сборка
+  упала после своего configure, — ещё раз `make configure` в своём рабочем каталоге,
+  тем же компилятором, с ошибками C из GCC 14+ и clang 16+ как предупреждениями
+  (`-Wno-error=implicit-function-declaration` и подобные, сколько их знает компилятор,
+  в `CFLAGS_<arch>`, которую фреймворк добавляет к `CFLAGS` порта: ничего в `Mk/` и ни
+  один хэш не меняется), и [`tools/configure-check.sh`](tools/configure-check.sh)
+  сравнивает оба: результат каждого `checking` в `config.log` (с ошибкой компилятора
+  теста в строгом), `main/php_config.h` или `config.h` модуля, переменные
+  сгенерированного `Makefile`. Разница — тест configure, результат которого зависит от
+  этих ошибок (printf без `<stdio.h>` в тесте «if using GNU libiconv» `ext/iconv`:
+  `php74-iconv` без `-liconv` и `ICONV_SUPPORTS_ERRNO`), у пакета — строгий результат;
+  `results/configure-check.txt` и раздел отчёта; порты, которые прогон берёт из
+  репозитория, не конфигурируются (`--force` — все порты PHP);
 - репозиторий (`--repo <каталог>`, по умолчанию `work/repo`): по пакету на origin, новые
   на место старых, `pkg repo`, подпись ключом из `AZ_PKG_KEY_FILE` и проверка
   ([`tools/pkg-repo-sign.sh`](tools/pkg-repo-sign.sh));
 - результаты в `results/`: `summary.txt` (строка на порт, в конце `result: OK` или
-  `result: FAIL (...)`), `queue.txt`, `hashes.txt`, `waves.txt`, `logs/`.
+  `result: FAIL (...)`), `queue.txt`, `hashes.txt`, `waves.txt`, `logs/`,
+  `configure-check.txt` (`AZ_CONFIGURE_CHECK`).
 
 ### Версии и пересборки
 
@@ -304,6 +320,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 | `ports` | порты для сборки через пробел; пусто — все |
 | `force` | собирать их и тогда, когда их пакет с тем же `az_hash` уже есть в релизе |
 | `jobs` | сколько портов собирать одновременно (`AZ_JOBS`, по умолчанию 4; `1` — порт за портом) |
+| `configure_check` | проверка configure (`AZ_CONFIGURE_CHECK`, по умолчанию выключена): каждый собранный порт PHP конфигурируется ещё раз, нестрого, и сравнивается; с `force` — все порты PHP |
 | `publish` | опубликовать репозиторий, когда всё собралось и все проверки прошли (по умолчанию выключено: репозиторий, который читают серверы, публикуется по слову aZ) |
 
 Он берёт репозиторий прошлого прогона (actions/cache, сохраняется и тогда, когда прогон
