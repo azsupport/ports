@@ -6,9 +6,9 @@
 # Base: lang/php74/Makefile.ext of this overlay (the head there says what it
 # changes of the official rules and why: the libraries of az, the options of
 # php-src freebsd/ext.conf, USE_PHP, CONFLICTS_INSTALL, the ini of openswoole
-# and gmagick, the profiles), with the rules of the official lang/php83 of
-# freebsd-ports eb0100f974b6 (inline in its Makefile there) for what 8.3
-# changes. What differs from the rules of 7.4:
+# and gmagick, the profiles, ZLIB_LIBS of zlib), with the rules of the
+# official lang/php83 of freebsd-ports eb0100f974b6 (inline in its Makefile
+# there) for what 8.3 changes. What differs from the rules of 7.4:
 # - no json (built into the core since PHP 8.0: PHP_EXT_INC, so USE_PHP=json
 #   needs no package) and no xmlrpc (removed from PHP 8.0; PECL xmlrpc is not
 #   in php-src freebsd/pecl.conf);
@@ -366,6 +366,7 @@ USES+=		pkgconfig
 
 .if ${PHP_MODNAME} == "zlib"
 CONFIGURE_ARGS+=--with-zlib
+CONFIGURE_ENV+=	ZLIB_LIBS="-lz"
 USES+=		pkgconfig
 .endif
 
