@@ -1,0 +1,146 @@
+name: KVS command lines on the packages of the last build
+
+# tools/kvs-test.sh of azsupport/php-src (the calls of ffmpeg, ffprobe and ImageMagick
+# that the video sites (KVS: its release, its patch, ours) and the yt-dlp of their
+# grabbers make) on the packages ffmpeg, ImageMagick6 and ImageMagick7 of this tree:
+# those of the repository of the last run of build.yml (its cache, only read: a
+# release is not needed, a run that failed in other ports is enough), or those of the
+# release. In a FreeBSD VM: the samples with the packages of FreeBSD, then those of az
+# in their place, then the command lines. Builds nothing; the workflow kvs-test.yml of
+# azsupport/php-src does the same with the release only.
+# Started by hand: Actions, "KVS command lines on the packages of the last build",
+# "Run workflow".
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'FreeBSD release'
+        required: true
+        default: '15.1'
+      cputype:
+        description: 'x86-64 level (CPUTYPE of make.conf)'
+        type: choice
+        options: [x86-64-v3, x86-64-v2]
+        default: x86-64-v3
+      packages:
+        description: 'packages: the cache of the last run of build.yml, or the release'
+        type: choice
+        options: [cache, release]
+        default: cache
+      tests:
+        description: 'ref of azsupport/php-src for tools/kvs-test.sh'
+        required: true
+        default: master
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    name: KVS on az (${{ inputs.cputype }}, ${{ inputs.packages }})
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: The repository of the last run of build.yml
+        if: ${{ inputs.packages == 'cache' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: repo
+          key: repo-${{ inputs.cputype }}-none
+          restore-keys: repo-${{ inputs.cputype }}-
+
+      - name: The repository of the release
+        if: ${{ inputs.packages == 'release' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ inputs.release }}
+          CPUTYPE: ${{ inputs.cputype }}
+        run: |
+          tag="az-fbsd${RELEASE%%.*}-amd64-${CPUTYPE#x86-64-}"
+          mkdir -p repo
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir repo
+
+      - name: The packages and the test script
+        env:
+          TESTS: ${{ inputs.tests }}
+        run: |
+          for p in ffmpeg ImageMagick6 ImageMagick7; do
+            f="$(ls repo/"$p"-[0-9]*.pkg 2>/dev/null | tail -n 1)"
+            [ -n "$f" ] || { echo "::error title=packages::no $p in the repository"; exit 1; }
+            echo "$f"
+          done
+          [ -f repo/packagesite.pkg ] || { echo "::error title=packages::no catalog (packagesite.pkg) in the repository"; exit 1; }
+          curl -sSfL "https://raw.githubusercontent.com/azsupport/php-src/$TESTS/tools/kvs-test.sh" -o kvs-test.sh
+          head -n 3 kvs-test.sh
+
+      - name: Samples, the packages az, the command lines in FreeBSD ${{ inputs.release }}
+        id: test
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: ${{ inputs.release }}
+          run: |
+            mkdir -p kvs-results
+            {
+              env ASSUME_ALWAYS_YES=yes pkg install -y ffmpeg ImageMagick7 dejavu
+              sh kvs-test.sh --samples
+              # the packages of FreeBSD out, those of az in (the same names and paths)
+              env ASSUME_ALWAYS_YES=yes pkg delete -y ffmpeg ImageMagick7
+              mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
+              install -m 644 keys/az.pub /usr/local/etc/pkg/keys/az.pub
+              printf 'az: {\n    url: "file://%s/repo",\n    signature_type: "pubkey",\n    pubkey: "/usr/local/etc/pkg/keys/az.pub",\n    priority: 100,\n    enabled: yes\n}\n' "$PWD" > /usr/local/etc/pkg/repos/az.conf
+              if ! pkg update -f -r az; then
+                echo "the catalog is not signed with keys/az.pub: read without a signature"
+                printf 'az: {\n    url: "file://%s/repo",\n    signature_type: "none",\n    priority: 100,\n    enabled: yes\n}\n' "$PWD" > /usr/local/etc/pkg/repos/az.conf
+                pkg update -f -r az
+              fi
+              env ASSUME_ALWAYS_YES=yes pkg install -y -r az ffmpeg ImageMagick6 ImageMagick7
+              pkg query '%n %v %R' ffmpeg ImageMagick6 ImageMagick7
+            } > kvs-results/setup.log 2>&1 || true
+            tail -n 5 kvs-results/setup.log
+            sh kvs-test.sh || true
+            rm -rf repo
+
+      - name: Report
+        id: report
+        if: always()
+        run: |
+          : > report.md
+          if [ ! -s kvs-results/tests.txt ]; then
+            echo "::error title=KVS on az::no results (kvs-results/setup.log)"
+            { echo "no results"; echo; tail -n 30 kvs-results/setup.log 2>/dev/null; } | tee -a report.md
+            cat report.md >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          {
+            grep -E '^(ffmpeg|ImageMagick6|ImageMagick7) ' kvs-results/setup.log
+            echo
+            grep -h '^note' kvs-results/tests.txt
+            echo
+            grep -E '^(FAIL|gap|bug|skip)' kvs-results/tests.txt
+            echo
+            tail -n 2 kvs-results/tests.txt
+          } | tee report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          grep -q '^tests: [0-9]* ok, 0 failed$' kvs-results/tests.txt || { echo "::error title=KVS on az::$(tail -n 2 kvs-results/tests.txt | head -n 1)"; exit 1; }
+
+      - name: Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kvs-results-${{ inputs.cputype }}
+          path: kvs-results/
+          if-no-files-found: ignore
+
+      # the report into the branch runs of the private azsupport/azsupport (secret RUNS_TOKEN)
+      - name: Report to azsupport/azsupport
+        if: always()
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ inputs.cputype }} packages=${{ inputs.packages }} tests=${{ inputs.tests }}
+          RUNS_STEPS: test=${{ steps.test.outcome }} report=${{ steps.report.outcome }}
+          PART: ${{ inputs.cputype }}
+        run: sh tools/runs-report.sh report.md "$PART"
