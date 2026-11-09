@@ -11,6 +11,16 @@
 #     php74-profile gmagick -m lists gmagick and not imagick; openswoole loaded on
 #     its own, with the modules of
 #     conf.d but swoole: they define the same classes);
+#   - per installed phpXY-<module> package, its module loaded with php -n and
+#     only the modules of the packages it depends on (pkg query %dn, directly
+#     or not, each after those it needs; opcache as zend_extension), under
+#     LD_BIND_NOW=1 with the same files in LD_PRELOAD: a function that none of
+#     the loaded files defines then fails the load (mysqlnd.so as phpize linked
+#     it, without libcrypto and libz), not its first call in a request.
+#     LD_PRELOAD for the rtld of FreeBSD: it binds at once only the files it
+#     loads at the start, not those of dlopen (PHP's, with RTLD_LAZY), whatever
+#     LD_BIND_NOW says (glibc applies it to dlopen too); PHP's dlopen then
+#     finds the module loaded;
 #   - readelf -d of every module of lib/php/<API> and of php, php-cgi, php-fpm and
 #     libphp of mod_phpXY: the libraries they name (NEEDED) in /lib, /usr/lib or
 #     /usr/local/az/lib, the run path (RUNPATH) none or /usr/local/az/lib, which it
@@ -136,6 +146,27 @@ elf_libs() {
 # has_module <file of php -m> <module>: the module in it (any case)
 has_module() { grep -qix "$2" "$1"; }
 
+# mod_of <package>: the module of a phpXY-<module> package, by the name of its
+# ini (ext-<NN>-<module>.ini.sample in etc/phpXY/conf.d)
+mod_of() {
+    pkg query '%Fp' "$1" 2>/dev/null |
+        sed -n "s#^$etc/conf.d/ext-[0-9][0-9]-\([^/]*\)\.ini\.sample\$#\1#p" | head -n 1
+}
+
+# dep_order <package> [<the packages on the way to it>]: the module packages
+# (those of $tmp/pkgs) it depends on (pkg query %dn), directly or through
+# another, each after those it depends on, and last itself; one that two of them
+# depend on comes twice (the caller keeps the first). A subshell: each call has
+# its own variables.
+dep_order() (
+    for _d in $(pkg query '%dn' "$1" 2>/dev/null | sort); do
+        grep -qx "$_d" "$tmp/pkgs" || continue
+        case " $* " in *" $_d "*) continue ;; esac
+        dep_order "$_d" "$@"
+    done
+    printf '%s\n' "$1"
+)
+
 # the packages: the core, not the static PHP of az-menu.sh in its place
 pkg info -e "php$short" || fail "package php$short" "not installed"
 if pkg info -e "php$short-static"; then
@@ -241,6 +272,33 @@ while read -r p; do
         ok "$mod in php$short -m" "$p"
     else
         fail "$mod in php$short -m" "$p is installed, php$short -m has no $mn"
+    fi
+    # The module with php -n and only the modules of the packages it depends on,
+    # theirs first, under LD_BIND_NOW=1 with the same files in LD_PRELOAD
+    set --; pre=""; with=""
+    for q in $(dep_order "$p" | awk '!s[$0]++'); do
+        qm="$mod"
+        [ "$q" = "$p" ] || qm="$(mod_of "$q")"
+        [ -n "$qm" ] || continue
+        case "$qm" in
+            opcache) set -- "$@" -d zend_extension=opcache.so ;;
+            *) set -- "$@" -d "extension=$qm.so" ;;
+        esac
+        pre="$pre${pre:+ }$extdir/$qm.so"; with="$with${with:+, }$qm.so"
+    done
+    bn="$mod.so with LD_BIND_NOW=1"
+    LD_BIND_NOW=1 LD_PRELOAD="$pre" "$php" -n -d "extension_dir=$extdir" "$@" -m \
+        > "$tmp/m-b" 2> "$tmp/m-b.err" < /dev/null
+    st=$?
+    e="$(cat "$tmp/m-b.err")"
+    if [ "$st" != 0 ]; then
+        fail "$bn" "exit $st: $(last3 "${e:-$(cat "$tmp/m-b")}")"
+    elif [ -n "$e" ]; then
+        fail "$bn" "$(last3 "$e")"
+    elif ! has_module "$tmp/m-b" "$mn"; then
+        fail "$bn" "php$short -n with $with lists no $mn"
+    else
+        ok "$bn" "php$short -n with $with"
     fi
 done < "$tmp/pkgs"
 
