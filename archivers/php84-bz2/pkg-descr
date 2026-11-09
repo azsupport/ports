@@ -1,0 +1,7 @@
+bzip2: reading and writing of bzip2 compressed files and strings, with
+the bzip2 library of the base system.
+
+The module bz2 of PHP 8.4 for php84 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20240924/bz2.so,
+loaded by its ini in etc/php84/conf.d, its headers in
+include/php84/php/ext/bz2.

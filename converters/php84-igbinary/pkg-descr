@@ -1,0 +1,9 @@
+Igbinary is a drop in replacement for the standard PHP serializer.
+Instead of time and space consuming textual representation, igbinary
+stores PHP data structures in a compact binary form. Savings are
+significant when using memcached or similar memory based storages for
+serialized data.
+
+PECL igbinary for php84 of azsupport/ports, built from ext/igbinary of
+the release tarball of azsupport/php-src, which bundles it:
+lib/php/20240924/igbinary.so, loaded by its ini in etc/php84/conf.d.

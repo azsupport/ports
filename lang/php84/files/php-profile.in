@@ -1,0 +1,343 @@
+#!/bin/sh
+# php%%PHP_VER%%-profile - PHP with a profile: another configuration of the same
+# PHP, the directory %%PREFIX%%/etc/php%%PHP_VER%%-<profile> with the layout of
+# %%PREFIX%%/etc/php%%PHP_VER%% (php.ini, conf.d/, and php-fpm.conf with
+# php-fpm.d/ for the rc.d script php_fpm%%PHP_VER%%: php_fpm%%PHP_VER%%_profiles in
+# /etc/rc.conf). Nothing of a profile is a file of a package. Of the package
+# php%%PHP_VER%% of azsupport/ports (lang/php%%PHP_VER%%/files/php-profile.in).
+#
+#   php%%PHP_VER%%-profile <profile> [php arguments]
+#       php%%PHP_VER%% with the profile (PHPRC and PHP_INI_SCAN_DIR exported, so
+#       that its children have them too); a missing profile is an error (exit
+#       78), never the default configuration
+#   php%%PHP_VER%%-profile --create <profile> [--cli]
+#       a profile from etc/php%%PHP_VER%%: php.ini copied; php-fpm.conf and
+#       php-fpm.d/www.conf copied with the pid file, log and socket of the
+#       profile (not with --cli: a profile for the CLI only); conf.d with a
+#       relative symbolic link to every ext-*.ini of etc/php%%PHP_VER%%/conf.d
+#       whose extension line is on
+#   php%%PHP_VER%%-profile --create <profile> --follow [--off <module>...]
+#           [--on <module>...] [--cli]
+#       a profile that follows etc/php%%PHP_VER%%: php.ini a relative link to
+#       ../php%%PHP_VER%%/php.ini, the file follow with the off and on lines,
+#       conf.d made by --sync
+#   php%%PHP_VER%%-profile --sync [<profile>...]
+#       conf.d of the following profiles (all without names) made the same as
+#       that of etc/php%%PHP_VER%% but for their off modules (left out, also
+#       when they are installed later) and their on modules (a file of the
+#       profile with the extension line on); one line per change; the modules
+#       run it when they are installed or removed
+#   php%%PHP_VER%%-profile --list
+#       the profiles
+#
+# A profile name and a module name are [a-z0-9_]+. AZ_PHP_PREFIX takes the
+# place of %%PREFIX%% (for tests only).
+
+set -u
+v=%%PHP_VER%%
+prefix="${AZ_PHP_PREFIX:-%%PREFIX%%}"
+etc="$prefix/etc"
+def="$etc/php$v"
+me="php$v-profile"
+# the mark of the files of on modules that --sync writes (their first line)
+mark="; $me --sync:"
+
+usage() {
+    echo "usage: $me <profile> [php arguments]" >&2
+    echo "       $me --create <profile> [--follow [--off <module>...] [--on <module>...]] [--cli]" >&2
+    echo "       $me --sync [<profile>...]" >&2
+    echo "       $me --list" >&2
+    exit 64
+}
+
+# name <word> <what>: a profile or module name, [a-z0-9_]+
+name() {
+    case "$1" in
+        "" | *[!a-z0-9_]*) echo "$me: bad $2 name '$1': a-z, 0-9 and _ only" >&2; exit 64 ;;
+    esac
+}
+
+# modname <ext-NN-module.ini[.sample]>: the module of an ini file name, in $m
+modname() {
+    m="${1#ext-}"; m="${m#[0-9][0-9]-}"; m="${m%.sample}"; m="${m%.ini}"
+}
+
+# lineon <file>: true when the file has an extension or zend_extension line on
+lineon() {
+    grep -Eq '^[[:space:]]*(zend_)?extension[[:space:]]*=' "$1"
+}
+
+# --- the profiles --------------------------------------------------------------
+
+list() {
+    for d in "$def"-*; do
+        [ -d "$d" ] || continue
+        p="${d##*/php$v-}"
+        case "$p" in
+            "" | *[!a-z0-9_]*) echo "$me: skipped $d: not a profile name (a-z, 0-9 and _ only)" >&2; continue ;;
+        esac
+        echo "$p"
+    done
+    exit 0
+}
+
+# fpm <profile> <dir>: php-fpm.conf and php-fpm.d/www.conf of the profile
+fpm() {
+    if [ ! -f "$def/php-fpm.conf" ]; then
+        echo "$me: no $def/php-fpm.conf (php$v without FPM): the profile has no php-fpm.conf"
+        return 0
+    fi
+    sed -e "s|^;*pid = .*|pid = /var/run/php-fpm$v-$1.pid|" \
+        -e "s|^;*error_log = .*|error_log = /var/log/php-fpm$v-$1.log|" \
+        -e "s|^include=$def/php-fpm\.d/|include=$2/php-fpm.d/|" \
+        "$def/php-fpm.conf" > "$2/php-fpm.conf" || exit 73
+    echo "$2/php-fpm.conf: pid /var/run/php-fpm$v-$1.pid, error_log /var/log/php-fpm$v-$1.log, its pools in $2/php-fpm.d"
+    grep -q '^pid = ' "$2/php-fpm.conf" ||
+        echo "$me: no pid line in $def/php-fpm.conf: the rc.d script gives php-fpm$v -g /var/run/php-fpm$v-$1.pid"
+    grep -q '^error_log = ' "$2/php-fpm.conf" ||
+        echo "$me: no error_log line in $def/php-fpm.conf: add error_log = /var/log/php-fpm$v-$1.log to $2/php-fpm.conf" >&2
+    if grep "^include=" "$2/php-fpm.conf" | grep -qv "^include=$2/"; then
+        echo "$me: $2/php-fpm.conf includes files outside the profile (the pools of the default?): check its include lines" >&2
+    fi
+    mkdir "$2/php-fpm.d" || exit 73
+    if [ -f "$def/php-fpm.d/www.conf" ]; then
+        sed -e "s|^listen = .*|listen = /var/run/php-fpm$v-$1.sock|" \
+            "$def/php-fpm.d/www.conf" > "$2/php-fpm.d/www.conf" || exit 73
+        echo "$2/php-fpm.d/www.conf: listen /var/run/php-fpm$v-$1.sock"
+    else
+        echo "$me: no $def/php-fpm.d/www.conf: the profile has no pool yet" >&2
+    fi
+    for f in "$def"/php-fpm.d/*.conf; do
+        [ -f "$f" ] || continue
+        [ "${f##*/}" = www.conf ] && continue
+        echo "$me: not copied: $f (a pool of the default instance; a pool of the profile needs a listen of its own)"
+    done
+}
+
+create() {
+    p=""; follow=""; cli=""; offs=" "; ons=" "; want=""; bad=0
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --follow) follow=1; want="" ;;
+            --cli) cli=1; want="" ;;
+            --off) want=off ;;
+            --on) want=on ;;
+            -*) echo "$me: unknown option $1" >&2; usage ;;
+            *)
+                case "$want" in
+                    off) name "$1" module; offs="$offs$1 " ;;
+                    on) name "$1" module; ons="$ons$1 " ;;
+                    *)
+                        [ -z "$p" ] || { echo "$me: one profile for --create: $p and $1" >&2; usage; }
+                        name "$1" profile; p="$1"
+                        ;;
+                esac
+                ;;
+        esac
+        shift
+    done
+    [ -n "$p" ] || usage
+    if [ -z "$follow" ] && [ "$offs$ons" != "  " ]; then
+        echo "$me: --off and --on need --follow" >&2; exit 64
+    fi
+    for m in $offs; do
+        case "$ons" in *" $m "*) echo "$me: the module $m is both --off and --on" >&2; exit 64 ;; esac
+    done
+    d="$def-$p"
+    [ -d "$def" ] || { echo "$me: no $def" >&2; exit 78; }
+    if [ -e "$d" ] || [ -L "$d" ]; then
+        echo "$me: $d exists already: not changed" >&2; exit 73
+    fi
+    [ -f "$def/php.ini" ] || { echo "$me: no $def/php.ini (pkg makes it from php.ini-production)" >&2; exit 78; }
+    mkdir "$d" "$d/conf.d" || exit 73
+    echo "$d: the profile $p"
+    if [ -n "$follow" ]; then
+        ln -s "../php$v/php.ini" "$d/php.ini" || exit 73
+        echo "$d/php.ini -> ../php$v/php.ini"
+        {
+            echo "# $me: the profile $p follows $def/conf.d ($me --sync)"
+            echo "# except these modules: off (left out), on (loaded by the profile)"
+            for m in $offs; do echo "off $m"; done
+            for m in $ons; do echo "on $m"; done
+        } > "$d/follow" || exit 73
+        echo "$d/follow:$(for m in $offs; do printf ' off %s' "$m"; done)$(for m in $ons; do printf ' on %s' "$m"; done)"
+    else
+        cp -p "$def/php.ini" "$d/php.ini" || exit 73
+        echo "$d/php.ini: a copy of $def/php.ini"
+    fi
+    if [ -n "$cli" ]; then
+        echo "$d: no php-fpm.conf (--cli: a profile of the CLI, not of the rc.d script)"
+    else
+        fpm "$p" "$d"
+    fi
+    if [ -n "$follow" ]; then
+        named=1; sync_one "$p"
+    else
+        for ini in "$def"/conf.d/ext-*.ini; do
+            [ -f "$ini" ] || continue
+            b="${ini##*/}"
+            if lineon "$ini"; then
+                ln -s "../../php$v/conf.d/$b" "$d/conf.d/$b" || exit 73
+                echo "$d/conf.d/$b -> ../../php$v/conf.d/$b"
+            else
+                echo "skipped $ini: its extension line is off"
+            fi
+        done
+    fi
+    echo "$me $p <script> runs PHP with it$([ -n "$cli" ] || echo "; php_fpm${v}_profiles=\"$p\" in /etc/rc.conf runs its php-fpm$v")"
+    exit "$bad"
+}
+
+# --- following profiles ----------------------------------------------------------
+
+# sync_one <profile>: conf.d of a following profile, one line per change
+sync_one() {
+    p="$1"; d="$def-$p"; c="$d/conf.d"
+    if [ ! -d "$d" ]; then
+        echo "$me: no profile $p: no $d" >&2; bad=78; return 0
+    fi
+    if [ ! -f "$d/follow" ]; then
+        [ -n "$named" ] && echo "skipped $p: not a following profile (no $d/follow)"
+        return 0
+    fi
+    offs=" "; ons=" "
+    while read -r k m rest; do
+        case "$k" in
+            off) offs="$offs$m " ;;
+            on) ons="$ons$m " ;;
+            "" | "#"*) ;;
+            *) echo "$me: $d/follow: skipped the line '$k $m': neither off nor on" >&2 ;;
+        esac
+    done < "$d/follow"
+    if [ ! -d "$c" ]; then
+        mkdir "$c" || { bad=73; return 0; }
+        echo "$p: made $c"
+    fi
+    # what is there: the links into etc/php$v/conf.d, the files of on modules
+    # (marked); stale ones go: a link whose ini is gone or whose module is off
+    # or on now, the file of a module that is not on or not installed any more
+    for e in "$c"/* ; do
+        if [ -L "$e" ]; then
+            t="$(readlink "$e")"
+            case "$t" in "../../php$v/conf.d/"*) ;; *) continue ;; esac
+            modname "${t##*/}"
+            if [ ! -f "$e" ] || [ "${e##*/}" != "${t##*/}" ]; then
+                rm -f "$e" && echo "$p: - conf.d/${e##*/} (no $def/conf.d/${t##*/})"
+            else
+                st=""
+                case "$ons" in *" $m "*) st=on ;; esac
+                case "$offs" in *" $m "*) st=off ;; esac
+                [ -z "$st" ] || { rm -f "$e" && echo "$p: - conf.d/${e##*/} (the profile has $st $m)"; }
+            fi
+        elif [ -f "$e" ]; then
+            first=""; read -r first < "$e" || :
+            case "$first" in "$mark"*) ;; *) continue ;; esac
+            modname "${e##*/}"
+            case "$ons" in
+                *" $m "*)
+                    [ -f "$def/conf.d/${e##*/}" ] || [ -f "$def/conf.d/${e##*/}.sample" ] ||
+                        { rm -f "$e" && echo "$p: - conf.d/${e##*/} (on $m: not installed any more)"; }
+                    ;;
+                *) rm -f "$e" && echo "$p: - conf.d/${e##*/} (no on $m in $d/follow)" ;;
+            esac
+        fi
+    done
+    # the modules of the default: a link to each, but for the off and on ones
+    for ini in "$def"/conf.d/ext-*.ini; do
+        [ -f "$ini" ] || continue
+        b="${ini##*/}"; modname "$b"
+        case "$offs$ons" in *" $m "*) continue ;; esac
+        t="../../php$v/conf.d/$b"
+        if [ -L "$c/$b" ]; then
+            [ "$(readlink "$c/$b")" = "$t" ] && continue
+            rm -f "$c/$b"
+        elif [ -e "$c/$b" ]; then
+            echo "$me: $p: $c/$b is a file of its own: left as it is" >&2; continue
+        fi
+        ln -s "$t" "$c/$b" && echo "$p: + conf.d/$b -> $t" || bad=73
+    done
+    # the on modules: a file of the profile with the extension line on, from
+    # the ini of the default, or its .sample when the default has it off
+    for m in $ons; do
+        src=""
+        for f in "$def"/conf.d/ext-[0-9][0-9]-"$m".ini; do
+            [ -f "$f" ] && lineon "$f" && src="$f"
+        done
+        if [ -z "$src" ]; then
+            for f in "$def"/conf.d/ext-[0-9][0-9]-"$m".ini.sample "$def"/conf.d/ext-[0-9][0-9]-"$m".ini; do
+                [ -f "$f" ] && { src="$f"; break; }
+            done
+        fi
+        [ -n "$src" ] || continue
+        b="${src##*/}"; b="${b%.sample}"
+        if [ -e "$c/$b" ] || [ -L "$c/$b" ]; then
+            first=""; [ -L "$c/$b" ] || read -r first < "$c/$b" || :
+            case "$first" in
+                "$mark"*) ;;
+                *) echo "$me: $p: $c/$b is a file of its own: left as it is (on $m)" >&2; continue ;;
+            esac
+        fi
+        z=extension; [ "$m" = opcache ] && z=zend_extension
+        {
+            echo "$mark $m on in this profile, from $src"
+            sed -e 's/^[[:space:]]*;[[:space:]]*\(\(zend_\)\{0,1\}extension[[:space:]]*=\)/\1/' "$src"
+            lineon "$src" || grep -Eq '^[[:space:]]*;[[:space:]]*(zend_)?extension[[:space:]]*=' "$src" || echo "$z=$m.so"
+        } > "$c/.$b.new" || { bad=73; continue; }
+        if [ -f "$c/$b" ] && cmp -s "$c/.$b.new" "$c/$b"; then
+            rm -f "$c/.$b.new"
+        else
+            mv "$c/.$b.new" "$c/$b" && echo "$p: * conf.d/$b (on $m, from ${src##*/})" || bad=73
+        fi
+    done
+}
+
+sync() {
+    bad=0; named=""
+    if [ $# -eq 0 ]; then
+        for d in "$def"-*; do
+            [ -f "$d/follow" ] || continue
+            p="${d##*/php$v-}"
+            case "$p" in "" | *[!a-z0-9_]*) continue ;; esac
+            sync_one "$p"
+        done
+    else
+        named=1
+        for p in "$@"; do
+            name "$p" profile
+            sync_one "$p"
+        done
+    fi
+    exit "$bad"
+}
+
+# --- php with a profile ------------------------------------------------------------
+
+run() {
+    p="$1"; shift
+    name "$p" profile
+    d="$def-$p"
+    if [ ! -d "$d" ]; then
+        echo "$me: no profile $p: no $d ($me --create $p)" >&2; exit 78
+    fi
+    if [ ! -f "$d/php.ini" ] || [ ! -d "$d/conf.d" ]; then
+        echo "$me: the profile $p has no php.ini or conf.d in $d: not run (PHP would take the default configuration)" >&2
+        exit 78
+    fi
+    if [ ! -x "$prefix/bin/php$v" ]; then
+        echo "$me: no $prefix/bin/php$v (php$v without the CLI)" >&2; exit 69
+    fi
+    PHPRC="$d"
+    PHP_INI_SCAN_DIR="$d/conf.d"
+    export PHPRC PHP_INI_SCAN_DIR
+    exec "$prefix/bin/php$v" "$@"
+}
+
+[ $# -gt 0 ] || usage
+case "$1" in
+    --create) shift; create "$@" ;;
+    --sync) shift; sync "$@" ;;
+    --list) list ;;
+    -h | --help) usage ;;
+    -*) echo "$me: unknown option $1" >&2; usage ;;
+    *) run "$@" ;;
+esac

@@ -1,0 +1,13 @@
+# PHP 8.4 as an Apache module (mod_php84 of azsupport/ports): copy this file to
+# 280_mod_php84.conf in modules.d of the Apache instance that is to load it
+# (one PHP module per instance), then restart that instance.
+LoadModule php_module libexec/apache24/libphp84.so
+<IfModule php_module>
+    <FilesMatch "\.php$">
+        SetHandler application/x-httpd-php
+    </FilesMatch>
+    <FilesMatch "\.phps$">
+        SetHandler application/x-httpd-php-source
+    </FilesMatch>
+    DirectoryIndex index.php index.html
+</IfModule>

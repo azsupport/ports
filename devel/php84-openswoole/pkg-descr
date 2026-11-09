@@ -1,0 +1,8 @@
+OpenSwoole: an asynchronous, coroutine-based networking framework for
+PHP, the OpenSwoole fork of Swoole 4 (its 4.12 API). It has the classes
+of Swoole, and PHP stops when both are loaded: its ini comes with its
+line commented out (the message of the package says how to switch).
+
+PECL openswoole for php84 of azsupport/ports, built from ext/openswoole
+of the release tarball of azsupport/php-src, which bundles it:
+lib/php/20240924/openswoole.so, loaded by its ini in etc/php84/conf.d.

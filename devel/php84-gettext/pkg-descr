@@ -1,0 +1,7 @@
+Gettext: the gettext API of native language support, with libintl of
+the package az.
+
+The module gettext of PHP 8.4 for php84 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20240924/gettext.so, loaded by its ini in etc/php84/conf.d, its
+headers in include/php84/php/ext/gettext.
