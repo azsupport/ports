@@ -1,9 +1,12 @@
+# The Apache module of PHP 8.1 of azsupport/php-src: the official www/mod_php81
+# of freebsd-ports 6002588334a9. The module is libphp81.so (see
+# lang/php81/Makefile), so it conflicts with no mod_php of another version: no
+# CONFLICTS_INSTALL.
+
 CATEGORIES=	www devel
 PKGNAMEPREFIX=	mod_
 
-MAINTAINER=	bofh@FreeBSD.org
-
-CONFLICTS_INSTALL=	mod_php[0-9][0-9]
+MAINTAINER=	github@azsupport.com
 
 PHP_PORT=	lang/php81
 MASTERDIR=	${.CURDIR}/../../${PHP_PORT}
