@@ -211,8 +211,9 @@ PHP_EXT_DIR!=	${PHPBASE}/bin/php-config${PHP_VER} --extension-dir | ${SED} -ne '
 
 # The core of the version is not installed yet: what it will have. The module
 # API of each version (the extension dir lib/php/<API>, which our cores set) and
-# the extensions built into the core (those of our cores for 7.4, 8.1 and 8.3;
-# those of the official ports for the versions not written in the overlay yet).
+# the extensions built into the core (those of our cores for 5.6, 7.4, 8.1 and
+# 8.3; those of the official ports for the versions not written in the overlay
+# yet).
 .  if empty(PHP_EXT_DIR) || empty(PHP_EXT_INC)
 .    if ${PHP_VER:U} == 84
 PHP_EXT_DIR=	20240924
@@ -232,6 +233,7 @@ PHP_EXT_INC=	hash json pcre spl
 PHP_EXT_DIR=	20190902
 PHP_EXT_INC=	hash pcre spl
 .    elif ${PHP_VER:U} == 56
+# lang/php56 of the overlay: as the official one (hash and json are modules)
 PHP_EXT_DIR=	20131226
 PHP_EXT_INC=	pcre spl
 .    endif
