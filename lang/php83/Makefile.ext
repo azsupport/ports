@@ -198,13 +198,13 @@ PHP_HEADER_DIRS=libmbfl libmbfl/filters libmbfl/mbfl libmbfl/nls
 .endif
 
 .if ${PHP_MODNAME} == "mysqli"
-# --with-mysql-sock only for mysqli (ext.conf)
-CONFIGURE_ARGS+=--with-mysql-sock=/tmp/mysql.sock
+# as the official 8.3: mysqli of PHP 8.2 and later has mysqlnd only (configure
+# stops at another value of --with-mysqli), so no option MYSQLND; mysqlnd is a
+# module here; --with-mysql-sock only for mysqli (ext.conf)
+CONFIGURE_ARGS+=--with-mysqli \
+		--with-mysql-sock=/tmp/mysql.sock
 
-OPTIONS_DEFINE=	MYSQLND
-OPTIONS_DEFAULT=MYSQLND
-
-MYSQLND_DESC=	Use MySQL Native Driver
+USE_PHP=	mysqlnd:build
 .endif
 
 .if ${PHP_MODNAME} == "mysqlnd"
@@ -702,16 +702,6 @@ CONFIGURE_ARGS+=--disable-flatfile
 LIB_DEPENDS+=	liblmdb.so:databases/lmdb
 CONFIGURE_ARGS+=	--with-lmdb=${LOCALBASE}
 .endif
-.endif
-
-.if ${PHP_MODNAME} == "mysqli"
-.	if ${PORT_OPTIONS:MMYSQLND}
-CONFIGURE_ARGS+=--with-mysqli=mysqlnd
-USE_PHP=	mysqlnd:build
-.	else
-CONFIGURE_ARGS+=--with-mysqli=${LOCALBASE}/bin/mysql_config
-USES+=	mysql
-.	endif
 .endif
 
 .if ${PHP_MODNAME} == "pdo_mysql"
