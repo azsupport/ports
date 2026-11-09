@@ -8,7 +8,8 @@
 # and the PECL ports of that commit, with the changes of this overlay as
 # lang/php74/Makefile.ext has them (its head says what and why: the libraries
 # of az, the options of php-src freebsd/ext.conf, USE_PHP, CONFLICTS_INSTALL,
-# the ini of gmagick, the profiles), as lang/php81/Makefile.ext for 8.1:
+# the ini of gmagick, the profiles, GCC but for intl and imagick), as
+# lang/php81/Makefile.ext for 8.1:
 # LIB_DEPENDS, USES and USE_GNOME of the libraries of the ports become AZ_LIBS
 # and the directories of az; no --with-pcre-dir (the PCRE of the ports; the
 # bundled PCRE of the fork is in the core); config0.m4 and config9.m4 as
@@ -250,6 +251,8 @@ CONFIGURE_ARGS+=--enable-intl \
 		--with-icu-dir=${AZ_PREFIX}
 
 USES+=		compiler:c++17-lang
+# C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
+AZ_GCC=		no
 
 CPPFLAGS+=	-DU_USING_ICU_NAMESPACE=1 \
 		-DU_DEFINE_FALSE_AND_TRUE=1
@@ -591,6 +594,11 @@ RUN_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
 USES+=		pkgconfig
 
 CONFIGURE_ARGS+=--with-imagick=${AZ_PREFIX}
+# the base clang, not GCC (Mk/Uses/azgcc.mk): its configure links the
+# OpenMP runtime of the compiler when omp.h builds (omp_pause_resource_all()
+# at shutdown), with GCC the libgomp of the gcc package, a library of it at
+# run time (with the base clang the libomp of the base system)
+AZ_GCC=		no
 .endif
 
 .if ${PHP_MODNAME} == "memcache"
