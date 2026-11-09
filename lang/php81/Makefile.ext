@@ -647,6 +647,10 @@ ZSTD_LIB_DEPENDS=	libzstd.so:archivers/zstd
 SQLITE_CONFIGURE_ON=	--enable-swoole-sqlite
 SQLITE_CONFIGURE_OFF=	--disable-swoole-sqlite
 SQLITE_USE=		PHP=sqlite3
+# backtrace() is in libexecinfo of the base system: files/patch-config.m4
+# finds it there (HAVE_EXECINFO) but does not link it, and swoole.so had
+# the symbol undefined (the load check of tools/check-php.sh)
+LDFLAGS+=	-lexecinfo
 .endif
 
 .if ${PHP_MODNAME} == "openswoole"

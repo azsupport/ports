@@ -640,6 +640,10 @@ CURL_CONFIGURE_ON=	--enable-swoole-curl
 CURL_USE=		PHP=curl
 JSON_CONFIGURE_ON=	--enable-swoole-json
 JSON_USE=		PHP=json:build
+# backtrace() is in libexecinfo of the base system: files/patch-config.m4
+# finds it there (HAVE_EXECINFO) but does not link it, and swoole.so had
+# the symbol undefined (the load check of tools/check-php.sh)
+LDFLAGS+=	-lexecinfo
 .endif
 
 .if ${PHP_MODNAME} == "openswoole"
