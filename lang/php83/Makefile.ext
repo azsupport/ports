@@ -434,7 +434,8 @@ AZ_MSG_REMOVE=	"The CLI profile gmagick, ${AZ_PROFILE}, stays; to" \
 
 .if ${PHP_MODNAME} == "igbinary"
 COMMENT=	Replacement for the standard PHP serializer
-WWW=		https://pecl.php.net/package/igbinary
+WWW=		https://pecl.php.net/package/igbinary \
+		https://github.com/igbinary/igbinary
 
 LICENSE=	BSD3CLAUSE
 LICENSE_FILE=	${WRKSRC}/COPYING
@@ -454,6 +455,7 @@ COMMENT=	PHP wrapper to the ImageMagick/GraphicsMagick library
 WWW=		https://pecl.php.net/package/imagick
 
 LICENSE=	PHP301
+LICENSE_FILE=	${WRKSRC}/LICENSE
 
 CPE_VENDOR=	php
 CPE_PRODUCT=	imagick
@@ -480,7 +482,8 @@ CONFIGURE_ARGS+=--with-mcrypt=${AZ_PREFIX}
 .if ${PHP_MODNAME} == "memcache"
 # Not the USES=dos2unix and USE_CSTD=gnu89 of the port: they were for its 8.0
 COMMENT=	Memcached extension
-WWW=		https://github.com/websupport-sk/pecl-memcache
+WWW=		https://pecl.php.net/package/memcache \
+		https://github.com/websupport-sk/pecl-memcache
 
 LICENSE=	PHP30
 LICENSE_FILE=	${WRKSRC}/LICENSE
@@ -497,10 +500,16 @@ CONFIGURE_ARGS+=--enable-memcache \
 # not the protocol and SASL of the port (ext.conf: libmemcachedprotocol needs
 # libevent, SASL cyrus-sasl2)
 COMMENT=	PHP extension for interfacing with memcached via libmemcached library
-WWW=		https://pecl.php.net/package/memcached
+WWW=		https://pecl.php.net/package/memcached \
+		https://github.com/php-memcached-dev/php-memcached
 
 LICENSE=	PHP30
 LICENSE_FILE=	${WRKSRC}/LICENSE
+
+# the CPE of the port (USES=cpe comes from lang/php83, whose PORTNAME and
+# CPE_PRODUCT are not those of memcached)
+CPE_VENDOR=	php
+CPE_PRODUCT=	memcached
 
 AZ_LIBS=	libmemcached.so
 
