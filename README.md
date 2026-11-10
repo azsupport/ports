@@ -74,7 +74,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); its `libMagickWand-7.so` in `/usr/local/az/lib` for the module imagick |
 | `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; GLib and libssh2 inside, zip, 7z, rar and ISO images through `tar` of the base system: no other package |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp of a release newer than the official port, with our `ffmpeg` |
-| `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | their official origins | the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)), with the options of aZ in each port's Makefile: `unzip` with ICONV (the Cyrillic names of Windows archives), `wget`, `sudo` and `bash` without NLS, `wget` without IDN, `sudo` without LOGSRVD and SSL, `rsync` without ICONV, `screen` with the ncurses of the base system; no library outside the base system but lz4, xxhash and zstd of `rsync` (official packages) |
+| `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS; `bash` without NLS; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the static libraries of az (`wget`: OpenSSL, IDN, PSL, PCRE2; `rsync`: lz4, zstd, xxhash, OpenSSL; no ICONV): no library outside the base system |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
 | `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 59 per version, 61 for 7.4; the list of one: `pkg search -r az '^php84-'` |
@@ -397,6 +397,18 @@ at run time only) count in its own `az_hash` but not in that of the ports that n
 or of its slaves: a change of the php.ini block, the profile script, the rc.d script or
 the pkg-message of `lang/php74` builds `php74` again, not the modules and `mod_php74`
 (pkg takes a dependency by its name, not its version). No revisions bumped by hand.
+
+A port that links libraries of `az/az` takes into its `az_hash` not the hash of all of
+az but that of the last of its libraries in the order of `az/az/files/deps.conf`
+([`tools/az-lib-hashes.sh`](tools/az-lib-hashes.sh)): the common part of az, the own
+lines of the library (its `lib` and `take` lines, its build functions in
+`tools/az-build.sh` and `files/curl/build-libcurl.sh`, its patches and distfiles) and
+the hashes of the libraries before it. Its libraries: those of the files of az its
+dependencies name (`${AZ_PREFIX}/lib/libxml2.so:az/az`: libxml2) and those of
+`AZ_HASH_LIBS` in its Makefile (a program that links more than it names: `ftp/curl`,
+`multimedia/ffmpeg`). Comments, `upstream` lines and the documentation of az are in no
+such hash. A new library goes at the end of the `lib` lines: it builds again only az
+and the ports that link it (aZ, 10.11.2026).
 
 [`tools/install-php.sh`](tools/install-php.sh) `<version>` installs the PHP packages of
 a version from that repository, as a server does (the core, `mod_php74` and the

@@ -47,7 +47,9 @@
 #   ports, not for az/az; the files of tools/ its makefiles name outside their
 #   comments, and those these name: tools/az-build.sh of az/az), of the official commit, the level and tools/make.conf.in,
 #   and of the hash of each port of this tree it needs (so a change of az/az builds
-#   again what needs it): that hash leaves out the files the port lists in its
+#   again what needs it; of az/az the hash of the last of the libraries of az the port
+#   links, tools/az-lib-hashes.sh, so a library added to az builds again only the
+#   ports that link it): that hash leaves out the files the port lists in its
 #   AZ_HASH_NOT_FOR_DEPENDENTS (run time only: lang/php74's php.ini block, profile
 #   script, rc.d script, pkg-message), which count in its own az_hash only, not in
 #   that of its slaves either; it goes to make as AZ_HASH (the annotation az_hash of the package,
@@ -89,7 +91,7 @@
 #   compares the two: a test of configure whose result depends on those errors.
 #
 # Results: results/ of the tree: summary.txt (a line per port, "result: OK" or
-# "result: FAIL (...)" at the end), queue.txt, hashes.txt, waves.txt (AZ_JOBS above 1,
+# "result: FAIL (...)" at the end), queue.txt, hashes.txt, az-lib-hashes.txt, waves.txt (AZ_JOBS above 1,
 # AZ_DRYRUN), logs/<category>_<port>.log, pkg-repo.log; with AZ_CONFIGURE_CHECK=1
 # configure-check.txt (each port with differences, the checks with their diagnostic,
 # then the others) and configure-check/ (a file per port, the two config.log files of
@@ -252,7 +254,7 @@ dep_origins() {
 # port_info <origin>: what make -V says of a port of this tree into $q/info/<key>
 # (lines: 1 PKGNAME, 2 IGNORE, 3-9 FETCH_ EXTRACT_ PATCH_ BUILD_ LIB_ RUN_ PKG_DEPENDS,
 # 10 NEED_ROOT, 11 MASTERDIR, 12 FILESDIR, 13 PATCHDIR, 14 PKGDIR, 15 DISTINFO_FILE,
-# 16 .MAKE.MAKEFILES, 17 AZ_HASH_NOT_FOR_DEPENDENTS); our dependencies into $q/deps/<key> (all kinds) and
+# 16 .MAKE.MAKEFILES, 17 AZ_HASH_NOT_FOR_DEPENDENTS, 18 AZ_HASH_LIBS); our dependencies into $q/deps/<key> (all kinds) and
 # $q/rdeps/<key> (LIB_ and RUN_DEPENDS: what pkg add of its package needs), the
 # official ones into $q/odeps/<key> and $q/orun/<key>
 port_info() {
@@ -262,7 +264,7 @@ port_info() {
     if ! make -C "$top/$1" AZ_STAMP="$az_stamp" -V PKGNAME -V IGNORE -V FETCH_DEPENDS -V EXTRACT_DEPENDS \
             -V PATCH_DEPENDS -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS -V NEED_ROOT \
             -V MASTERDIR -V FILESDIR -V PATCHDIR -V PKGDIR -V DISTINFO_FILE -V .MAKE.MAKEFILES \
-            -V AZ_HASH_NOT_FOR_DEPENDENTS > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
+            -V AZ_HASH_NOT_FOR_DEPENDENTS -V AZ_HASH_LIBS > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
         echo "make -V failed: $(grep . "$q/info/$_k.err" | head -n 1)" > "$q/info/$_k.bad"
         return 1
     fi
@@ -500,9 +502,75 @@ say "the queue: $(wc -l < "$q/queue.txt" | tr -d ' ') ports (results/queue.txt)"
 # of the port whose directory holds it, and in no other: not in the hash its
 # dependents fold in, nor in the az_hash of its slaves (their MASTERDIR is its
 # directory: the modules php74-*). Without the variable both hashes are the same.
+#
+# az/az: a port that links libraries of az folds in, instead of the hash of az, that
+# of the last of them in the order of az/az/files/deps.conf (tools/az-lib-hashes.sh:
+# the common part of az, its own lines and the libraries before it), so that a
+# library added to az (at the end of the "lib" lines) or changed builds again only az
+# and the ports that link it (aZ, 10.11.2026). Its libraries: those of the files of
+# az its dependencies name (${AZ_PREFIX}/lib/libxml2.so:az/az: libxml2; az_lib_of)
+# and those its AZ_HASH_LIBS names (the names of deps.conf: a program that links
+# more of the static tree than its dependencies name, ftp/curl: curl). A file of az
+# that is of no library, with no AZ_HASH_LIBS: the hash of all of az, as before.
 base_hash="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; cat "$top/tools/make.conf.in"; } | hin)"
 mkdir -p "$q/dhash"
 : > "$res/hashes.txt"
+: > "$q/azlib.txt"
+# az_lib_of <file of az>: the library of deps.conf it is of (the file name without
+# lib, .so* and .a; the names that are not those of the library listed), or nothing
+az_lib_of() {
+    _b="${1##*/}"
+    case "$_b" in *.a) _b="${_b%.a}" ;; *.so | *.so.*) _b="${_b%%.so*}" ;; *) return 0 ;; esac
+    _b="${_b#lib}"
+    case "$_b" in
+        icui18n | icuuc | icudata | icuio | icutu) _b=icu ;;
+        intl) _b=gettext ;;
+        brotlienc | brotlidec | brotlicommon) _b=brotli ;;
+        onig) _b=oniguruma ;;
+        png16) _b=png ;;
+        jpeg | turbojpeg) _b=mozjpeg ;;
+        freetype) _b=freetype2 ;;
+        exslt) _b=libxslt ;;
+        memcachedutil | hashkit) _b=libmemcached ;;
+        history) _b=readline ;;
+        charset) _b=libiconv ;;
+        sharpyuv | webpdemux | webpmux | webpdecoder) _b=webp ;;
+        event | event_core | event_extra | event_pthreads | event_openssl) _b=libevent ;;
+        pcre2-8 | pcre2-16 | pcre2-32 | pcre2-posix) _b=pcre2 ;;
+        pcreposix | pcrecpp) _b=pcre ;;
+        ssl | crypto) _b=openssl ;;
+        cares) _b=c-ares ;;
+    esac
+    for _n in "lib$_b" "$_b"; do
+        awk -v n="$_n" '$1 == n { f = 1 } END { exit !f }' "$q/azlib.txt" && { echo "$_n"; return 0; }
+    done
+    return 0
+}
+# az_dep <key>: the line of az/az for the hash of a port that needs it: "dep az/az
+# library <last> <hash>" with the hash of the last of its libraries, or "dep az/az
+# <hash of az>" when one of its files of az is of no library (and no AZ_HASH_LIBS)
+az_dep() {
+    _libs="$(sed -n 18p "$q/info/$1")"
+    _all=""
+    for _e in $(sed -n '3,9p' "$q/info/$1"); do
+        case "$_e" in *:az/az | *:az/az:* | *:az/az@*) ;; *) continue ;; esac
+        _l="$(az_lib_of "${_e%%:*}")"
+        if [ -n "$_l" ]; then _libs="$_libs $_l"; else _all="$_all ${_e%%:*}"; fi
+    done
+    if [ ! -s "$q/azlib.txt" ] || { [ -n "$_all" ] && [ -z "$(sed -n 18p "$q/info/$1")" ]; }; then
+        echo "dep az/az $(cat "$q/dhash/$(key az/az)" 2>/dev/null || echo none)"
+        echo "all of az: ${_all# }" > "$q/azdep-$1"
+        return
+    fi
+    _last="$(for _l in $_libs; do awk -v n="$_l" '$1 == n { print $2, $1 }' "$q/azlib.txt"; done | sort -n | tail -n 1 | awk '{ print $2 }')"
+    if [ -z "$_last" ]; then
+        echo "dep az/az $(cat "$q/dhash/$(key az/az)" 2>/dev/null || echo none)"
+        echo "all of az: no library of deps.conf in ${_libs# }" > "$q/azdep-$1"
+        return
+    fi
+    echo "dep az/az library $_last $(awk -v n="$_last" '$1 == n { print $3 }' "$q/azlib.txt")"
+    echo "the libraries of az up to $_last (of$(printf ' %s' $_libs | tr ' ' '\n' | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//'))" > "$q/azdep-$1"
+}
 for o in $(cat "$q/queue.txt"); do
     k="$(key "$o")"
     [ -f "$q/info/$k.bad" ] && continue
@@ -512,6 +580,7 @@ for o in $(cat "$q/queue.txt"); do
         f="$(realpath "$f" 2> /dev/null)" && tree_file "$f" && echo "${f#"$topr"/}"
     done | LC_ALL=C sort -u > "$q/nfd-$k"
     for d in $(LC_ALL=C sort -u "$q/deps/$k"); do
+        if [ "$d" = az/az ]; then az_dep "$k"; continue; fi
         echo "dep $d $(cat "$q/dhash/$(key "$d")" 2>/dev/null || echo none)"
     done > "$q/dl-$k"
     {
@@ -529,7 +598,20 @@ for o in $(cat "$q/queue.txt"); do
     hin < "$q/dhash/$k.in" > "$q/dhash/$k"
     nfd="$(awk -v d="$o/" 'substr($0, 1, length(d)) == d' "$q/nfd-$k" | tr '\n' ' ')"
     [ -n "$nfd" ] && say "$o: AZ_HASH_NOT_FOR_DEPENDENTS, not in the hash of the ports that need it: $nfd"
-    echo "$o $(cat "$q/hash/$k")" >> "$res/hashes.txt"
+    azn=""
+    [ -f "$q/azdep-$k" ] && azn=" ($(cat "$q/azdep-$k"))"
+    echo "$o $(cat "$q/hash/$k")$azn" >> "$res/hashes.txt"
+    # az: the hash of each of its libraries for the ports that link them
+    if [ "$o" = az/az ]; then
+        if sh "$top/tools/az-lib-hashes.sh" "$top" "$q/pf-$k" > "$q/azlib.all" 2> "$q/azlib.err"; then
+            sed 1d "$q/azlib.all" > "$q/azlib.txt"
+            say "az/az: the hashes of its $(wc -l < "$q/azlib.txt" | tr -d ' ') libraries for the ports that link them (tools/az-lib-hashes.sh)"
+            cp "$q/azlib.all" "$res/az-lib-hashes.txt"
+        else
+            say "az/az: tools/az-lib-hashes.sh failed ($(head -n 1 "$q/azlib.err")): the ports that need az fold in the hash of all of az"
+            : > "$q/azlib.txt"
+        fi
+    fi
 done
 
 # the packages of the repository before: name origin az_hash file, one per origin: of
