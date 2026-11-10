@@ -240,13 +240,6 @@ ms() {
         ninja -C _az -j "$ncpu" && ninja -C _az install)
 }
 
-b_openssl() {
-    # no-module: the providers, legacy included, are built into libcrypto; OSSL_PROVIDER_load(NULL,
-    # "legacy") of PHP finds it without a module file. /etc/ssl: openssl.cnf and the CA store of base.
-    (cd "$1" && ./Configure BSD-x86_64 --prefix="$P" --libdir=lib --openssldir=/etc/ssl \
-        no-shared no-module no-tests no-docs $CFLAGS &&
-        gmake -j"$ncpu" build_libs && gmake install_dev)
-}
 b_libiconv() {
     # one job, as the port (MAKE_JOBS_UNSAFE); am_cv_func_iconv=no, as the port: not the iconv of libc
     fix_guess "$1"
@@ -270,7 +263,7 @@ b_libzip() {
     cm "$1" -DENABLE_OPENSSL=ON -DENABLE_GNUTLS=OFF -DENABLE_MBEDTLS=OFF -DENABLE_COMMONCRYPTO=OFF \
         -DENABLE_WINDOWS_CRYPTO=OFF -DENABLE_BZIP2=ON -DENABLE_LZMA=OFF -DENABLE_ZSTD=ON \
         -DBUILD_TOOLS=OFF -DBUILD_REGRESS=OFF -DBUILD_OSSFUZZ=OFF -DBUILD_EXAMPLES=OFF -DBUILD_DOC=OFF \
-        -DOPENSSL_ROOT_DIR="$P" -DOPENSSL_USE_STATIC_LIBS=ON
+        -DOPENSSL_ROOT_DIR=/usr
 }
 b_png() { cm "$1" -DPNG_SHARED=OFF -DPNG_STATIC=ON -DPNG_TESTS=OFF -DPNG_TOOLS=OFF -DPNG_DEBUG_POSTFIX=""; }
 b_mozjpeg() {

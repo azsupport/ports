@@ -5,9 +5,9 @@
 # and why), and with GLib and libssh2 linked in: devel/glib20 (and devel/libffi for
 # its build) of the same commit built static by the script, against PCRE2, libintl
 # and libiconv of the static tree of the package az, and libssh2 of that tree (with
-# its OpenSSL). So mc needs no package at run time (the official one needs glib with
+# the OpenSSL of the base system). So mc needs no package at run time (the official one needs glib with
 # Python, libssh2, gettext-runtime, libiconv, pcre2, libffi, zip, Perl and Python),
-# only libraries of the base system (ncursesw, libutil, libz). zip, jar, 7z, rar and
+# only libraries of the base system (ncursesw, libutil, libz, libcrypto). zip, jar, 7z, rar and
 # ISO 9660 open with files/ubsdtar (tar of the base system) after
 # files/archives-bsdtar.patch; Perl, Python, zip and GNU diff are no dependencies
 # (files/mc.conf: what each of them still gives when it is installed).
@@ -24,7 +24,7 @@ WWW=		https://midnight-commander.org/ \
 
 LICENSE=	GPLv3+
 
-# the static tree of az (libssh2 and its OpenSSL, PCRE2, libintl and libiconv for
+# the static tree of az (libssh2, PCRE2, libintl and libiconv for
 # GLib: a build dependency only, nothing of az at run time); the tools of the builds
 # of GLib (meson, and Python with packaging for its gdbus-codegen, as devel/glib20)
 # and mc (gmake, Perl for its help file)

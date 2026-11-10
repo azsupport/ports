@@ -1,10 +1,10 @@
 # net/rsync: the rsync of azsupport/ports in the place of the official net/rsync
 # (aZ, 10.11.2026): the official port (its patches, the extra patch of the option
 # FLAGS: the flags of the files, --fileflags; ssh; zlib of the base system; the popt
-# it bundles; its rc.d script, pkg-plist, pkg-descr, pkg-message) with lz4, zstd,
-# xxhash and OpenSSL (MD4, MD5) from the static tree of az, so that it takes no
-# package (the official one takes liblz4, zstd and xxhash). Without ICONV (--iconv:
-# GNU libiconv) and IDN.
+# it bundles; its rc.d script, pkg-plist, pkg-descr, pkg-message) with lz4, zstd and
+# xxhash from the static tree of az, so that it takes no package (the official one
+# takes liblz4, zstd and xxhash), and the OpenSSL of the base system (MD4, MD5).
+# Without ICONV (--iconv: GNU libiconv) and IDN.
 
 PORTNAME=	rsync
 DISTVERSION=	3.5.1
@@ -27,7 +27,7 @@ BUILD_DEPENDS=	${AZ_STATIC}/lib/liblz4.a:az/az \
 		${AZ_STATIC}/lib/libxxhash.a:az/az \
 		${AZ_STATIC}/lib/libzstd.a:az/az
 
-USES=		autoreconf:build cpe python shebangfix
+USES=		autoreconf:build cpe python shebangfix ssl
 CPE_VENDOR=	samba
 CPE_PRODUCT=	rsync
 PYTHON_NO_DEPENDS=	yes
@@ -52,11 +52,10 @@ CONFIGURE_ARGS=		--disable-debug \
 			ac_cv_search_libiconv_open=no
 INSTALL_TARGET=	install-strip
 
-# the static tree of az: its lib/ has only static libraries, so lz4, xxhash, zstd and
-# libcrypto go in (-pthread: that of the static libcrypto)
+# the static tree of az: its lib/ has only static libraries, so lz4, xxhash and zstd
+# go in; libcrypto is that of the base system
 CPPFLAGS+=	-I${AZ_STATIC}/include
 LDFLAGS+=	-L${AZ_STATIC}/lib
-LIBS+=		-pthread
 
 SUB_LIST=	NAME=rsyncd
 EXTRA_PATCHES=	${FILESDIR}/extra-patch-file-flags.diff
