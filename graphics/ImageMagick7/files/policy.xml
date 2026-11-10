@@ -13,7 +13,7 @@
 ]>
 <!--
   The policy of /usr/local/imagemagick6 and /usr/local/imagemagick7
-  (freebsd/imagemagick.conf, tools/build-imagemagick.sh installs it as
+  (graphics/ImageMagick7/files/imagemagick.conf, tools/imagemagick-build.sh installs it as
   etc/ImageMagick-6/policy.xml and etc/ImageMagick-7/policy.xml).
 
   It is the "websafe" policy of ImageMagick (config/policy-websafe.xml of 7.1.2-25
