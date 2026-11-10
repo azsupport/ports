@@ -43,7 +43,21 @@ servers (amd64), so that nothing is built on the servers.
   [azsupport/php-src](https://github.com/azsupport/php-src) (for 7.4:
   [`php-7.4.33-fbsd-20261104-397aa202.tar.xz`](https://github.com/azsupport/php-src/releases/download/freebsd-7.4-20261104-397aa202/php-7.4.33-fbsd-20261104-397aa202.tar.xz)),
   which carry the patches of the FreeBSD port, the PECL extensions in `ext/` and the
-  PCRE2 the fork bundles: our PHP ports apply no patches of their own.
+  PCRE2 the fork bundles: our PHP ports apply no patches of their own. What the fork
+  adds to PHP: security fixes for every version the same day (the releases of php-src
+  for 8.2 to 8.4, Remi Collet's backports for 7.4 and 8.1, and for 5.6 those and its
+  own), the patches with which the old versions build and work with the compilers
+  and libraries of FreeBSD 15 (GCC 14+, clang 16+, OpenSSL 3, libxml2 2.12+, bison
+  3), a built-in OPcache and no extension loading as options
+  ([its README](https://github.com/azsupport/php-src#readme)).
+- **Faster PHP**: the cores, the Apache modules and the modules in C are built with
+  GCC 16, with which the Zend VM keeps its registers in global register variables
+  (the clang of the base system has none), and `-fno-semantic-interposition`:
+  `Zend/bench.php` and `micro_bench.php` run 33–44% faster with PHP 7.4 than with clang
+  19, 36–38% with 8.3 without OPcache (5–15% with its JIT), and mod_php gets as much
+  ([the benchmark](https://github.com/azsupport/php-src#benchmark-of-the-builds));
+  sqlite3, expat and lcms2 of az with GCC too ([The libraries with
+  GCC](#the-libraries-with-gcc)).
 - PHP 5.6, 7.4, 8.1, 8.2, 8.3 and 8.4, for x86-64-v3 and x86-64-v2 (a CPU without
   AVX2: the release `az-fbsd15-amd64-v2`).
 

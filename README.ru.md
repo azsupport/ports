@@ -43,7 +43,21 @@
   [azsupport/php-src](https://github.com/azsupport/php-src) (для 7.4:
   [`php-7.4.33-fbsd-20261104-397aa202.tar.xz`](https://github.com/azsupport/php-src/releases/download/freebsd-7.4-20261104-397aa202/php-7.4.33-fbsd-20261104-397aa202.tar.xz)),
   в которых уже есть патчи порта FreeBSD, расширения PECL в `ext/` и PCRE2, которую
-  форк вкладывает в себя: наши порты PHP своих патчей не накладывают.
+  форк вкладывает в себя: наши порты PHP своих патчей не накладывают. Что форк
+  добавляет к PHP: исправления безопасности для каждой версии в тот же день (релизы
+  php-src для 8.2–8.4, бэкпорты Remi Collet для 7.4 и 8.1, для 5.6 — они и свои),
+  патчи, с которыми старые версии собираются и работают с компиляторами и библиотеками
+  FreeBSD 15 (GCC 14+, clang 16+, OpenSSL 3, libxml2 2.12+, bison 3), встроенный
+  OPcache и запрет загрузки расширений как опции
+  ([его README](https://github.com/azsupport/php-src/blob/master/README.ru.md)).
+- **Быстрее PHP**: ядра, модули Apache и модули на C собираются GCC 16 — с ним Zend VM
+  держит свои регистры в глобальных регистровых переменных (у clang базовой системы их
+  нет) — и с `-fno-semantic-interposition`: `Zend/bench.php` и `micro_bench.php` идут на
+  33–44% быстрее, чем с clang 19, у PHP 7.4 и на 36–38% у 8.3 без OPcache (5–15% с его
+  JIT), и mod_php получает столько же
+  ([замер](https://github.com/azsupport/php-src/blob/master/README.ru.md#сравнение-скорости-сборок));
+  sqlite3, expat и lcms2 из az — тоже на GCC ([Библиотеки с
+  GCC](#библиотеки-с-gcc)).
 - PHP 5.6, 7.4, 8.1, 8.2, 8.3 и 8.4, под x86-64-v3 и x86-64-v2 (процессор без AVX2 —
   релиз `az-fbsd15-amd64-v2`).
 
