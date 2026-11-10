@@ -80,7 +80,6 @@ rm -rf "$t"; mkdir -p "$t"
 cat > "$t/t.c" <<'EOF'
 #include <stdio.h>
 #include <libxml/xmlversion.h>
-#include <curl/curl.h>
 #include <gd.h>
 #include <unicode/uversion.h>
 #include <zip.h>
@@ -106,15 +105,21 @@ int main(void)
         return 1;
     ffi_ok = ffi_prep_cif(&cif, FFI_DEFAULT_ABI, 1, &ffi_type_sint, args) == FFI_OK;
     MagickWandGenesis();
-    printf("libxml2 %s; curl %s; gd %s; ICU %s; libzip %s; libsodium %s; oniguruma %s; sqlite %s; gmp %s; "
-        "libxslt %d; libffi %s; tidy %s; %s\n", LIBXML_DOTTED_VERSION, curl_version_info(CURLVERSION_NOW)->version,
+    printf("libxml2 %s; gd %s; ICU %s; libzip %s; libsodium %s; oniguruma %s; sqlite %s; gmp %s; "
+        "libxslt %d; libffi %s; tidy %s; %s\n", LIBXML_DOTTED_VERSION,
         gdVersionString(), us, zip_libzip_version(), sodium_version_string(), onig_version(), sqlite3_libversion(),
         gmp_version, xsltLibxsltVersion, ffi_ok ? "ok" : "FAIL", tidyLibraryVersion(), MagickGetVersion(NULL));
     MagickWandTerminus();
     return ffi_ok ? 0 : 1;
 }
 EOF
-spc="libxml-2.0 libcurl gdlib icu-uc libzip libsodium oniguruma sqlite3 gmp libxslt libffi tidy"
+spc="libxml-2.0 gdlib icu-uc libzip libsodium oniguruma sqlite3 gmp libxslt libffi tidy"
+# one libcurl, that of the package curl (aZ, 10.11.2026): none in the shared tree
+if ls "$A"/lib/libcurl.so* > /dev/null 2>&1; then
+    tfail "a libcurl in $A/lib: $(ls "$A"/lib/libcurl.so* | tr '\n' ' ')(the libcurl of the packages is that of the package curl)"
+else
+    tpass "no libcurl in $A/lib: the libcurl of the packages is that of the package curl"
+fi
 # shellcheck disable=SC2086
 if cf="$("$A/bin/pkg-config" --cflags $spc)" && lf="$("$A/bin/pkg-config" --libs $spc)" &&
     mcf="$("$A/bin/MagickWand-config" --cflags)" && mlf="$("$A/bin/MagickWand-config" --libs)" &&

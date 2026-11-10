@@ -63,7 +63,7 @@ LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
 # no iconv:translit of the official one: GNU libiconv of the ports, which only
 # the CONNECT engine linked, by the ICONV_LIBRARY that USES=iconv gives cmake
 # (nothing of MariaDB uses it: Connector/C has WITH_ICONV off)
-USES=		bison:build cmake:insource compiler:c++11-lib cpe ncurses shebangfix ssl
+USES=		bison:build cmake:insource compiler:c++11-lib cpe ncurses pkgconfig shebangfix ssl
 
 SUB_FILES=	pkg-message
 PKGMESSAGE=	${WRKDIR}/pkg-message
