@@ -44,7 +44,8 @@ servers (amd64), so that nothing is built on the servers.
   [`php-7.4.33-fbsd-20261104-397aa202.tar.xz`](https://github.com/azsupport/php-src/releases/download/freebsd-7.4-20261104-397aa202/php-7.4.33-fbsd-20261104-397aa202.tar.xz)),
   which carry the patches of the FreeBSD port, the PECL extensions in `ext/` and the
   PCRE2 the fork bundles: our PHP ports apply no patches of their own.
-- PHP 5.6, 7.4, 8.1, 8.2, 8.3 and 8.4, for x86-64-v3 first; x86-64-v2 comes after.
+- PHP 5.6, 7.4, 8.1, 8.2, 8.3 and 8.4, for x86-64-v3 and x86-64-v2 (a CPU without
+  AVX2: the release `az-fbsd15-amd64-v2`).
 
 ## The packages
 
