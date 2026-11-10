@@ -1,7 +1,7 @@
 #!/bin/sh
 # mc-test.sh - test the package mc of the port misc/mc (tools/mc-build.sh), installed
 # in the place of that of the official port: what mc --version says it was built with
-# (GLib, ncursesw, libssh2, the editor, the subshell, the codepages, the VFS with
+# (GLib, ncurses(w), libssh2, the editor, the subshell, the codepages, the VFS with
 # sftpfs and shell; no X11 and no translations, as misc/mc/files/mc.conf has it), its
 # libraries (the base system only), the links mcedit, mcview and mcdiff, its paths
 # (mc -F), the extfs helper ubsdtar on a zip that tar of the base system makes (list,
@@ -39,7 +39,7 @@ cp "$T/version.txt" "$res/version.txt"
 first="$(head -n 1 "$T/version.txt")"
 case "$first" in "GNU Midnight Commander "*) pass "$first" ;; *) fail "mc --version: $first" ;; esac
 miss=""
-for w in "Built with GLib" "Built with ncursesw" "Built with libssh2" "With builtin editor" \
+for w in "Built with GLib" "Built with ncurses" "Built with libssh2" "With builtin editor" \
         "With subshell support as default" "With support for background operations" "With multiple codepages support"; do
     grep -q "^$w" "$T/version.txt" || miss="$miss; $w"
 done
