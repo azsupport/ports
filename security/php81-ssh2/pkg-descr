@@ -1,0 +1,8 @@
+PHP bindings to the libssh2 library which provide access to resources
+(shell, remote exec, tunneling, file transfer) on a remote machine using a
+secure cryptographic transport.
+
+PECL ssh2 for php81 of azsupport/ports, built from ext/ssh2 of the
+release tarball of azsupport/php-src, which bundles it:
+lib/php/20210902/ssh2.so, loaded by its ini in etc/php81/conf.d, with the
+libssh2 of the package az (/usr/local/az/lib).

@@ -37,7 +37,8 @@
 # ffi fileinfo filter ftp gd gettext gmp iconv intl json mbstring mysqlnd
 # openssl openssl-legacy pcntl pdo phar posix readline shmop simplexml soap
 # sockets sodium sqlite3 sysvmsg sysvsem sysvshm tidy tokenizer xml xmlwriter
-# zip zlib excimer gmagick imagick mcrypt; 30 (USE_PHP: they need another one):
+# zip zlib excimer gmagick imagick mcrypt ssh2; 30 (USE_PHP: they need another
+# one):
 # mysqli pdo_mysql pdo_sqlite xmlreader xmlrpc xsl igbinary memcache memcached
 # redis swoole openswoole.
 #
@@ -626,6 +627,23 @@ IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
 IGBINARY_USE=			PHP=igbinary:build
 .endif
 
+.if ${PHP_MODNAME} == "ssh2"
+# security/pecl-ssh2 (1.3.1 at the ports commit of az/az) with the libssh2
+# of az (aZ, 10.11.2026) instead of security/libssh2; ext/ssh2 of the
+# tarball is 1.4.1, the last release for PHP 7 (php-src freebsd/pecl.conf).
+# Not the post-patch of the port, which makes $SSH2_DIR/lib of config.m4
+# $SSH2_DIR/$PHP_LIBDIR: that is lib here as well
+COMMENT=	PECL extension to the libssh2 library
+WWW=		https://pecl.php.net/package/ssh2 \
+		https://github.com/php/pecl-networking-ssh2
+
+LICENSE=	PHP301
+LICENSE_FILE=	${WRKSRC}/LICENSE
+
+AZ_LIBS=	libssh2.so
+CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
+.endif
+
 .if ${PHP_MODNAME} == "swoole"
 # mysqlnd is a module here; brotli of az, OpenSSL of the base system
 # (ext.conf); not USES=localbase:ldflags: no library of the ports
@@ -712,7 +730,7 @@ AZ_MSG=		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops" \
 # the ports of these have no CPE, so they have none here either (openswoole has
 # no port: none as well)
 AZ_NO_CPE=	excimer gmagick igbinary mcrypt memcache memcached \
-		openswoole redis swoole
+		openswoole redis ssh2 swoole
 .if !empty(AZ_NO_CPE:M${PHP_MODNAME})
 USES:=		${USES:Ncpe}
 .endif

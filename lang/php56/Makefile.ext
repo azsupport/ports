@@ -80,7 +80,7 @@
 # exif fileinfo filter ftp gd gettext gmp hash iconv intl json mbstring mcrypt
 # mysqlnd openssl openssl-legacy pcntl pdo posix readline shmop simplexml
 # sockets sqlite3 sysvmsg sysvsem sysvshm tidy tokenizer xml xmlwriter zip zlib
-# gmagick imagick; 30: mysql mysqli pdo_mysql pdo_sqlite phar soap wddx
+# gmagick imagick ssh2; 30: mysql mysqli pdo_mysql pdo_sqlite phar soap wddx
 # xmlreader xmlrpc xsl igbinary memcache memcached redis.
 #
 # Not built, as for 7.4: enchant, imap, ldap, odbc, pdo_dblib, pdo_firebird,
@@ -679,11 +679,28 @@ IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
 IGBINARY_USE=			php=igbinary:build
 .endif
 
+.if ${PHP_MODNAME} == "ssh2"
+# security/pecl-ssh2 (1.3.1 at the ports commit of az/az) with the libssh2
+# of az (aZ, 10.11.2026) instead of security/libssh2; ext/ssh2 of the
+# tarball is 0.13, the last release for PHP 5 (php-src freebsd/pecl.conf).
+# Not the post-patch of the port, which makes $SSH2_DIR/lib of config.m4
+# $SSH2_DIR/$PHP_LIBDIR: that is lib here as well
+COMMENT=	PECL extension to the libssh2 library
+WWW=		https://pecl.php.net/package/ssh2 \
+		https://github.com/php/pecl-networking-ssh2
+
+LICENSE=	PHP301
+LICENSE_FILE=	${WRKSRC}/LICENSE
+
+AZ_LIBS=	libssh2.so
+CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
+.endif
+
 # The CPE of a PECL extension is that of its port: USES=cpe and CPE_PRODUCT=php
 # of lang/php56 (the CPE of PHP, which the bundled modules have, as in the
 # official tree) would make it cpe:2.3:a:php:php:<its version>; the ports of
 # these have no CPE at their commits, so they have none here either
-AZ_NO_CPE=	gmagick igbinary imagick memcache memcached redis
+AZ_NO_CPE=	gmagick igbinary imagick memcache memcached redis ssh2
 .if !empty(AZ_NO_CPE:M${PHP_MODNAME})
 USES:=		${USES:Ncpe}
 .endif
