@@ -413,7 +413,11 @@ It takes the repository of the last run (an actions/cache, saved also when a run
 fails, so that a run that fails in PHP keeps `az` and the libraries) and the files of
 the release `az-fbsd15-amd64-<level>`, checks the ports with `make -V` against a sparse
 official tree on the runner ([`tools/check-tree.sh`](tools/check-tree.sh), bmake: a
-FAIL stops the run there), runs `tools/build.sh` in a FreeBSD VM
+FAIL stops the run there), compares the curl of az with that of the PHP of
+azsupport/php-src ([`tools/curl-sync-check.sh`](tools/curl-sync-check.sh): the data
+lines of `az/az/files/curl.conf` and `curl-deps.conf` and the patches of `curl/` against
+those of `freebsd/` on its master; a difference stops the run there too), runs
+`tools/build.sh` in a FreeBSD VM
 ([vmactions/freebsd-vm](https://github.com/vmactions/freebsd-vm)), then, for each PHP
 version a package of which was built, installs its packages from the new repository and
 checks them (`tools/install-php.sh`, `tools/check-php.sh`; a line each in

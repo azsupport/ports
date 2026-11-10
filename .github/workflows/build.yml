@@ -156,6 +156,14 @@ jobs:
           set -o pipefail
           MAKE_CONF="$RUNNER_TEMP/make.conf" sh tools/check-tree.sh "$off" 2>&1 | tee check-tree.txt
 
+      # the curl of az (az/az/files/curl.conf, curl-deps.conf, curl/) must be that of
+      # the PHP of azsupport/php-src (freebsd/ there, on master): the same releases and
+      # patches. A difference stops the run here, before the VM
+      - name: The curl of az and that of azsupport/php-src
+        run: |
+          set -o pipefail
+          sh tools/curl-sync-check.sh 2>&1 | tee curl-sync-check.txt
+
       - name: Free space on the runner (the disk of the VM grows on it)
         run: |
           df -h /
