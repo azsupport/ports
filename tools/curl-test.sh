@@ -4,8 +4,9 @@
 # those of the official port ftp/curl
 # (the OpenSSL of /usr/local/az/static, the threaded resolver, HTTP/2, brotli, zstd, IDN,
 # the Public Suffix List, NTLM; the protocols of the port: DICT, FTP, gopher, HTTP,
-# IMAP, IPFS, MQTT, POP3, RTSP, SMTP, telnet, TFTP, WebSocket; no LDAP, SCP and
-# SFTP), a file:// read, an https:// request to
+# IMAP, IPFS, MQTT, POP3, RTSP, SMTP, telnet, TFTP, WebSocket, and SCP and SFTP with
+# libssh2; no LDAP), an SFTP handshake with the sshd of this machine (the login
+# refused), a file:// read, an https:// request to
 # github.com (HTTP/2, the CA store of the base system), and libcurl.so: with the
 # libraries of the base system only, and taken by git (git ls-remote over https).
 #
@@ -46,16 +47,27 @@ for f in alt-svc AsynchDNS brotli HSTS HTTP2 HTTPS-proxy IDN IPv6 libz NTLM PSL 
 done
 if [ -z "$miss" ]; then pass "features:$feats"; else fail "features missing:$miss (have:$feats)"; fi
 extra=""
-for p in ldap ldaps scp sftp; do
+for p in ldap ldaps; do
     case "$protos" in *" $p "*) extra="$extra $p" ;; esac
 done
 miss=""
-for p in dict file ftp ftps gopher gophers http https imap imaps ipfs ipns mqtt pop3 pop3s rtsp smtp smtps telnet tftp ws wss; do
+for p in dict file ftp ftps gopher gophers http https imap imaps ipfs ipns mqtt pop3 pop3s rtsp scp sftp smtp smtps telnet tftp ws wss; do
     case "$protos" in *" $p "*) ;; *) miss="$miss $p" ;; esac
 done
 if [ -z "$miss$extra" ]; then pass "protocols:$protos"; else fail "protocols:$protos (missing:${miss:- -}; not wanted:${extra:- -})"; fi
 libs="$(ldd "$c" | awk 'NR > 1 { print $3 }' | tr '\n' ' ')"
 case "$libs" in *"/usr/local/"*) fail "links a library of /usr/local: $libs" ;; *) pass "libraries of the base system only: $libs" ;; esac
+# SFTP with libssh2: the key exchange with the sshd here (the VM has one), then the
+# login of nobody refused, exit 67 (-k: no known_hosts of root to check the key of
+# this host against)
+if nc -z -w 5 127.0.0.1 22 2>/dev/null; then
+    "$c" -sS -k --max-time 30 -u 'nobody:-' sftp://127.0.0.1/ > "$T/sftp.txt" 2>&1
+    e=$?
+    if [ "$e" = 67 ]; then pass "SFTP: the handshake with the sshd here, the login refused (exit 67)"
+    else fail "SFTP to the sshd here: exit $e, not 67: $(head -n 2 "$T/sftp.txt" | tr '\n' ' ')"; fi
+else
+    echo "note  no sshd on 127.0.0.1:22: SFTP not tried" >> "$out"
+fi
 echo "a line of a file" > "$T/file.txt"
 if [ "$("$c" -sS "file://$T/file.txt" 2>&1)" = "a line of a file" ]; then pass "file:// reads a local file"
 else fail "file://: $("$c" -sS "file://$T/file.txt" 2>&1 | head -n 2 | tr '\n' ' ')"; fi
