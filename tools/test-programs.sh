@@ -1,9 +1,9 @@
 #!/bin/sh
 # test-programs.sh - the tests of the programs and libraries of the repository that
 # tools/build.sh made, installed from it as a server installs them: az, curl,
-# ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick and yt-dlp, by
+# ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc and yt-dlp, by
 # tools/az-test.sh, curl-test.sh, ffmpeg-test.sh, imagemagick-test.sh,
-# graphicsmagick-test.sh and ytdlp-test.sh (yt-dlp with our ffmpeg).
+# graphicsmagick-test.sh, mc-test.sh and ytdlp-test.sh (yt-dlp with our ffmpeg).
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -17,7 +17,7 @@
 #    go again (pkg delete, pkg autoremove); dejavu stays, its fonts are those of the
 #    tests of the text.
 # 2. Ours from the repository, as the repository "azbuild" of pkg (file://, priority
-#    100; as tools/install-php.sh): pkg install -f of each of the six the repository
+#    100; as tools/install-php.sh): pkg install -f of each of the seven the repository
 #    has, so that every one is that of the repository.
 # 3. Each test (with the packages it needs; a test whose package is not in the
 #    repository is skipped, with the reason): its results in
@@ -94,7 +94,7 @@ pkg install -y pkgconf >> "$log" 2>&1 || say "pkg install pkgconf failed (test-p
 
 # 2. ours from the repository
 want=""
-for p in az curl ffmpeg ImageMagick6 ImageMagick7 GraphicsMagick; do
+for p in az curl ffmpeg ImageMagick6 ImageMagick7 GraphicsMagick mc; do
     if in_repo "$p"; then want="$want $p"; else say "$p: not in the repository, its tests are skipped"; fi
 done
 if [ -n "$want" ]; then
@@ -131,7 +131,7 @@ done
 
 # 3. the tests: name, the packages it needs
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
-        "graphicsmagick GraphicsMagick" "ytdlp yt-dlp ffmpeg"; do
+        "graphicsmagick GraphicsMagick" "mc mc" "ytdlp yt-dlp ffmpeg"; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift

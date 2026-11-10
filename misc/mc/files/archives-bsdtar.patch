@@ -1,0 +1,100 @@
+Description: zip, jar, 7z, rar and ISO 9660 open with the extfs helper ubsdtar (tar of the base system, libarchive) instead of uzip (Perl), u7z (7-Zip), urar (rar) and iso9660 (xorriso); their views (F3) fall back to tar -tvf
+Origin: azsupport/ports misc/mc (aZ, 10.11.2026), after the patches of the port
+
+--- misc/mc.ext.ini.in.orig
++++ misc/mc.ext.ini.in
+@@ -299,7 +299,7 @@
+ [rar]
+ Regex=\\.r(ar|[0-9][0-9])$
+ RegexIgnoreCase=true
+-Open=%cd %p/urar://
++Open=%cd %p/ubsdtar://
+ View=%view{ascii} @EXTHELPERSDIR@/archive.sh view rar
+ 
+ # ALZip
+@@ -356,7 +356,7 @@
+ [7zip]
+ Shell=.7z
+ ShellIgnoreCase=true
+-Open=%cd %p/u7z://
++Open=%cd %p/ubsdtar://
+ View=%view{ascii} @EXTHELPERSDIR@/archive.sh view 7z
+ 
+ [patch]
+@@ -428,7 +428,7 @@
+ [ISO9660]
+ Shell=.iso
+ ShellIgnoreCase=true
+-Open=%cd %p/iso9660://
++Open=%cd %p/ubsdtar://
+ View=%view{ascii} @EXTHELPERSDIR@/misc.sh view iso9660
+ 
+ [ar]
+@@ -895,7 +895,7 @@
+ [zip-by-shell]
+ Shell=.zip
+ ShellIgnoreCase=true
+-Open=%cd %p/uzip://
++Open=%cd %p/ubsdtar://
+ View=%view{ascii} @EXTHELPERSDIR@/archive.sh view zip
+ 
+ [zoo]
+@@ -1130,13 +1130,13 @@
+ 
+ [zip-by-type]
+ Type=\\(Zip archive
+-Open=%cd %p/uzip://
++Open=%cd %p/ubsdtar://
+ View=%view{ascii} @EXTHELPERSDIR@/archive.sh view zip
+ 
+ [jar]
+ Type=\\(Java (Jar file|archive) data \\((zip|JAR)\\)\\)
+ TypeIgnoreCase=true
+-Open=%cd %p/uzip://
++Open=%cd %p/ubsdtar://
+ View=%view{ascii} @EXTHELPERSDIR@/archive.sh view zip
+ 
+ [lha]
+--- misc/ext.d/archive.sh.orig
++++ misc/ext.d/archive.sh
+@@ -104,7 +104,8 @@
+         ;;
+     rar)
+         rar v -c- "${MC_EXT_FILENAME}" 2>/dev/null || \
+-            unrar v -c- "${MC_EXT_FILENAME}"
++            unrar v -c- "${MC_EXT_FILENAME}" 2>/dev/null || \
++            tar -tvf "${MC_EXT_FILENAME}"
+         ;;
+     alz)
+         unalz -l "${MC_EXT_FILENAME}"
+@@ -138,7 +139,8 @@
+         ;;
+     7z)
+         7za l "${MC_EXT_FILENAME}" 2>/dev/null ||
+-            7z l "${MC_EXT_FILENAME}"
++            7z l "${MC_EXT_FILENAME}" 2>/dev/null ||
++            tar -tvf "${MC_EXT_FILENAME}"
+ 
+         ;;
+     ace)
+@@ -149,7 +151,8 @@
+         ;;
+     zip)
+         unzip -v "${MC_EXT_FILENAME}" 2> /dev/null || \
+-            7za l "${MC_EXT_FILENAME}" 2> /dev/null
++            7za l "${MC_EXT_FILENAME}" 2> /dev/null || \
++            tar -tvf "${MC_EXT_FILENAME}"
+         ;;
+     zipx)
+         7za l "${MC_EXT_FILENAME}" 2> /dev/null
+--- misc/ext.d/misc.sh.in.orig
++++ misc/ext.d/misc.sh.in
+@@ -16,7 +16,7 @@
+          if command -v isoinfo >/dev/null 2>&1; then
+              isoinfo -d -i "${MC_EXT_FILENAME}" && isoinfo -l -R -J -i "${MC_EXT_FILENAME}"
+          else
+-             7za l "${MC_EXT_FILENAME}"
++             7za l "${MC_EXT_FILENAME}" 2>/dev/null || tar -tvf "${MC_EXT_FILENAME}"
+          fi
+         ;;
+     cat)
