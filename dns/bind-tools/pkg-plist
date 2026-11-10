@@ -28,4 +28,3 @@ lib/bind-tools/libisccfg.so
 lib/bind-tools/libisccfg-9.20.30.so
 lib/bind-tools/libns.so
 lib/bind-tools/libns-9.20.30.so
-%%DNSTAP%%share/man/man1/dnstap-read.1.gz
