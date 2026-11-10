@@ -10,22 +10,45 @@
 TAR="${MC_UBSDTAR_TAR:-/usr/bin/tar}"
 here="$(dirname "$0")"
 
-# the lines of tar -tv, which are those of ls -l: the names without ./ and without
-# the / of a directory; the root directory of the archive left out
+# the lines of tar -tv, which are those of ls -l, as mc reads them: the names
+# without ./ and without the / of a directory, the root directory of the archive
+# left out; at least 1 link (tar -tv has 0 for zip, 7z and tar, which mc does not
+# take); a hard link ("NAME link to FILE" of tar -tv, type h in tar, - in ISO 9660)
+# as mc has it, "NAME -> FILE" with 2 links, when FILE is listed before it
+ub_awk='
+    match($0, /^[^ ]+ +[0-9]+ +[^ ]+ +[^ ]+ +[0-9]+ +[A-Za-z]+ +[0-9]+ +[0-9:]+ /) {
+        name = substr($0, RLENGTH + 1); split(substr($0, 1, RLENGTH), f, " ")
+        t = substr(f[1], 1, 1); to = ""; i = index(name, " link to ")
+        if (i && (t == "h" || (f[2] > 1 && f[5] == 0))) {
+            to = substr(name, i + 9); name = substr(name, 1, i - 1)
+            sub(/^\.\//, "", to); f[1] = "-" substr(f[1], 2)
+        }
+        if (target) { if (to != "") print to; next }
+        sub(/^\.\//, "", name)
+        if (t == "d") sub(/\/$/, "", name)
+        if (name == "" || name == ".") next
+        if (f[2] < 1) f[2] = 1
+        if (to != "" && seen[to]) { f[2] = 2; to = " -> " to } else to = ""
+        seen[name] = 1
+        printf "%s %s %s %s %s %s %s %s %s%s\n", f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8], name, to
+    }'
 ub_list() {
-    LC_TIME=C "$TAR" -tvf "$1" | awk '
-        match($0, /^[^ ]+ +[0-9]+ +[^ ]+ +[^ ]+ +[0-9]+ +[A-Za-z]+ +[0-9]+ +[0-9:]+ /) {
-            head = substr($0, 1, RLENGTH); name = substr($0, RLENGTH + 1)
-            sub(/^\.\//, "", name)
-            if (substr(head, 1, 1) == "d") sub(/\/$/, "", name)
-            if (name != "" && name != ".") print head name
-        }'
+    LC_TIME=C "$TAR" -tvf "$1" | awk "$ub_awk"
 }
 
-# one file to stdout of tar, its name a pattern of tar with * ? [ ] \ escaped
+# a name as a pattern of tar: * ? [ ] \ escaped
+ub_pat() {
+    printf '%s\n' "$1" | sed 's/[][*?\\]/\\&/g'
+}
+
+# one file to stdout of tar; a hard link has no data of its own in tar and ISO 9660:
+# that of the file it links to
 ub_copyout() {
-    p="$(printf '%s\n' "$2" | sed 's/[][*?\\]/\\&/g')"
-    "$TAR" -xOf "$1" -- "$p" > "$3"
+    p="$(ub_pat "$2")"
+    "$TAR" -xOf "$1" -- "$p" > "$3" || return
+    [ -s "$3" ] && return
+    to="$(LC_TIME=C "$TAR" -tvf "$1" -- "$p" | awk -v target=1 "$ub_awk" | sed -n 1p)"
+    [ -z "$to" ] || "$TAR" -xOf "$1" -- "$(ub_pat "$to")" > "$3"
 }
 
 # what tar cannot do: the helper of mc for the format, when there is one

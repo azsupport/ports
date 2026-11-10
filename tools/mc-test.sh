@@ -5,7 +5,8 @@
 # sftpfs and shell; no X11 and no translations, as misc/mc/files/mc.conf has it), its
 # libraries (the base system only), the links mcedit, mcview and mcdiff, its paths
 # (mc -F), the extfs helper ubsdtar on a zip that tar of the base system makes (list,
-# copyout), and mc itself in a terminal (script(1)): the panels drawn and F10 quits;
+# as mc reads it, copyout) and on a hard link in ISO 9660, and mc itself in a
+# terminal (script(1)): the panels drawn and F10 quits;
 # mcview shows a file inside that zip (ubsdtar://, through extfs and the mc.ext.ini of
 # the package).
 #
@@ -81,8 +82,9 @@ if (cd "$T/src" && tar -a -cf "$T/t.zip" .) 2> "$T/zip.err"; then
         fail "no $h"
     else
         sh "$h" list "$T/t.zip" > "$T/list.txt" 2>&1
-        if grep -q ' dir a/file \[1\]\.txt$' "$T/list.txt" && grep -q ' b\.txt$' "$T/list.txt"; then
-            pass "ubsdtar list: $(wc -l < "$T/list.txt" | tr -d ' ') entries of the zip"
+        if grep -q ' dir a/file \[1\]\.txt$' "$T/list.txt" && grep -q ' b\.txt$' "$T/list.txt" &&
+                [ -z "$(awk '$2 < 1' "$T/list.txt")" ]; then
+            pass "ubsdtar list: $(wc -l < "$T/list.txt" | tr -d ' ') entries of the zip, each with 1 link or more (mc takes no 0)"
         else
             fail "ubsdtar list: $(head -n 3 "$T/list.txt" | tr '\n' ' ')"
         fi
@@ -94,6 +96,25 @@ if (cd "$T/src" && tar -a -cf "$T/t.zip" .) 2> "$T/zip.err"; then
     fi
 else
     fail "tar -a -cf t.zip: $(head -n 2 "$T/zip.err" | tr '\n' ' ')"
+fi
+
+# ubsdtar on a hard link in ISO 9660 (tar of the base system writes it): NAME -> FILE
+# in the list, the data of FILE on copyout
+mkdir -p "$T/iso/sub"
+echo "data of a" > "$T/iso/a.txt"
+ln "$T/iso/a.txt" "$T/iso/sub/hard.txt"
+if [ ! -x "$h" ]; then
+    :
+elif (cd "$T/iso" && tar --format iso9660 -cf "$T/t.iso" .) 2> "$T/iso.err"; then
+    sh "$h" list "$T/t.iso" > "$T/isolist.txt" 2>&1
+    sh "$h" copyout "$T/t.iso" sub/hard.txt "$T/hard.txt" 2>> "$T/isolist.txt"
+    if grep -q ' sub/hard\.txt -> a\.txt$' "$T/isolist.txt" && [ "$(cat "$T/hard.txt" 2>/dev/null)" = "data of a" ]; then
+        pass "ubsdtar on ISO 9660: the hard link sub/hard.txt -> a.txt, the data of a.txt on copyout"
+    else
+        fail "ubsdtar on ISO 9660 with a hard link: $(tr '\n' ' ' < "$T/isolist.txt" | cut -c1-200) [$(cat "$T/hard.txt" 2>/dev/null)]"
+    fi
+else
+    fail "tar --format iso9660: $(head -n 2 "$T/iso.err" | tr '\n' ' ')"
 fi
 
 # mc in a terminal (script(1), 30 lines of 100), F10 after 3 s; mcview of the file
