@@ -1,7 +1,7 @@
 #!/bin/sh
 # servers-test.sh - test the server packages of the repository az, installed from it
 # (aZ, 10.11.2026): git, apache24 with ap24-mod_maxminddb, memcached,
-# mariadb1011-server and -client, vsftpd-ext, bind-tools and qt-faststart. Each
+# mariadb1011-server and -client, vsftpd-ext, bind-tools, bind920 and qt-faststart. Each
 # that is installed runs (its version) and loads only libraries of the base system,
 # of az (/usr/local/az/lib) and of our other ports (pcre2, curl, its own): our ports
 # link each other's shared libraries. And:
@@ -17,6 +17,9 @@
 #                the default engine, REGEXP (PCRE2), the compression provider
 #                provider_lz4 (lz4 of az) installed and active
 #   bind-tools   dig with libidn2 (IDN)
+#   bind920      named -V with TCP Fast Open; named-checkconf of named.conf.sample; named
+#                on 127.0.0.1:15353 with a zone of its own: dig over UDP and TCP and
+#                of an IDN name (libidn2 of dig), rndc status and stop
 #   qt-faststart an MP4 of our ffmpeg (moov after mdat): moov first after it
 #
 # Usage (FreeBSD, as root, the packages installed): sh tools/servers-test.sh
@@ -214,6 +217,69 @@ if have bind-tools; then
     fi
     for b in host nslookup nsupdate delv; do chk "$b" "$P/bin/$b" libisc libdns libns; done
 else skip bind-tools; fi
+
+# bind920: named on 127.0.0.1:15353 with a zone of its own (an IDN name in it), rndc
+# on 127.0.0.1:15953 with a key of rndc-confgen; dig of bind-tools asks
+if have bind920; then
+    ver bind920 "BIND 9.20" "$P/sbin/named" -v
+    chk named "$P/sbin/named" libisc libdns libns
+    for b in rndc rndc-confgen; do chk "$b" "$P/sbin/$b" libisc libdns libns; done
+    for b in named-checkconf named-checkzone; do chk "$b" "$P/bin/$b" libisc libdns libns; done
+    case "$("$P/sbin/named" -V 2>&1)" in
+        *--enable-tcp-fastopen*) pass "named -V: --enable-tcp-fastopen" ;;
+        *) fail "named -V: no --enable-tcp-fastopen" ;;
+    esac
+    if [ -x "$P/etc/rc.d/named" ]; then pass "the rc script named"; else fail "no $P/etc/rc.d/named"; fi
+    if r="$("$P/bin/named-checkconf" "$P/etc/namedb/named.conf.sample" 2>&1)"; then
+        pass "named-checkconf of named.conf.sample"
+    else
+        fail "named-checkconf of named.conf.sample: $(printf '%s\n' "$r" | head -n 2 | tr '\n' ' ')"
+    fi
+    n="$T/named"; mkdir -p "$n"
+    idn="$(printf 'b\303\274cher.az.test')"
+    # shellcheck disable=SC2016
+    printf '%s\n' '$TTL 300' '@ IN SOA ns.az.test. hostmaster.az.test. 1 3600 600 86400 300' '@ IN NS ns' \
+        'ns IN A 127.0.0.1' 'www IN A 192.0.2.1' 'xn--bcher-kva IN A 192.0.2.2' > "$n/az.test.db"
+    if "$P/sbin/rndc-confgen" -a -c "$n/rndc.key" -k rndc-key > "$T/rndc-confgen.log" 2>&1; then
+        printf '%s\n' "include \"$n/rndc.key\";" \
+            'controls { inet 127.0.0.1 port 15953 allow { 127.0.0.1; } keys { "rndc-key"; }; };' \
+            "options { directory \"$n\"; pid-file \"$n/named.pid\"; listen-on port 15353 { 127.0.0.1; };" \
+            '    listen-on-v6 { none; }; recursion no; };' \
+            'zone "az.test" { type primary; file "az.test.db"; };' > "$n/named.conf"
+        if r="$("$P/bin/named-checkconf" -z "$n/named.conf" 2>&1)"; then
+            pass "named-checkconf -z: $(printf '%s\n' "$r" | head -n 1)"
+            "$P/sbin/named" -g -c "$n/named.conf" > "$T/named.log" 2>&1 &
+            np=$!
+            i=0; r=""
+            while [ "$i" -lt 30 ]; do
+                r="$("$P/bin/dig" @127.0.0.1 -p 15353 +short +time=1 +tries=1 www.az.test A 2>&1)"
+                [ "$r" = 192.0.2.1 ] && break
+                sleep 1; i=$((i + 1))
+            done
+            if [ "$r" = 192.0.2.1 ]; then
+                pass "named: www.az.test A over UDP: $r (${i} s)"
+                r="$("$P/bin/dig" @127.0.0.1 -p 15353 +short +tcp www.az.test A 2>&1)"
+                if [ "$r" = 192.0.2.1 ]; then pass "named: over TCP: $r"; else fail "named: over TCP: $r"; fi
+                r="$(env LC_ALL=C.UTF-8 "$P/bin/dig" @127.0.0.1 -p 15353 +short "$idn" A 2>&1)"
+                if [ "$r" = 192.0.2.2 ]; then pass "dig: the IDN name $idn (xn--bcher-kva.az.test): $r"
+                else fail "dig: the IDN name $idn: $r"; fi
+                r="$("$P/sbin/rndc" -k "$n/rndc.key" -s 127.0.0.1 -p 15953 status 2>&1)"
+                case "$r" in *"server is up and running"*) pass "rndc status: $(printf '%s\n' "$r" | grep -m 1 '^version')" ;;
+                    *) fail "rndc status: $(printf '%s\n' "$r" | tail -n 2 | tr '\n' ' ')" ;; esac
+                "$P/sbin/rndc" -k "$n/rndc.key" -s 127.0.0.1 -p 15953 stop > /dev/null 2>&1
+                i=0
+                while kill -0 "$np" 2>/dev/null && [ "$i" -lt 15 ]; do sleep 1; i=$((i + 1)); done
+            else
+                fail "named: no answer on 127.0.0.1:15353 after 30 s ($r): $(tail -n 3 "$T/named.log" | tr '\n' ' ')"
+            fi
+            kill "$np" 2>/dev/null
+        else
+            fail "named-checkconf -z: $(printf '%s\n' "$r" | head -n 3 | tr '\n' ' ')"
+        fi
+    else
+        fail "rndc-confgen -a: $(head -n 2 "$T/rndc-confgen.log" | tr '\n' ' ')"
+    fi
+else skip bind920; fi
 
 # qt-faststart, on an MP4 of our ffmpeg (moov after mdat, as ffmpeg writes it)
 if have qt-faststart; then

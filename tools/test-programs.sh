@@ -5,7 +5,7 @@
 # tools/az-test.sh, curl-test.sh, ffmpeg-test.sh, imagemagick-test.sh,
 # graphicsmagick-test.sh, mc-test.sh and ytdlp-test.sh (yt-dlp with our ffmpeg),
 # the utilities of the official ports (Mk/az-official.mk) by utils-test.sh, and the
-# server packages (git, Apache, memcached, MariaDB, vsftpd-ext, the BIND tools,
+# server packages (git, Apache, memcached, MariaDB, vsftpd-ext, BIND and its tools,
 # qt-faststart) by servers-test.sh.
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
@@ -137,7 +137,7 @@ if [ -n "$u_" ]; then
 fi
 # the server packages (aZ, 10.11.2026) as the utilities: git, Apache with
 # mod_maxminddb, memcached, MariaDB, vsftpd-ext, the BIND tools, qt-faststart
-servers="apache24 ap24-mod_maxminddb bind-tools git mariadb1011-client mariadb1011-server memcached qt-faststart vsftpd-ext"
+servers="apache24 ap24-mod_maxminddb bind-tools bind920 git mariadb1011-client mariadb1011-server memcached qt-faststart vsftpd-ext"
 s_=""
 for p in $servers; do in_repo "$p" && s_="$s_ $p"; done
 if [ -n "$s_" ]; then

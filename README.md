@@ -81,7 +81,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached without TLS, SASL and DTrace, libevent of az; the variant with TLS; one of the two |
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11: of the engines of the options InnoDB only, no GSSAPI; the socket `/tmp/mysql.sock` compiled in and in `my.cnf` |
 | `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext with its rc.d script; the variant with SSL; one of the two |
-| `bind-tools` | `dns/bind-tools` | dig, host, nslookup, delv, nsupdate and the DNSSEC tools of BIND 9.20, with IDN |
+| `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: the DNS server `named` with TCP Fast Open, no GSSAPI, DNSTAP, LMDB and statistics channels; dig, host, nslookup, delv, nsupdate and the DNSSEC tools, with IDN |
 | `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (the moov atom of an MP4 first), back for compatibility: the official port expired on 30.06.2022 |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp of a release newer than the official port, with our `ffmpeg` |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS; `bash` without NLS; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL; `rsync`: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
@@ -191,17 +191,22 @@ Names and origins as the ports, files at the paths of the ports:
 - **`ftp/vsftpd-ext`** and **`ftp/vsftpd-ext-openssl`**: vsftpd-ext with its rc.d script
   (RC_SCRIPT); the variant with SSL (VSFTPD_SSL, the OpenSSL of the base system); one of
   the two.
-- **`dns/bind-tools`**: the tools of BIND 9.20 (dig, host, nslookup, delv, nsupdate, the
-  DNSSEC ones) with IDN, without DNSTAP, FIXED_RRSET, LARGE_FILE, GSSAPI and the manual
-  pages; libuv, liburcu, nghttp2 (DNS over HTTPS) and libidn2 of az, OpenSSL and libedit
-  of the base system.
+- **`dns/bind920`** and **`dns/bind-tools`**: BIND 9.20, as in the official tree the
+  tools a slave of the server port, with the options of aZ: TCP_FASTOPEN and IDN, without
+  GSSAPI, DNSTAP, LMDB (`rndc addzone` keeps the zones in a `.nzf` file), the statistics
+  channels (STATS_JSON, STATS_XML), FIXED_RRSET and LARGE_FILE; no manual pages and no
+  headers of the libraries of BIND. `named` with its rc.d script and
+  `/usr/local/etc/namedb` as the official port; the tools (dig, host, nslookup, delv,
+  nsupdate, the DNSSEC ones) with IDN. libuv, liburcu, nghttp2 (DNS over HTTPS) and
+  libidn2 of az, OpenSSL, zlib and libedit of the base system.
 - **`multimedia/qt-faststart`**: `bin/qt-faststart`, `tools/qt-faststart.c` of FFmpeg
   9.0.2 (public domain): the official port expired on 30.06.2022 (ffmpeg `-movflags
   +faststart` does the same); kept for compatibility until it is no longer needed (aZ,
   10.11.2026).
 - These: tests after the install, [`tools/servers-test.sh`](tools/servers-test.sh) (git
   grep -P, Apache with the modules of the servers on a port of its own, memcached,
-  MariaDB on its default socket `/tmp/mysql.sock`, the libraries of each).
+  MariaDB on its default socket `/tmp/mysql.sock`, named with a zone of its own asked by
+  dig over UDP and TCP and by an IDN name, rndc, the libraries of each).
 - **`www/yt-dlp`**: the package `yt-dlp` in the place of the official one: the official
   port as it is, at a newer release of yt-dlp (the grabbers of the video sites need the
   extractors of the latest), depending on our `multimedia/ffmpeg`; its Python packages are
