@@ -26,6 +26,9 @@
 #     NumberFormatter, IntlDateFormatter (a fixed time, a pattern and UTC) and
 #     Collator (a German list) of de_DE, each against the exact string of ICU
 #     76 (the ICU of az);
+#   - ssh2 (phpXY-ssh2): ssh2_connect() to the sshd of this machine, the key
+#     exchange (libssh2 of az); curl (phpXY-curl): SCP and SFTP among the protocols
+#     of curl_version() (the libcurl.so of az with libssh2);
 #   - readelf -d of every module of lib/php/<API> and of php, php-cgi, php-fpm and
 #     libphp of mod_phpXY: the libraries they name (NEEDED) in /lib, /usr/lib or
 #     /usr/local/az/lib, the run path (RUNPATH) none or /usr/local/az/lib, which it
@@ -436,6 +439,27 @@ while read -r p; do
     # intl: its functions on the data of ICU, with php -n and the same modules
     if [ "$mod" = intl ]; then
         intl_checks "$@"; intl_done=1
+    fi
+    # ssh2: the key exchange with the sshd of this machine (the VM has one): libssh2
+    # of az with the OpenSSL of the base system; curl: SCP and SFTP among its
+    # protocols (the libcurl.so of az, with libssh2); the same way as intl
+    if [ "$mod" = ssh2 ]; then
+        if nc -z -w 5 127.0.0.1 22 2>/dev/null; then
+            intl_check "ssh2: the handshake with the sshd here" '
+                $c = @ssh2_connect("127.0.0.1", 22);
+                $e = error_get_last();
+                echo $c ? "OK ssh2 " . phpversion("ssh2") . ", the host key (MD5) " . ssh2_fingerprint($c)
+                    : "FAIL ssh2_connect: " . ($e ? $e["message"] : "false");' "$@"
+        else
+            skip "ssh2: the handshake with the sshd here" "no sshd on 127.0.0.1:22"
+        fi
+    fi
+    if [ "$mod" = curl ]; then
+        intl_check "curl: SCP and SFTP" '
+            $v = curl_version();
+            echo in_array("scp", $v["protocols"]) && in_array("sftp", $v["protocols"])
+                ? "OK scp sftp, " . (isset($v["libssh_version"]) ? $v["libssh_version"] : "libssh2")
+                : "FAIL protocols: " . implode(" ", $v["protocols"]);' "$@"
     fi
 done < "$tmp/pkgs"
 [ -n "$intl_done" ] || skip "intl" "the package php$short-intl is not installed"

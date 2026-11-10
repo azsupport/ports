@@ -68,6 +68,7 @@ soap_DEPENDS=		net/php${PHP_VER}-soap
 sockets_DEPENDS=	net/php${PHP_VER}-sockets
 sodium_DEPENDS=		security/php${PHP_VER}-sodium
 sqlite3_DEPENDS=	databases/php${PHP_VER}-sqlite3
+ssh2_DEPENDS=		security/php${PHP_VER}-ssh2
 swoole_DEPENDS=		devel/php${PHP_VER}-swoole
 sysvmsg_DEPENDS=	devel/php${PHP_VER}-sysvmsg
 sysvsem_DEPENDS=	devel/php${PHP_VER}-sysvsem
