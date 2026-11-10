@@ -40,8 +40,10 @@ CONFLICTS_INSTALL=	mc6
 
 NO_WRKSUBDIR=	yes
 
-# the version of the official port the script builds, which has to be this one
-AZ_MC_ENV=	AZ_MC_VERSION=${DISTVERSION}
+# the version of the official port the script builds, which has to be this one; the
+# Python of the port for the scripts of GLib that run by #!/usr/bin/env python3
+# (devel/glib20: BINARY_ALIAS=python3=${PYTHON_CMD})
+AZ_MC_ENV=	AZ_MC_VERSION=${DISTVERSION} AZ_PYTHON=${PYTHON_CMD}
 
 .include "${.CURDIR:H:H}/az/az/Makefile.common"
 

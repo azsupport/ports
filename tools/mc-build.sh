@@ -93,6 +93,11 @@ mkdir -p "$work/bin"
 printf '%s\n' '#!/bin/sh' 'exec pkgconf --static "$@"' > "$work/bin/pkg-config-static"
 chmod +x "$work/bin/pkg-config-static"
 export PKG_CONFIG="$work/bin/pkg-config-static"
+# python3 in PATH for the scripts the build of GLib runs by their #!/usr/bin/env python3
+# (tools/gen-visibility-macros.py; the port devel/glib20 has BINARY_ALIAS
+# python3=${PYTHON_CMD}): the Python the port misc/mc gives (AZ_PYTHON), else none
+if [ -n "${AZ_PYTHON:-}" ] && [ -x "$AZ_PYTHON" ]; then ln -sf "$AZ_PYTHON" "$work/bin/python3"; fi
+export PATH="$work/bin:$PATH"
 # (libdata/pkgconfig of W too: USES=pathfix of devel/libffi puts libffi.pc there)
 export PKG_CONFIG_LIBDIR="$W/lib/pkgconfig:$W/libdata/pkgconfig:$L/lib/pkgconfig:$L/libdata/pkgconfig:/usr/libdata/pkgconfig"
 unset PKG_CONFIG_PATH
