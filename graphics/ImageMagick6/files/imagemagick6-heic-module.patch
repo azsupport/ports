@@ -1,6 +1,6 @@
 ImageMagick 6: the HEIC, HEIF and AVIF formats belong to the module HEIC, as in
 ImageMagick 7 (coders/heic.c sets no magick_module, so a policy that allows
-modules by name, such as freebsd/imagemagick/policy.xml, refused them as "(null)").
+modules by name, such as graphics/ImageMagick7/files/policy.xml, refused them as "(null)").
 
 --- a/coders/heic.c
 +++ b/coders/heic.c

@@ -5,8 +5,10 @@ release before its FreeBSD port has it (a `take` line). The ports framework appl
 the patches of the port to it; when one of them no longer applies,
 `az/az/files/deps/<name>-<version>/` holds all the patches of that port, the failing ones
 brought up to the release, and the framework takes them from here instead
-(`PATCHDIR`). `tools/deps-take-check.sh` of azsupport/php-src (workflow
-"phpdeps take check" there; not moved yet) shows which patches apply.
+(`PATCHDIR`). [`tools/deps-take-check.sh`](../../../../tools/deps-take-check.sh) (workflow
+[`deps-take-check.yml`](../../../../.github/workflows/deps-take-check.yml), "az take check")
+shows which patches apply; [`take-sources.yml`](../../../../.github/workflows/take-sources.yml)
+whether the release file of a take line is the same from every source.
 
 | Directory | From | Changed |
 |---|---|---|
