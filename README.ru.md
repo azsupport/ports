@@ -68,13 +68,14 @@
 | Пакет | Origin | Что |
 |---|---|---|
 | `az` | `az/az` | библиотеки сборок в `/usr/local/az`: `lib` (разделяемые, с run path `/usr/local/az/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`); статические — в `/usr/local/az/static`, для программ и особых сборок `az-menu.sh`. OpenSSL, zlib и bzip2 — из базовой системы |
-| `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта |
+| `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта, с SCP и SFTP (libssh2) |
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` и `ffprobe` только с теми форматами, что нужны видеосайтам |
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, программы с 6 на конце (`convert6`, `identify6`, ...) |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickWand-7.so` в `/usr/local/az/lib` для модуля imagick |
+| `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib и libssh2 внутри, zip, 7z, rar и образы ISO — через `tar` базовой системы: других пакетов не нужно |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
-| `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). 58 на версию, у 7.4 — 60; список одной версии: `pkg search -r az '^php84-'` |
+| `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). 59 на версию, у 7.4 — 61; список одной версии: `pkg search -r az '^php84-'` |
 
 - openssl в двух видах, один из двух: `phpXY-openssl` и `phpXY-openssl-legacy` (с
   legacy-провайдером OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
@@ -122,16 +123,24 @@
   `/usr/local/az/static`, общие `libGraphicsMagick` и `libGraphicsMagickWand` (префикс
   символов `Gm`) и `GraphicsMagick-config` — в `/usr/local/az`, для gmagick в PHP
   (`--with-gmagick=/usr/local/az`). Сборка и работа: az.
-- У этих шести: версия официального порта на закреплённом коммите (или из строки take
+- **`misc/mc`**: пакет `mc` вместо официального: Midnight Commander с редактором,
+  subshell, кодировками и SFTP, без X11, переводов и Aspell
+  ([`misc/mc/files/mc.conf`](misc/mc/files/mc.conf): что и почему), GLib собирает
+  статически [`tools/mc-build.sh`](tools/mc-build.sh), libssh2 — из статического дерева
+  az: во время работы пакетов не нужно. zip, jar, 7z, rar и образы ISO открываются как
+  каталог через [`files/ubsdtar`](misc/mc/files/ubsdtar) на `tar` базовой системы
+  (libarchive), без Perl, 7-Zip и unrar; Perl, zip и GNU diff, если поставлены, дают своё
+  (запись в zip, хелперы deb и rpm, `mcdiff`).
+- У этих семи: версия официального порта на закреплённом коммите (или из строки take
   его conf) со штампом сборки как `PORTREVISION`; все distfile — в фазе fetch; тесты после
   установки: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
-  [`az-test.sh`](tools/az-test.sh).
+  [`az-test.sh`](tools/az-test.sh), [`mc-test.sh`](tools/mc-test.sh).
 - **`lang/phpXY`** и **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): ядро `phpXY` и
   модуль Apache `libphpXY.so`, каждый — из официального порта коммита своей версии
   (таблица выше); PCRE2 10.49 — встроенная в исходники форка (порт `devel/pcre2` — позже,
   aZ 08.11.2026).
-- **Порты модулей** `phpXY-<модуль>` (58 на версию, у 7.4 — 60): имена без «pecl», origin как у официальных
+- **Порты модулей** `phpXY-<модуль>` (59 на версию, у 7.4 — 61): имена без «pecl», origin как у официальных
   портов или наши (`graphics/php74-gd`, `databases/php74-redis`), ini
   `ext-NN-<модуль>.ini`, у openswoole и gmagick выключен.
 - **Компилятор PHP** (все версии, aZ 09.11.2026): ядра, модули Apache и модули собирает
@@ -242,7 +251,7 @@ pkg install -r az php84 mod_php84 php84-opcache php84-gd php84-mbstring php84-op
 Программы:
 
 ```sh
-pkg install -r az curl ffmpeg ImageMagick6 ImageMagick7
+pkg install -r az curl ffmpeg ImageMagick6 ImageMagick7 mc
 ```
 
 Несвободный FFmpeg: `ffmpeg-nonfree` (multimedia/ffmpeg с кодировщиком AAC `libfdk_aac` —

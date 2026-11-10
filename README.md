@@ -68,14 +68,15 @@ Names and origins as the ports, files at the paths of the ports:
 | Package | Origin | What |
 |---|---|---|
 | `az` | `az/az` | the libraries of the builds in `/usr/local/az`: `lib` (shared, with the run path `/usr/local/az/lib`, no ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`); the static ones in `/usr/local/az/static` for the programs and the special builds of `az-menu.sh`. OpenSSL, zlib and bzip2 are those of the base system |
-| `curl` | `ftp/curl` | `bin/curl` and `libcurl.so.4`, in the place of the package of the port |
+| `curl` | `ftp/curl` | `bin/curl` and `libcurl.so.4`, in the place of the package of the port, with SCP and SFTP (libssh2) |
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` and `ffprobe` with only the formats the video sites need |
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, the programs with 6 at the end (`convert6`, `identify6`, ...) |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); its `libMagickWand-7.so` in `/usr/local/az/lib` for the module imagick |
+| `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; GLib and libssh2 inside, zip, 7z, rar and ISO images through `tar` of the base system: no other package |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp of a release newer than the official port, with our `ffmpeg` |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
-| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 58 per version, 60 for 7.4; the list of one: `pkg search -r az '^php84-'` |
+| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 59 per version, 61 for 7.4; the list of one: `pkg search -r az '^php84-'` |
 
 - openssl in two kinds, one of the two: `phpXY-openssl` and `phpXY-openssl-legacy` (the
   legacy provider of OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
@@ -124,11 +125,19 @@ Names and origins as the ports, files at the paths of the ports:
   its shared `libGraphicsMagick` and `libGraphicsMagickWand` (symbol prefix `Gm`) and
   `GraphicsMagick-config` in `/usr/local/az`, for gmagick of PHP
   (`--with-gmagick=/usr/local/az`). Build and run: az.
-- These six: the version of the official port at the pinned commit (or of the take
+- **`misc/mc`**: the package `mc` in the place of the official one: Midnight Commander
+  with the editor, the subshell, the charsets and SFTP, without X11, translations and
+  Aspell ([`misc/mc/files/mc.conf`](misc/mc/files/mc.conf): what and why), GLib built
+  static by [`tools/mc-build.sh`](tools/mc-build.sh), libssh2 of the static tree of az:
+  no package at run time. zip, jar, 7z, rar and ISO images open as a directory with
+  [`files/ubsdtar`](misc/mc/files/ubsdtar), on `tar` of the base system (libarchive),
+  without Perl, 7-Zip or unrar; Perl, zip and GNU diff give what they give (writing into
+  zip, the deb and rpm helpers, `mcdiff`) once they are installed.
+- These seven: the version of the official port at the pinned commit (or of the take
   line of its conf) with the build stamp as `PORTREVISION`; every distfile in the fetch
   phase; tests after the install: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
-  [`az-test.sh`](tools/az-test.sh).
+  [`az-test.sh`](tools/az-test.sh), [`mc-test.sh`](tools/mc-test.sh).
 - **`www/yt-dlp`**: the package `yt-dlp` in the place of the official one: the official
   port as it is, at a newer release of yt-dlp (the grabbers of the video sites need the
   extractors of the latest), depending on our `multimedia/ffmpeg`; its Python packages are
@@ -141,7 +150,7 @@ Names and origins as the ports, files at the paths of the ports:
   `phpXY` and the Apache module `libphpXY.so`, each from the official port of the commit
   of its version (the table above); PCRE2 10.49 is the one the fork bundles (a port
   `devel/pcre2` later, aZ 08.11.2026).
-- **The module ports** `phpXY-<module>` (58 per version, 60 for 7.4): the names without
+- **The module ports** `phpXY-<module>` (59 per version, 61 for 7.4): the names without
   "pecl", the origins as the official ports or ours (`graphics/php74-gd`,
   `databases/php74-redis`), the ini `ext-NN-<module>.ini`, those of openswoole and
   gmagick off.
@@ -251,7 +260,7 @@ pkg install -r az php84 mod_php84 php84-opcache php84-gd php84-mbstring php84-op
 The programs:
 
 ```sh
-pkg install -r az curl ffmpeg ImageMagick6 ImageMagick7
+pkg install -r az curl ffmpeg ImageMagick6 ImageMagick7 mc
 ```
 
 yt-dlp without `-r az`: its Python packages are in the repository of FreeBSD, and pkg
