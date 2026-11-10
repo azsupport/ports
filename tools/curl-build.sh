@@ -6,8 +6,9 @@
 # only what PHP needs): the same release, with the options of the port
 # ftp/curl (its CONFIGURE_ARGS and its default options: the protocols DICT, FTP,
 # GOPHER, HTTP, HTTP/2, IMAP, IPFS, MQTT, POP3, RTSP, SMTP, TELNET, TFTP,
-# WebSocket, NTLM, IDN, PSL, brotli, zstd, the threaded resolver), without SCP and
-# SFTP (libssh2) and GSSAPI, which the libraries of /usr/local/az do not have;
+# WebSocket, NTLM, IDN, PSL, brotli, zstd, the threaded resolver) and SCP and SFTP
+# with libssh2 (its option LIBSSH2, off in the port: aZ, 10.11.2026), without
+# GSSAPI, which the libraries of /usr/local/az do not have;
 # against the static libraries of the package az (AZ_PREFIX/static, installed).
 # Into the stage AZ_STAGEDIR (default AZ_WORK/stage/curl) as files of /usr/local:
 # bin/curl, static, PIE, RELRO, BIND_NOW, stripped; lib/libcurl.so.4 of the
@@ -93,7 +94,7 @@ fi
 rm -f "$res"/*.tail "$res/bins-bad.txt"
 : > "$res/summary.txt"
 printf 'flags:    %s\n' "$CFLAGS" >> "$res/summary.txt"
-for f in libssl.a libcrypto.a libnghttp2.a libbrotlidec.a libzstd.a libidn2.a libpsl.a libiconv.a; do
+for f in libssl.a libcrypto.a libnghttp2.a libbrotlidec.a libzstd.a libidn2.a libpsl.a libssh2.a libiconv.a; do
     if [ ! -f "$P/lib/$f" ]; then
         printf '%-14s FAIL  no %s in %s/lib: the package az first (the port az/az)\n' libs "$f" "$P" >> "$res/summary.txt"
         cat "$res/summary.txt"
@@ -118,11 +119,12 @@ cv="$(sed -n 's/^#define LIBCURL_VERSION "\(.*\)"$/\1/p' "$cs/include/curl/curlv
         --with-openssl="$P" --enable-openssl-auto-load-config --with-ca-path=/etc/ssl/certs --without-ca-bundle \
         --enable-threaded-resolver --disable-ares \
         --with-nghttp2="$P" --with-brotli="$P" --with-zstd="$P" --with-libidn2="$P" --with-libpsl="$P" \
+        --with-libssh2="$P" \
         --enable-alt-svc --enable-cookies --enable-dict --enable-ftp --enable-file --enable-gopher \
         --enable-http --enable-imap --enable-ipfs --enable-ipv6 --enable-mqtt --enable-ntlm \
         --enable-pop3 --enable-proxy --enable-rtsp --enable-smtp --enable-telnet --enable-tftp \
         --enable-websockets --disable-ldap --disable-ldaps \
-        --without-libssh2 --without-libssh --without-gssapi \
+        --without-libssh --without-gssapi \
         --disable-httpsig --disable-unity --disable-werror --enable-aws --enable-dateparse \
         --enable-dnsshuffle --enable-headers-api --enable-hsts --enable-http-auth --enable-manual \
         --enable-mime --enable-netrc --enable-progress-meter --enable-ssls-export --enable-typecheck \

@@ -30,6 +30,10 @@
 #                                        GraphicsMagick-config, for gmagick
 #                                        (added 08.11.2026, aZ: GraphicsMagick
 #                                        built as our ImageMagick)
+#   mc            misc/mc                bin/mc and its links, etc/mc, libexec/mc,
+#                                        share/mc: GLib built static by
+#                                        tools/mc-build.sh, libssh2 of the static
+#                                        tree (added 10.11.2026, aZ)
 #
 # The same packages as build-az.sh (the library package named az now, aZ
 # 08.11.2026): names, origins, epochs, files, comments, descriptions,
@@ -64,6 +68,8 @@
 #                          tools/graphicsmagick-build.sh, files/graphicsmagick.conf
 #                          (the coders it registers: GraphicsMagick has no policy),
 #                          files/delegates.mgk (none)
+#   misc/mc                tools/mc-build.sh, files/mc.conf, files/ubsdtar,
+#                          files/archives-bsdtar.patch
 # A library is still the official port of the pinned commit: its distfiles,
 # distinfo and patches (make patch in ${PORTSDIR}/<origin>, with our
 # WRKDIRPREFIX), then configured and built by the script with its own options.
@@ -121,6 +127,7 @@ MASTER_SITES=	https://github.com/curl/curl/releases/download/curl-8_23_0/:curl \
 		https://github.com/facebook/zstd/releases/download/v1.5.7/:zstd \
 		GNU/libidn:libidn2 \
 		https://github.com/rockdaboot/libpsl/releases/download/0.23.3/:libpsl \
+		https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/:libssh2 \
 		https://codeload.github.com/publicsuffix/list/tar.gz/728555a?dummy=/:psllist \
 		https://github.com/strukturag/libheif/releases/download/v1.23.7/:libheif \
 		https://github.com/strukturag/libde265/releases/download/v1.1.3/:libde265
@@ -133,6 +140,7 @@ DISTFILES=	curl-8.23.0.tar.xz:curl \
 		zstd-1.5.7.tar.zst:zstd \
 		libidn2-2.3.8.tar.gz:libidn2 \
 		libpsl-0.23.3.tar.lz:libpsl \
+		libssh2-1.11.1.tar.xz:libssh2 \
 		publicsuffix-list-20260921-728555a_GH0.tar.gz:psllist \
 		libheif-1.23.7.tar.gz:libheif \
 		libde265-1.1.3.tar.gz:libde265

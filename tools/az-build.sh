@@ -472,9 +472,18 @@ EOF
             'Description: Public Suffix List C library' "Version: $v" 'Libs: -L${libdir} -lpsl' \
             'Cflags: -I${includedir}' > "$S/lib/pkgconfig/libpsl.pc"
 }
+# libssh2: the options of the static one (lib_libssh2 of build-libcurl.sh), with the
+# OpenSSL and zlib of the base system, as the other shared libraries
+s_libssh2() {
+    so_conf libssh2 "$1" --with-crypto=openssl --with-libssl-prefix=/usr --with-libz --enable-hidden-symbols \
+        --disable-examples-build --disable-docker-tests --disable-sshd-tests &&
+        so_mk libssh2 -j"$ncpu" -C src && so_mk libssh2 -C src install &&
+        so_mk libssh2 install-includeHEADERS install-pkgconfigDATA
+}
 s_curl() {
     # libcurl.so.4 with the features of the static libcurl of PHP (build-libcurl.sh
-    # --features), the OpenSSL of the base system; no curl program
+    # --features) and its libraries, SCP and SFTP with libssh2 among them; the OpenSSL
+    # of the base system; no curl program
     feats="$(sh "$files/curl/build-libcurl.sh" --features)" || return 1
     o="$work/obj-so/curl"
     rm -rf "$o" && mkdir -p "$o" || return 1
@@ -484,7 +493,7 @@ s_curl() {
         --with-openssl=/usr --enable-openssl-auto-load-config --with-ca-path=/etc/ssl/certs --without-ca-bundle \
         --enable-ares="$S" --disable-threaded-resolver \
         --with-nghttp2="$S" --with-brotli="$S" --with-zstd="$S" --with-libidn2="$S" --with-libpsl="$S" \
-        $feats) &&
+        --with-libssh2="$S" $feats) &&
         so_mk curl -j"$ncpu" -C lib && so_mk curl -C lib install && so_mk curl -C include install &&
         so_mk curl install-pkgconfigDATA install-binSCRIPTS
 }
@@ -846,7 +855,8 @@ build_bundle() {
     ver="$(bundle_ver "$n")"
     # the names of the ports for pkg audit: libnghttp2, and the epoch of archivers/brotli
     # (PORTEPOCH 1: VuXML has "brotli < 1.2.1,1", and 1.2.1 without it would be older)
-    case "$n" in nghttp2) pkgname="libnghttp2-$ver" ;; brotli) pkgname="brotli-$ver,1" ;; *) pkgname="$n-$ver" ;; esac
+    # and that of security/libssh2 (PORTEPOCH 3)
+    case "$n" in nghttp2) pkgname="libnghttp2-$ver" ;; brotli) pkgname="brotli-$ver,1" ;; libssh2) pkgname="libssh2-$ver,3" ;; *) pkgname="$n-$ver" ;; esac
     summ "$n" "$ver" bundle
     return "$rc"
 }
