@@ -28,7 +28,7 @@
 #     76 (the ICU of az);
 #   - ssh2 (phpXY-ssh2): ssh2_connect() to the sshd of this machine, the key
 #     exchange (libssh2 of az); curl (phpXY-curl): SCP and SFTP among the protocols
-#     of curl_version() (the libcurl.so of az with libssh2);
+#     of curl_version() (libcurl.so.4 of the package curl, with libssh2 of az);
 #   - the modules with a variant with OpenSSL, the same way: OpenSSL in
 #     phpXY-<module>-openssl, none in phpXY-<module> (swoole 6.2 of 8.2 and later:
 #     in both, it has no build without it): ftp by ftp_ssl_connect(), mysqlnd by
@@ -39,7 +39,7 @@
 #     /usr/local/az/lib, the run path (RUNPATH) none or /usr/local/az/lib, which it
 #     needs when it links a library there (no ldconfig hints); /usr/local/lib only
 #     for a library of a package the package of the file depends on (libpcre2-8 of
-#     devel/pcre2 for the core and mod_phpXY);
+#     devel/pcre2 for the core and mod_phpXY, libcurl.so.4 of ftp/curl for curl);
 #   - the compiler of the same files (Mk/Uses/azgcc.mk), by the annotation az_cc
 #     of the package of each, its section .comment (the compilers of its objects)
 #     and its NEEDED: php, php-cgi, php-fpm and libphp of mod_phpXY GCC <N> (az_cc
@@ -449,7 +449,7 @@ while read -r p; do
     fi
     # ssh2: the key exchange with the sshd of this machine (the VM has one): libssh2
     # of az with the OpenSSL of the base system; curl: SCP and SFTP among its
-    # protocols (the libcurl.so of az, with libssh2); the same way as intl
+    # protocols (libcurl.so.4 of the package curl, with libssh2); the same way as intl
     if [ "$mod" = ssh2 ]; then
         if nc -z -w 5 127.0.0.1 22 2>/dev/null; then
             intl_check "ssh2: the handshake with the sshd here" '
