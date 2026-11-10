@@ -93,7 +93,8 @@ mkdir -p "$work/bin"
 printf '%s\n' '#!/bin/sh' 'exec pkgconf --static "$@"' > "$work/bin/pkg-config-static"
 chmod +x "$work/bin/pkg-config-static"
 export PKG_CONFIG="$work/bin/pkg-config-static"
-export PKG_CONFIG_LIBDIR="$W/lib/pkgconfig:$L/lib/pkgconfig:$L/libdata/pkgconfig:/usr/libdata/pkgconfig"
+# (libdata/pkgconfig of W too: USES=pathfix of devel/libffi puts libffi.pc there)
+export PKG_CONFIG_LIBDIR="$W/lib/pkgconfig:$W/libdata/pkgconfig:$L/lib/pkgconfig:$L/libdata/pkgconfig:/usr/libdata/pkgconfig"
 unset PKG_CONFIG_PATH
 export CPPFLAGS="-I$W/include -I$L/include"
 export LDFLAGS="-L$W/lib -L$L/lib"
