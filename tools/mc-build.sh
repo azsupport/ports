@@ -102,6 +102,15 @@ unset AR RANLIB NM
 ports_commit="$(awk '$1 == "ports" { print $2 }' "$deps_conf")"
 progs="$(awk '$1 == "program" { print $2 }' "$conf")"
 port_of() { awk -v n="$1" '$1 == "program" && $2 == n { print $3 }' "$conf"; }
+# pm <origin[@flavor]> <arguments of make>: pmake of the port, with FLAVOR when the
+# program line names one
+pm() {
+    _o="$1"; shift
+    case "$_o" in
+        *@*) pmake "${_o%@*}" FLAVOR="${_o#*@}" "$@" ;;
+        *) pmake "$_o" "$@" ;;
+    esac
+}
 conf_opts() { awk '$1 == "configure" { for (i = 2; i <= NF; i++) print $i }' "$conf"; }
 
 # The official tree PORTSDIR has to be at the commit of deps.conf (as in
@@ -139,18 +148,21 @@ b_libffi() {
         --enable-static --disable-shared --with-pic --disable-multi-os-directory --disable-docs &&
         gmake -j"$ncpu" && gmake install)
 }
-# GLib: the meson options of the port devel/glib20 (MESON_ARGS), static and position
-# independent, without what nothing here uses: the tests, the translations of its
-# messages, introspection, the manual pages and documents, libelf (of the gresource
-# tool) and the probes (dtrace, systemtap, sysprof); as tools/az-build.sh runs meson
-# (release, the optimization of CFLAGS)
+# GLib: the meson options of the port devel/glib20 in its flavor bootstrap (MESON_ARGS:
+# no introspection, translations, documents and manual pages), static and position
+# independent, without the tests, libelf (of the gresource tool) and the probes
+# (dtrace, systemtap, sysprof); as tools/az-build.sh runs meson (release, the
+# optimization of CFLAGS)
 b_glib() {
+    # the file monitor of GIO as the port has it: inotify of the base system where it
+    # has one (FreeBSD 15), else kqueue (the port: libinotify-kqueue, a package)
+    if [ -f /usr/include/sys/inotify.h ]; then fmon=inotify; else fmon=kqueue; fi
     (cd "$1" && CFLAGS="$cflags -fPIC" meson setup _az --prefix="$W" --libdir=lib --buildtype=release \
         -Doptimization=plain --default-library=static -Db_staticpic=true --wrap-mode=nodownload \
         -Db_lundef=false -Dinstalled_tests=false -Dlibmount=disabled -Druntime_dir=/var/run \
         -Dselinux=disabled -Dsysprof=disabled -Dsystemtap=disabled -Ddtrace=disabled -Dxattr=false \
         -Dtests=false -Dnls=disabled -Dintrospection=disabled -Dman-pages=disabled -Ddocumentation=false \
-        -Dlibelf=disabled &&
+        -Dlibelf=disabled -Dfile_monitor_backend="$fmon" &&
         ninja -C _az -j "$ncpu" && ninja -C _az install)
 }
 # mc: after the port's patches those of files/ (the archives through ubsdtar), then
@@ -206,16 +218,16 @@ build_one() {
     start=$(date +%s)
     (
         echo "== $n: $port at $ports_commit"
-        pmake "$port" clean >/dev/null 2>&1
-        pmake "$port" patch || { echo "make patch failed"; exit 1; }
-        src="$(pmake "$port" -V WRKSRC)"
+        pm "$port" clean >/dev/null 2>&1
+        pm "$port" patch || { echo "make patch failed"; exit 1; }
+        src="$(pm "$port" -V WRKSRC)"
         echo "== source: $src"
         printf '%s\n' "$src" > "$work/src-$n"
         "b_$n" "$src" || exit 1
     ) > "$log" 2>&1
     rc=$?
-    ver="$(pmake "$port" -V PKGVERSION 2>/dev/null)"
-    pkgname="$(pmake "$port" -V PKGNAME 2>/dev/null)"
+    ver="$(pm "$port" -V PKGVERSION 2>/dev/null)"
+    pkgname="$(pm "$port" -V PKGNAME 2>/dev/null)"
     if [ "$rc" = 0 ]; then
         printf '%-8s OK    %-22s %-22s %4ss\n' "$n" "$ver" "$port" "$(( $(date +%s) - start ))" >> "$res/summary.txt"
         printf '%s %s %s\n' "$n" "$pkgname" "$port" >> "$res/built.txt"
@@ -229,9 +241,9 @@ build_one() {
 
 # The patches the framework applies to a port: files/patch-* and EXTRA_PATCHES.
 port_patches() {
-    fd="$(pmake "$1" -V FILESDIR 2>/dev/null)"
+    fd="$(pm "$1" -V FILESDIR 2>/dev/null)"
     np="$(ls "$fd" 2>/dev/null | grep -c '^patch-')"
-    ne="$(pmake "$1" -V EXTRA_PATCHES 2>/dev/null | wc -w | tr -d ' ')"
+    ne="$(pm "$1" -V EXTRA_PATCHES 2>/dev/null | wc -w | tr -d ' ')"
     echo $(( np + ne ))
 }
 
@@ -246,8 +258,8 @@ manifest() {
         echo
         while read -r n pkgname port; do
             printf '%-8s %-24s %s\n' "$n" "$pkgname" "$port"
-            di="$(pmake "$port" -V DISTINFO_FILE 2>/dev/null)"
-            for d in $(pmake "$port" -V DISTFILES 2>/dev/null); do
+            di="$(pm "$port" -V DISTINFO_FILE 2>/dev/null)"
+            for d in $(pm "$port" -V DISTFILES 2>/dev/null); do
                 d="${d%%:*}"
                 awk -v d="$d" '$1 == "SHA256" { f = $2; gsub(/[()]/, "", f); b = f; sub(/.*\//, "", b)
                     if (b == d) print "    " f " sha256 " $4 }' "$di"
@@ -310,7 +322,7 @@ if [ "${1:-}" = "--fetch" ]; then
     rc=0
     for n in $progs; do
         say "fetch $n ($(port_of "$n"))"
-        pmake "$(port_of "$n")" fetch || { echo "mc-build: $n: make fetch of $(port_of "$n") failed" >&2; rc=1; }
+        pm "$(port_of "$n")" fetch || { echo "mc-build: $n: make fetch of $(port_of "$n") failed" >&2; rc=1; }
     done
     exit "$rc"
 fi
