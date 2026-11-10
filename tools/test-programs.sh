@@ -3,7 +3,8 @@
 # tools/build.sh made, installed from it as a server installs them: az, curl,
 # ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc and yt-dlp, by
 # tools/az-test.sh, curl-test.sh, ffmpeg-test.sh, imagemagick-test.sh,
-# graphicsmagick-test.sh, mc-test.sh and ytdlp-test.sh (yt-dlp with our ffmpeg).
+# graphicsmagick-test.sh, mc-test.sh and ytdlp-test.sh (yt-dlp with our ffmpeg),
+# and the utilities of the official ports (Mk/az-official.mk) by utils-test.sh.
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -119,6 +120,19 @@ if in_repo yt-dlp; then
 else
     say "yt-dlp: not in the repository, its tests are skipped"
 fi
+# the utilities (official ports, Mk/az-official.mk) as yt-dlp: the libraries some
+# of them take (lz4, xxhash, zstd of rsync) are official packages
+utils="3proxy bash bsddialog bsnmp-ucd portmaster rsync screen sudo unzip wget yamdi zip"
+u_=""
+for p in $utils; do in_repo "$p" && u_="$u_ $p"; done
+if [ -n "$u_" ]; then
+    say "pkg install -f$u_"
+    # shellcheck disable=SC2086
+    CONSERVATIVE_UPGRADE=no pkg install -y -f $u_ > "$res/test-programs-install-utils.log" 2>&1 || say "pkg install of the utilities says it failed (test-programs-install-utils.log)"
+    cat "$res/test-programs-install-utils.log" >> "$res/test-programs-install.log"
+    cat "$res/test-programs-install-utils.log" >> "$log"
+    want="$want$u_"
+fi
 # from the repository: the annotation repository of the installed package (pkg query
 # %R of pkg 2 says nothing for installed packages)
 inst() { [ "$(pkg query '%At %Av' "$1" 2>/dev/null | awk '$1 == "repository" { print $2; exit }')" = azbuild ]; }
@@ -131,7 +145,7 @@ done
 
 # 3. the tests: name, the packages it needs
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
-        "graphicsmagick GraphicsMagick" "mc mc" "ytdlp yt-dlp ffmpeg"; do
+        "graphicsmagick GraphicsMagick" "mc mc" "ytdlp yt-dlp ffmpeg" "utils $utils"; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
