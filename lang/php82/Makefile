@@ -27,8 +27,9 @@
 #   libexec/apache24/libphp82.so (www/mod_php82); the modules in
 #   lib/php/20220829 as the ports. No CONFLICTS_INSTALL with other versions.
 # - Libraries: libxml2 and argon2 of the package az (${AZ_PREFIX}), by a file,
-#   with its run path and pkg-config; the PCRE2 the fork bundles (no option
-#   PCRE, no devel/pcre2). OpenSSL is not in the core (the official one has
+#   with its run path and pkg-config; PCRE2 the shared library of devel/pcre2
+#   of this tree, not the one the fork bundles (no option PCRE). OpenSSL is
+#   not in the core (the official one has
 #   --with-openssl): it is the module php82-openssl or php82-openssl-legacy, as
 #   in lang/php74, so no USES=ssl here and php.conf has no openssl in
 #   PHP_EXT_INC. No USES=localbase: no library of the ports.
@@ -119,6 +120,20 @@ CONFIGURE_ARGS+=	\
 CONFIGURE_ENV=	CPPFLAGS="-I${AZ_PREFIX}/include" \
 		EXTENSION_DIR=${PREFIX}/lib/php/${PHP_EXT_DIR}
 LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+# PCRE2: the shared library of devel/pcre2 of this tree, not the one the fork
+# bundles (aZ, 10.11.2026: our ports link each other's shared libraries; one PCRE2
+# for PHP, Apache, git, nginx): --with-external-pcre, its flags by hand (the
+# pkg-config of the core is that of az): pcre2.h and libpcre2-8.so alone in a
+# directory of the work (links to those of /usr/local: no other header or library
+# of /usr/local is seen; pre-configure), -lpcre2-8 by its -L after that of az; no
+# run path, libpcre2-8.so.0 is in /usr/local/lib, one of ldconfig. The modules find pcre2.h next to
+# php_pcre.h, which includes it ("pcre2.h"): the link ext/pcre/pcre2.h of the
+# headers (post-install)
+LIB_DEPENDS=	libpcre2-8.so:devel/pcre2
+CONFIGURE_ARGS+=	--with-external-pcre
+CONFIGURE_ENV+=	PCRE2_CFLAGS="-I${WRKDIR}/pcre2" \
+		PCRE2_LIBS="-lpcre2-8"
+LDFLAGS+=	-L${WRKDIR}/pcre2
 
 # the directory of the modules: ZEND_MODULE_API_NO of PHP 8.2, as the ports
 PHP_EXT_DIR=	20220829
@@ -225,6 +240,12 @@ post-patch-FPM-on:
 		-e "s|^;*listen\.mode = .*|listen.mode = 0660|" \
 		${WRKSRC}/sapi/fpm/www.conf.in
 
+# the directory of PCRE2 for configure: pcre2.h and libpcre2-8.so alone
+# (PCRE2_CFLAGS and LDFLAGS above)
+pre-configure:
+	@${MKDIR} ${WRKDIR}/pcre2
+	@${LN} -sf ${LOCALBASE}/include/pcre2.h ${LOCALBASE}/lib/libpcre2-8.so ${WRKDIR}/pcre2/
+
 # main/php_config.h includes ext/php_config.h, where the packages of the
 # modules add the config.h of their module (Mk/Uses/php.mk): the hunk of
 # patch-configure.ac of the official port that the fork does not apply
@@ -256,6 +277,8 @@ SUB_LIST+=	PHP_VER=${PHP_VER}
 post-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/etc/php${PHP_VER}/conf.d \
 		${STAGEDIR}${PREFIX}/lib/php/${PHP_EXT_DIR}
+	${LN} -sf ${LOCALBASE}/include/pcre2.h \
+		${STAGEDIR}${PREFIX}/include/php${PHP_VER}/php/ext/pcre/pcre2.h
 	${CAT} ${WRKSRC}/php.ini-production ${WRKDIR}/php.ini-az-${PHP_VER} \
 		> ${WRKDIR}/php.ini.sample
 	${INSTALL_DATA} ${WRKSRC}/php.ini-development ${WRKSRC}/php.ini-production \

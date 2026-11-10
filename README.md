@@ -17,8 +17,9 @@ servers (amd64), so that nothing is built on the servers.
 
 - **An overlay**: only our ports, on top of the official tree
   [freebsd-ports](https://github.com/freebsd/freebsd-ports) at a pinned commit,
-  [`f16b6dd0f7c1`](https://github.com/freebsd/freebsd-ports/tree/f16b6dd0f7c1c3a2e0447e192e39e72f21d85eb0)
-  (main of 04.11.2026; `ports_commit` in [`tools/build.sh`](tools/build.sh)). The ports
+  [`6e4a386577aa`](https://github.com/freebsd/freebsd-ports/tree/6e4a386577aaa191a68b11865fcb18e02f98e525)
+  (main of 10.11.2026; `ports_commit` in [`tools/build.sh`](tools/build.sh), moved to the
+  latest main before a build: the latest versions of the ports, aZ). The ports
   framework takes it as `OVERLAYS`: `bsd.port.mk` includes
   [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk), takes `Mk/Uses/<name>.mk` of the overlay
   before the official one, and a port of the overlay takes the place of the official
@@ -67,14 +68,23 @@ Names and origins as the ports, files at the paths of the ports:
 
 | Package | Origin | What |
 |---|---|---|
-| `az` | `az/az` | the libraries of the builds in `/usr/local/az`: `lib` (shared, with the run path `/usr/local/az/lib`, no ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`); the static ones in `/usr/local/az/static` for the programs and the special builds of `az-menu.sh`. OpenSSL, zlib and bzip2 are those of the base system |
-| `curl` | `ftp/curl` | `bin/curl` and `libcurl.so.4`, in the place of the package of the port, with SCP and SFTP (libssh2) |
+| `az` | `az/az` | the libraries of the builds in `/usr/local/az`: `lib` (shared, with the run path `/usr/local/az/lib`, no ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`), which every package links; the static ones in `/usr/local/az/static` only for the special builds of `az-menu.sh`. OpenSSL, zlib and bzip2 are those of the base system |
+| `curl` | `ftp/curl` | `bin/curl` and `libcurl.so.4`, in the place of the package of the port, with SCP and SFTP (libssh2); its `libcurl.so.4` is the libcurl of every package (the PHP module curl, git) |
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` and `ffprobe` with only the formats the video sites need |
-| `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, the programs with 6 at the end (`convert6`, `identify6`, ...) |
-| `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); its `libMagickWand-7.so` in `/usr/local/az/lib` for the module imagick |
-| `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; GLib and libssh2 inside, zip, 7z, rar and ISO images through `tar` of the base system: no other package |
+| `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, the programs with 6 at the end (`convert6`, `identify6`, ...); its libraries in `/usr/local/az/lib` |
+| `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); its `libMagickCore-7.so` and `libMagickWand-7.so` in `/usr/local/az/lib`, which `magick` and the module imagick link |
+| `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) with the formats of our ImageMagick; its libraries in `/usr/local/az/lib`, which `gm` and the module gmagick link |
+| `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; GLib inside, libssh2 of az, PCRE2 of `pcre2`; zip, 7z, rar and ISO images through `tar` of the base system |
+| `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 and PCRE 8.45, the official ports: the PCRE of every package (PHP, Apache, git, wget, mc, MariaDB; nginx later) |
+| `git` | `devel/git` | git without Perl, Python, Tcl/Tk, gettext, the manual pages and git daemon; HTTPS through our `curl`, `git grep -P` with `pcre2` |
+| `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi and env too), no SSL; APR and libmaxminddb of az |
+| `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached without TLS, SASL and DTrace, libevent of az; the variant with TLS; one of the two |
+| `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11: of the engines of the options InnoDB only, no GSSAPI; the socket `/tmp/mysql.sock` compiled in and in `my.cnf` |
+| `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext with its rc.d script; the variant with SSL; one of the two |
+| `bind-tools` | `dns/bind-tools` | dig, host, nslookup, delv, nsupdate and the DNSSEC tools of BIND 9.20, with IDN |
+| `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (the moov atom of an MP4 first), back for compatibility: the official port expired on 30.06.2022 |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp of a release newer than the official port, with our `ffmpeg` |
-| `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS; `bash` without NLS; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the static libraries of az (`wget`: IDN, PSL, PCRE2; `rsync`: lz4, zstd, xxhash, no ICONV) and the OpenSSL of the base system: no library outside the base system |
+| `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS; `bash` without NLS; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL; `rsync`: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
 | `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 65 per version, 67 for 7.4, 64 for 5.6 (with the variants with OpenSSL below); the list of one: `pkg search -r az '^php84-'` |
@@ -107,40 +117,47 @@ Names and origins as the ports, files at the paths of the ports:
 
 - **`az/az`**: the package `az`, the libraries of `/usr/local/az`, built from about 40
   official ports of the pinned commit by [`tools/az-build.sh`](tools/az-build.sh)
-  ([`az/az/files/deps.conf`](az/az/files/deps.conf)). Two trees:
-  `/usr/local/az/static` (static, position independent; for the programs below and the
-  static PHP builds of `az-menu.sh`) and `/usr/local/az` (shared, SONAME and run path
-  `/usr/local/az/lib`, no ldconfig; for the PHP modules), `bin/pkg-config` of each,
+  ([`az/az/files/deps.conf`](az/az/files/deps.conf)). Two trees: `/usr/local/az`
+  (shared, SONAME and run path `/usr/local/az/lib`, no ldconfig), which every package
+  links: our ports link each other's shared libraries, never a static or bundled copy
+  of a library another of our ports has (aZ, 10.11.2026); and `/usr/local/az/static`
+  (static, position independent), only for the static PHP builds of `az-menu.sh`;
+  `bin/pkg-config` of each,
   `VERSIONS` in `share/doc/az`, the licences in `LICENSES/`. It builds into
   `/usr/local/az` of the build machine (as root, `NEED_ROOT`) and packages that tree.
   No dependencies.
-- **`ftp/curl`**: the package `curl` in the place of the official one: `bin/curl`
-  (static) and `lib/libcurl.so.4` with its libraries inside (only `curl_*` exported),
-  the options of the official port, against the static tree of az
-  ([`tools/curl-build.sh`](tools/curl-build.sh)).
+- **`ftp/curl`**: the package `curl` in the place of the official one: `bin/curl` and
+  `lib/libcurl.so.4` (only `curl_*` exported), the libcurl of every package (the PHP
+  module curl, git: one libcurl, aZ 10.11.2026), the options of the official port,
+  against the shared libraries of az ([`tools/curl-build.sh`](tools/curl-build.sh)).
+  Build and run: az.
 - **`multimedia/ffmpeg`**: the package `ffmpeg` in the place of the official one:
-  `bin/ffmpeg` and `bin/ffprobe`, static, with only what the video sites need
-  ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
-  against x264, dav1d and libwebp of the static tree of az.
+  `bin/ffmpeg` and `bin/ffprobe` (the libraries of FFmpeg in them) with only what the
+  video sites need ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
+  linking x264, dav1d and libwebp of az. Build and run: az.
 - **`graphics/ImageMagick6`**: `bin/convert6`, `identify6`, `mogrify6`, `composite6`
-  and the others, static, next to ImageMagick 7: JPEG, PNG, WebP, GIF, HEIC and AVIF
-  only, with our policy.
+  and the others, next to ImageMagick 7, linking their libraries in `/usr/local/az/lib`:
+  JPEG, PNG, WebP, GIF, HEIC and AVIF only, with our policy. Build and run: az.
 - **`graphics/ImageMagick7`**: the package `ImageMagick7` in the place of the official
-  one: `bin/magick` and its names, static, the same formats and policy; its static
-  libraries and `MagickWand-config` in `/usr/local/az/static`, its shared
-  `libMagickWand-7.so` in `/usr/local/az/lib` for imagick of PHP. Build and run: az.
+  one: `bin/magick` and its names, the same formats and policy, linking its shared
+  `libMagickCore-7.so` and `libMagickWand-7.so` in `/usr/local/az/lib`, which imagick of
+  PHP links too (`MagickWand-config` there); its static libraries and
+  `MagickWand-config` in `/usr/local/az/static`, for the static imagick of `az-menu.sh`.
+  Build and run: az.
 - **`graphics/GraphicsMagick`**: the package `GraphicsMagick` in the place of the official
-  one: `bin/gm`, static, built as our ImageMagick, with JPEG, PNG, WebP, GIF, BMP, HEIC and
+  one: `bin/gm`, built as our ImageMagick, with JPEG, PNG, WebP, GIF, BMP, HEIC and
   AVIF only; with no policy file, the coders it registers and an empty `delegates.mgk` take
-  its place (`files/graphicsmagick.conf`). Its static libraries in `/usr/local/az/static`,
-  its shared `libGraphicsMagick` and `libGraphicsMagickWand` (symbol prefix `Gm`) and
-  `GraphicsMagick-config` in `/usr/local/az`, for gmagick of PHP
-  (`--with-gmagick=/usr/local/az`). Build and run: az.
+  its place (`files/graphicsmagick.conf`). `gm` links its shared `libGraphicsMagick` and
+  `libGraphicsMagickWand` (symbol prefix `Gm`) in `/usr/local/az`, with
+  `GraphicsMagick-config`, which gmagick of PHP links too (`--with-gmagick=/usr/local/az`);
+  its static libraries in `/usr/local/az/static`, for a static gmagick of `az-menu.sh`.
+  Build and run: az.
 - **`misc/mc`**: the package `mc` in the place of the official one: Midnight Commander
   with the editor, the subshell, the charsets and SFTP, without X11, translations and
   Aspell ([`misc/mc/files/mc.conf`](misc/mc/files/mc.conf): what and why), GLib built
-  static by [`tools/mc-build.sh`](tools/mc-build.sh), libssh2 of the static tree of az:
-  no package at run time. zip, jar, 7z, rar and ISO images open as a directory with
+  static by [`tools/mc-build.sh`](tools/mc-build.sh) (only mc links it), libssh2,
+  libintl and libiconv of az and PCRE2 of `pcre2`, shared. zip, jar, 7z, rar and ISO
+  images open as a directory with
   [`files/ubsdtar`](misc/mc/files/ubsdtar), on `tar` of the base system (libarchive),
   without Perl, 7-Zip or unrar; Perl, zip and GNU diff give what they give (writing into
   zip, the deb and rpm helpers, `mcdiff`) once they are installed.
@@ -149,6 +166,42 @@ Names and origins as the ports, files at the paths of the ports:
   phase; tests after the install: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
   [`az-test.sh`](tools/az-test.sh), [`mc-test.sh`](tools/mc-test.sh).
+- **`devel/pcre2`** and **`devel/pcre`**: the official ports as they are
+  ([`Mk/az-official.mk`](Mk/az-official.mk)), PCRE2 10.49 and PCRE 8.45 (its last
+  release): the PCRE of PHP (7.4 to 8.4 `--with-external-pcre`, 5.6
+  `--with-pcre-regex`), Apache, git, wget, mc (GLib) and MariaDB, and nginx later (aZ,
+  10.11.2026).
+- **`devel/git`**: git without Perl (send-email, svn, the cvs scripts), Python, Tcl/Tk,
+  gettext, expat (`git http-push`), the manual pages and the user and rc.d script of git
+  daemon; HTTPS through our `curl`, PCRE2 (`git grep -P`) of `pcre2`, iconv of libc.
+- **`www/apache24`** and **`www/mod_maxminddb`**: Apache 2.4.70 with prefork only (a
+  module) and the modules of the servers (cgi and env too; everything else off), no SSL,
+  APR and APR-util of az (shared: those of mod_php too), PCRE2 of `pcre2`;
+  mod_maxminddb with libmaxminddb of az.
+- **`databases/memcached`** and **`databases/memcached-openssl`**: memcached without TLS,
+  SASL, DTrace and the docs, libevent of az; the variant with TLS on the OpenSSL of the
+  base system; one of the two.
+- **`databases/mariadb1011-server`** and **`databases/mariadb1011-client`**: MariaDB 10.11
+  with the options of aZ (of the engines of the options InnoDB only; no GSSAPI, wsrep,
+  RocksDB, Spider, Mroonga, S3, CONNECT with ODBC and XML, HashiCorp Vault, AWS key
+  management), the socket `/tmp/mysql.sock` compiled into the server and the client
+  library and in `my.cnf.sample` (`/tmp` is a memory disk on the servers, tmpmfs), the
+  PID file in `/var/run/mysql`; PCRE2 of `pcre2`, lz4, zstd and fmt of az, zlib (not the
+  copy MariaDB has), OpenSSL and libedit of the base system.
+- **`ftp/vsftpd-ext`** and **`ftp/vsftpd-ext-openssl`**: vsftpd-ext with its rc.d script
+  (RC_SCRIPT); the variant with SSL (VSFTPD_SSL, the OpenSSL of the base system); one of
+  the two.
+- **`dns/bind-tools`**: the tools of BIND 9.20 (dig, host, nslookup, delv, nsupdate, the
+  DNSSEC ones) with IDN, without DNSTAP, FIXED_RRSET, LARGE_FILE, GSSAPI and the manual
+  pages; libuv, liburcu, nghttp2 (DNS over HTTPS) and libidn2 of az, OpenSSL and libedit
+  of the base system.
+- **`multimedia/qt-faststart`**: `bin/qt-faststart`, `tools/qt-faststart.c` of FFmpeg
+  9.0.2 (public domain): the official port expired on 30.06.2022 (ffmpeg `-movflags
+  +faststart` does the same); kept for compatibility until it is no longer needed (aZ,
+  10.11.2026).
+- These: tests after the install, [`tools/servers-test.sh`](tools/servers-test.sh) (git
+  grep -P, Apache with the modules of the servers on a port of its own, memcached,
+  MariaDB on its default socket `/tmp/mysql.sock`, the libraries of each).
 - **`www/yt-dlp`**: the package `yt-dlp` in the place of the official one: the official
   port as it is, at a newer release of yt-dlp (the grabbers of the video sites need the
   extractors of the latest), depending on our `multimedia/ffmpeg`; its Python packages are
@@ -159,8 +212,8 @@ Names and origins as the ports, files at the paths of the ports:
   local server, fixed by our ffmpeg into MP4, as the grabbers download).
 - **`lang/phpXY`** and **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): the core
   `phpXY` and the Apache module `libphpXY.so`, each from the official port of the commit
-  of its version (the table above); PCRE2 10.49 is the one the fork bundles (a port
-  `devel/pcre2` later, aZ 08.11.2026).
+  of its version (the table above); PCRE2 is that of `devel/pcre2` (5.6: PCRE of
+  `devel/pcre`), not the one the fork bundles (aZ, 10.11.2026).
 - **The module ports** `phpXY-<module>` (59 per version, 61 for 7.4): the names without
   "pecl", the origins as the official ports or ours (`graphics/php74-gd`,
   `databases/php74-redis`), the ini `ext-NN-<module>.ini`, those of openswoole and

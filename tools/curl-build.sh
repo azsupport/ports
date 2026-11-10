@@ -1,26 +1,26 @@
 #!/bin/sh
-# curl-build.sh - build the curl program and libcurl.so of the package curl (the
-# port ftp/curl), which takes the place of the curl of the ports (git and the other
-# packages that link libcurl.so get this one). A build of its own, apart from the
-# curl of PHP (the static libcurl.a of the package az in /usr/local/az/static, with
-# only what PHP needs): the same release, with the options of the port
-# ftp/curl (its CONFIGURE_ARGS and its default options: the protocols DICT, FTP,
-# GOPHER, HTTP, HTTP/2, IMAP, IPFS, MQTT, POP3, RTSP, SMTP, TELNET, TFTP,
-# WebSocket, NTLM, IDN, PSL, brotli, zstd, the threaded resolver) and SCP and SFTP
-# with libssh2 (its option LIBSSH2, off in the port: aZ, 10.11.2026), without
-# GSSAPI, which the libraries of /usr/local/az do not have;
-# against the static libraries of the package az (AZ_PREFIX/static, installed).
-# Into the stage AZ_STAGEDIR (default AZ_WORK/stage/curl) as files of /usr/local:
-# bin/curl, static, PIE, RELRO, BIND_NOW, stripped; lib/libcurl.so.4 of the
-# libcurl.a of this build (curl_* made visible by tools/curl-elf-export.py and
-# exported, the libraries inside hidden), so that both need only libz, libthr and
-# OpenSSL (libssl, libcrypto) of the base system; include/curl/, libdata/pkgconfig/libcurl.pc, curl-config,
-# libcurl.m4, the licence, share/doc/curl/VERSIONS (this build
-# and AZ_PREFIX/share/doc/az/VERSIONS, the libraries). Moved from
-# build_curl_program of tools/build-deps.sh of https://github.com/azsupport/php-src
-# (08.11.2026), where it ran in the build of the libraries; here it runs after
-# it, against the installed package az, which has no .la files any more: libtool
-# links the libraries with the -l of configure and pkg-config.
+# curl-build.sh - build the curl program and libcurl.so.4 of the package curl (the
+# port ftp/curl), which takes the place of the curl of the ports: the libcurl of
+# every package (the PHP module curl, git, swoole: aZ, 10.11.2026, one libcurl). A
+# build of its own, apart from the curl of PHP built on a server (the static
+# libcurl.a of the package az in /usr/local/az/static, with only what PHP needs):
+# the same release, with the options of the port ftp/curl (its CONFIGURE_ARGS and
+# its default options: the protocols DICT, FTP, GOPHER, HTTP, HTTP/2, IMAP, IPFS,
+# MQTT, POP3, RTSP, SMTP, TELNET, TFTP, WebSocket, NTLM, IDN, PSL, brotli, zstd, the
+# threaded resolver) and SCP and SFTP with libssh2 (its option LIBSSH2, off in the
+# port: aZ, 10.11.2026), without GSSAPI, which the libraries of /usr/local/az do not
+# have; against the shared libraries of the package az (AZ_PREFIX/lib, installed:
+# nghttp2, brotli, zstd, libidn2, libpsl, libssh2), which libcurl.so.4 links with
+# the run path AZ_PREFIX/lib (our ports link each other's shared libraries: aZ,
+# 10.11.2026), and OpenSSL and zlib of the base system. Into the stage AZ_STAGEDIR
+# (default AZ_WORK/stage/curl) as files of /usr/local: bin/curl (PIE, RELRO,
+# BIND_NOW, stripped, linking lib/libcurl.so.4), lib/libcurl.so.4 (only curl_*
+# exported), include/curl/, libdata/pkgconfig/libcurl.pc, curl-config,
+# libcurl.m4, the licence, share/doc/curl/VERSIONS (this build and
+# AZ_PREFIX/share/doc/az/VERSIONS, the libraries). Moved from build_curl_program
+# of tools/build-deps.sh of https://github.com/azsupport/php-src (08.11.2026),
+# where it ran in the build of the libraries; here it runs after it, against the
+# installed package az.
 #
 # Usage (FreeBSD; the port ftp/curl runs it in its do-build):
 #   sh tools/curl-build.sh <source>   <source>: the release of files/curl.conf of
@@ -43,11 +43,9 @@ set -u
 # those of the Makefiles: FFmpeg's ARCH=x86 became ARCH=amd64, so no x86 object
 # was built (ld: undefined symbol ff_bwdif_init_x86 ..., 08.11.2026).
 unset MAKEFLAGS MFLAGS MAKELEVEL __MKLVL__
-tools="$(cd "$(dirname "$0")" && pwd)"
 [ $# -eq 1 ] || { echo "usage: sh tools/curl-build.sh <source of curl>" >&2; exit 2; }
 cs="$(cd "$1" 2>/dev/null && pwd)" || { echo "curl-build: no directory $1" >&2; exit 2; }
 A="${AZ_PREFIX:-/usr/local/az}"
-P="$A/static"
 work="${AZ_WORK:-/var/tmp/az-work}/curl"
 stage="${AZ_STAGEDIR:-${AZ_WORK:-/var/tmp/az-work}/stage/curl}"
 r="$stage/usr/local"
@@ -67,8 +65,9 @@ mc_get() {
         END { if (have) { sub(/[ \t]+$/, "", val); print val } }
     ' "$mk_conf"
 }
-# the flags and the environment of the libraries (tools/az-build.sh): the static
-# tree only, pkg-config with --static
+# the flags of the libraries (tools/az-build.sh); the environment of their shared
+# builds: the shared tree only (nothing of the static tree), its pkg-config files and
+# those of the base system, the run path of the tree
 cputype="${AZ_CPUTYPE:-$(mc_get CPUTYPE)}"
 cputype="${cputype:-x86-64-v3}"
 opt="${AZ_CFLAGS:-$(mc_get CFLAGS)}"
@@ -77,28 +76,21 @@ opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr
 export CC=cc CXX=c++
 export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing -fPIC"
 export CXXFLAGS="$CFLAGS"
-export CPPFLAGS="-I$P/include"
-export LDFLAGS="-L$P/lib"
-mkdir -p "$work/bin" "$res"
-printf '%s\n' '#!/bin/sh' 'exec pkgconf --static "$@"' > "$work/bin/pkg-config-static"
-chmod +x "$work/bin/pkg-config-static"
-export PKG_CONFIG="$work/bin/pkg-config-static"
-export PKG_CONFIG_LIBDIR="$P/lib/pkgconfig:$P/libdata/pkgconfig:/usr/libdata/pkgconfig"
+export CPPFLAGS="-I$A/include"
+export LDFLAGS="-L$A/lib -Wl,-rpath,$A/lib -Wl,--as-needed -Wl,-z,relro,-z,now"
+mkdir -p "$res"
+export PKG_CONFIG=pkgconf
+export PKG_CONFIG_LIBDIR="$A/lib/pkgconfig:/usr/libdata/pkgconfig"
 unset PKG_CONFIG_PATH
-export PATH="$P/bin:$PATH"
-unset AR RANLIB NM
-if ! ar --version 2>/dev/null | grep -q LLVM && command -v llvm-ar >/dev/null 2>&1; then
-    export AR=llvm-ar RANLIB=llvm-ranlib NM=llvm-nm
-fi
 
 rm -f "$res"/*.tail "$res/bins-bad.txt"
 : > "$res/summary.txt"
 printf 'flags:    %s\n' "$CFLAGS" >> "$res/summary.txt"
-for f in libnghttp2.a libbrotlidec.a libzstd.a libidn2.a libpsl.a libssh2.a libiconv.a; do
-    if [ ! -f "$P/lib/$f" ]; then
-        printf '%-14s FAIL  no %s in %s/lib: the package az first (the port az/az)\n' libs "$f" "$P" >> "$res/summary.txt"
+for f in libnghttp2.so libbrotlidec.so libzstd.so libidn2.so libpsl.so libssh2.so; do
+    if [ ! -f "$A/lib/$f" ]; then
+        printf '%-14s FAIL  no %s in %s/lib: the package az first (the port az/az)\n' libs "$f" "$A" >> "$res/summary.txt"
         cat "$res/summary.txt"
-        echo "curl-build: no $P/lib/$f; install the package az first" >&2
+        echo "curl-build: no $A/lib/$f; install the package az first" >&2
         exit 1
     fi
 done
@@ -113,13 +105,12 @@ cv="$(sed -n 's/^#define LIBCURL_VERSION "\(.*\)"$/\1/p' "$cs/include/curl/curlv
     rm -rf "$ob" "$stage" "$work/curl-sys-dest"
     mkdir -p "$ob" "$r/bin" "$r/lib" "$r/libdata/pkgconfig" "$r/share/licenses/curl" || exit 1
     echo "== configure (the options of the port ftp/curl)"
-    # LIBS: libidn2 of the tree uses the libiconv of the tree
-    (cd "$ob" && LIBS="-liconv" LDFLAGS="-L$P/lib -pie -Wl,-z,relro,-z,now" "$cs/configure" \
-        --prefix=/usr/local --disable-shared --enable-static --with-pic --disable-dependency-tracking \
+    (cd "$ob" && LDFLAGS="$LDFLAGS -pie" "$cs/configure" \
+        --prefix=/usr/local --enable-shared --disable-static --with-pic --disable-dependency-tracking \
         --with-openssl=/usr --enable-openssl-auto-load-config --with-ca-path=/etc/ssl/certs --without-ca-bundle \
         --enable-threaded-resolver --disable-ares \
-        --with-nghttp2="$P" --with-brotli="$P" --with-zstd="$P" --with-libidn2="$P" --with-libpsl="$P" \
-        --with-libssh2="$P" \
+        --with-nghttp2="$A" --with-brotli="$A" --with-zstd="$A" --with-libidn2="$A" --with-libpsl="$A" \
+        --with-libssh2="$A" \
         --enable-alt-svc --enable-cookies --enable-dict --enable-ftp --enable-file --enable-gopher \
         --enable-http --enable-imap --enable-ipfs --enable-ipv6 --enable-mqtt --enable-ntlm \
         --enable-pop3 --enable-proxy --enable-rtsp --enable-smtp --enable-telnet --enable-tftp \
@@ -128,7 +119,7 @@ cv="$(sed -n 's/^#define LIBCURL_VERSION "\(.*\)"$/\1/p' "$cs/include/curl/curlv
         --disable-httpsig --disable-unity --disable-werror --enable-aws --enable-dateparse \
         --enable-dnsshuffle --enable-headers-api --enable-hsts --enable-http-auth --enable-manual \
         --enable-mime --enable-netrc --enable-progress-meter --enable-ssls-export --enable-typecheck \
-        --without-zsh-functions-dir --without-fish-functions-dir) || exit 1
+        --enable-symbol-hiding --without-zsh-functions-dir --without-fish-functions-dir) || exit 1
     echo "== build"
     gmake -C "$ob" -j"$ncpu" || exit 1
     gmake -C "$ob" install-strip DESTDIR="$work/curl-sys-dest" || exit 1
@@ -138,31 +129,11 @@ cv="$(sed -n 's/^#define LIBCURL_VERSION "\(.*\)"$/\1/p' "$cs/include/curl/curlv
     # no manual pages: the servers have MAN3 and MANPAGES unset (OPTIONS_UNSET of
     # make.conf), and none of the packages of this tree has them
     [ -d "$d/share/aclocal" ] && { mkdir -p "$r/share" && cp -R "$d/share/aclocal" "$r/share/"; }
-    # the name of libcurl.so of curl's libtool numbers (lib/Makefile.soname):
-    # libcurl.so.<change - del>.<del>.<add>, as the port has it (libcurl.so.4.8.0)
-    eval "$(sed -n -E 's/^(VERSIONCHANGE|VERSIONADD|VERSIONDEL)=([0-9]+).*/\1=\2/p' "$cs/lib/Makefile.soname")"
-    so="libcurl.so.$((VERSIONCHANGE - VERSIONDEL))"
-    full="$so.$VERSIONDEL.$VERSIONADD"
-    echo "== $full of the libcurl.a of this build"
-    # libcurl.a is built with its functions hidden (CURL_STATICLIB, -fvisibility=hidden):
-    # one object of it with curl_* visible again (tools/curl-elf-export.py), exported by
-    # the version script, the libraries inside hidden (--exclude-libs)
-    lo="$work/libcurl-so"
-    rm -rf "$lo" && mkdir -p "$lo" || exit 1
-    ld -r --whole-archive "$ob/lib/.libs/libcurl.a" -o "$lo/libcurl.o" || exit 1
-    nv="$(python3 -I "$tools/curl-elf-export.py" "$lo/libcurl.o" curl_)" || { echo "== tools/curl-elf-export.py: no curl_* in libcurl.a"; exit 1; }
-    echo "== curl_* made visible: $nv"
-    printf '%s\n' '{' '  global: curl_*;' '  local: *;' '};' > "$lo/libcurl.vers"
-    # the static link line of libcurl, without its first word (libcurl.a) and the
-    # flags of programs (-pie, -z relro, -z now)
-    deps="$(sh "$ob/curl-config" --static-libs | tr ' ' '\n' | sed '1d' | grep -v -E '^(-pie|-Wl,-z,.*)$' | tr '\n' ' ')"
-    echo "== the libraries inside: $deps"
-    # shellcheck disable=SC2086
-    cc -shared -o "$r/lib/$full" -Wl,-soname,"$so" "$lo/libcurl.o" $deps -lm -lpthread \
-        -Wl,--exclude-libs,ALL -Wl,--version-script="$lo/libcurl.vers" \
-        -Wl,-z,relro,-z,now -Wl,--no-undefined || exit 1
-    strip --strip-unneeded "$r/lib/$full" || exit 1
-    ln -sf "$full" "$r/lib/$so" && ln -sf "$full" "$r/lib/libcurl.so" || exit 1
+    # libcurl.so.4 and its names, as libtool installed them (libcurl.so.4.8.0, as the port)
+    full="$(cd "$d/lib" && ls libcurl.so.*.*.* 2>/dev/null | head -n 1)"
+    [ -n "$full" ] || { echo "== no libcurl.so.*.*.* in $d/lib"; exit 1; }
+    so="${full%.*.*}"
+    cp -p "$d/lib/$full" "$r/lib/$full" && ln -sf "$full" "$r/lib/$so" && ln -sf "$full" "$r/lib/libcurl.so" || exit 1
     bad="$(nm -D --defined-only "$r/lib/$full" | awk 'NF >= 3 && $3 !~ /^(curl_|_init$|_fini$|_edata$|_end$|__bss_start$)/ { print $3 }' | head -n 5 | tr '\n' ' ')"
     [ -z "$bad" ] || { echo "== $full exports more than curl_*: $bad"; exit 1; }
     n="$(nm -D --defined-only "$r/lib/$full" | grep -c ' curl_')"
@@ -170,7 +141,8 @@ cv="$(sed -n 's/^#define LIBCURL_VERSION "\(.*\)"$/\1/p' "$cs/include/curl/curlv
         nm -D --defined-only "$r/lib/$full" | grep -q " $f\$" || { echo "== $full does not export $f ($n curl_* functions)"; exit 1; }
     done
     echo "== $full exports $n curl_* functions"
-    # libcurl.pc and curl-config for libcurl.so: no static libraries in this package
+    # libcurl.pc for libcurl.so: its libraries are those of libcurl.so itself (the
+    # modules that build against it need no .pc of the tree of az)
     pcf="$(ls "$d"/lib/pkgconfig/libcurl.pc "$d"/libdata/pkgconfig/libcurl.pc 2>/dev/null | head -n 1)"
     [ -n "$pcf" ] || { echo "== no libcurl.pc in $d"; exit 1; }
     sed -e 's|^Libs:.*|Libs: -L${libdir} -lcurl|' -e '/^Libs.private:/d' -e '/^Requires.private:/d' \
@@ -179,7 +151,8 @@ cv="$(sed -n 's/^#define LIBCURL_VERSION "\(.*\)"$/\1/p' "$cs/include/curl/curlv
         skip && /;;/ { skip = 0 }
         !skip { print }' "$d/bin/curl-config" > "$r/bin/curl-config" && chmod 755 "$r/bin/curl-config" || exit 1
     cp "$cs/COPYING" "$r/share/licenses/curl/COPYING" || exit 1
-    # the program and libcurl.so as they are, with the libraries of the base system only
+    # the program and libcurl.so as they are: libcurl.so.4 of the stage, the libraries of
+    # az by its run path, the base system
     LD_LIBRARY_PATH="$r/lib" "$r/bin/curl" --version > "$res/curl-version.txt" 2>&1 || exit 1
     cat "$res/curl-version.txt"
 ) > "$log" 2>&1
@@ -191,10 +164,20 @@ if [ "$rc" = 0 ]; then
         type="$(readelf -h "$f" | awk '/Type:/ { print $2 }')"
         relro="$(readelf -l "$f" | grep -c GNU_RELRO)"
         now="$(readelf -d "$f" | grep -c -E 'BIND_NOW|FLAGS_1.*NOW')"
-        libs="$(ldd "$f" 2>/dev/null | awk 'NF > 2 && $2 == "=>" { print $3 }' | tr '\n' ' ' | sed 's/ *$//')"
-        printf '%s: %s KB, ELF type %s, RELRO %s, BIND_NOW %s; libraries: %s\n' "$b" \
-            "$(du -Ak "$f" | cut -f1)" "$type" "$relro" "$now" "$libs" >> "$res/curl-bins.txt"
-        case "$libs" in *"/usr/local/"*) echo "$b: links a library of /usr/local" >> "$res/bins-bad.txt" ;; esac
+        libs="$(LD_LIBRARY_PATH="$r/lib" ldd "$f" 2>/dev/null | awk 'NF > 2 && $2 == "=>" { print $3 }' | tr '\n' ' ' | sed 's/ *$//')"
+        rp="$(readelf -d "$f" | sed -n 's/.*[Ll]ibrary r[a-z]*path: \[\(.*\)\].*/\1/p')"
+        printf '%s: %s KB, ELF type %s, RELRO %s, BIND_NOW %s, run path %s; libraries: %s\n' "$b" \
+            "$(du -Ak "$f" | cut -f1)" "$type" "$relro" "$now" "${rp:-none}" "$libs" >> "$res/curl-bins.txt"
+        # the base system, the shared tree of az (by the run path) and libcurl.so.4
+        # (of the stage here, of /usr/local/lib once installed); nothing else
+        for l in $libs; do
+            case "$l" in
+                /lib/* | /usr/lib/* | "$r"/lib/libcurl.so.*) ;;
+                "$A"/static/*) echo "$b: $l of the static tree" ;;
+                "$A"/lib/*) case ":$rp:" in *":$A/lib:"*) ;; *) echo "$b: $l without the run path $A/lib" ;; esac ;;
+                *) echo "$b: $l, not of the base system or of az" ;;
+            esac
+        done >> "$res/bins-bad.txt"
         [ "$type" = DYN ] || echo "$b: not position independent (ELF type $type)" >> "$res/bins-bad.txt"
         [ "$relro" -gt 0 ] || echo "$b: no RELRO" >> "$res/bins-bad.txt"
         [ "$now" -gt 0 ] || echo "$b: no BIND_NOW" >> "$res/bins-bad.txt"
@@ -211,8 +194,8 @@ if [ "$rc" = 0 ]; then
     {
         echo "curl $cv for FreeBSD $major (amd64, $cputype): bin/curl and lib/libcurl.so.4, the release of the"
         echo "bundled curl of the package az (az/az/files/curl.conf of azsupport/ports) with the options of the"
-        echo "port ftp/curl (tools/curl-build.sh), against the static libraries of the package az; the curl of"
-        echo "PHP is the static libcurl of az. The build of the libraries:"
+        echo "port ftp/curl (tools/curl-build.sh), against the shared libraries of the package az; the libcurl"
+        echo "of every package. The build of the libraries:"
         echo
         cat "$A/share/doc/az/VERSIONS" 2>/dev/null || echo "($A/share/doc/az/VERSIONS is not there)"
         echo

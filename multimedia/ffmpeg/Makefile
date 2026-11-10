@@ -1,12 +1,14 @@
 # multimedia/ffmpeg: the FFmpeg of azsupport/ports in the place of the official
 # multimedia/ffmpeg (the design: the head of az/az/Makefile), the package ffmpeg
-# of tools/build-az.sh of azsupport/php-src: bin/ffmpeg and bin/ffprobe, static,
-# with only what the video sites need (files/ffmpeg.conf: why, and the options).
+# of tools/build-az.sh of azsupport/php-src: bin/ffmpeg and bin/ffprobe with only
+# what the video sites need (files/ffmpeg.conf: why, and the options), its own
+# libraries in them.
 # tools/ffmpeg-build.sh makes the official port of the pinned commit (its
 # distfiles, distinfo and patches; fetched in post-fetch), then applies
 # files/ffmpeg/*.patch and builds it with the configure lines of ffmpeg.conf,
-# against the static libraries of the package az (x264, dav1d, libwebp). A static
-# program: no RUN_DEPENDS. Its nonfree variant, multimedia/ffmpeg-nonfree (with
+# against the shared libraries of the package az (x264, dav1d, libwebp), with the
+# run path /usr/local/az/lib (our ports link each other's shared libraries: aZ,
+# 10.11.2026): az at run time too. Its nonfree variant, multimedia/ffmpeg-nonfree (with
 # libfdk_aac, files/ffmpeg-nonfree.conf), is nonfree/ffmpeg/Makefile.in: a slave of
 # this port that only the workflow ffmpeg-nonfree.yml puts in place (its package may
 # not be given to anyone, so it is never in a release); it sets the variables with ?=
@@ -19,7 +21,7 @@ CATEGORIES=	multimedia audio net
 # the distfiles are those of the official port (its make fetch in post-fetch)
 DISTFILES=
 
-COMMENT?=	FFmpeg for the video sites, static (ffmpeg, ffprobe)
+COMMENT?=	FFmpeg for the video sites (ffmpeg, ffprobe)
 WWW=		https://ffmpeg.org/ \
 		https://github.com/azsupport/ports
 
@@ -29,8 +31,9 @@ LICENSE=	GPLv2+
 # the libraries of az in its hash (tools/build.sh): x264, dav1d and libwebp (and
 # those before them in deps.conf), more than the file of its dependency names
 AZ_HASH_LIBS=	x264 dav1d webp
-BUILD_DEPENDS=	${AZ_STATIC}/lib/libx264.a:az/az \
+BUILD_DEPENDS=	${AZ_PREFIX}/lib/libx264.so:az/az \
 		nasm:devel/nasm
+RUN_DEPENDS=	${AZ_PREFIX}/lib/libx264.so:az/az
 
 USES=		gmake perl5 pkgconfig
 USE_PERL5=	build

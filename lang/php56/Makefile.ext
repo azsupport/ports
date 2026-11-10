@@ -150,10 +150,26 @@ CONFIGURE_ARGS+=--enable-ctype
 .endif
 
 .if ${PHP_MODNAME} == "curl"
-# libcurl of az (its curl-config)
-AZ_LIBS=	libcurl.so
+# libcurl.so.4 of ftp/curl of this tree, the libcurl of every package (aZ,
+# 10.11.2026: one libcurl; our ports link each other's shared libraries), not one
+# of az: --with-curl of a directory of the work with its curl-config, the curl/ of
+# its headers and libcurl.so alone in it (links to those of /usr/local: no other
+# header of /usr/local is seen; pre-configure); the run paths configure adds for
+# it (that directory, /usr/local/lib of curl-config --libs) go (post-configure):
+# libcurl.so.4 is in /usr/local/lib, one of ldconfig
+LIB_DEPENDS+=	libcurl.so:ftp/curl
+CONFIGURE_ARGS+=--with-curl=${WRKDIR}/curl
 
-CONFIGURE_ARGS+=--with-curl=${AZ_PREFIX}
+pre-configure:
+	@${MKDIR} ${WRKDIR}/curl/bin ${WRKDIR}/curl/include ${WRKDIR}/curl/lib
+	@${LN} -sf ${LOCALBASE}/bin/curl-config ${WRKDIR}/curl/bin/curl-config
+	@${LN} -sf ${LOCALBASE}/include/curl ${WRKDIR}/curl/include/curl
+	@${LN} -sf ${LOCALBASE}/lib/libcurl.so ${WRKDIR}/curl/lib/libcurl.so
+
+post-configure:
+	@${REINPLACE_CMD} -e 's|-Wl,-rpath,${WRKDIR}/curl/lib||g' -e 's|-Wl,-rpath,${LOCALBASE}/lib||g' \
+		-e 's|-R[[:space:]]*${WRKDIR}/curl/lib||g' -e 's|-R[[:space:]]*${LOCALBASE}/lib||g' \
+		${WRKSRC}/Makefile
 .endif
 
 .if ${PHP_MODNAME} == "dba"

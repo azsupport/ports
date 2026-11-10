@@ -2,13 +2,15 @@
 # official graphics/ImageMagick6 (the design: the head of az/az/Makefile), the
 # package ImageMagick6 of tools/build-az.sh of azsupport/php-src: bin/convert6,
 # identify6, mogrify6, composite6 and the others (a 6 at the end of every name,
-# next to ImageMagick 7), static, with only what the video sites need and the
-# policy of azsupport/ports (graphics/ImageMagick7/files/imagemagick.conf and
-# policy.xml, one copy for both: etc/ImageMagick-6/policy.xml).
+# next to ImageMagick 7), with only what the video sites need and the policy of
+# azsupport/ports (graphics/ImageMagick7/files/imagemagick.conf and policy.xml,
+# one copy for both: etc/ImageMagick-6/policy.xml), linking its libraries
+# libMagickCore-6.Q16 and libMagickWand-6.Q16 in /usr/local/az/lib.
 # tools/imagemagick-build.sh makes the official port of the pinned commit with the
 # release of the take line of imagemagick.conf (a distfile of this port), applies
-# files/imagemagick6-*.patch and builds it against the static tree of az. A
-# static program: no RUN_DEPENDS.
+# files/imagemagick6-*.patch and builds it against the shared tree of az, run
+# path /usr/local/az/lib (our ports link each other's shared libraries: aZ,
+# 10.11.2026): az at run time too.
 
 PORTNAME=	ImageMagick
 DISTVERSION=	6.9.13-60
@@ -21,7 +23,7 @@ MASTER_SITES=	https://download.imagemagick.org/archive/releases/ \
 PKGNAMESUFFIX=	6
 DISTFILES=	${DISTNAME}.tar.xz
 
-COMMENT=	ImageMagick 6 for the video sites, static (convert6, identify6, ...)
+COMMENT=	ImageMagick 6 for the video sites (convert6, identify6, ...)
 WWW=		https://legacy.imagemagick.org/ \
 		https://github.com/azsupport/ports
 
@@ -31,7 +33,8 @@ LICENSE_NAME=	ImageMagick License
 LICENSE_TEXT=	The licence is in share/licenses/ImageMagick6/LICENSE
 LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 
-BUILD_DEPENDS=	${AZ_STATIC}/lib/libheif.a:az/az
+BUILD_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az
+RUN_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az
 
 USES=		gmake perl5 pkgconfig
 USE_PERL5=	build

@@ -101,9 +101,12 @@
 
 set -u
 
-# the official tree the overlay is built over: freebsd-ports main of 04.11.2026, the
-# commit of freebsd/deps.conf of azsupport/php-src
-ports_commit="f16b6dd0f7c1c3a2e0447e192e39e72f21d85eb0"
+# the official tree the overlay is built over: freebsd-ports main of 10.11.2026 21:19,
+# the commit of az/az/files/deps.conf too. The rule of aZ: the latest version of a
+# port, or a newer release for its security or a serious bug (a take line of
+# deps.conf), so before a build this goes to the latest commit of main (it had
+# stayed at 04.11.2026: apache24 2.4.69 for 2.4.70 of 07.11.2026, aZ 10.11.2026)
+ports_commit="6e4a386577aaa191a68b11865fcb18e02f98e525"
 ports_url="https://github.com/freebsd/freebsd-ports"
 
 top="$(cd "$(dirname "$0")/.." && pwd)"
@@ -559,9 +562,9 @@ az_lib_of() {
         charset) _b=libiconv ;;
         sharpyuv | webpdemux | webpmux | webpdecoder) _b=webp ;;
         event | event_core | event_extra | event_pthreads | event_openssl) _b=libevent ;;
-        pcre2-8 | pcre2-16 | pcre2-32 | pcre2-posix) _b=pcre2 ;;
-        pcreposix | pcrecpp) _b=pcre ;;
         cares) _b=c-ares ;;
+        apr-1 | aprutil-1) _b=apr ;;
+        urcu | urcu-*) _b=liburcu ;;
     esac
     for _n in "lib$_b" "$_b"; do
         awk -v n="$_n" '$1 == n { f = 1 } END { exit !f }' "$q/azlib.txt" && { echo "$_n"; return 0; }
