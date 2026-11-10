@@ -538,7 +538,6 @@ az_lib_of() {
         event | event_core | event_extra | event_pthreads | event_openssl) _b=libevent ;;
         pcre2-8 | pcre2-16 | pcre2-32 | pcre2-posix) _b=pcre2 ;;
         pcreposix | pcrecpp) _b=pcre ;;
-        ssl | crypto) _b=openssl ;;
         cares) _b=c-ares ;;
     esac
     for _n in "lib$_b" "$_b"; do

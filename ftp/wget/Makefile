@@ -1,7 +1,8 @@
 # ftp/wget: the wget of azsupport/ports in the place of the official ftp/wget (aZ,
-# 10.11.2026): the official port with IPv6 and IRI, and IDN (libidn2), PSL (libpsl),
-# PCRE2 and OpenSSL from the static tree of az (those of curl), so that it takes no
-# package (the official one takes libidn2 and libunistring, libpsl, pcre2). The
+# 10.11.2026): the official port with IPv6, IRI and the OpenSSL of the base system,
+# and IDN (libidn2), PSL (libpsl) and PCRE2 from the static tree of az (those of
+# curl), so that it takes no package (the official one takes libidn2 and
+# libunistring, libpsl, pcre2). The
 # unistring of IRI is the one wget bundles (--with-included-libunistring). Without
 # NLS, NTLM, Metalink, the man page (MANPAGES of the make.conf of the servers) and
 # the info page.
@@ -22,18 +23,18 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 
 BUILD_DEPENDS=	${AZ_STATIC}/lib/libidn2.a:az/az \
 		${AZ_STATIC}/lib/libpcre2-8.a:az/az \
-		${AZ_STATIC}/lib/libpsl.a:az/az \
-		${AZ_STATIC}/lib/libssl.a:az/az
+		${AZ_STATIC}/lib/libpsl.a:az/az
 
-USES=		charsetfix cpe iconv pkgconfig tar:lz
+USES=		charsetfix cpe iconv pkgconfig ssl tar:lz
 CPE_VENDOR=	gnu
 USE_CSTD=	c99
 
 GNU_CONFIGURE=	yes
 GNU_CONFIGURE_MANPREFIX=	${PREFIX}/share
-# pkg-config of the static tree of az: OpenSSL, libidn2, libpsl, pcre2 with their
-# static link lines
+# pkg-config of the static tree of az: libidn2, libpsl, pcre2 with their static link
+# lines; OpenSSL of the base system (--with-libssl-prefix: not pkg-config)
 CONFIGURE_ARGS=	--with-ssl=openssl \
+		--with-libssl-prefix=${OPENSSLBASE} \
 		--enable-ipv6 \
 		--enable-iri \
 		--with-included-libunistring \

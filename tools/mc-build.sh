@@ -20,7 +20,7 @@
 # directory (AZ_WORK/mc/static; nothing of them is installed), GLib against PCRE2,
 # libintl and libiconv of the static tree of the package az, /usr/local/az/static
 # (installed), and mc (prefix /usr/local) against them and libssh2 of that tree (with
-# the OpenSSL of that tree, which it was built with) into the stage AZ_STAGEDIR
+# the OpenSSL of the base system, which it was built with) into the stage AZ_STAGEDIR
 # (default AZ_WORK/stage/mc), with files/ubsdtar in libexec/mc/extfs.d, its VERSIONS
 # in share/doc/mc and the licences of mc and of the libraries in it in
 # share/licenses/mc. So mc needs no package, only libraries of the base system
@@ -200,7 +200,8 @@ b_mc() {
     rm -rf "$stage$F/share/man"
     install -m 755 "$files/ubsdtar" "$stage$F/libexec/mc/extfs.d/ubsdtar" || return 1
     # the licences of mc and of what is linked in: GLib and libffi from their sources,
-    # libssh2, OpenSSL, PCRE2, libintl and libiconv from LICENSES/ of the package az
+    # libssh2, PCRE2, libintl and libiconv from LICENSES/ of the package az (OpenSSL is
+    # that of the base system, a shared library)
     lic="$stage$F/share/licenses/mc"
     mkdir -p "$lic" && cp "$1/COPYING" "$lic/mc-COPYING" || return 1
     for n in glib libffi; do
@@ -209,7 +210,7 @@ b_mc() {
             [ -f "$f" ] && cp "$f" "$lic/$n-${f##*/}"
         done
     done
-    for n in libssh2 openssl pcre2 gettext libiconv; do
+    for n in libssh2 pcre2 gettext libiconv; do
         for f in "$A/LICENSES/$n"-*; do
             [ -e "$f" ] && cp -R "$f" "$lic/"
         done
@@ -257,9 +258,9 @@ manifest() {
     {
         echo "Midnight Commander for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $cflags"
-        echo "GLib and libffi: static, built here; libssh2 (with OpenSSL), PCRE2, libintl and libiconv:"
-        echo "the static libraries of $L (the package az, the static tree):"
-        awk '$1 == "libssh2" || $1 == "openssl" || $1 == "pcre2" || $1 == "gettext" || $1 == "libiconv" { print "    " $0 }' \
+        echo "GLib and libffi: static, built here; libssh2, PCRE2, libintl and libiconv: the static"
+        echo "libraries of $L (the package az, the static tree); OpenSSL: that of the base system:"
+        awk '$1 == "libssh2" || $1 == "pcre2" || $1 == "gettext" || $1 == "libiconv" { print "    " $0 }' \
             "$A/share/doc/az/VERSIONS" 2>/dev/null
         echo
         while read -r n pkgname port; do
@@ -284,7 +285,7 @@ manifest() {
         conf_opts | sed 's/^/    /'
         echo
         echo "Licence: GPL version 3 or later (mc); GLib, libintl and libiconv LGPL, libssh2 BSD 3-clause,"
-        echo "libffi MIT, PCRE2 BSD, OpenSSL Apache 2.0: the licences are in share/licenses/mc/."
+        echo "libffi MIT, PCRE2 BSD: the licences are in share/licenses/mc/."
         echo "Sources: the distfiles above (their SHA-256), the patches of the ports at the commit above,"
         echo "files/ of misc/mc and tools/mc-build.sh of https://github.com/azsupport/ports (misc/mc/files/mc.conf)."
     } > "$res/VERSIONS"
@@ -363,7 +364,7 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
     echo "mc-build: this CPU ${why:-cannot tell the features of} -march=$cputype" >&2
     exit 1
 fi
-for f in lib/libssh2.a lib/libcrypto.a lib/libpcre2-8.a lib/libintl.a lib/libiconv.a \
+for f in lib/libssh2.a lib/libpcre2-8.a lib/libintl.a lib/libiconv.a \
         lib/pkgconfig/libssh2.pc lib/pkgconfig/libpcre2-8.pc include/libintl.h include/iconv.h; do
     if [ ! -f "$L/$f" ]; then
         printf '%-8s FAIL  no %s of the static libraries in %s: install the package az first (az/az)\n' libs "$f" "$L" >> "$res/summary.txt"

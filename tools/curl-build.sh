@@ -13,8 +13,8 @@
 # Into the stage AZ_STAGEDIR (default AZ_WORK/stage/curl) as files of /usr/local:
 # bin/curl, static, PIE, RELRO, BIND_NOW, stripped; lib/libcurl.so.4 of the
 # libcurl.a of this build (curl_* made visible by tools/curl-elf-export.py and
-# exported, the libraries inside hidden), so that both need only libz and libthr
-# of the base system; include/curl/, libdata/pkgconfig/libcurl.pc, curl-config,
+# exported, the libraries inside hidden), so that both need only libz, libthr and
+# OpenSSL (libssl, libcrypto) of the base system; include/curl/, libdata/pkgconfig/libcurl.pc, curl-config,
 # libcurl.m4, the licence, share/doc/curl/VERSIONS (this build
 # and AZ_PREFIX/share/doc/az/VERSIONS, the libraries). Moved from
 # build_curl_program of tools/build-deps.sh of https://github.com/azsupport/php-src
@@ -94,7 +94,7 @@ fi
 rm -f "$res"/*.tail "$res/bins-bad.txt"
 : > "$res/summary.txt"
 printf 'flags:    %s\n' "$CFLAGS" >> "$res/summary.txt"
-for f in libssl.a libcrypto.a libnghttp2.a libbrotlidec.a libzstd.a libidn2.a libpsl.a libssh2.a libiconv.a; do
+for f in libnghttp2.a libbrotlidec.a libzstd.a libidn2.a libpsl.a libssh2.a libiconv.a; do
     if [ ! -f "$P/lib/$f" ]; then
         printf '%-14s FAIL  no %s in %s/lib: the package az first (the port az/az)\n' libs "$f" "$P" >> "$res/summary.txt"
         cat "$res/summary.txt"
@@ -116,7 +116,7 @@ cv="$(sed -n 's/^#define LIBCURL_VERSION "\(.*\)"$/\1/p' "$cs/include/curl/curlv
     # LIBS: libidn2 of the tree uses the libiconv of the tree
     (cd "$ob" && LIBS="-liconv" LDFLAGS="-L$P/lib -pie -Wl,-z,relro,-z,now" "$cs/configure" \
         --prefix=/usr/local --disable-shared --enable-static --with-pic --disable-dependency-tracking \
-        --with-openssl="$P" --enable-openssl-auto-load-config --with-ca-path=/etc/ssl/certs --without-ca-bundle \
+        --with-openssl=/usr --enable-openssl-auto-load-config --with-ca-path=/etc/ssl/certs --without-ca-bundle \
         --enable-threaded-resolver --disable-ares \
         --with-nghttp2="$P" --with-brotli="$P" --with-zstd="$P" --with-libidn2="$P" --with-libpsl="$P" \
         --with-libssh2="$P" \

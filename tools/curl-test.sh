@@ -38,7 +38,7 @@ finish() {
 first="$(head -n 1 "$T/version.txt")"
 feats=" $(sed -n 's/^Features: //p' "$T/version.txt") "
 protos=" $(sed -n 's/^Protocols: //p' "$T/version.txt") "
-case "$first" in *"OpenSSL/3."*) pass "TLS: $(echo "$first" | grep -o 'OpenSSL/[^ ]*')" ;; *) fail "not the OpenSSL 3 of the tree: $first" ;; esac
+case "$first" in *"OpenSSL/3."*) pass "TLS: $(echo "$first" | grep -o 'OpenSSL/[^ ]*')" ;; *) fail "not OpenSSL 3 (that of the base system): $first" ;; esac
 # the threaded resolver of the port (AsynchDNS among the features), not c-ares (the curl of PHP)
 case "$first" in *"c-ares/"*) fail "c-ares: the package curl has the threaded resolver of the port: $first" ;; *) pass "resolver: threaded" ;; esac
 miss=""
