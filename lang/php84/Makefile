@@ -128,9 +128,10 @@ LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
 # pkg-config of the core is that of az): pcre2.h and libpcre2-8.so alone in a
 # directory of the work (links to those of /usr/local: no other header or library
 # of /usr/local is seen; pre-configure), -lpcre2-8 by its -L after that of az; no
-# run path, libpcre2-8.so.0 is in /usr/local/lib, one of ldconfig. The modules find pcre2.h next to
-# php_pcre.h, which includes it ("pcre2.h"): the link ext/pcre/pcre2.h of the
-# headers (post-install)
+# run path, libpcre2-8.so.0 is in /usr/local/lib, one of ldconfig. The modules
+# find pcre2.h, which php_pcre.h of 8.4 includes as <pcre2.h> (7.4 to 8.3: "pcre2.h",
+# next to it), in the first include directory of php-config --includes: the link
+# include/php84/php/pcre2.h (post-install; php84-swoole, build.yml 42905358029)
 LIB_DEPENDS=	libpcre2-8.so:devel/pcre2
 CONFIGURE_ARGS+=	--with-external-pcre
 CONFIGURE_ENV+=	PCRE2_CFLAGS="-I${WRKDIR}/pcre2" \
@@ -298,7 +299,7 @@ post-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/etc/php${PHP_VER}/conf.d \
 		${STAGEDIR}${PREFIX}/lib/php/${PHP_EXT_DIR}
 	${LN} -sf ${LOCALBASE}/include/pcre2.h \
-		${STAGEDIR}${PREFIX}/include/php${PHP_VER}/php/ext/pcre/pcre2.h
+		${STAGEDIR}${PREFIX}/include/php${PHP_VER}/php/pcre2.h
 	${CAT} ${WRKSRC}/php.ini-production ${WRKDIR}/php.ini-az-${PHP_VER} \
 		> ${WRKDIR}/php.ini.sample
 	${INSTALL_DATA} ${WRKSRC}/php.ini-development ${WRKSRC}/php.ini-production \

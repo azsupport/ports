@@ -96,6 +96,23 @@ say "pkg install pkgconf (pkg-config of the link tests of az-test.sh)"
 pkg install -y pkgconf >> "$log" 2>&1 || say "pkg install pkgconf failed (test-programs.log)"
 
 # 2. ours from the repository
+# inst <package>: installed from the repository: the annotation repository of the
+# installed package (pkg query %R of pkg 2 says nothing for installed packages)
+inst() { [ "$(pkg query '%At %Av' "$1" 2>/dev/null | awk '$1 == "repository" { print $2; exit }')" = azbuild ]; }
+# again <log> <package>...: those pkg left from another repository, installed there
+# already (the official rsync of the VM: pkg install -f reinstalled it from
+# FreeBSD-ports, build.yml 42905358029), once more with -r azbuild: their
+# dependencies are installed by then
+again() {
+    _l="$1"; shift
+    _a=""
+    for _p in "$@"; do inst "$_p" || _a="$_a $_p"; done
+    [ -n "$_a" ] || return 0
+    say "pkg install -f -r azbuild$_a: pkg left them from another repository"
+    # shellcheck disable=SC2086
+    CONSERVATIVE_UPGRADE=no pkg install -y -f -r azbuild $_a >> "$_l" 2>&1 ||
+        say "pkg install -f -r azbuild$_a says it failed (${_l##*/})"
+}
 want=""
 for p in az curl ffmpeg ImageMagick6 ImageMagick7 GraphicsMagick mc; do
     if in_repo "$p"; then want="$want $p"; else say "$p: not in the repository, its tests are skipped"; fi
@@ -131,6 +148,8 @@ if [ -n "$u_" ]; then
     say "pkg install -f$u_"
     # shellcheck disable=SC2086
     CONSERVATIVE_UPGRADE=no pkg install -y -f $u_ > "$res/test-programs-install-utils.log" 2>&1 || say "pkg install of the utilities says it failed (test-programs-install-utils.log)"
+    # shellcheck disable=SC2086
+    again "$res/test-programs-install-utils.log" $u_
     cat "$res/test-programs-install-utils.log" >> "$res/test-programs-install.log"
     cat "$res/test-programs-install-utils.log" >> "$log"
     want="$want$u_"
@@ -144,13 +163,12 @@ if [ -n "$s_" ]; then
     say "pkg install -f$s_"
     # shellcheck disable=SC2086
     CONSERVATIVE_UPGRADE=no pkg install -y -f $s_ > "$res/test-programs-install-servers.log" 2>&1 || say "pkg install of the server packages says it failed (test-programs-install-servers.log)"
+    # shellcheck disable=SC2086
+    again "$res/test-programs-install-servers.log" $s_
     cat "$res/test-programs-install-servers.log" >> "$res/test-programs-install.log"
     cat "$res/test-programs-install-servers.log" >> "$log"
     want="$want$s_"
 fi
-# from the repository: the annotation repository of the installed package (pkg query
-# %R of pkg 2 says nothing for installed packages)
-inst() { [ "$(pkg query '%At %Av' "$1" 2>/dev/null | awk '$1 == "repository" { print $2; exit }')" = azbuild ]; }
 for p in $want; do
     inst "$p" && continue
     say "$p did not install from the repository; what pkg said:"

@@ -289,7 +289,8 @@ pre-configure:
 	@${MKDIR} ${WRKDIR}/az/include ${WRKDIR}/az/lib ${WRKDIR}/az/pkgconfig
 	@${LN} -sf ${AZ_PREFIX}/include/fmt ${AZ_PREFIX}/include/lz4.h \
 		${AZ_PREFIX}/include/zstd.h ${AZ_PREFIX}/include/zstd_errors.h \
-		${LOCALBASE}/include/pcre2.h ${WRKDIR}/az/include/
+		${LOCALBASE}/include/pcre2.h ${LOCALBASE}/include/pcre2posix.h \
+		${WRKDIR}/az/include/
 	@${LN} -sf ${LOCALBASE}/lib/libpcre2-8.so ${LOCALBASE}/lib/libpcre2-posix.so \
 		${WRKDIR}/az/lib/
 	@${PRINTF} '%s\n' 'prefix=${WRKDIR}/az' 'Name: libpcre2-8' \

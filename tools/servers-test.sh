@@ -205,7 +205,10 @@ else skip "mariadb1011-server or mariadb1011-client"; fi
 
 # vsftpd-ext
 if have vsftpd-ext; then
-    ver vsftpd-ext "version 3" "$P/libexec/vsftpd" -v
+    # -v writes to the descriptor 0 (that of the control connection under inetd)
+    r="$("$P/libexec/vsftpd" -v 0>&1 2>&1)"
+    case "$r" in *"version 3"*) pass "vsftpd-ext: $r" ;;
+        *) fail "vsftpd-ext: no \"version 3\" in what vsftpd -v 0>&1 says: $r" ;; esac
     chk vsftpd "$P/libexec/vsftpd"
 else skip vsftpd-ext; fi
 

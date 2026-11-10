@@ -154,9 +154,12 @@ fix_guess() {
 # is seen; the link takes the SONAME of the library (libpcre2-8.so.0 of
 # /usr/local/lib, one of ldconfig), no run path
 pcre2_dir() {
-    v="$(pkgconf --variable=version /usr/local/libdata/pkgconfig/libpcre2-8.pc 2>/dev/null)"
-    [ -n "$v" ] && [ -f /usr/local/include/pcre2.h ] && [ -e /usr/local/lib/libpcre2-8.so ] ||
-        { echo "mc-build: no PCRE2 of devel/pcre2 in /usr/local (the package pcre2)" >&2; return 1; }
+    # the Version of the .pc (--modversion; it has no variable version)
+    v="$(pkgconf --modversion /usr/local/libdata/pkgconfig/libpcre2-8.pc 2>/dev/null)"
+    for _f in /usr/local/include/pcre2.h /usr/local/lib/libpcre2-8.so; do
+        [ -e "$_f" ] || { echo "mc-build: no $_f (the package pcre2 of devel/pcre2)" >&2; return 1; }
+    done
+    [ -n "$v" ] || { echo "mc-build: no version of PCRE2 in /usr/local/libdata/pkgconfig/libpcre2-8.pc (pkgconf --modversion)" >&2; return 1; }
     mkdir -p "$W/pcre2/include" "$W/pcre2/lib" "$W/lib/pkgconfig" &&
         ln -sf /usr/local/include/pcre2.h "$W/pcre2/include/pcre2.h" &&
         ln -sf /usr/local/lib/libpcre2-8.so "$W/pcre2/lib/libpcre2-8.so" &&
@@ -272,7 +275,7 @@ manifest() {
         echo "freebsd-ports $ports_commit; CFLAGS: $cflags"
         echo "GLib and libffi: static, built here; libssh2, libintl and libiconv: the shared libraries"
         echo "of $A/lib (the package az, with that run path); PCRE2: libpcre2-8.so of devel/pcre2"
-        echo "($(pkgconf --variable=version /usr/local/libdata/pkgconfig/libpcre2-8.pc 2>/dev/null)); OpenSSL: that of the base system:"
+        echo "($(pkgconf --modversion /usr/local/libdata/pkgconfig/libpcre2-8.pc 2>/dev/null)); OpenSSL: that of the base system:"
         awk '$1 == "libssh2" || $1 == "gettext" || $1 == "libiconv" { print "    " $0 }' \
             "$A/share/doc/az/VERSIONS" 2>/dev/null
         echo
@@ -404,7 +407,7 @@ if [ -n "${AZ_MC_VERSION:-}" ]; then
     fi
 fi
 rm -rf "$W"
-pcre2_dir || { echo "pcre2    FAIL  no PCRE2 of devel/pcre2 in /usr/local: install the package pcre2 first" >> "$res/summary.txt"; report; exit 1; }
+pcre2_dir 2> "$res/pcre2.err" || { echo "pcre2    FAIL  $(cat "$res/pcre2.err")" >> "$res/summary.txt"; cat "$res/pcre2.err" >&2; report; exit 1; }
 rc=0
 for n in $progs; do
     say "$n ($(port_of "$n"))"
