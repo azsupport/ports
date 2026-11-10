@@ -17,8 +17,9 @@
 
 - **Оверлей**: только наши порты, поверх официального дерева
   [freebsd-ports](https://github.com/freebsd/freebsd-ports) на закреплённом коммите
-  [`f16b6dd0f7c1`](https://github.com/freebsd/freebsd-ports/tree/f16b6dd0f7c1c3a2e0447e192e39e72f21d85eb0)
-  (main от 04.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh)). Фреймворк
+  [`6e4a386577aa`](https://github.com/freebsd/freebsd-ports/tree/6e4a386577aaa191a68b11865fcb18e02f98e525)
+  (main от 10.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh), перед сборкой
+  переводится на последний main: последние версии портов, aZ). Фреймворк
   портов берёт его как `OVERLAYS`: `bsd.port.mk` включает
   [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk), берёт `Mk/Uses/<имя>.mk` оверлея раньше
   официального, а порт оверлея встаёт на место официального порта с тем же origin.
@@ -67,14 +68,23 @@
 
 | Пакет | Origin | Что |
 |---|---|---|
-| `az` | `az/az` | библиотеки сборок в `/usr/local/az`: `lib` (разделяемые, с run path `/usr/local/az/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`); статические — в `/usr/local/az/static`, для программ и особых сборок `az-menu.sh`. OpenSSL, zlib и bzip2 — из базовой системы |
-| `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта, с SCP и SFTP (libssh2) |
+| `az` | `az/az` | библиотеки сборок в `/usr/local/az`: `lib` (разделяемые, с run path `/usr/local/az/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`), с ними линкуется каждый пакет; статические — в `/usr/local/az/static`, только для особых сборок `az-menu.sh`. OpenSSL, zlib и bzip2 — из базовой системы |
+| `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта, с SCP и SFTP (libssh2); его `libcurl.so.4` — libcurl всех пакетов (модуль curl PHP, git) |
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` и `ffprobe` только с теми форматами, что нужны видеосайтам |
-| `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, программы с 6 на конце (`convert6`, `identify6`, ...) |
-| `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickWand-7.so` в `/usr/local/az/lib` для модуля imagick |
-| `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib и libssh2 внутри, zip, 7z, rar и образы ISO — через `tar` базовой системы: других пакетов не нужно |
+| `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, программы с 6 на конце (`convert6`, `identify6`, ...); его библиотеки — в `/usr/local/az/lib` |
+| `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickCore-7.so` и `libMagickWand-7.so` в `/usr/local/az/lib`, с ними линкуются `magick` и модуль imagick |
+| `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) с форматами нашего ImageMagick; его библиотеки в `/usr/local/az/lib`, с ними линкуются `gm` и модуль gmagick |
+| `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib внутри, libssh2 из az, PCRE2 из `pcre2`; zip, 7z, rar и образы ISO — через `tar` базовой системы |
+| `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 и PCRE 8.45, официальные порты: PCRE всех пакетов (PHP, Apache, git, wget, mc, MariaDB; потом nginx) |
+| `git` | `devel/git` | git без Perl, Python, Tcl/Tk, gettext, man-страниц и git daemon; HTTPS через наш `curl`, `git grep -P` с `pcre2` |
+| `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 только с prefork и модулями серверов (и cgi, env), без SSL; APR и libmaxminddb из az |
+| `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached без TLS, SASL и DTrace, libevent из az; вариант с TLS; ставится один из двух |
+| `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11: из движков опций только InnoDB, без GSSAPI; сокет `/tmp/mysql.sock` вкомпилирован и прописан в `my.cnf` |
+| `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext со своим скриптом rc.d; вариант с SSL; ставится один из двух |
+| `bind-tools` | `dns/bind-tools` | dig, host, nslookup, delv, nsupdate и утилиты DNSSEC из BIND 9.20, с IDN |
+| `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (атом moov в начало MP4), возвращён для совместимости: официальный порт удалён 30.06.2022 |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp релиза новее официального порта, с нашим `ffmpeg` |
-| `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows; `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR; `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS; `bash` без NLS; `portmaster` только с дополнением для bash), `wget` и `rsync` наши, со статикой az (`wget`: IDN, PSL, PCRE2; `rsync`: lz4, zstd, xxhash, без ICONV) и OpenSSL базы: библиотек вне базовой системы нет |
+| `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows; `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR; `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS; `bash` без NLS; `portmaster` только с дополнением для bash), `wget` и `rsync` наши, с разделяемыми библиотеками az (`wget`: IDN, PSL; `rsync`: lz4, zstd, xxhash, без ICONV), PCRE2 из `pcre2` (`wget`) и OpenSSL базы |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
 | `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). 65 на версию, у 7.4 — 67, у 5.6 — 64 (с вариантами с OpenSSL, ниже); список одной версии: `pkg search -r az '^php84-'` |
@@ -105,40 +115,46 @@
 
 - **`az/az`**: пакет `az`, библиотеки `/usr/local/az`, собранные из примерно 40
   официальных портов закреплённого коммита скриптом [`tools/az-build.sh`](tools/az-build.sh)
-  ([`az/az/files/deps.conf`](az/az/files/deps.conf)). Два дерева:
-  `/usr/local/az/static` (статические, position independent; для программ ниже и
-  статических сборок PHP из `az-menu.sh`) и `/usr/local/az` (разделяемые, SONAME и run
-  path `/usr/local/az/lib`, без ldconfig; для модулей PHP), у каждого свой
+  ([`az/az/files/deps.conf`](az/az/files/deps.conf)). Два дерева: `/usr/local/az`
+  (разделяемые, SONAME и run path `/usr/local/az/lib`, без ldconfig), с ними линкуется
+  каждый пакет: наши порты линкуются с разделяемыми библиотеками друг друга, без
+  статических и встроенных копий того, что есть в другом нашем порту (aZ, 10.11.2026);
+  и `/usr/local/az/static` (статические, position independent), только для статических
+  сборок PHP из `az-menu.sh`; у каждого свой
   `bin/pkg-config`, `VERSIONS` в `share/doc/az`, лицензии в `LICENSES/`. Собирается
   прямо в `/usr/local/az` сборочной машины (от root, `NEED_ROOT`) и пакует это дерево.
   Зависимостей нет.
-- **`ftp/curl`**: пакет `curl` вместо официального: `bin/curl` (статический) и
-  `lib/libcurl.so.4` со своими библиотеками внутри (наружу только `curl_*`), опции
-  официального порта, против статического дерева az
-  ([`tools/curl-build.sh`](tools/curl-build.sh)).
+- **`ftp/curl`**: пакет `curl` вместо официального: `bin/curl` и `lib/libcurl.so.4`
+  (наружу только `curl_*`) — libcurl всех пакетов (модуль curl PHP, git: libcurl одна,
+  aZ 10.11.2026), опции официального порта, против разделяемых библиотек az
+  ([`tools/curl-build.sh`](tools/curl-build.sh)). Сборка и работа: az.
 - **`multimedia/ffmpeg`**: пакет `ffmpeg` вместо официального: `bin/ffmpeg` и
-  `bin/ffprobe`, статические, только с тем, что нужно видеосайтам
+  `bin/ffprobe` (библиотеки FFmpeg внутри них), только с тем, что нужно видеосайтам
   ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
-  против x264, dav1d и libwebp статического дерева az.
+  линкуются с x264, dav1d и libwebp из az. Сборка и работа: az.
 - **`graphics/ImageMagick6`**: `bin/convert6`, `identify6`, `mogrify6`, `composite6` и
-  остальные, статические, рядом с ImageMagick 7: только JPEG, PNG, WebP, GIF, HEIC и
-  AVIF, с нашей policy.
+  остальные, рядом с ImageMagick 7, линкуются со своими библиотеками в
+  `/usr/local/az/lib`: только JPEG, PNG, WebP, GIF, HEIC и AVIF, с нашей policy. Сборка и
+  работа: az.
 - **`graphics/ImageMagick7`**: пакет `ImageMagick7` вместо официального: `bin/magick` и
-  его имена, статические, те же форматы и policy; его статические библиотеки и
-  `MagickWand-config` в `/usr/local/az/static`, разделяемая `libMagickWand-7.so` в
-  `/usr/local/az/lib` для imagick из PHP. Сборка и работа: az.
+  его имена, те же форматы и policy, линкуются с его разделяемыми `libMagickCore-7.so` и
+  `libMagickWand-7.so` в `/usr/local/az/lib`, с ними же линкуется imagick из PHP
+  (`MagickWand-config` там же); его статические библиотеки и `MagickWand-config` — в
+  `/usr/local/az/static`, для статического imagick из `az-menu.sh`. Сборка и работа: az.
 - **`graphics/GraphicsMagick`**: пакет `GraphicsMagick` вместо официального: `bin/gm`,
-  статический, собран как наш ImageMagick, только JPEG, PNG, WebP, GIF, BMP, HEIC и AVIF;
-  файла политики у него нет — её заменяют зарегистрированные кодеки и пустой
-  `delegates.mgk` (`files/graphicsmagick.conf`). Статические библиотеки — в
-  `/usr/local/az/static`, общие `libGraphicsMagick` и `libGraphicsMagickWand` (префикс
-  символов `Gm`) и `GraphicsMagick-config` — в `/usr/local/az`, для gmagick в PHP
-  (`--with-gmagick=/usr/local/az`). Сборка и работа: az.
+  собран как наш ImageMagick, только JPEG, PNG, WebP, GIF, BMP, HEIC и AVIF; файла
+  политики у него нет — её заменяют зарегистрированные кодеки и пустой `delegates.mgk`
+  (`files/graphicsmagick.conf`). `gm` линкуется с его разделяемыми `libGraphicsMagick` и
+  `libGraphicsMagickWand` (префикс символов `Gm`) в `/usr/local/az`, с
+  `GraphicsMagick-config`, с ними же линкуется gmagick в PHP
+  (`--with-gmagick=/usr/local/az`); статические библиотеки — в `/usr/local/az/static`,
+  для статического gmagick из `az-menu.sh`. Сборка и работа: az.
 - **`misc/mc`**: пакет `mc` вместо официального: Midnight Commander с редактором,
   subshell, кодировками и SFTP, без X11, переводов и Aspell
   ([`misc/mc/files/mc.conf`](misc/mc/files/mc.conf): что и почему), GLib собирает
-  статически [`tools/mc-build.sh`](tools/mc-build.sh), libssh2 — из статического дерева
-  az: во время работы пакетов не нужно. zip, jar, 7z, rar и образы ISO открываются как
+  статически [`tools/mc-build.sh`](tools/mc-build.sh) (с GLib линкуется только mc),
+  libssh2, libintl и libiconv — разделяемые из az, PCRE2 — из `pcre2`. zip, jar, 7z, rar
+  и образы ISO открываются как
   каталог через [`files/ubsdtar`](misc/mc/files/ubsdtar) на `tar` базовой системы
   (libarchive), без Perl, 7-Zip и unrar; Perl, zip и GNU diff, если поставлены, дают своё
   (запись в zip, хелперы deb и rpm, `mcdiff`).
@@ -147,10 +163,41 @@
   установки: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
   [`az-test.sh`](tools/az-test.sh), [`mc-test.sh`](tools/mc-test.sh).
+- **`devel/pcre2`** и **`devel/pcre`**: официальные порты как есть
+  ([`Mk/az-official.mk`](Mk/az-official.mk)), PCRE2 10.49 и PCRE 8.45 (его последний
+  релиз): PCRE для PHP (7.4–8.4 `--with-external-pcre`, 5.6 `--with-pcre-regex`), Apache,
+  git, wget, mc (GLib) и MariaDB, потом и nginx (aZ, 10.11.2026).
+- **`devel/git`**: git без Perl (send-email, svn, скрипты cvs), Python, Tcl/Tk, gettext,
+  expat (`git http-push`), man-страниц, пользователя и скрипта rc.d git daemon; HTTPS через
+  наш `curl`, PCRE2 (`git grep -P`) из `pcre2`, iconv из libc.
+- **`www/apache24`** и **`www/mod_maxminddb`**: Apache 2.4.70 только с prefork (модулем)
+  и модулями серверов (и cgi, env; всё остальное выключено), без SSL, APR и APR-util из az
+  (разделяемые: те же, что у mod_php), PCRE2 из `pcre2`; mod_maxminddb с libmaxminddb из az.
+- **`databases/memcached`** и **`databases/memcached-openssl`**: memcached без TLS, SASL,
+  DTrace и документации, libevent из az; вариант с TLS на OpenSSL базы; ставится один из
+  двух.
+- **`databases/mariadb1011-server`** и **`databases/mariadb1011-client`**: MariaDB 10.11 с
+  опциями aZ (из движков опций только InnoDB; без GSSAPI, wsrep, RocksDB, Spider,
+  Mroonga, S3, CONNECT с ODBC и XML, HashiCorp Vault, AWS key management), сокет
+  `/tmp/mysql.sock` вкомпилирован в сервер и клиентскую библиотеку и прописан в
+  `my.cnf.sample` (`/tmp` на серверах — диск в памяти, tmpmfs), PID-файл — в
+  `/var/run/mysql`; PCRE2 из `pcre2`, lz4, zstd и fmt из az, zlib (не своя копия
+  MariaDB), OpenSSL и libedit базы.
+- **`ftp/vsftpd-ext`** и **`ftp/vsftpd-ext-openssl`**: vsftpd-ext со своим скриптом rc.d
+  (RC_SCRIPT); вариант с SSL (VSFTPD_SSL, OpenSSL базы); ставится один из двух.
+- **`dns/bind-tools`**: утилиты BIND 9.20 (dig, host, nslookup, delv, nsupdate, утилиты
+  DNSSEC) с IDN, без DNSTAP, FIXED_RRSET, LARGE_FILE, GSSAPI и man-страниц; libuv, liburcu,
+  nghttp2 (DNS over HTTPS) и libidn2 из az, OpenSSL и libedit базы.
+- **`multimedia/qt-faststart`**: `bin/qt-faststart` из `tools/qt-faststart.c` FFmpeg 9.0.2
+  (public domain): официальный порт удалён 30.06.2022 (то же делает ffmpeg `-movflags
+  +faststart`); оставлен для совместимости, пока нужен (aZ, 10.11.2026).
+- У этих: тесты после установки — [`tools/servers-test.sh`](tools/servers-test.sh) (git
+  grep -P, Apache с модулями серверов на своём порту, memcached, MariaDB на сокете по
+  умолчанию `/tmp/mysql.sock`, библиотеки каждого).
 - **`lang/phpXY`** и **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): ядро `phpXY` и
   модуль Apache `libphpXY.so`, каждый — из официального порта коммита своей версии
-  (таблица выше); PCRE2 10.49 — встроенная в исходники форка (порт `devel/pcre2` — позже,
-  aZ 08.11.2026).
+  (таблица выше); PCRE2 — из `devel/pcre2` (у 5.6 PCRE из `devel/pcre`), а не встроенная
+  в исходники форка (aZ, 10.11.2026).
 - **Порты модулей** `phpXY-<модуль>` (59 на версию, у 7.4 — 61): имена без «pecl», origin как у официальных
   портов или наши (`graphics/php74-gd`, `databases/php74-redis`), ini
   `ext-NN-<модуль>.ini`, у openswoole и gmagick выключен.

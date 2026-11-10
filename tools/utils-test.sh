@@ -1,9 +1,10 @@
 #!/bin/sh
 # utils-test.sh - test the utilities of the repository az, installed from it: the
 # official ports built with the options of aZ (Mk/az-official.mk) and wget and
-# rsync with the static libraries of az: each runs (its version) and has its
-# libraries (none missing; those of the base system, but its own of bsddialog and
-# sudo); zip makes an archive unzip reads.
+# rsync with the shared libraries of az (and wget with PCRE2 of devel/pcre2): each
+# runs (its version) and has its libraries (none missing; those of the base system,
+# but its own of bsddialog and sudo, and those of az and pcre2 of wget and rsync);
+# zip makes an archive unzip reads.
 #
 # Usage (FreeBSD, the packages installed): sh tools/utils-test.sh
 # Results: utils-results/tests.txt (one line per check, the summary at the end);
@@ -20,6 +21,27 @@ out="$res/tests.txt"
 ok=0; bad=0
 pass() { echo "ok    $*" >> "$out"; ok=$((ok + 1)); }
 fail() { echo "FAIL  $*" >> "$out"; bad=$((bad + 1)); }
+# libs_of <file> [<library of /usr/local/lib>...]: what it loads (ldd) when every
+# library is found and is of the base system, of az (/usr/local/az/lib: our ports
+# link each other's shared libraries, aZ 10.11.2026) or one of those named (of our
+# other ports, in /usr/local/lib); else nothing, and why in libs_bad
+libs_of() {
+    _f="$1"; shift
+    libs_bad=""
+    _l="$(ldd "$_f" 2>&1)" || { libs_bad="ldd failed: $(printf '%s\n' "$_l" | tail -n 1)"; return 1; }
+    case "$_l" in *"not found"*) libs_bad="$(printf '%s\n' "$_l" | grep 'not found' | head -n 2 | tr '\n' ' ')"; return 1 ;; esac
+    _all=""
+    for _x in $(printf '%s\n' "$_l" | awk 'NF > 2 && $2 == "=>" { print $3 }'); do
+        _all="$_all $_x"
+        case "$_x" in
+            /lib/* | /usr/lib/* | /usr/local/az/lib/*) continue ;;
+            /usr/local/lib/*) for _a in "$@"; do case "${_x##*/}" in "$_a"*) continue 2 ;; esac; done ;;
+        esac
+        libs_bad="$libs_bad $_x"
+    done
+    [ -z "$libs_bad" ] || { libs_bad="not of the base system, az or our ports:$libs_bad"; return 1; }
+    echo "${_all# }"
+}
 export LANG=C.UTF-8
 
 # ver <name> <text of its version> <command>...: the first line with the text
@@ -54,7 +76,8 @@ ver sudo "Sudo version 1.9" "$P/bin/sudo" -V
 ver bash "GNU bash, version 5" "$P/bin/bash" --version
 ver bsddialog "1\.1" "$P/bin/bsddialog" --version
 ver portmaster "3\.35" "$P/sbin/portmaster" --version
-for b in zip unzip wget screen bash yamdi 3proxy; do libs "$P/bin/$b"; done
+for b in zip unzip screen bash yamdi 3proxy; do libs "$P/bin/$b"; done
+if l="$(libs_of "$P/bin/wget" libpcre2-8)"; then pass "wget: $l"; else fail "wget: $libs_bad"; fi
 feat=" $("$P/bin/wget" --version 2>&1 | sed -n '/^[+-]/p' | tr '\n' ' ') "
 miss=""
 for f in +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm; do
@@ -65,7 +88,7 @@ rv="$("$P/bin/rsync" --version 2>&1)"
 miss=""
 for f in xxh128 zstd lz4 file-flags; do printf '%s\n' "$rv" | grep -q -- "$f" || miss="$miss $f"; done
 if [ -z "$miss" ]; then pass "rsync: xxh128, zstd, lz4, file-flags"; else fail "rsync --version lacks$miss"; fi
-libs "$P/bin/rsync"
+if l="$(libs_of "$P/bin/rsync")"; then pass "rsync: $l"; else fail "rsync: $libs_bad"; fi
 libs "$P/bin/sudo" libsudo_util
 libs "$P/bin/bsddialog" libbsddialog
 libs "$P/lib/snmp_ucd.so"

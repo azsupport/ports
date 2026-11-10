@@ -4,7 +4,9 @@
 # ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc and yt-dlp, by
 # tools/az-test.sh, curl-test.sh, ffmpeg-test.sh, imagemagick-test.sh,
 # graphicsmagick-test.sh, mc-test.sh and ytdlp-test.sh (yt-dlp with our ffmpeg),
-# and the utilities of the official ports (Mk/az-official.mk) by utils-test.sh.
+# the utilities of the official ports (Mk/az-official.mk) by utils-test.sh, and the
+# server packages (git, Apache, memcached, MariaDB, vsftpd-ext, the BIND tools,
+# qt-faststart) by servers-test.sh.
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -133,6 +135,19 @@ if [ -n "$u_" ]; then
     cat "$res/test-programs-install-utils.log" >> "$log"
     want="$want$u_"
 fi
+# the server packages (aZ, 10.11.2026) as the utilities: git, Apache with
+# mod_maxminddb, memcached, MariaDB, vsftpd-ext, the BIND tools, qt-faststart
+servers="apache24 ap24-mod_maxminddb bind-tools git mariadb1011-client mariadb1011-server memcached qt-faststart vsftpd-ext"
+s_=""
+for p in $servers; do in_repo "$p" && s_="$s_ $p"; done
+if [ -n "$s_" ]; then
+    say "pkg install -f$s_"
+    # shellcheck disable=SC2086
+    CONSERVATIVE_UPGRADE=no pkg install -y -f $s_ > "$res/test-programs-install-servers.log" 2>&1 || say "pkg install of the server packages says it failed (test-programs-install-servers.log)"
+    cat "$res/test-programs-install-servers.log" >> "$res/test-programs-install.log"
+    cat "$res/test-programs-install-servers.log" >> "$log"
+    want="$want$s_"
+fi
 # from the repository: the annotation repository of the installed package (pkg query
 # %R of pkg 2 says nothing for installed packages)
 inst() { [ "$(pkg query '%At %Av' "$1" 2>/dev/null | awk '$1 == "repository" { print $2; exit }')" = azbuild ]; }
@@ -145,7 +160,7 @@ done
 
 # 3. the tests: name, the packages it needs
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
-        "graphicsmagick GraphicsMagick" "mc mc" "ytdlp yt-dlp ffmpeg" "utils $utils"; do
+        "graphicsmagick GraphicsMagick" "mc mc" "ytdlp yt-dlp ffmpeg" "utils $utils" ${s_:+"servers$s_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift

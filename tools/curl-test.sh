@@ -2,13 +2,14 @@
 # curl-test.sh - test the package curl of the port ftp/curl (tools/curl-build.sh),
 # installed in the place of that of the official port: its version and features,
 # those of the official port ftp/curl
-# (the OpenSSL of /usr/local/az/static, the threaded resolver, HTTP/2, brotli, zstd, IDN,
+# (the OpenSSL of the base system, the threaded resolver, HTTP/2, brotli, zstd, IDN,
 # the Public Suffix List, NTLM; the protocols of the port: DICT, FTP, gopher, HTTP,
 # IMAP, IPFS, MQTT, POP3, RTSP, SMTP, telnet, TFTP, WebSocket, and SCP and SFTP with
 # libssh2; no LDAP), an SFTP handshake with the sshd of this machine (the login
 # refused), a file:// read, an https:// request to
 # github.com (HTTP/2, the CA store of the base system), and libcurl.so: with the
-# libraries of the base system only, and taken by git (git ls-remote over https).
+# libraries of the base system and the shared ones of az only (nghttp2, brotli,
+# zstd, libidn2, libpsl, libssh2), and taken by git (git ls-remote over https).
 #
 # Usage (FreeBSD, the package curl installed): sh tools/curl-test.sh
 # Results: curl-results/tests.txt (one line per check, the summary at the end);
@@ -26,6 +27,27 @@ out="$res/tests.txt"
 ok=0; bad=0
 pass() { echo "ok    $*" >> "$out"; ok=$((ok + 1)); }
 fail() { echo "FAIL  $*" >> "$out"; bad=$((bad + 1)); }
+# libs_of <file> [<library of /usr/local/lib>...]: what it loads (ldd) when every
+# library is found and is of the base system, of az (/usr/local/az/lib: our ports
+# link each other's shared libraries, aZ 10.11.2026) or one of those named (of our
+# other ports, in /usr/local/lib); else nothing, and why in libs_bad
+libs_of() {
+    _f="$1"; shift
+    libs_bad=""
+    _l="$(ldd "$_f" 2>&1)" || { libs_bad="ldd failed: $(printf '%s\n' "$_l" | tail -n 1)"; return 1; }
+    case "$_l" in *"not found"*) libs_bad="$(printf '%s\n' "$_l" | grep 'not found' | head -n 2 | tr '\n' ' ')"; return 1 ;; esac
+    _all=""
+    for _x in $(printf '%s\n' "$_l" | awk 'NF > 2 && $2 == "=>" { print $3 }'); do
+        _all="$_all $_x"
+        case "$_x" in
+            /lib/* | /usr/lib/* | /usr/local/az/lib/*) continue ;;
+            /usr/local/lib/*) for _a in "$@"; do case "${_x##*/}" in "$_a"*) continue 2 ;; esac; done ;;
+        esac
+        libs_bad="$libs_bad $_x"
+    done
+    [ -z "$libs_bad" ] || { libs_bad="not of the base system, az or our ports:$libs_bad"; return 1; }
+    echo "${_all# }"
+}
 finish() {
     echo "tests: $ok ok, $bad failed" >> "$out"
     cat "$out"
@@ -55,8 +77,8 @@ for p in dict file ftp ftps gopher gophers http https imap imaps ipfs ipns mqtt 
     case "$protos" in *" $p "*) ;; *) miss="$miss $p" ;; esac
 done
 if [ -z "$miss$extra" ]; then pass "protocols:$protos"; else fail "protocols:$protos (missing:${miss:- -}; not wanted:${extra:- -})"; fi
-libs="$(ldd "$c" | awk 'NR > 1 { print $3 }' | tr '\n' ' ')"
-case "$libs" in *"/usr/local/"*) fail "links a library of /usr/local: $libs" ;; *) pass "libraries of the base system only: $libs" ;; esac
+if libs="$(libs_of "$c" libcurl)"; then pass "libraries of the base system, az and its libcurl.so.4: $libs"
+else fail "libraries: $libs_bad"; fi
 # SFTP with libssh2: the key exchange with the sshd here (the VM has one), then the
 # login of nobody refused, exit 67 (-k: no known_hosts of root to check the key of
 # this host against)
@@ -77,10 +99,9 @@ case "$r" in
     "200 2 0"|"301 2 0"|"302 2 0") pass "https://github.com/: status, HTTP version, verification: $r" ;;
     *) fail "https://github.com/: $r" ;;
 esac
-# libcurl.so: the libraries of the base system only, the API of curl only
+# libcurl.so: the libraries of the base system and of az only, the API of curl only
 if [ -f "$so" ]; then
-    l="$(ldd "$so" 2>/dev/null | awk 'NF > 2 && $2 == "=>" { print $3 }' | tr '\n' ' ')"
-    case "$l" in *"/usr/local/"*) fail "libcurl.so.4 links a library of /usr/local: $l" ;; *) pass "libcurl.so.4: $l" ;; esac
+    if l="$(libs_of "$so")"; then pass "libcurl.so.4: $l"; else fail "libcurl.so.4: $libs_bad"; fi
     x="$(nm -D --defined-only "$so" | awk 'NF >= 3 && $3 !~ /^(curl_|_init$|_fini$|_edata$|_end$|__bss_start$)/' | head -n 3 | tr '\n' ' ')"
     n="$(nm -D --defined-only "$so" | grep -c ' curl_')"
     miss=""

@@ -10,7 +10,7 @@
 # files/ffmpeg-nonfree.conf of multimedia/ffmpeg: the lines it adds to ffmpeg.conf.
 
 PKGNAMESUFFIX=	-nonfree
-COMMENT=	FFmpeg for the video sites, static, with libfdk_aac (nonfree)
+COMMENT=	FFmpeg for the video sites, with libfdk_aac (nonfree)
 RESTRICTED=	FFmpeg with libfdk_aac and libx264: nonfree and unredistributable
 CONFLICTS_INSTALL=	ffmpeg ffmpeg-nox11
 AZ_FFMPEG_ENV=	AZ_FFMPEG_NONFREE=yes

@@ -6,17 +6,20 @@
 # /usr/local/az/static (lib/, include/, bin/), shared into the shared tree
 # /usr/local/az (lib/*.so with their SONAME and the run path
 # /usr/local/az/lib, include/, lib/pkgconfig/, bin/pkg-config without
-# --static, the *-config scripts; no ldconfig), for the PHP modules of pkg mode.
-# The shared builds take the patched source of
+# --static, the *-config scripts; no ldconfig), for the packages: PHP and its
+# modules, Apache and the modules it loads, and the programs (curl, FFmpeg,
+# ImageMagick, GraphicsMagick, mc, ...), which link it with that run path: one copy
+# of every library for all of them (aZ, 10.11.2026: our ports link each other's
+# shared libraries). The shared builds take the patched source of
 # the static one (a copy of the work directory of the port, or out of the tree of
 # the bundled curl), the same options, the OpenSSL of the base system and the
 # other libraries of the shared tree; nothing of the static tree (its headers of
 # the OpenSSL of the port, its archives, which the linker would take as they are
 # or leave for a .so of the same name) is seen by them. VERSIONS and LICENSES/
-# are one for both, at the root. PHP built against the static tree (php, php-fpm, php-cgi,
-# libphp.so) and the programs built against it (curl, FFmpeg, ImageMagick) need no
+# are one for both, at the root. PHP built against the static tree on a server
+# (tools/az-menu.sh of azsupport/php-src: php, php-fpm, php-cgi, libphp.so) needs no
 # library of /usr/local/lib: a pkg upgrade or packages of another FreeBSD version
-# cannot break them, and in Apache the copies of the libraries in PHP do not mix
+# cannot break it, and in Apache the copies of the libraries in PHP do not mix
 # with those of other modules (their symbols stay hidden). Moved from
 # tools/build-deps.sh of https://github.com/azsupport/php-src (08.11.2026).
 #
@@ -42,9 +45,11 @@
 # ("bundle" in deps.conf) are the ones of --with-curl=bundled instead: the
 # release files of files/curl.conf and files/curl-deps.conf
 # (tools/az-curl-sources.sh), built by files/curl/build-libcurl.sh, with
-# only what PHP needs; the curl program and libcurl.so of the package curl are a
-# build of their own, with the options of the port ftp/curl, against this tree
-# (the port ftp/curl, tools/curl-build.sh). The static libraries: -fPIC, into AZ_PREFIX/static
+# only what PHP needs (curl itself static only: the libcurl.a of PHP built on a
+# server); the curl program and libcurl.so.4 of the package curl, the libcurl of
+# every package (aZ, 10.11.2026), are a build of their own, with the options of the
+# port ftp/curl, against the shared tree (the port ftp/curl, tools/curl-build.sh).
+# The static libraries: -fPIC, into AZ_PREFIX/static
 # (AZ_PREFIX: default /usr/local/az); the shared ones into AZ_PREFIX; in
 # AZ_WORK/deps (default /var/tmp/az-work/deps); the licences go to
 # AZ_PREFIX/LICENSES/. AZ_PREFIX is the place the libraries have on the servers
@@ -154,7 +159,7 @@ path0="$PATH"
 # that tools/lib-bench.sh found at least 2% faster with it, the whole interval of
 # about 95% below zero (aZ, 09.11.2026; lib-bench run 42619158312: expat -12.6%,
 # lcms2 -6.7%, sqlite3 -3.7%; the others the same or slower with GCC, so clang).
-# Their static builds (b_*, for the static programs) stay with clang: not measured.
+# Their static builds (b_*, for PHP built on a server) stay with clang: not measured.
 # GCC as lib-bench measured it and as the PHP ports have it (Mk/Uses/azgcc.mk):
 # -std=gnu17 (the C of clang 19; GCC 15 and later default to C23),
 # -fno-semantic-interposition (with -fPIC GCC would not inline or bind the calls of
@@ -250,12 +255,6 @@ b_lz4() {
     (cd "$1/lib" && gmake -j"$ncpu" liblz4.a liblz4.pc PREFIX="$P" LIBDIR="$P/lib" BUILD_SHARED=no &&
         gmake install PREFIX="$P" LIBDIR="$P/lib" PKGCONFIGDIR="$P/lib/pkgconfig" BUILD_SHARED=no)
 }
-# xxhash: libxxhash.a, its headers and pkg-config file (not xxhsum, not the shared one)
-b_xxhash() {
-    (cd "$1" && gmake -j"$ncpu" libxxhash.a libxxhash.pc PREFIX="$P" LIBDIR="$P/lib" PKGCONFIGDIR="$P/lib/pkgconfig" &&
-        gmake install_libxxhash.a install_libxxhash.includes install_libxxhash.pc PREFIX="$P" LIBDIR="$P/lib" \
-            PKGCONFIGDIR="$P/lib/pkgconfig")
-}
 b_libxml2() { at "$1" --sysconfdir="$P/share" --without-python --with-iconv="$P" --with-zlib --without-icu --without-lzma --without-readline --without-history --with-http; }
 b_icu() { at "$1" --with-data-packaging=static --disable-layoutex --disable-tests --disable-samples --disable-extras; }
 b_oniguruma() { cm "$1" -DBUILD_TEST=OFF -DENABLE_POSIX_API=ON; }
@@ -310,11 +309,6 @@ b_argon2() {
             'Name: libargon2' 'Description: Argon2 password hashing' 'Version: 20190702' \
             'Libs: -L${libdir} -largon2 -lpthread' 'Cflags: -I${includedir}' > "$P/lib/pkgconfig/libargon2.pc")
 }
-b_pcre2() {
-    cm "$1" -DBUILD_STATIC_LIBS=ON -DPCRE2_STATIC_PIC=ON -DPCRE2_SUPPORT_JIT=ON -DPCRE2_BUILD_TESTS=OFF \
-        -DPCRE2_BUILD_PCRE2GREP=OFF -DPCRE2_SUPPORT_LIBREADLINE=OFF -DPCRE2_SUPPORT_LIBEDIT=OFF
-}
-b_pcre() { at "$1" --enable-utf --enable-unicode-properties --enable-jit --disable-cpp --disable-pcregrep-libz --disable-pcregrep-libbz2; }
 b_readline() { at "$1" --with-curses --enable-bracketed-paste-default; }
 b_gettext() {
     # gettext-runtime (WRKSRC of the port); only libintl is wanted (ext/gettext of 5.6)
@@ -340,8 +334,6 @@ b_fontconfig() {
 }
 # lcms2 as the port (fast float and threaded plugins), without its tools
 b_lcms2() { at "$1" --with-fastfloat --with-threaded --without-jpeg --without-tiff; }
-# x264 as the port (options ASM, LTO and OPTIMIZED_CFLAGS on), the library only
-b_x264() { ms "$1" -Dcli=false -Dasm=enabled -Db_lto=true; }
 # dav1d as the port, without its tools, tests and examples
 b_dav1d() { ms "$1" -Denable_tools=false -Denable_tests=false -Denable_examples=false; }
 # the HEVC decoder of libheif (HEIC), no encoder, no tools
@@ -479,23 +471,6 @@ s_libssh2() {
         so_mk libssh2 -j"$ncpu" -C src && so_mk libssh2 -C src install &&
         so_mk libssh2 install-includeHEADERS install-pkgconfigDATA
 }
-s_curl() {
-    # libcurl.so.4 with the features of the static libcurl of PHP (build-libcurl.sh
-    # --features) and its libraries, SCP and SFTP with libssh2 among them; the OpenSSL
-    # of the base system; no curl program
-    feats="$(sh "$files/curl/build-libcurl.sh" --features)" || return 1
-    o="$work/obj-so/curl"
-    rm -rf "$o" && mkdir -p "$o" || return 1
-    # shellcheck disable=SC2086
-    (cd "$o" && LIBS= ac_cv_func_SSLv2_client_method=no "$1/configure" --prefix="$S" --libdir="$S/lib" \
-        --includedir="$S/include" --enable-shared --disable-static --with-pic --disable-dependency-tracking \
-        --with-openssl=/usr --enable-openssl-auto-load-config --with-ca-path=/etc/ssl/certs --without-ca-bundle \
-        --enable-ares="$S" --disable-threaded-resolver \
-        --with-nghttp2="$S" --with-brotli="$S" --with-zstd="$S" --with-libidn2="$S" --with-libpsl="$S" \
-        --with-libssh2="$S" $feats) &&
-        so_mk curl -j"$ncpu" -C lib && so_mk curl -C lib install && so_mk curl -C include install &&
-        so_mk curl install-pkgconfigDATA install-binSCRIPTS
-}
 s_lz4() {
     (cd "$1/lib" && gmake -j"$ncpu" liblz4 liblz4.pc PREFIX="$S" LIBDIR="$S/lib" BUILD_STATIC=no &&
         gmake install PREFIX="$S" LIBDIR="$S/lib" PKGCONFIGDIR="$S/lib/pkgconfig" BUILD_STATIC=no)
@@ -624,9 +599,53 @@ s_libffi() {
     (LDFLAGS="$LDFLAGS -Wl,--undefined-version"; export LDFLAGS
         at_so "$1" --disable-multi-os-directory --disable-docs)
 }
+# libevent: as the static one (b_libevent), with the OpenSSL of the base system
+# (libevent_openssl), for databases/memcached
+s_libevent() { at_so "$1" --enable-openssl --enable-thread-support --disable-samples --disable-libevent-regress; }
+# x264 as the port (options ASM, LTO and OPTIMIZED_CFLAGS on), the library only, for
+# multimedia/ffmpeg
+s_x264() { ms_so "$1" -Dcli=false -Dasm=enabled -Db_lto=true; }
+# xxhash: libxxhash.so, its headers and pkg-config file (not xxhsum), for net/rsync
+s_xxhash() {
+    (cd "$1" && gmake -j"$ncpu" libxxhash libxxhash.pc PREFIX="$S" LIBDIR="$S/lib" PKGCONFIGDIR="$S/lib/pkgconfig" &&
+        gmake install_libxxhash install_libxxhash.includes install_libxxhash.pc PREFIX="$S" LIBDIR="$S/lib" \
+            PKGCONFIGDIR="$S/lib/pkgconfig")
+}
+# libmaxminddb, for www/mod_maxminddb (and nginx later); not its tests
+s_libmaxminddb() { at_so "$1" --disable-tests; }
+# libuv and liburcu (all its flavours), for dns/bind-tools; as their ports
+s_libuv() { at_so "$1" --disable-maintainer-mode; }
+s_liburcu() { at_so "$1"; }
+# fmt, for databases/mariadb1011-server and -client (which take it header-only,
+# FMT_HEADER_ONLY): its headers and libfmt.so, as the port (FMT_OS, no tests, docs
+# or module; FULL_CACHE_DRAGONBOX, its default option)
+s_fmt() {
+    (CXXFLAGS="$CXXFLAGS -DFMT_USE_FULL_CACHE_DRAGONBOX=1" && cm_so "$1" -DFMT_OS=ON -DFMT_DOC=OFF -DFMT_TEST=OFF \
+        -DFMT_FUZZ=OFF -DFMT_MODULE=OFF -DFMT_PEDANTIC=OFF -DFMT_SYSTEM_HEADERS=OFF -DFMT_WERROR=OFF -DFMT_CUDA_TEST=OFF)
+}
 # tidy: the library only (no program, no manual page); the static libtidy it builds anyway goes in finish
 # lib/libtidy5.so as the port names it (its post-install renames libtidy.so; its patch makes
 # tidy.pc say -ltidy5, and ext/tidy of PHP takes libtidy5 first); libtidy.so stays too
+# APR and APR-util of devel/apr1 (both in its work directory; $1 is apr), shared
+# only, for www/apache24 and the modules Apache loads. apr as the port (its
+# APR_CONF_ARGS; IPv6, an option of the port on by default), its build files (the
+# libtool and rules apxs and the modules take) in share/apr/build-1 of this tree;
+# APR-util as the port without its options (autoreconf for its patch of
+# build/dbm.m4, as the port), with the expat of this tree and the DBM of its own
+# (SDBM): no Berkeley DB, GDBM or NDBM, no database, LDAP or crypto drivers
+s_apr() {
+    fix_guess "$1"
+    apu="$(ls -d "$1"/../apr-util-* 2> /dev/null | head -n 1)"
+    [ -n "$apu" ] || { echo "== no apr-util next to $1"; return 1; }
+    (cd "$1" && ./configure --prefix="$S" --libdir="$S/lib" --disable-static --enable-shared \
+        --with-installbuilddir="$S/share/apr/build-1" --enable-threads --enable-posix-shm \
+        --with-devrandom --enable-ipv6 && gmake -j"$ncpu" && gmake install) &&
+        (cd "$apu" && autoreconf -f -i && ./configure --prefix="$S" --libdir="$S/lib" \
+            --with-apr="$S/bin/apr-1-config" --with-expat="$S" --without-berkeley-db --without-gdbm \
+            --without-ndbm --without-ldap --without-mysql --without-pgsql --without-sqlite3 \
+            --without-sqlite2 --without-odbc --without-crypto --without-openssl --without-nss &&
+            gmake -j"$ncpu" && gmake install)
+}
 s_tidy() {
     cm_so "$1" -DBUILD_SHARED_LIB=ON -DSUPPORT_CONSOLE_APP=OFF &&
         ln -sf "$(readlink "$S/lib/libtidy.so")" "$S/lib/libtidy5.so"
@@ -921,8 +940,6 @@ finish() {
     # only noted.
     : > "$res/pic.txt"; : > "$res/pic-notes.txt"
     for a in "$P"/lib/*.a; do
-        # x264 is for FFmpeg only (a PIE program, where its assembly may be as it is)
-        case "${a##*/}" in libx264.a) echo "libx264.a: not tried (FFmpeg only)" >> "$res/pic-notes.txt"; continue ;; esac
         if ! cc -shared -o "$work/pic-test.so" -Wl,--whole-archive "$a" -Wl,--no-whole-archive \
                 -Wl,--unresolved-symbols=ignore-all > "$work/pic-test.log" 2>&1; then
             if grep -q -i 'relocation' "$work/pic-test.log"; then

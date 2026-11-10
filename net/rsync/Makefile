@@ -2,9 +2,11 @@
 # (aZ, 10.11.2026): the official port (its patches, the extra patch of the option
 # FLAGS: the flags of the files, --fileflags; ssh; zlib of the base system; the popt
 # it bundles; its rc.d script, pkg-plist, pkg-descr, pkg-message) with lz4, zstd and
-# xxhash from the static tree of az, so that it takes no package (the official one
-# takes liblz4, zstd and xxhash), and the OpenSSL of the base system (MD4, MD5).
-# Without ICONV (--iconv: GNU libiconv) and IDN.
+# xxhash the shared libraries of az, with the run path /usr/local/az/lib (our
+# ports link each other's shared libraries: aZ, 10.11.2026), so that it takes no
+# package but az (the official one takes liblz4, zstd and xxhash), and the
+# OpenSSL of the base system (MD4, MD5). Without ICONV (--iconv: GNU libiconv)
+# and IDN.
 
 PORTNAME=	rsync
 DISTVERSION=	3.5.1
@@ -23,9 +25,12 @@ WWW=		https://rsync.samba.org/ \
 LICENSE=	GPLv3+
 LICENSE_FILE=	${WRKSRC}/COPYING
 
-BUILD_DEPENDS=	${AZ_STATIC}/lib/liblz4.a:az/az \
-		${AZ_STATIC}/lib/libxxhash.a:az/az \
-		${AZ_STATIC}/lib/libzstd.a:az/az
+BUILD_DEPENDS=	${AZ_PREFIX}/lib/liblz4.so:az/az \
+		${AZ_PREFIX}/lib/libxxhash.so:az/az \
+		${AZ_PREFIX}/lib/libzstd.so:az/az
+RUN_DEPENDS=	${AZ_PREFIX}/lib/liblz4.so:az/az \
+		${AZ_PREFIX}/lib/libxxhash.so:az/az \
+		${AZ_PREFIX}/lib/libzstd.so:az/az
 
 USES=		autoreconf:build cpe python shebangfix ssl
 CPE_VENDOR=	samba
@@ -52,10 +57,10 @@ CONFIGURE_ARGS=		--disable-debug \
 			ac_cv_search_libiconv_open=no
 INSTALL_TARGET=	install-strip
 
-# the static tree of az: its lib/ has only static libraries, so lz4, xxhash and zstd
-# go in; libcrypto is that of the base system
-CPPFLAGS+=	-I${AZ_STATIC}/include
-LDFLAGS+=	-L${AZ_STATIC}/lib
+# the shared tree of az, with its run path (iconv is off, so its GNU iconv.h does
+# not matter); libcrypto is that of the base system
+CPPFLAGS+=	-I${AZ_PREFIX}/include
+LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
 
 SUB_LIST=	NAME=rsyncd
 EXTRA_PATCHES=	${FILESDIR}/extra-patch-file-flags.diff

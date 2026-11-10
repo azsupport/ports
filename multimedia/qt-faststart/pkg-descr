@@ -1,0 +1,5 @@
+qt-faststart moves the moov atom (the index) of an MP4 or MOV file in front of
+the media data, so that a player can start before the whole file is read
+(progressive playback over HTTP). It is tools/qt-faststart.c of FFmpeg, in the
+public domain; ffmpeg -movflags +faststart does the same while it writes a file.
+Kept by azsupport/ports for the scripts that still call qt-faststart.

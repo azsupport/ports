@@ -3,7 +3,7 @@
 # in the place of that of the official port: what mc --version says it was built with
 # (GLib, ncurses(w), libssh2, the editor, the subshell, the codepages, the VFS with
 # sftpfs and shell; no X11 and no translations, as misc/mc/files/mc.conf has it), its
-# libraries (the base system only), the links mcedit, mcview and mcdiff, its paths
+# libraries (the base system, the shared ones of az and of pcre2), the links mcedit, mcview and mcdiff, its paths
 # (mc -F), the extfs helper ubsdtar on a zip that tar of the base system makes (list,
 # as mc reads it, copyout) and on a hard link in ISO 9660, and mc itself in a
 # terminal (script(1)): the panels drawn and F10 quits;
@@ -26,6 +26,27 @@ out="$res/tests.txt"
 ok=0; bad=0
 pass() { echo "ok    $*" >> "$out"; ok=$((ok + 1)); }
 fail() { echo "FAIL  $*" >> "$out"; bad=$((bad + 1)); }
+# libs_of <file> [<library of /usr/local/lib>...]: what it loads (ldd) when every
+# library is found and is of the base system, of az (/usr/local/az/lib: our ports
+# link each other's shared libraries, aZ 10.11.2026) or one of those named (of our
+# other ports, in /usr/local/lib); else nothing, and why in libs_bad
+libs_of() {
+    _f="$1"; shift
+    libs_bad=""
+    _l="$(ldd "$_f" 2>&1)" || { libs_bad="ldd failed: $(printf '%s\n' "$_l" | tail -n 1)"; return 1; }
+    case "$_l" in *"not found"*) libs_bad="$(printf '%s\n' "$_l" | grep 'not found' | head -n 2 | tr '\n' ' ')"; return 1 ;; esac
+    _all=""
+    for _x in $(printf '%s\n' "$_l" | awk 'NF > 2 && $2 == "=>" { print $3 }'); do
+        _all="$_all $_x"
+        case "$_x" in
+            /lib/* | /usr/lib/* | /usr/local/az/lib/*) continue ;;
+            /usr/local/lib/*) for _a in "$@"; do case "${_x##*/}" in "$_a"*) continue 2 ;; esac; done ;;
+        esac
+        libs_bad="$libs_bad $_x"
+    done
+    [ -z "$libs_bad" ] || { libs_bad="not of the base system, az or our ports:$libs_bad"; return 1; }
+    echo "${_all# }"
+}
 finish() {
     echo "tests: $ok ok, $bad failed" >> "$out"
     cat "$out"
@@ -58,8 +79,8 @@ for v in cpiofs tarfs sfs extfs ftpfs sftpfs shell; do
     case "$vfs" in *" $v "*) ;; *) miss="$miss $v" ;; esac
 done
 if [ -z "$miss" ]; then pass "VFS:$vfs"; else fail "VFS missing:$miss (have:$vfs)"; fi
-libs="$(ldd "$mc" | awk 'NR > 1 { print $3 }' | tr '\n' ' ')"
-case "$libs" in *"/usr/local/"*) fail "links a library of /usr/local: $libs" ;; *) pass "libraries of the base system only: $libs" ;; esac
+if libs="$(libs_of "$mc" libpcre2-8)"; then pass "libraries of the base system, az and pcre2: $libs"
+else fail "libraries: $libs_bad"; fi
 miss=""
 for l in mcedit mcview mcdiff; do
     [ "$(readlink "$P/bin/$l" 2>/dev/null)" = mc ] || miss="$miss $l"

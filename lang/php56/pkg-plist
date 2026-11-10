@@ -94,11 +94,7 @@ include/php56/php/ext/ereg/regex/regex.h
 include/php56/php/ext/ereg/regex/regex2.h
 include/php56/php/ext/ereg/regex/utils.h
 include/php56/php/ext/libxml/php_libxml.h
-include/php56/php/ext/pcre/pcrelib/config.h
-include/php56/php/ext/pcre/pcrelib/pcre.h
-include/php56/php/ext/pcre/pcrelib/pcre_internal.h
-include/php56/php/ext/pcre/pcrelib/pcreposix.h
-include/php56/php/ext/pcre/pcrelib/ucp.h
+include/php56/php/ext/pcre/pcre.h
 include/php56/php/ext/pcre/php_pcre.h
 include/php56/php/ext/spl/php_spl.h
 include/php56/php/ext/spl/spl_array.h

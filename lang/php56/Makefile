@@ -50,7 +50,9 @@
 #   libexec/apache24/libphp56.so (www/mod_php56); the modules in
 #   lib/php/20131226 as the ports. No CONFLICTS with other versions.
 # - Libraries: libxml2 of the package az (${AZ_PREFIX}), by a file, with its
-#   run path; the PCRE the fork bundles (no devel/pcre: no --with-pcre-regex).
+#   run path; PCRE the shared library of devel/pcre of this tree (8.45, as the
+#   fork bundles; --with-pcre-regex), not the one the fork bundles (aZ,
+#   10.11.2026).
 #   PHP 5.6 takes libxml2 by xml2-config only, and that of az names the zlib of
 #   the base system with -L/lib in --libs, which configure would put into the
 #   run path of php56 (the run path is ${AZ_PREFIX}/lib only): AZ_XML2_CONFIG,
@@ -149,6 +151,15 @@ CONFIGURE_ARGS+=--with-layout=GNU \
 CONFIGURE_ENV=	EXTENSION_DIR=${PREFIX}/lib/php/${PHP_EXT_DIR} \
 		ac_cv_php_xml2_config_path=${AZ_XML2_CONFIG}
 LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+# PCRE: the shared library of devel/pcre of this tree (aZ, 10.11.2026: our ports
+# link each other's shared libraries), --with-pcre-regex of a directory of the
+# work with pcre.h and libpcre.so alone in it (links to those of /usr/local:
+# no other header or library of /usr/local is seen; pre-configure); the run path
+# configure adds for it goes (post-configure): libpcre.so.1 is in /usr/local/lib,
+# one of ldconfig. The modules find pcre.h next to php_pcre.h, which includes it
+# ("pcre.h"): the link ext/pcre/pcre.h of the headers (post-install)
+LIB_DEPENDS=	libpcre.so:devel/pcre
+CONFIGURE_ARGS+=--with-pcre-regex=${WRKDIR}/pcre
 
 # the directory of the modules: ZEND_MODULE_API_NO of PHP 5.6, as the ports
 PHP_EXT_DIR=	20131226
@@ -301,18 +312,26 @@ post-patch:
 		${WRKSRC}/sapi/fpm/php-fpm.conf.in
 .endif
 
-# xml2-config of az without -L/lib (AZ_XML2_CONFIG)
+# xml2-config of az without -L/lib (AZ_XML2_CONFIG); the directory of PCRE
 pre-configure:
 	@${PRINTF} '%s\n' '#!/bin/sh' \
 		'${AZ_PREFIX}/bin/xml2-config "$$@" | ${SED} -e "s|[[:space:]]-L/lib[[:space:]]| |g"' \
 		> ${AZ_XML2_CONFIG}
 	@${CHMOD} 755 ${AZ_XML2_CONFIG}
+	@${MKDIR} ${WRKDIR}/pcre/include ${WRKDIR}/pcre/lib
+	@${LN} -sf ${LOCALBASE}/include/pcre.h ${WRKDIR}/pcre/include/pcre.h
+	@${LN} -sf ${LOCALBASE}/lib/libpcre.so ${WRKDIR}/pcre/lib/libpcre.so
 
 # main/php_config.h includes ext/php_config.h, where the packages of the
 # modules add the config.h of their module (Mk/Uses/php.mk): the hunk of
-# patch-configure.in of the official port that the fork does not apply
+# patch-configure.in of the official port that the fork does not apply; and out
+# of the Makefile the run path of the directory of PCRE, which configure added
 post-configure:
 	@${ECHO_CMD} '#include <ext/php_config.h>' >> ${WRKSRC}/main/php_config.h
+	@${REINPLACE_CMD} -e 's|-Wl,-rpath,${WRKDIR}/pcre/lib\([[:space:]]\)|\1|g' \
+		-e 's|-Wl,-rpath,${WRKDIR}/pcre/lib$$||' \
+		-e 's|-R[[:space:]]*${WRKDIR}/pcre/lib\([[:space:]]\)|\1|g' \
+		-e 's|-R[[:space:]]*${WRKDIR}/pcre/lib$$||' ${WRKSRC}/Makefile
 
 .if !defined(PKGNAMEPREFIX)
 post-build:
@@ -339,6 +358,8 @@ SUB_LIST+=	PHP_VER=${PHP_VER}
 post-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/etc/php${PHP_VER}/conf.d \
 		${STAGEDIR}${PREFIX}/lib/php/${PHP_EXT_DIR}
+	${LN} -sf ${LOCALBASE}/include/pcre.h \
+		${STAGEDIR}${PREFIX}/include/php${PHP_VER}/php/ext/pcre/pcre.h
 	${CAT} ${WRKSRC}/php.ini-production ${WRKDIR}/php.ini-az-${PHP_VER} \
 		> ${WRKDIR}/php.ini.sample
 	${INSTALL_DATA} ${WRKSRC}/php.ini-development ${WRKSRC}/php.ini-production \

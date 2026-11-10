@@ -1,11 +1,12 @@
 #!/bin/sh
 # graphicsmagick-build.sh - build GraphicsMagick for the video sites and the PHP
 # module gmagick (the package GraphicsMagick of the port graphics/GraphicsMagick,
-# in the place of the official one): bin/gm, static, with only the formats of
+# in the place of the official one): bin/gm with only the formats of
 # graphics/GraphicsMagick/files/graphicsmagick.conf (see the head of that file
 # for which, why, and how the coders not registered take the place of a policy),
-# against the static libraries of the static tree of the package az,
-# /usr/local/az/static (installed: the port az/az first). Written after
+# linking its shared libraries and those of the package az, /usr/local/az/lib
+# (installed: the port az/az first), with that run path: our ports link each
+# other's shared libraries (aZ, 10.11.2026). Written after
 # tools/imagemagick-build.sh (08.11.2026), which builds ImageMagick 7 the same way.
 #
 # Usage (FreeBSD; the port graphics/GraphicsMagick runs it in its post-fetch and
@@ -22,30 +23,32 @@
 # its configure stage); then this script narrows the coders (the module lines of
 # the conf: the table of magick/static.c; the lowest coder class "primary",
 # magick/magick.c) and applies files/graphicsmagick-*.patch, if any. A copy of
-# that source is taken for the shared libraries. The static build: configure with
-# the prefix /usr/local and the configure lines of the conf, --disable-shared
-# --enable-static, against AZ_PREFIX/static (AZ_PREFIX: default /usr/local/az),
-# installed into a stage directory first; into the stage of the package
-# (AZ_STAGEDIR, default AZ_WORK/stage/GraphicsMagick), as files of /usr/local:
-# bin/gm (PIE, RELRO, BIND_NOW, stripped), lib/GraphicsMagick/ (its configuration:
-# type*.mgk, and the delegates.mgk of files/: no delegate), share/GraphicsMagick/
+# that source is taken for the shared build. The static build, for a static
+# gmagick of PHP built on a server (--with-gmagick=AZ_PREFIX/static): configure
+# with the prefix /usr/local and the configure lines of the conf,
+# --disable-shared --enable-static, against AZ_PREFIX/static (AZ_PREFIX: default
+# /usr/local/az), installed into a stage directory first; kept: the static
+# libraries, headers and .pc files in the static tree AZ_PREFIX/static
+# (lib/libGraphicsMagick.a, lib/libGraphicsMagickWand.a, include/GraphicsMagick,
+# lib/pkgconfig), with bin/GraphicsMagick-config and bin/GraphicsMagickWand-config
+# printing the static link line, and the configuration they read,
+# /usr/local/lib/GraphicsMagick/ (type*.mgk, and the delegates.mgk of files/: no
+# delegate); not its gm. Then the package: the copy of the source with the same
+# options, --enable-shared --disable-static, against the shared libraries of
+# AZ_PREFIX (run path AZ_PREFIX/lib) and the base system, nothing of the static
+# tree; the prefix stays /usr/local (the library reads share/GraphicsMagick of the
+# package), the libdir is AZ_PREFIX/lib (so it reads
+# AZ_PREFIX/lib/GraphicsMagick/config, with the same delegates.mgk). Into the stage
+# of the package (AZ_STAGEDIR, default AZ_WORK/stage/GraphicsMagick): bin/gm (PIE,
+# RELRO, BIND_NOW, stripped, linking the shared libraries), share/GraphicsMagick/
 # (colors.mgk, log.mgk, modules.mgk), share/licenses/GraphicsMagick/,
-# share/doc/GraphicsMagick/VERSIONS; and the static libraries, headers and .pc
-# files in the static tree AZ_PREFIX/static (lib/libGraphicsMagick.a,
-# lib/libGraphicsMagickWand.a, include/GraphicsMagick, lib/pkgconfig), with
-# bin/GraphicsMagick-config and bin/GraphicsMagickWand-config printing the static
-# link line, for a static gmagick of PHP (--with-gmagick=AZ_PREFIX/static). Then
-# the shared libraries, for gmagick of the PHP packages (--with-gmagick=AZ_PREFIX):
-# the copy of the source with the same options, --enable-shared --disable-static,
-# against the shared libraries of AZ_PREFIX (run path AZ_PREFIX/lib) and the base
-# system, nothing of the static tree; the prefix stays /usr/local (the library
-# reads share/GraphicsMagick of the package), the libdir is AZ_PREFIX/lib (so it
-# reads AZ_PREFIX/lib/GraphicsMagick/config, which gets the same files). Kept in
-# AZ_PREFIX: lib/libGraphicsMagick.so*, lib/libGraphicsMagickWand.so*,
-# lib/GraphicsMagick/, lib/pkgconfig/GraphicsMagick.pc and GraphicsMagickWand.pc,
-# include/GraphicsMagick, bin/GraphicsMagick-config and bin/GraphicsMagickWand-config
-# (--prefix AZ_PREFIX, the link line with the run path). No Magick++, no manual
-# pages. The work directory is AZ_WORK/graphicsmagick (default
+# share/doc/GraphicsMagick/VERSIONS of /usr/local, and in AZ_PREFIX
+# lib/libGraphicsMagick.so*, lib/libGraphicsMagickWand.so*, lib/GraphicsMagick/,
+# lib/pkgconfig/GraphicsMagick.pc and GraphicsMagickWand.pc, include/GraphicsMagick,
+# bin/GraphicsMagick-config and bin/GraphicsMagickWand-config (--prefix AZ_PREFIX,
+# the link line with the run path), for gmagick of the PHP packages
+# (--with-gmagick=AZ_PREFIX), which links the same libraries. No Magick++, no
+# manual pages. The work directory is AZ_WORK/graphicsmagick (default
 # /var/tmp/az-work/graphicsmagick). Results go to AZ_RESULTS (default
 # graphicsmagick-results/ of the current directory: summary.txt, the log,
 # VERSIONS, formats.txt, bins.txt, shared.txt); the summary is printed at the end.
@@ -261,13 +264,15 @@ so_env() {
     PKG_CONFIG=pkgconf
     PKG_CONFIG_LIBDIR="$A/lib/pkgconfig:/usr/libdata/pkgconfig"
     CPPFLAGS="-I$A/include"
-    LDFLAGS="-L$A/lib -Wl,-rpath,$A/lib -Wl,-z,relro,-z,now"
+    LDFLAGS="-L$A/lib -Wl,-rpath,$A/lib -pie -Wl,-z,relro,-z,now"
     export PATH PKG_CONFIG PKG_CONFIG_LIBDIR CPPFLAGS LDFLAGS
     unset PKG_CONFIG_PATH
 }
 
-# b_gm_shared <source>: the shared libraries from the copy of the narrowed source
-# (see the head of this file)
+# b_gm_shared <source>: the package, from the copy of the narrowed source (see the
+# head of this file): the shared libraries and gm (PIE) linking them, with the run
+# path $A/lib (our ports link each other's shared libraries: aZ, 10.11.2026; the
+# compiler leaves -pie out of the link of a library, as with the PIE of the ports)
 b_gm_shared() {
     sst="$work/stage-shared"
     rm -rf "$sst"
@@ -275,7 +280,7 @@ b_gm_shared() {
         [ -f "$A/lib/pkgconfig/$pc.pc" ] ||
             { echo "== shared: no $A/lib/pkgconfig/$pc.pc of the shared libraries (the package az)"; return 1; }
     done
-    echo "== shared libraries: configure, gmake and gmake install-strip in $1"
+    echo "== shared libraries and gm: configure, gmake and gmake install-strip in $1"
     (
         cd "$1" || exit 1
         so_env
@@ -292,6 +297,12 @@ b_gm_shared() {
     ls "$l"/libGraphicsMagick.so* "$l"/libGraphicsMagickWand.so* > /dev/null 2>&1 ||
         { echo "== shared: no libGraphicsMagick.so or libGraphicsMagickWand.so in $l: $(ls "$l" 2>/dev/null | tr '\n' ' ')"; return 1; }
     [ -d "$sst$A/include/GraphicsMagick" ] || { echo "== shared: no headers in $sst$A/include/GraphicsMagick"; return 1; }
+    [ -x "$sst$I/bin/gm" ] || { echo "== shared: no bin/gm in $sst$I"; return 1; }
+    keep="$(cd "$sst$I" && ls -d bin/gm share/GraphicsMagick 2>/dev/null)"
+    echo "== into $root$I:" $keep
+    mkdir -p "$root$I" || return 1
+    # shellcheck disable=SC2086
+    (cd "$sst$I" && tar -cf - $keep) | (cd "$root$I" && tar -xpf -) || return 1
     pcd=""
     for d in "$sst$I/libdata/pkgconfig" "$l/pkgconfig" "$sst$I/lib/pkgconfig"; do
         if [ -f "$d/GraphicsMagickWand.pc" ]; then pcd="$d"; break; fi
@@ -302,7 +313,7 @@ b_gm_shared() {
     echo "== into $root$A/lib:" $keep
     # shellcheck disable=SC2086
     (cd "$l" && tar -cf - $keep) | (cd "$root$A/lib" && tar -xpf -) || return 1
-    # the configuration the shared library reads (its libdir): that of the program
+    # the configuration the shared library reads (its libdir), for gm and gmagick
     if [ -d "$root$A/lib/GraphicsMagick/config" ]; then
         cp "$files/delegates.mgk" "$root$A/lib/GraphicsMagick/config/delegates.mgk" || return 1
     else
@@ -320,8 +331,9 @@ b_gm_shared() {
     return 0
 }
 
-# b_gm <source>: narrowed, a copy for the shared libraries, the static build (gm,
-# the static libraries), then the shared libraries
+# b_gm <source>: narrowed, a copy for the shared build, the static build (the static
+# libraries, for a static gmagick of PHP built on a server, and the configuration they
+# read in /usr/local/lib/GraphicsMagick; not its gm), then the package (b_gm_shared)
 b_gm() {
     src="$1"
     st="$work/stage-static"
@@ -351,8 +363,7 @@ b_gm() {
     echo "== installed into $st"
     cp "$src/config.log" "$res/config.log" 2>/dev/null
     s="$st$I"
-    [ -x "$s/bin/gm" ] || { echo "== no bin/gm in $s"; return 1; }
-    keep="$(cd "$s" && ls -d bin/gm lib/GraphicsMagick share/GraphicsMagick 2>/dev/null)"
+    keep="$(cd "$s" && ls -d lib/GraphicsMagick 2>/dev/null)"
     echo "== into $root$I:" $keep
     mkdir -p "$root$I" || return 1
     # shellcheck disable=SC2086
@@ -488,24 +499,32 @@ build_one() {
     return "$rc"
 }
 
-# The program: PIE, RELRO, BIND_NOW, libraries of the base system only; its formats
-# (gm convert -list format) only those of the format lines, with the main ones.
+# The program: PIE, RELRO, BIND_NOW, the run path $A/lib, libraries of $A/lib (its
+# own in the stage, those of az) and of the base system only; its formats (gm
+# convert -list format) only those of the format lines, with the main ones.
 check_bins() {
-    f="$root$I/bin/gm"
+    f="$root$I/bin/gm"; sl="$root$A/lib"
     [ -x "$f" ] || { echo "gm: missing" >> "$res/bins-bad.txt"; return; }
     type="$(readelf -h "$f" | awk '/Type:/ { print $2 }')"
     relro="$(readelf -l "$f" | grep -c GNU_RELRO)"
     now="$(readelf -d "$f" | grep -c -E 'BIND_NOW|FLAGS_1.*NOW')"
-    libs="$(ldd "$f" | awk 'NR > 1 { print $3 }' | tr '\n' ' ' | sed 's/ *$//')"
-    printf 'gm: %s KB, ELF type %s, RELRO %s, BIND_NOW %s; libraries: %s\n' \
-        "$(du -Ak "$f" | cut -f1)" "$type" "$relro" "$now" "$libs" >> "$res/bins.txt"
-    case "$libs" in *"/usr/local/"*) echo "gm: links a library of /usr/local" >> "$res/bins-bad.txt" ;; esac
+    libs="$(LD_LIBRARY_PATH="$sl" ldd "$f" | awk 'NR > 1 { print ($3 == "not" ? $1 "(not-found)" : $3) }' | tr '\n' ' ' | sed 's/ *$//')"
+    rp="$(readelf -d "$f" | sed -n 's/.*[Ll]ibrary r[a-z]*path: \[\(.*\)\].*/\1/p')"
+    printf 'gm: %s KB, ELF type %s, RELRO %s, BIND_NOW %s, run path %s; libraries: %s\n' \
+        "$(du -Ak "$f" | cut -f1)" "$type" "$relro" "$now" "${rp:-none}" "$libs" >> "$res/bins.txt"
+    case ":$rp:" in *":$A/lib:"*) ;; *) echo "gm: run path ${rp:-none}, not $A/lib" >> "$res/bins-bad.txt" ;; esac
+    for l in $libs; do
+        case "$l" in
+            /lib/* | /usr/lib/* | "$sl"/* | "$A"/lib/*) ;;
+            *) echo "gm: links $l, not of $A/lib or the base system" ;;
+        esac
+    done >> "$res/bins-bad.txt"
     [ "$type" = DYN ] || echo "gm: not a PIE (ELF type $type)" >> "$res/bins-bad.txt"
     [ "$relro" -gt 0 ] || echo "gm: no RELRO" >> "$res/bins-bad.txt"
     [ "$now" -gt 0 ] || echo "gm: no BIND_NOW" >> "$res/bins-bad.txt"
-    "$f" version > "$res/version.txt" 2>&1
+    LD_LIBRARY_PATH="$sl" "$f" version > "$res/version.txt" 2>&1
     # the configuration of the stage, not that of /usr/local (not installed yet)
-    MAGICK_CONFIGURE_PATH="$root$I/lib/GraphicsMagick/config:$root$I/share/GraphicsMagick/config" \
+    LD_LIBRARY_PATH="$sl" MAGICK_CONFIGURE_PATH="$sl/GraphicsMagick/config:$root$I/share/GraphicsMagick/config" \
         "$f" convert -list format > "$res/formats.txt" 2>&1 ||
         { echo "gm convert -list format failed: $(tail -n 1 "$res/formats.txt")" >> "$res/bins-bad.txt"; return; }
     allowed=" $(conf_opts format | tr '\n' ' ') "
@@ -572,8 +591,8 @@ manifest() {
     {
         echo "GraphicsMagick for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $CFLAGS"
-        echo "libraries: the static ones of $S (the package az, the static tree): mozjpeg, libpng, libwebp, libheif"
-        echo "(libde265, dav1d), FreeType, lcms2; the shared libraries against those of $A"
+        echo "libraries: the shared ones of $A/lib (the package az, with that run path): mozjpeg, libpng, libwebp,"
+        echo "libheif (libde265, dav1d), FreeType, lcms2; the static libraries against the static ones of $S"
         echo
         while read -r n pkgname port; do
             printf '%-16s %-26s %s\n' "$n" "$pkgname" "$port"
@@ -605,13 +624,14 @@ manifest() {
         echo "configure (after --prefix=$I and the flags):"
         conf_opts configure | sed 's/^/    /'
         echo
-        echo "Program: $I/bin/gm. For a static gmagick of PHP: $S/lib/libGraphicsMagick.a, libGraphicsMagickWand.a,"
-        echo "$S/include/GraphicsMagick, $S/bin/GraphicsMagick-config and GraphicsMagickWand-config (the static link"
-        echo "line). For gmagick of the PHP packages (--with-gmagick=$A): the shared libraries"
+        echo "Program: $I/bin/gm, linking the shared libraries"
         echo "$(for f in "$root$A"/lib/libGraphicsMagick*.so*; do [ -f "$f" ] && [ ! -L "$f" ] && readelf -d "$f" | sed -n 's/.*[Ll]ibrary soname: \[\(.*\)\].*/\1/p'; done | tr '\n' ' ' | sed 's/ *$//') in $A/lib"
-        echo "(built again with the options above and --enable-shared --disable-static, against the shared libraries"
-        echo "of $A, run path $A/lib, symbols with the prefix Gm), $A/include/GraphicsMagick,"
-        echo "$A/lib/pkgconfig/GraphicsMagickWand.pc, $A/bin/GraphicsMagick-config and GraphicsMagickWand-config."
+        echo "(the options above with --enable-shared --disable-static, against the shared libraries of $A, run path"
+        echo "$A/lib, symbols with the prefix Gm), which gmagick of the PHP packages (--with-gmagick=$A) links too:"
+        echo "$A/include/GraphicsMagick, $A/lib/pkgconfig/GraphicsMagickWand.pc, $A/bin/GraphicsMagick-config and"
+        echo "GraphicsMagickWand-config. For a static gmagick of PHP built on a server: $S/lib/libGraphicsMagick.a,"
+        echo "libGraphicsMagickWand.a, $S/include/GraphicsMagick, $S/bin/GraphicsMagick-config and"
+        echo "GraphicsMagickWand-config (the static link line), built with the options above (static)."
         echo "Licence: $I/share/licenses/GraphicsMagick/Copyright.txt. Sources: the distfiles above (their SHA-256),"
         echo "the patches of the port at the commit above and tools/graphicsmagick-build.sh of"
         echo "https://github.com/azsupport/ports (graphics/GraphicsMagick/files/graphicsmagick.conf)."

@@ -3,8 +3,8 @@
 # ffmpeg of the port multimedia/ffmpeg, in the place of that of the ports:
 # /usr/local/bin/ffmpeg, /usr/local/bin/ffprobe) from the official FreeBSD port of
 # multimedia/ffmpeg/files/ffmpeg.conf, with only the formats, codecs and protocols
-# listed there (see the head of that file for why), against the static libraries of
-# the static tree of the package az, /usr/local/az/static (installed). Moved from
+# listed there (see the head of that file for why), against the shared libraries of
+# the package az, /usr/local/az/lib (installed). Moved from
 # tools/build-ffmpeg.sh of https://github.com/azsupport/php-src (08.11.2026).
 #
 # Usage (FreeBSD; the port multimedia/ffmpeg runs it in its post-fetch and do-build):
@@ -19,10 +19,11 @@
 # patches (make patch), then those of files/ffmpeg/; this script then builds the
 # source tree with its own options. A take line gives a new upstream release
 # instead (from AZ_TAKE_DISTFILES, else fetched; with the port's patches, or those
-# of files/deps/<name>-<version>/). FFmpeg links x264, dav1d and libwebp
-# of AZ_PREFIX/static (AZ_PREFIX: default /usr/local/az; the shared libraries
-# of AZ_PREFIX itself are not used) in, so that ffmpeg and ffprobe need no
-# library of /usr/local (only libc, libm, libthr and libz of the base system), and
+# of files/deps/<name>-<version>/). FFmpeg links x264, dav1d and libwebp, the
+# shared libraries of AZ_PREFIX/lib (AZ_PREFIX: default /usr/local/az), with that
+# run path (our ports link each other's shared libraries: aZ, 10.11.2026); its own
+# libraries (libavcodec, libavformat ...) are in its two programs, which need
+# nothing else of /usr/local (libc, libm, libthr and libz of the base system), and
 # is installed (prefix /usr/local) into the stage AZ_STAGE/ffmpeg (default
 # AZ_WORK/stage/ffmpeg): usr/local/bin/ffmpeg, usr/local/bin/ffprobe,
 # usr/local/share/licenses/ffmpeg/, usr/local/share/doc/ffmpeg/VERSIONS
@@ -60,8 +61,8 @@ conf="$files/ffmpeg.conf"
 nonfree="${AZ_FFMPEG_NONFREE:-}"
 case "$nonfree" in yes) ;; ""|no) nonfree="" ;; *) echo "ffmpeg-build: AZ_FFMPEG_NONFREE is yes or empty, not $nonfree" >&2; exit 2 ;; esac
 deps_conf="${AZ_DEPS_CONF:-$tools/../az/az/files/deps.conf}"
-# the static tree of azsupport (static archives, their .pc files and headers)
-L="${AZ_PREFIX:-/usr/local/az}/static"
+# the shared tree of az (its libraries, .pc files and headers)
+A="${AZ_PREFIX:-/usr/local/az}"
 work="${AZ_WORK:-/var/tmp/az-work}/ffmpeg"
 F=/usr/local
 stage="${AZ_STAGEDIR:-${AZ_WORK:-/var/tmp/az-work}/stage/ffmpeg}"
@@ -116,13 +117,12 @@ ffcflags="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing"
 export CC=cc CXX=c++
 export CFLAGS="$ffcflags -fPIC"
 export CXXFLAGS="$CFLAGS"
-export CPPFLAGS="-I$L/include"
-export LDFLAGS="-L$L/lib"
-export PKG_CONFIG_LIBDIR="$L/lib/pkgconfig:/usr/libdata/pkgconfig"
+export CPPFLAGS="-I$A/include"
+export LDFLAGS="-L$A/lib -Wl,-rpath,$A/lib"
+export PKG_CONFIG_LIBDIR="$A/lib/pkgconfig:/usr/libdata/pkgconfig"
 unset PKG_CONFIG_PATH
-# LTO (FFmpeg, and x264 of the libraries) puts LLVM bitcode into static archives:
-# their index needs the ar of LLVM, taken by name when ar of the base system is
-# another one.
+# LTO (FFmpeg) puts LLVM bitcode into its static archives: their index needs the ar
+# of LLVM, taken by name when ar of the base system is another one.
 unset AR RANLIB NM
 if ! ar --version 2>/dev/null | grep -q LLVM && command -v llvm-ar >/dev/null 2>&1; then
     export AR=llvm-ar RANLIB=llvm-ranlib NM=llvm-nm
@@ -187,8 +187,8 @@ b_ffmpeg() {
     (
         cd "$1" || exit 1
         set -- --prefix="$F" --cc=cc --cxx=c++ --pkg-config=pkgconf --pkg-config-flags=--static \
-            --extra-cflags="$ffcflags -I$L/include" --extra-cxxflags="$ffcflags -I$L/include" \
-            --extra-ldflags="-L$L/lib"
+            --extra-cflags="$ffcflags -I$A/include" --extra-cxxflags="$ffcflags -I$A/include" \
+            --extra-ldflags="-L$A/lib -Wl,-rpath,$A/lib"
         if [ -n "${AR:-}" ]; then set -- "$@" --ar="$AR" --ranlib="$RANLIB" --nm="$NM -g"; fi
         [ -z "$nonfree" ] || export PKG_CONFIG_LIBDIR="$fdk/lib/pkgconfig:$PKG_CONFIG_LIBDIR"
         # shellcheck disable=SC2046
@@ -301,7 +301,7 @@ manifest() {
     {
         echo "FFmpeg for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $ffcflags"
-        echo "x264, dav1d and libwebp: the static libraries of $L (the package az, the static tree)"
+        echo "x264, dav1d and libwebp: the shared libraries of $A/lib (the package az, with that run path)"
         [ -z "$nonfree" ] || echo "fdk-aac: its static library, built here (the nonfree build, files/ffmpeg-nonfree.conf)"
         echo
         while read -r n pkgname port; do
@@ -337,10 +337,10 @@ manifest() {
             echo "Licence: nonfree and unredistributable (FFmpeg with --enable-gpl and --enable-nonfree:"
             echo "x264 under the GPL and libfdk_aac under the licence of the Fraunhofer FDK AAC library);"
             echo "this package may not be given to anyone. The licences are in share/licenses/ffmpeg/"
-            echo "(fdk-aac-NOTICE; x264, dav1d and webp: LICENSES/ of /usr/local/az, the package az)."
+            echo "(fdk-aac-NOTICE; x264, dav1d and webp, shared libraries: LICENSES/ of /usr/local/az, the package az)."
         else
             echo "Licence: GPL version 2 or later (FFmpeg with --enable-gpl, x264); the licences are in"
-            echo "share/licenses/ffmpeg/ (x264, dav1d and webp: LICENSES/ of /usr/local/az, the package az)."
+            echo "share/licenses/ffmpeg/ (x264, dav1d and webp, shared libraries: LICENSES/ of /usr/local/az, the package az)."
         fi
         echo "Sources: the distfiles above (their SHA-256), the patches of the port at the commit above,"
         echo "files/ffmpeg/ and tools/ffmpeg-build.sh of https://github.com/azsupport/ports (multimedia/ffmpeg/files/ffmpeg.conf)."
@@ -357,9 +357,18 @@ check_bins() {
         relro="$(readelf -l "$f" | grep -c GNU_RELRO)"
         now="$(readelf -d "$f" | grep -c -E 'BIND_NOW|FLAGS_1.*NOW')"
         libs="$(ldd "$f" | awk 'NR > 1 { print $3 }' | tr '\n' ' ' | sed 's/ *$//')"
-        printf '%s: %s KB, ELF type %s, RELRO %s, BIND_NOW %s; libraries: %s\n' "$b" \
-            "$(du -Ak "$f" | cut -f1)" "$type" "$relro" "$now" "$libs" >> "$res/bins.txt"
-        case "$libs" in *"/usr/local/"*) echo "$b: links a library of /usr/local" >> "$res/bins-bad.txt" ;; esac
+        rp="$(readelf -d "$f" | sed -n 's/.*[Ll]ibrary r[a-z]*path: \[\(.*\)\].*/\1/p')"
+        printf '%s: %s KB, ELF type %s, RELRO %s, BIND_NOW %s, run path %s; libraries: %s\n' "$b" \
+            "$(du -Ak "$f" | cut -f1)" "$type" "$relro" "$now" "${rp:-none}" "$libs" >> "$res/bins.txt"
+        # the base system and the shared tree of az (by the run path), nothing else
+        for l in $libs; do
+            case "$l" in
+                /lib/* | /usr/lib/*) ;;
+                "$A"/static/*) echo "$b: $l of the static tree" ;;
+                "$A"/lib/*) case ":$rp:" in *":$A/lib:"*) ;; *) echo "$b: $l without the run path $A/lib (${rp:-none})" ;; esac ;;
+                *) echo "$b: $l, not of the base system or of az" ;;
+            esac
+        done >> "$res/bins-bad.txt"
         [ "$type" = DYN ] || echo "$b: not a PIE (ELF type $type)" >> "$res/bins-bad.txt"
         [ "$relro" -gt 0 ] || echo "$b: no RELRO" >> "$res/bins-bad.txt"
         [ "$now" -gt 0 ] || echo "$b: no BIND_NOW" >> "$res/bins-bad.txt"
@@ -411,9 +420,9 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
     exit 1
 fi
 for pc in x264 dav1d libwebp; do
-    if [ ! -f "$L/lib/pkgconfig/$pc.pc" ]; then
-        printf '%-8s FAIL  no %s of the static libraries in %s/lib/pkgconfig: install the package az first (az/az)\n' libs "$pc" "$L" >> "$res/summary.txt"
-        echo "ffmpeg-build: no $L/lib/pkgconfig/$pc.pc; install the package az first (the port az/az)" >&2
+    if [ ! -f "$A/lib/pkgconfig/$pc.pc" ]; then
+        printf '%-8s FAIL  no %s of the shared libraries in %s/lib/pkgconfig: install the package az first (az/az)\n' libs "$pc" "$A" >> "$res/summary.txt"
+        echo "ffmpeg-build: no $A/lib/pkgconfig/$pc.pc; install the package az first (the port az/az)" >&2
         exit 1
     fi
 done

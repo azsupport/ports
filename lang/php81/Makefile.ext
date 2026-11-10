@@ -117,10 +117,24 @@ CONFIGURE_ARGS+=--enable-ctype
 .endif
 
 .if ${PHP_MODNAME} == "curl"
-AZ_LIBS=	libcurl.so
-
+# libcurl.so.4 of ftp/curl of this tree, the libcurl of every package (aZ,
+# 10.11.2026: one libcurl; our ports link each other's shared libraries), not one
+# of az: its flags by hand (the pkg-config of a module is that of az): the curl/ of
+# its headers and libcurl.so alone in directories of the work (links to those of
+# /usr/local: no other header or library of /usr/local is seen; pre-configure),
+# -lcurl by that -L; no run path (libcurl.so.4 is in /usr/local/lib, one of
+# ldconfig); its features (SSL) from its libcurl.pc
+LIB_DEPENDS+=	libcurl.so:ftp/curl
 CONFIGURE_ARGS+=--with-curl
+CONFIGURE_ENV+=	CURL_CFLAGS="-I${WRKDIR}/curl-inc" CURL_LIBS="-lcurl" \
+		CURL_FEATURES="$$(pkgconf --variable=supported_features ${LOCALBASE}/libdata/pkgconfig/libcurl.pc)"
+LDFLAGS+=	-L${WRKDIR}/curl-lib
 USES+=		pkgconfig
+
+pre-configure:
+	@${MKDIR} ${WRKDIR}/curl-inc ${WRKDIR}/curl-lib
+	@${LN} -sf ${LOCALBASE}/include/curl ${WRKDIR}/curl-inc/curl
+	@${LN} -sf ${LOCALBASE}/lib/libcurl.so ${WRKDIR}/curl-lib/libcurl.so
 .endif
 
 .if ${PHP_MODNAME} == "dba"

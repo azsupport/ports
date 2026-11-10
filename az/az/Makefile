@@ -5,35 +5,50 @@
 # these packages moves into this tree):
 #
 #   package       origin                 files
-#   az            az/az                  /usr/local/az: the static tree
-#                                        static/{lib,include,bin} and the shared
-#                                        tree lib/ (SONAME, run path
-#                                        /usr/local/az/lib, no ldconfig),
-#                                        include/, lib/pkgconfig/, bin/pkg-config,
-#                                        share/doc/az/VERSIONS, LICENSES/
-#   curl          ftp/curl               bin/curl (static), lib/libcurl.so.4
-#                                        (only curl_* exported), include/curl...
-#   ffmpeg        multimedia/ffmpeg      bin/ffmpeg, bin/ffprobe (static)
+#   az            az/az                  /usr/local/az: the shared tree lib/
+#                                        (SONAME, run path /usr/local/az/lib, no
+#                                        ldconfig), include/, lib/pkgconfig/,
+#                                        bin/pkg-config, which every package
+#                                        links, and the static tree
+#                                        static/{lib,include,bin}, for PHP built
+#                                        on a server; share/doc/az/VERSIONS,
+#                                        LICENSES/
+#   curl          ftp/curl               bin/curl, lib/libcurl.so.4 (only curl_*
+#                                        exported), the libcurl of every package,
+#                                        include/curl...
+#   ffmpeg        multimedia/ffmpeg      bin/ffmpeg, bin/ffprobe (the libraries of
+#                                        FFmpeg in them)
 #   ImageMagick6  graphics/ImageMagick6  bin/*6, etc/ImageMagick-6 (our policy),
-#                                        share/ImageMagick-6, lib/ImageMagick-6.*
+#                                        share/ImageMagick-6; its shared
+#                                        libMagickCore-6.Q16 and libMagickWand-6.Q16
+#                                        and lib/ImageMagick-6.* in az/lib
 #   ImageMagick7  graphics/ImageMagick7  bin/magick and its links,
 #                                        etc/ImageMagick-7 (our policy), ...; its
-#                                        static libraries in az/static and the
-#                                        shared libMagickWand-7.so in az/lib,
-#                                        with MagickWand-config
+#                                        shared libMagickCore-7.so and
+#                                        libMagickWand-7.so in az/lib, with
+#                                        MagickWand-config (imagick links them
+#                                        too), and its static libraries in
+#                                        az/static
 #   GraphicsMagick graphics/GraphicsMagick
-#                                        bin/gm, lib/GraphicsMagick,
-#                                        share/GraphicsMagick; its static
-#                                        libraries in az/static and the shared
+#                                        bin/gm, share/GraphicsMagick; its shared
 #                                        libGraphicsMagick.so and
 #                                        libGraphicsMagickWand.so in az/lib, with
-#                                        GraphicsMagick-config, for gmagick
+#                                        GraphicsMagick-config (gmagick links them
+#                                        too), and its static libraries in
+#                                        az/static (lib/GraphicsMagick: the
+#                                        configuration they read)
 #                                        (added 08.11.2026, aZ: GraphicsMagick
 #                                        built as our ImageMagick)
 #   mc            misc/mc                bin/mc and its links, etc/mc, libexec/mc,
 #                                        share/mc: GLib built static by
-#                                        tools/mc-build.sh, libssh2 of the static
-#                                        tree (added 10.11.2026, aZ)
+#                                        tools/mc-build.sh (only mc links it)
+#                                        (added 10.11.2026, aZ)
+#
+# Our ports link each other's shared libraries (aZ, 10.11.2026): those of az
+# (with the run path /usr/local/az/lib), of devel/pcre2 and devel/pcre, the
+# libcurl.so.4 of ftp/curl; never a static or bundled copy of a library another of
+# our ports has. The static tree is for PHP built on a server only
+# (tools/az-menu.sh of azsupport/php-src).
 #
 # The same packages as build-az.sh (the library package named az now, aZ
 # 08.11.2026): names, origins, epochs, files, comments, descriptions,
@@ -58,7 +73,7 @@
 #                          files/curl.conf, files/curl-deps.conf, files/curl/,
 #                          files/deps/
 #   ftp/curl               tools/curl-build.sh (build_curl_program of
-#                          build-deps.sh), tools/curl-elf-export.py
+#                          build-deps.sh)
 #   multimedia/ffmpeg      tools/ffmpeg-build.sh, files/ffmpeg.conf,
 #                          files/ffmpeg/*.patch
 #   graphics/ImageMagick6  tools/imagemagick-build.sh, one ImageMagick per run;
@@ -90,15 +105,15 @@
 # into a stage in ${WRKDIR}, against the installed package az, and copy it
 # into ${STAGEDIR}: they write nothing outside their WRKDIR.
 #
-# Dependencies on our packages: by a file, never LIB_DEPENDS (no ldconfig
-# hints). curl, ffmpeg and ImageMagick6: BUILD_DEPENDS on the static tree only
-# (static programs: no RUN_DEPENDS, as in build-az.sh). ImageMagick7 and
-# GraphicsMagick: the static and the shared tree to build, the shared tree to
-# run (their libMagickWand-7.so and libGraphicsMagickWand.so link the shared
-# libraries of az). The PHP ports: az, ImageMagick7 (lib/libMagickWand-7.so, for
-# imagick) and GraphicsMagick (lib/libGraphicsMagickWand.so, for gmagick). Build
-# order: az; then curl, ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick (any
-# order); then PHP.
+# Dependencies on our packages: on az by a file, never LIB_DEPENDS (no ldconfig
+# hints for /usr/local/az/lib); on pcre2, pcre and curl (in /usr/local/lib)
+# LIB_DEPENDS. curl, ffmpeg, ImageMagick6 and mc: the shared tree to build and to
+# run. ImageMagick7 and GraphicsMagick: the static and the shared tree to build,
+# the shared tree to run. The PHP ports: az, ImageMagick7 (lib/libMagickWand-7.so,
+# for imagick), GraphicsMagick (lib/libGraphicsMagickWand.so, for gmagick), pcre2
+# or pcre (the core) and curl (the module curl). Build order: az, pcre2, pcre;
+# then curl, ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick (any order); then
+# PHP.
 #
 # Distfiles: all of them in the fetch phase, so that the build needs no network
 # (poudriere has none there; the VM of CI reaches GitHub badly, which is why
