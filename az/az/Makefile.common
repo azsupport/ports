@@ -1,5 +1,5 @@
 # What the ports az/az, ftp/curl, multimedia/ffmpeg, graphics/ImageMagick6,
-# graphics/ImageMagick7 and graphics/GraphicsMagick share (the design: the head of
+# graphics/ImageMagick7, graphics/GraphicsMagick and misc/mc share (the design: the head of
 # az/az/Makefile). Each of
 # them includes this file before bsd.port.mk; AZ_PREFIX (/usr/local/az),
 # AZ_STATIC (/usr/local/az/static) and AZ_STAMP come from Mk/bsd.overlay.mk.

@@ -1,0 +1,54 @@
+#! /bin/sh
+# ubsdtar - the extfs helper of mc for the archives that tar(1) of the base system
+# (bsdtar, libarchive) reads: zip, jar, 7z, rar, ISO 9660 and others, so that they
+# open as a directory without Perl, 7-Zip or unrar. The mc.ext.ini of the package mc
+# of azsupport/ports (misc/mc, files/mc/archives-bsdtar.patch) opens them with it
+# (aZ, 10.11.2026). It reads only (list, copyout); copyin, rm, mkdir and rmdir go to
+# the helper of mc for the format (uzip, u7z, urar), which needs programs of its own
+# (Perl and zip, 7-Zip, rar).
+
+TAR="${MC_UBSDTAR_TAR:-/usr/bin/tar}"
+here="$(dirname "$0")"
+
+# the lines of tar -tv, which are those of ls -l: the names without ./ and without
+# the / of a directory; the root directory of the archive left out
+ub_list() {
+    LC_TIME=C "$TAR" -tvf "$1" | awk '
+        match($0, /^[^ ]+ +[0-9]+ +[^ ]+ +[^ ]+ +[0-9]+ +[A-Za-z]+ +[0-9]+ +[0-9:]+ /) {
+            head = substr($0, 1, RLENGTH); name = substr($0, RLENGTH + 1)
+            sub(/^\.\//, "", name)
+            if (substr(head, 1, 1) == "d") sub(/\/$/, "", name)
+            if (name != "" && name != ".") print head name
+        }'
+}
+
+# one file to stdout of tar, its name a pattern of tar with * ? [ ] \ escaped
+ub_copyout() {
+    p="$(printf '%s\n' "$2" | sed 's/[][*?\\]/\\&/g')"
+    "$TAR" -xOf "$1" -- "$p" > "$3"
+}
+
+# what tar cannot do: the helper of mc for the format, when there is one
+ub_other() {
+    case "$1" in
+        *.[zZ][iI][pP] | *.[jJ][aA][rR]) h=uzip ;;
+        *.7[zZ]) h=u7z ;;
+        *.[rR][aA][rR]) h=urar ;;
+        *) h="" ;;
+    esac
+    if [ -n "$h" ] && [ -x "$here/$h" ]; then
+        exec "$here/$h" "$cmd" "$@"
+    fi
+    echo "ubsdtar: $cmd: tar of the base system only reads archives${h:+ ($h of mc writes them with programs of its own)}" >&2
+    exit 1
+}
+
+umask 077
+cmd="$1"
+shift
+case "$cmd" in
+    list) ub_list "$@" ;;
+    copyout) ub_copyout "$@" ;;
+    copyin | rm | mkdir | rmdir) ub_other "$@" ;;
+    *) exit 1 ;;
+esac
