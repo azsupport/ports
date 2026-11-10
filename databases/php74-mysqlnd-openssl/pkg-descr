@@ -1,0 +1,11 @@
+mysqlnd with OpenSSL: the module mysqlnd of php74-mysqlnd built with its
+extended SSL (MYSQLND_HAVE_SSL), linked with the OpenSSL of the base
+system: the logins caching_sha2_password (the default of MySQL 8 and
+later) and sha256_password. The same files as php74-mysqlnd: install one
+of the two; php74-mysqli-openssl, php74-pdo_mysql-openssl,
+php74-swoole-openssl and php74-openswoole-openssl go with it.
+
+The module mysqlnd of PHP 7.4 for php74 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20190902/mysqlnd.so, loaded by its ini in etc/php74/conf.d, its
+headers in include/php74/php/ext/mysqlnd.

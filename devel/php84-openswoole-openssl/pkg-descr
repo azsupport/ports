@@ -1,0 +1,9 @@
+OpenSwoole with OpenSSL: the module openswoole of php84-openswoole built
+with the OpenSSL of the base system (its SSL and TLS: SWOOLE_SSL, HTTPS,
+WSS), with php84-mysqlnd-openssl instead of php84-mysqlnd; its ini comes
+with its line commented out, as that of php84-openswoole. The same files
+as php84-openswoole: install one of the two.
+
+PECL openswoole for php84 of azsupport/ports, built from ext/openswoole
+of the release tarball of azsupport/php-src, which bundles it:
+lib/php/20240924/openswoole.so, loaded by its ini in etc/php84/conf.d.

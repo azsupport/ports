@@ -1,4 +1,5 @@
-PDO_MYSQL: the MySQL driver of PDO, through mysqlnd.
+PDO_MYSQL: the MySQL driver of PDO, through mysqlnd. With php81-mysqlnd;
+php81-pdo_mysql-openssl is the same for php81-mysqlnd-openssl.
 
 The module pdo_mysql of PHP 8.1 for php81 of azsupport/ports, which
 installs side by side with the other versions of PHP:

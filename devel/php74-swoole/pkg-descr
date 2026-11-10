@@ -11,6 +11,9 @@ Asynchronous & concurrent & distributed networking framework for PHP.
 * async dns lookup
 * support IPv4/IPv6/UnixSocket/TCP/UDP
 
+Without OpenSSL (no SSL and TLS of swoole: SWOOLE_SSL, HTTPS, WSS), with
+php74-mysqlnd; php74-swoole-openssl has it, with php74-mysqlnd-openssl.
+
 PECL swoole for php74 of azsupport/ports, built from ext/swoole of the
 release tarball of azsupport/php-src, which bundles it:
 lib/php/20190902/swoole.so, loaded by its ini in etc/php74/conf.d.

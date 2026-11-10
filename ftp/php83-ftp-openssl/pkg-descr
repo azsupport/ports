@@ -1,0 +1,8 @@
+FTP with OpenSSL: the module ftp of php83-ftp built with FTP over SSL
+(ftp_ssl_connect()) on the OpenSSL of the base system. The same files as
+php83-ftp: install one of the two.
+
+The module ftp of PHP 8.3 for php83 of azsupport/ports, which installs
+side by side with the other versions of PHP: lib/php/20230831/ftp.so,
+loaded by its ini in etc/php83/conf.d, its headers in
+include/php83/php/ext/ftp.

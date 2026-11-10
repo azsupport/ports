@@ -1,4 +1,6 @@
-MySQLi: access to MySQL and MariaDB servers, through mysqlnd.
+MySQLi: access to MySQL and MariaDB servers, through mysqlnd. With
+php56-mysqlnd; php56-mysqli-openssl is the same for
+php56-mysqlnd-openssl.
 
 The module mysqli of PHP 5.6 for php56 of azsupport/ports,
 which installs side by side with the other versions of PHP:

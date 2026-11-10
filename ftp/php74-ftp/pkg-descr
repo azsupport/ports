@@ -1,4 +1,5 @@
-FTP: the FTP client, FTP over SSL with the OpenSSL of the base system.
+FTP: the FTP client, without FTP over SSL (no OpenSSL);
+php74-ftp-openssl has it.
 
 The module ftp of PHP 7.4 for php74 of azsupport/ports, which installs
 side by side with the other versions of PHP: lib/php/20190902/ftp.so,

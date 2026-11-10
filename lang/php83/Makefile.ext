@@ -56,8 +56,9 @@
 COMMENT=	The ${PHP_MODNAME} shared extension for php
 
 USES+=	php:ext,noflavors
-# openssl-legacy builds ext/openssl
-PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//}
+# openssl-legacy builds ext/openssl; <module>-openssl ext/<module> (the
+# variants with OpenSSL: AZ_OPENSSL below)
+PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//}
 PHP_VER=	83
 IGNORE_WITH_PHP=	82 84 85 86
 
@@ -76,6 +77,18 @@ TEST_TARGET=	test
 # (Mk/Uses/php.mk links them with their run path, found by the pkg-config of az)
 BUILD_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
 RUN_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
+
+# The variants with OpenSSL, as lang/php74/Makefile.ext has them: ftp,
+# mysqlnd and openswoole without OpenSSL, <module>-openssl with that of the
+# base system; mysqli, pdo_mysql and swoole <module>-openssl for
+# mysqlnd-openssl (swoole 6.2 has OpenSSL in both: see its rules)
+AZ_OPENSSL_MODULES=	ftp mysqli mysqlnd openswoole pdo_mysql swoole
+AZ_OPENSSL_LINKS=	ftp mysqlnd openswoole
+.if ${PKGNAMESUFFIX:M-*-openssl}
+AZ_OPENSSL=	yes
+# the patches of the module: those of its port without OpenSSL
+PATCHDIR=	${.CURDIR:S/-openssl$//}/files
+.endif
 
 .if ${PHP_MODNAME} == "bcmath"
 CONFIGURE_ARGS+=--enable-bcmath
@@ -148,16 +161,21 @@ CONFIGURE_ARGS+=--enable-filter
 .endif
 
 .if ${PHP_MODNAME} == "ftp"
-# FTP over SSL with the OpenSSL of the base system: --with-openssl-dir of
-# ext.conf (the port: PHP_OPENSSL=yes; ext/ftp/config.m4 takes either)
-CONFIGURE_ARGS+=--enable-ftp \
-		--with-openssl-dir=/usr
+# without OpenSSL (no FTP over SSL, no ftp_ssl_connect()): ext/ftp/config.m4
+# takes it by --with-openssl-dir only under phpize
+CONFIGURE_ARGS+=--enable-ftp
+.  if defined(AZ_OPENSSL)
+# ftp-openssl: FTP over SSL with the OpenSSL of the base system:
+# --with-openssl-dir of ext.conf (the port: PHP_OPENSSL=yes; ext/ftp/config.m4
+# takes either)
+CONFIGURE_ARGS+=--with-openssl-dir=/usr
 
 CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
 
 LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl
 USES+=		ssl pkgconfig
+.  endif
 .endif
 
 .if ${PHP_MODNAME} == "gd"
@@ -233,15 +251,28 @@ USE_PHP=	mysqlnd:build
 
 .if ${PHP_MODNAME} == "mysqlnd"
 # Ours: the MySQL Native Driver of mysqli and pdo_mysql (aZ: mysqlnd for the
-# databases, never libmysqlclient of the ports), SSL on the OpenSSL and the
-# compressed protocol on the zlib of the base system
+# databases, never libmysqlclient of the ports), the compressed protocol on the
+# zlib of the base system. Without OpenSSL: its core SSL (MYSQLND_SSL_SUPPORTED,
+# always there) makes TLS to the server through the streams of PHP (the module
+# openssl), not its extended SSL (MYSQLND_HAVE_SSL), which links OpenSSL and
+# registers the logins caching_sha2_password, the default of MySQL 8, and
+# sha256_password (MariaDB has neither). config9.m4 builds it whenever
+# PHP_OPENSSL_DIR is not "no", a variable of no option of its own, so also
+# when nothing sets it (phpize of the 8.3 tarball on Linux: MYSQLND_HAVE_SSL
+# without it, none with PHP_OPENSSL_DIR=no)
 CONFIGURE_ARGS+=--enable-mysqlnd
-
+.  if defined(AZ_OPENSSL)
+# mysqlnd-openssl: the extended SSL, on the OpenSSL of the base system
 CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
+LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl
+USES+=		ssl
+.  else
+CONFIGURE_ENV+=	PHP_OPENSSL_DIR=no
+.  endif
 # config9.m4 adds them to MYSQLND_SHARED_LIBADD without PHP_SUBST: not linked
-LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl -lz
-USES+=		ssl pkgconfig
+LDFLAGS+=	-lz
+USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "openssl"
@@ -636,13 +667,14 @@ CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
 # SWOOLE_SHARED_LIBADD: not the --with-brotli-dir and --with-openssl-dir of
 # ext.conf, whose branches of config.m4 add the libraries to LIBS only, which
 # phpize does not link (swoole.so needed no libssl, libcrypto, libbrotlienc and
-# libbrotlidec). Swoole 6.2 has no --enable-openssl (OpenSSL is always in), so
-# not that of the port either. The pkg-config of the modules is that of az
+# libbrotlidec). Swoole 6.2 has no --enable-openssl (OpenSSL is always in:
+# include/swoole_ssl.h includes its headers, no build without it), so not that
+# of the port either, and swoole has OpenSSL, as swoole-openssl, the same for
+# mysqlnd-openssl (AZ_OPENSSL). The pkg-config of the modules is that of az
 # (Mk/Uses/php.mk): it searches ${AZ_PREFIX}/lib/pkgconfig, where az has no
-# OpenSSL (its OpenSSL is static, for the static tree only), then
-# /usr/libdata/pkgconfig, where FreeBSD 15 installs libssl.pc and libcrypto.pc
-# of its OpenSSL, and nothing else (PKG_CONFIG_PATH unset): never an OpenSSL of
-# the ports. Without them configure stops (PKG_CHECK_MODULES).
+# OpenSSL, then /usr/libdata/pkgconfig, where FreeBSD 15 installs libssl.pc and
+# libcrypto.pc of its OpenSSL, and nothing else (PKG_CONFIG_PATH unset): never
+# an OpenSSL of the ports. Without them configure stops (PKG_CHECK_MODULES).
 # Not the options ODBC, PGSQL, FIREBIRD and SSH2 of the port (aZ, 09.11.2026):
 # each needs what is not here, so it could not be switched on:
 #   ODBC: the module odbc, which this overlay does not build;
@@ -705,7 +737,7 @@ WWW=		https://openswoole.com/
 LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-USES+=		compiler:c11 ssl
+USES+=		compiler:c11
 # C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
 AZ_GCC=		no
 USE_PHP=	sockets:build mysqlnd:build
@@ -717,8 +749,16 @@ CPPFLAGS+=	-I${AZ_PREFIX}/include
 
 CONFIGURE_ARGS+=	--enable-openswoole \
 			--enable-sockets \
-			--enable-mysqlnd \
-			--with-openssl-dir=/usr
+			--enable-mysqlnd
+# without OpenSSL: its config.m4 takes it when PHP_OPENSSL (the variable of
+# --with-openssl, none under phpize, so empty) is not "no"
+.  if defined(AZ_OPENSSL)
+# openswoole-openssl: the OpenSSL of the base system
+USES+=			ssl
+CONFIGURE_ARGS+=	--with-openssl-dir=/usr
+.  else
+CONFIGURE_ENV+=		PHP_OPENSSL=no
+.  endif
 
 AZ_INI_OFF=	"Off: PHP stops when openswoole.so and swoole.so are loaded" \
 		"together (pkg info -D ${PKGBASE})."
@@ -729,6 +769,20 @@ AZ_MSG=		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops" \
 		"the line of swoole in ${AZ_INI:H}/ext-*-swoole.ini," \
 		"remove the ';' before extension=${PHP_MODNAME}.so in" \
 		"${AZ_INI}, then restart php_fpm${PHP_VER} or Apache."
+.endif
+
+# The variants with OpenSSL (AZ_OPENSSL above): one of the two per module
+.if !empty(AZ_OPENSSL_MODULES:M${PHP_MODNAME})
+.  if defined(AZ_OPENSSL)
+CONFLICTS_INSTALL=	php${PHP_VER}-${PHP_MODNAME}
+.    if !empty(AZ_OPENSSL_LINKS:M${PHP_MODNAME})
+COMMENT:=	${COMMENT}, with OpenSSL
+.    else
+COMMENT:=	${COMMENT}, for mysqlnd with OpenSSL
+.    endif
+.  else
+CONFLICTS_INSTALL=	php${PHP_VER}-${PHP_MODNAME}-openssl
+.  endif
 .endif
 
 # The CPE of a PECL extension is that of its port: USES=cpe and CPE_PRODUCT=php

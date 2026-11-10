@@ -49,7 +49,10 @@ memcached_DEPENDS=	databases/php${PHP_VER}-memcached
 # mysql: PHP 5.6 only (removed in PHP 7.0)
 mysql_DEPENDS=		databases/php${PHP_VER}-mysql
 mysqli_DEPENDS=		databases/php${PHP_VER}-mysqli
-mysqlnd_DEPENDS=	databases/php${PHP_VER}-mysqlnd
+# mysqlnd-openssl for a variant with OpenSSL (AZ_OPENSSL of
+# lang/php${PHP_VER}/Makefile.ext: mysqli-openssl, pdo_mysql-openssl, ...),
+# the same mysqlnd.so with OpenSSL: the modules on mysqlnd go with one of the two
+mysqlnd_DEPENDS=	databases/php${PHP_VER}-mysqlnd${AZ_OPENSSL:D-openssl}
 opcache_DEPENDS=	www/php${PHP_VER}-opcache
 openssl_DEPENDS=	security/php${PHP_VER}-openssl
 openswoole_DEPENDS=	devel/php${PHP_VER}-openswoole

@@ -1,7 +1,10 @@
 mysqlnd: the MySQL Native Driver, the client library of mysqli and
-pdo_mysql in PHP itself (no libmysqlclient), with SSL on the OpenSSL
-and the compressed protocol on the zlib of the base system. A module of
-its own here (a part of the core in the official lang/php81).
+pdo_mysql in PHP itself (no libmysqlclient), with the compressed
+protocol on the zlib of the base system, without OpenSSL: TLS to the
+server through the module openssl when a site asks for it, no logins
+caching_sha2_password (the default of MySQL 8 and later) and
+sha256_password (MariaDB has neither); php81-mysqlnd-openssl has them. A
+module of its own here (a part of the core in the official lang/php81).
 
 The module mysqlnd of PHP 8.1 for php81 of azsupport/ports, which
 installs side by side with the other versions of PHP:

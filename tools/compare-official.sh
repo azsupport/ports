@@ -584,7 +584,9 @@ out "## The modules"
 out
 for o in $(cat "$tmp/slaves"); do
     port="${o#*/php$V-}"
+    # openssl-legacy builds openssl, <module>-openssl (the variants with OpenSSL) <module>
     mod="$port"; [ "$port" = openssl-legacy ] && mod=openssl
+    case "$port" in ?*-openssl) mod="${port%-openssl}" ;; esac
     norm "$ours/$o/Makefile" > "$tmp/us.n"
     part "mod:$mod" "$tmp/u.split" > "$tmp/ub.n"
     if grep -qx "$o" "$tmp/offslaves"; then

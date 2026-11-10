@@ -11,6 +11,9 @@ Asynchronous & concurrent & distributed networking framework for PHP.
 * async dns lookup
 * support IPv4/IPv6/UnixSocket/TCP/UDP
 
+With OpenSSL (swoole 6.2 has no build without it) and php83-mysqlnd;
+php83-swoole-openssl is the same for php83-mysqlnd-openssl.
+
 PECL swoole for php83 of azsupport/ports, built from ext/swoole of the
 release tarball of azsupport/php-src, which bundles it:
 lib/php/20230831/swoole.so, loaded by its ini in etc/php83/conf.d.

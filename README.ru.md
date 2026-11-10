@@ -77,10 +77,19 @@
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows; `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR; `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS; `bash` без NLS; `portmaster` только с дополнением для bash), `wget` и `rsync` наши, со статикой az (`wget`: IDN, PSL, PCRE2; `rsync`: lz4, zstd, xxhash, без ICONV) и OpenSSL базы: библиотек вне базовой системы нет |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
-| `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). 59 на версию, у 7.4 — 61; список одной версии: `pkg search -r az '^php84-'` |
+| `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). 65 на версию, у 7.4 — 67, у 5.6 — 64 (с вариантами с OpenSSL, ниже); список одной версии: `pkg search -r az '^php84-'` |
 
 - openssl в двух видах, один из двух: `phpXY-openssl` и `phpXY-openssl-legacy` (с
   legacy-провайдером OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
+- ftp, mysqlnd, swoole и openswoole без OpenSSL, и у каждого вариант с OpenSSL базы,
+  один из двух на модуль (aZ, 10.11.2026): `phpXY-ftp-openssl` (FTP через SSL),
+  `phpXY-mysqlnd-openssl`, `phpXY-swoole-openssl`, `phpXY-openswoole-openssl`.
+  `phpXY-mysqlnd` делает TLS к серверу через модуль openssl, когда сайт его просит, и
+  без входа caching_sha2_password и sha256_password (MySQL 8 и новее; у MariaDB их нет):
+  они есть в `phpXY-mysqlnd-openssl`. Модули на mysqlnd идут с одним из двух:
+  `phpXY-mysqli-openssl`, `phpXY-pdo_mysql-openssl` (у 5.6 ещё `php56-mysql-openssl`),
+  `phpXY-swoole-openssl` и `phpXY-openswoole-openssl` — с `phpXY-mysqlnd-openssl`.
+  Swoole 6.2 (8.2–8.4) без OpenSSL не собирается: там `phpXY-swoole` тоже с ним.
 - `phpXY-swoole` и `phpXY-openswoole` ставятся оба; ini у openswoole выключен (у них
   одни и те же классы), его сообщение пакета говорит, как переключить.
 - `phpXY-imagick` и `phpXY-gmagick` ставятся оба, но в один PHP их грузить нельзя (у
@@ -394,7 +403,8 @@ libxml2) и по `AZ_HASH_LIBS` его Makefile (программа, котор�
 [`tools/install-php.sh`](tools/install-php.sh) `<версия>` ставит пакеты PHP версии из
 этого репозитория, как сервер (ядро, `mod_php74` и модули, с `php74-openssl`), а
 [`tools/check-php.sh`](tools/check-php.sh) `<версия>` их проверяет
-(`results/check-php-<версия>.txt`).
+(`results/check-php-<версия>.txt`); `install-php.sh --openssl` ставит варианты с OpenSSL
+на места их модулей, для `CHECK_TAG=openssl check-php.sh` (`check-php-<версия>-openssl.txt`).
 
 ### Workflow
 

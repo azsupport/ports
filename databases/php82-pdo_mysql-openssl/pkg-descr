@@ -1,0 +1,9 @@
+PDO_MYSQL for mysqlnd with OpenSSL: the module pdo_mysql of
+php82-pdo_mysql, the same build, with php82-mysqlnd-openssl instead of
+php82-mysqlnd. The same files as php82-pdo_mysql: install one of the
+two.
+
+The module pdo_mysql of PHP 8.2 for php82 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20220829/pdo_mysql.so, loaded by its ini in etc/php82/conf.d,
+its headers in include/php82/php/ext/pdo_mysql.

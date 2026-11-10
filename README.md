@@ -77,10 +77,20 @@ Names and origins as the ports, files at the paths of the ports:
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS; `bash` without NLS; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the static libraries of az (`wget`: IDN, PSL, PCRE2; `rsync`: lz4, zstd, xxhash, no ICONV) and the OpenSSL of the base system: no library outside the base system |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
-| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 59 per version, 61 for 7.4; the list of one: `pkg search -r az '^php84-'` |
+| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 65 per version, 67 for 7.4, 64 for 5.6 (with the variants with OpenSSL below); the list of one: `pkg search -r az '^php84-'` |
 
 - openssl in two kinds, one of the two: `phpXY-openssl` and `phpXY-openssl-legacy` (the
   legacy provider of OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
+- ftp, mysqlnd, swoole and openswoole without OpenSSL, and each as a variant with the
+  OpenSSL of the base system, one of the two per module (aZ, 10.11.2026):
+  `phpXY-ftp-openssl` (FTP over SSL), `phpXY-mysqlnd-openssl`, `phpXY-swoole-openssl`,
+  `phpXY-openswoole-openssl`. `phpXY-mysqlnd` makes TLS to the server through the module
+  openssl when a site asks for it and has no logins caching_sha2_password and
+  sha256_password (MySQL 8 and later; MariaDB has neither): `phpXY-mysqlnd-openssl` has
+  them. The modules on mysqlnd go with one of the two: `phpXY-mysqli-openssl`,
+  `phpXY-pdo_mysql-openssl` (5.6 also `php56-mysql-openssl`), `phpXY-swoole-openssl` and
+  `phpXY-openswoole-openssl` with `phpXY-mysqlnd-openssl`. Swoole 6.2 (8.2 to 8.4) has no
+  build without OpenSSL: there `phpXY-swoole` has it too.
 - `phpXY-swoole` and `phpXY-openswoole` can both be installed; the ini of openswoole is
   off (they define the same classes), its package message says how to switch.
 - `phpXY-imagick` and `phpXY-gmagick` can both be installed, but must not be loaded into one
@@ -413,7 +423,9 @@ and the ports that link it (aZ, 10.11.2026).
 [`tools/install-php.sh`](tools/install-php.sh) `<version>` installs the PHP packages of
 a version from that repository, as a server does (the core, `mod_php74` and the
 modules, with `php74-openssl`), and [`tools/check-php.sh`](tools/check-php.sh)
-`<version>` checks them (`results/check-php-<version>.txt`).
+`<version>` checks them (`results/check-php-<version>.txt`); `install-php.sh --openssl`
+puts the variants with OpenSSL in the places of their modules, for
+`CHECK_TAG=openssl check-php.sh` (`check-php-<version>-openssl.txt`).
 
 ### The workflow
 

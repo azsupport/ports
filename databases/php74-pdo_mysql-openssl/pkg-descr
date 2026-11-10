@@ -1,0 +1,9 @@
+PDO_MYSQL for mysqlnd with OpenSSL: the module pdo_mysql of
+php74-pdo_mysql, the same build, with php74-mysqlnd-openssl instead of
+php74-mysqlnd. The same files as php74-pdo_mysql: install one of the
+two.
+
+The module pdo_mysql of PHP 7.4 for php74 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20190902/pdo_mysql.so, loaded by its ini in etc/php74/conf.d,
+its headers in include/php74/php/ext/pdo_mysql.
