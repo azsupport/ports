@@ -1,0 +1,8 @@
+MySQLi for mysqlnd with OpenSSL: the module mysqli of php81-mysqli, the
+same build, with php81-mysqlnd-openssl instead of php81-mysqlnd. The
+same files as php81-mysqli: install one of the two.
+
+The module mysqli of PHP 8.1 for php81 of azsupport/ports, which
+installs side by side with the other versions of PHP:
+lib/php/20210902/mysqli.so, loaded by its ini in etc/php81/conf.d, its
+headers in include/php81/php/ext/mysqli.

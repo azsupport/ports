@@ -1,4 +1,6 @@
-MySQLi: access to MySQL and MariaDB servers, through mysqlnd.
+MySQLi: access to MySQL and MariaDB servers, through mysqlnd. With
+php81-mysqlnd; php81-mysqli-openssl is the same for
+php81-mysqlnd-openssl.
 
 The module mysqli of PHP 8.1 for php81 of azsupport/ports, which
 installs side by side with the other versions of PHP:

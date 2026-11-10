@@ -29,6 +29,11 @@
 #   - ssh2 (phpXY-ssh2): ssh2_connect() to the sshd of this machine, the key
 #     exchange (libssh2 of az); curl (phpXY-curl): SCP and SFTP among the protocols
 #     of curl_version() (the libcurl.so of az with libssh2);
+#   - the modules with a variant with OpenSSL, the same way: OpenSSL in
+#     phpXY-<module>-openssl, none in phpXY-<module> (swoole 6.2 of 8.2 and later:
+#     in both, it has no build without it): ftp by ftp_ssl_connect(), mysqlnd by
+#     its login sha256_password (its extended SSL) among the plugins of
+#     phpinfo(), swoole and openswoole by SWOOLE_SSL;
 #   - readelf -d of every module of lib/php/<API> and of php, php-cgi, php-fpm and
 #     libphp of mod_phpXY: the libraries they name (NEEDED) in /lib, /usr/lib or
 #     /usr/local/az/lib, the run path (RUNPATH) none or /usr/local/az/lib, which it
@@ -55,9 +60,11 @@
 #
 # Every check prints one line: OK, FAIL with the reason, or SKIP with the reason;
 # the same lines go to results/check-php-<version>.txt (RESULTS=<dir> for another
-# directory). PREFIX (/usr/local), AZ_PREFIX (/usr/local/az), AZ_GCC (the version
-# of GCC, else that of Mk/Uses/azgcc.mk) and DISTDIR (distfiles/ of this tree) can
-# be set.
+# directory; CHECK_TAG=<tag>: check-php-<version>-<tag>.txt and no time of
+# Zend/bench.php, as for the variants with OpenSSL that tools/install-php.sh
+# --openssl installs: CHECK_TAG=openssl). PREFIX (/usr/local), AZ_PREFIX
+# (/usr/local/az), AZ_GCC (the version of GCC, else that of Mk/Uses/azgcc.mk) and
+# DISTDIR (distfiles/ of this tree) can be set.
 # Exit status: 0 no check failed, 1 a check failed, 2 usage.
 
 set -u
@@ -84,7 +91,7 @@ distphp="${DISTDIR:-$top/distfiles}/php"
 
 res="${RESULTS:-results}"
 mkdir -p "$res" || { echo "check-php: cannot make the directory $res" >&2; exit 2; }
-sum="$res/check-php-$ver.txt"
+sum="$res/check-php-$ver${CHECK_TAG:+-$CHECK_TAG}.txt"
 : > "$sum" || { echo "check-php: cannot write $sum" >&2; exit 2; }
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/check-php.XXXXXX")" || { echo "check-php: no temporary directory" >&2; exit 2; }
 apconf=""
@@ -103,7 +110,7 @@ skip() { say "SKIP $1: $2"; nskip=$((nskip + 1)); }
 first() { printf '%s\n' "$1" | sed -n '/[^[:space:]]/{p;q;}'; }
 last3() { printf '%s\n' "$1" | sed '/^[[:space:]]*$/d' | tail -n 3 | tr '\n' ' ' | sed 's/ *$//'; }
 
-say "check-php $ver: $(uname -sr), $(date '+%d.%m.%Y %H:%M:%S')"
+say "check-php $ver${CHECK_TAG:+ ($CHECK_TAG)}: $(uname -sr), $(date '+%d.%m.%Y %H:%M:%S')"
 [ "$(id -u)" = 0 ] || say "note: not root; the Apache check needs root (it copies the sample into modules.d)"
 
 # runs <name> <program> [arguments]: the program runs and exits 0; its first line
@@ -461,6 +468,24 @@ while read -r p; do
                 ? "OK scp sftp, " . (isset($v["libssh_version"]) ? $v["libssh_version"] : "libssh2")
                 : "FAIL protocols: " . implode(" ", $v["protocols"]);' "$@"
     fi
+    # the modules with a variant with OpenSSL: with it in phpXY-<module>-openssl,
+    # without it in phpXY-<module> (swoole 6.2 of 8.2 and later: with it in both)
+    case "$mod" in
+        ftp|mysqlnd|swoole|openswoole)
+            sw=no
+            case "$p" in *-openssl) sw=yes ;; esac
+            [ "$mod" = swoole ] && case "$ver" in 8.[2-9]) sw=yes ;; esac
+            case "$mod" in
+                ftp) sc='$s = function_exists("ftp_ssl_connect"); $w = "ftp_ssl_connect()";' ;;
+                mysqlnd) sc='ob_start(); phpinfo(INFO_MODULES); $s = strpos(ob_get_clean(), "auth_plugin_sha256_password") !== false;
+                    $w = "the login sha256_password";' ;;
+                *) sc='$s = defined("SWOOLE_SSL"); $w = "SWOOLE_SSL";' ;;
+            esac
+            intl_check "$mod: OpenSSL $sw ($p)" "$sc"'
+                $g = $s ? "yes" : "no";
+                echo $g === "'"$sw"'" ? "OK $w: " . ($s ? "there" : "not there")
+                    : "FAIL $w: " . ($s ? "there" : "not there") . ", OpenSSL '"$sw"' wanted";' "$@" ;;
+    esac
 done < "$tmp/pkgs"
 [ -n "$intl_done" ] || skip "intl" "the package php$short-intl is not installed"
 
@@ -538,7 +563,9 @@ pv="$("$php" -n -r 'echo PHP_VERSION;' 2> /dev/null < /dev/null)"
 tb="$(ls "$distphp"/php-"$pv"-fbsd-*.tar.xz 2> /dev/null | sort | tail -n 1)"
 bm=""
 [ -n "$tb" ] && bm="$(tar -tf "$tb" 2> /dev/null | grep -m 1 '^[^/]*/Zend/bench\.php$')"
-if [ -z "$tb" ]; then
+if [ -n "${CHECK_TAG:-}" ]; then
+    say "note: no time of Zend/bench.php with CHECK_TAG: the core is that of check-php-$ver.txt"
+elif [ -z "$tb" ]; then
     say "note: no time of Zend/bench.php: no php-${pv:-?}-fbsd-*.tar.xz in $distphp"
 elif [ -z "$bm" ]; then
     say "note: no time of Zend/bench.php: ${tb##*/} has no Zend/bench.php"

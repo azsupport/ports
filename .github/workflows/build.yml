@@ -4,7 +4,9 @@ name: Build the packages of the repository az
 # make.conf of aZ's servers for an x86-64 level (tools/make.conf.in), over the
 # official ports tree at the commit pinned in tools/build.sh; when PHP was built,
 # installs its packages from the new repository (tools/install-php.sh) and checks
-# them (tools/check-php.sh); installs the programs and libraries from it and tests
+# them (tools/check-php.sh), then the variants with OpenSSL in the places of their
+# modules (install-php.sh --openssl, CHECK_TAG=openssl check-php.sh); installs the
+# programs and libraries from it and tests
 # them (tools/test-programs.sh); and publishes
 # the repository of pkg as the files of the release az-fbsd<major>-amd64-<level>
 # of this repository (its address goes into /usr/local/etc/pkg/repos/az.conf of a
@@ -255,6 +257,25 @@ jobs:
                 else
                   echo "PHP $v: FAIL (check-php-$v.txt, exit $r)" >> results/checks.txt
                   rc=1
+                fi
+                # the variants with OpenSSL (phpXY-<module>-openssl) in the places of
+                # their modules, checked the same way, when the repository has them
+                if [ -n "$(ls "$crepo"/php"$(echo "$v" | tr -d .)"-*-openssl-[0-9]*.pkg 2>/dev/null)" ]; then
+                  r=0
+                  sh tools/install-php.sh --repo "$crepo" --openssl "$v" || r=$?
+                  if [ "$r" != 0 ]; then
+                    echo "PHP $v, the variants with OpenSSL: FAIL (they did not install, exit $r: install-php-$v-openssl.log)" >> results/checks.txt
+                    rc=1
+                  else
+                    r=0
+                    CHECK_TAG=openssl sh tools/check-php.sh "$v" || r=$?
+                    if [ "$r" = 0 ]; then
+                      echo "PHP $v, the variants with OpenSSL: OK (check-php-$v-openssl.txt)" >> results/checks.txt
+                    else
+                      echo "PHP $v, the variants with OpenSSL: FAIL (check-php-$v-openssl.txt, exit $r)" >> results/checks.txt
+                      rc=1
+                    fi
+                  fi
                 fi
               fi
             done

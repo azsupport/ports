@@ -1,0 +1,8 @@
+Swoole with OpenSSL: the module swoole of php74-swoole built with the
+OpenSSL of the base system (its SSL and TLS: SWOOLE_SSL, HTTPS, WSS),
+with php74-mysqlnd-openssl instead of php74-mysqlnd. The same files as
+php74-swoole: install one of the two.
+
+PECL swoole for php74 of azsupport/ports, built from ext/swoole of the
+release tarball of azsupport/php-src, which bundles it:
+lib/php/20190902/swoole.so, loaded by its ini in etc/php74/conf.d.

@@ -3,6 +3,10 @@ PHP, the OpenSwoole fork of Swoole 4 (its 4.12 API). It has the classes
 of Swoole, and PHP stops when both are loaded: its ini comes with its
 line commented out (the message of the package says how to switch).
 
+Without OpenSSL (no SSL and TLS of openswoole: SWOOLE_SSL, HTTPS, WSS),
+with php81-mysqlnd; php81-openswoole-openssl has it, with
+php81-mysqlnd-openssl.
+
 PECL openswoole for php81 of azsupport/ports, built from ext/openswoole
 of the release tarball of azsupport/php-src, which bundles it:
 lib/php/20210902/openswoole.so, loaded by its ini in etc/php81/conf.d.

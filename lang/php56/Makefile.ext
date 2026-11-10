@@ -73,6 +73,10 @@
 #   USES=xorg of X11 is read there in the framework of f16b6dd.
 # - openssl: not the BROKEN with openssl111 of the official port (the fork
 #   builds with OpenSSL 1.1 and 3; OpenSSL of the base system here).
+# - the variants with OpenSSL, as for 7.4: ftp and mysqlnd without it,
+#   <module>-openssl with it; mysql, mysqli and pdo_mysql <module>-openssl for
+#   mysqlnd-openssl (AZ_OPENSSL below); the post-patch of the official
+#   ftp/php56-ftp in the rules of ftp-openssl.
 # - IGNORE_WITH_PHP that of the official lang/php56.
 #
 # The modules, by the priority of their ini (ext-<NN>-<module>.ini): opcache
@@ -90,8 +94,9 @@
 COMMENT=	The ${PHP_MODNAME} shared extension for php
 
 USES+=	php:ext,noflavors
-# openssl-legacy builds ext/openssl
-PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//}
+# openssl-legacy builds ext/openssl; <module>-openssl ext/<module> (the
+# variants with OpenSSL: AZ_OPENSSL below)
+PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//}
 PHP_VER=	56
 IGNORE_WITH_PHP=	71 72 73
 
@@ -108,6 +113,17 @@ EXTRACT_AFTER_ARGS?=	${EXTSUBDIR}
 # (Mk/Uses/php.mk links them with their run path, found by the pkg-config of az)
 BUILD_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
 RUN_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
+
+# The variants with OpenSSL, as lang/php74/Makefile.ext has them: ftp and
+# mysqlnd without OpenSSL, <module>-openssl with that of the base system;
+# mysql, mysqli and pdo_mysql <module>-openssl for mysqlnd-openssl
+AZ_OPENSSL_MODULES=	ftp mysql mysqli mysqlnd pdo_mysql
+AZ_OPENSSL_LINKS=	ftp mysqlnd
+.if ${PKGNAMESUFFIX:M-*-openssl}
+AZ_OPENSSL=	yes
+# the patches of the module: those of its port without OpenSSL
+PATCHDIR=	${.CURDIR:S/-openssl$//}/files
+.endif
 
 # the modules of libxml2: xml2-config of az without -L/lib (AZ_XML2_CONFIG)
 AZ_XML2_MODULES=	dom simplexml soap wddx xml xmlreader xmlrpc xmlwriter xsl
@@ -179,11 +195,22 @@ CONFIGURE_ARGS+=--enable-filter
 .endif
 
 .if ${PHP_MODNAME} == "ftp"
-CONFIGURE_ARGS+=--enable-ftp \
-		--with-openssl-dir=${OPENSSLBASE}
+# without OpenSSL (no FTP over SSL, no ftp_ssl_connect()): ext/ftp of 5.6 has
+# its SSL code under HAVE_OPENSSL_EXT, which a module alone has not
+CONFIGURE_ARGS+=--enable-ftp
+.  if defined(AZ_OPENSSL)
+# ftp-openssl: FTP over SSL with the OpenSSL of the base system; the
+# post-patch of the official slave (ftp/php56-ftp: the code under
+# HAVE_OPENSSL_EXT always built) here, for this variant only
+CONFIGURE_ARGS+=--with-openssl-dir=${OPENSSLBASE}
 
 LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl
 USES+=		ssl
+
+post-patch:
+	@${REINPLACE_CMD} s/HAVE_OPENSSL_EXT/__FreeBSD__/ \
+		${WRKSRC}/ftp.* ${WRKSRC}/php_ftp.*
+.  endif
 .endif
 
 .if ${PHP_MODNAME} == "gd"
@@ -306,20 +333,27 @@ MYSQLND_DESC=	Use MySQL Native Driver
 # official lang/php56). Its config9.m4 of 5.6 is for the core of php-src:
 # - SSL: it runs PHP_SETUP_OPENSSL unless PHP_OPENSSL_DIR is "no" and has no
 #   option for it (that of ext/openssl or ext/ftp in php-src), so configure
-#   stops without it: the OpenSSL of the base system by the variable;
+#   stops without it: "no" by the variable, without OpenSSL (its core SSL
+#   makes TLS to the server through the streams of PHP, the module openssl;
+#   no sha256_password login, which needs RSA); mysqlnd-openssl (AZ_OPENSSL)
+#   the OpenSSL of the base system;
 # - the compressed protocol: mysqlnd.h takes it with HAVE_ZLIB, which ext/zlib
 #   of php-src defines and a module alone has not: defined here;
 # - its libraries: PHP_SETUP_OPENSSL adds libssl and libcrypto to
 #   MYSQLND_SHARED_LIBADD, which config9.m4 never substitutes, and it adds no
-#   libz, so mysqlnd.so would need them (RSA_public_encrypt for the sha256 and
-#   caching_sha2 logins, compress) without linking them: libssl, libcrypto and
-#   libz of the base system by LDFLAGS, as the official ftp takes OpenSSL.
+#   libz, so mysqlnd.so would need them (RSA_public_encrypt for the sha256
+#   login, compress) without linking them: libssl, libcrypto and libz of the
+#   base system by LDFLAGS, as the official ftp takes OpenSSL.
 CONFIGURE_ARGS+=--enable-mysqlnd
-
+.  if defined(AZ_OPENSSL)
 CONFIGURE_ENV+=	PHP_OPENSSL_DIR=${OPENSSLBASE}
-CPPFLAGS+=	-DHAVE_ZLIB=1
-LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl -lz
+LDFLAGS+=	-L${OPENSSLLIB} -lcrypto -lssl
 USES+=		ssl
+.  else
+CONFIGURE_ENV+=	PHP_OPENSSL_DIR=no
+.  endif
+CPPFLAGS+=	-DHAVE_ZLIB=1
+LDFLAGS+=	-lz
 .endif
 
 .if ${PHP_MODNAME} == "openssl"
@@ -694,6 +728,20 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 
 AZ_LIBS=	libssh2.so
 CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
+.endif
+
+# The variants with OpenSSL (AZ_OPENSSL above): one of the two per module
+.if !empty(AZ_OPENSSL_MODULES:M${PHP_MODNAME})
+.  if defined(AZ_OPENSSL)
+CONFLICTS_INSTALL=	php${PHP_VER}-${PHP_MODNAME}
+.    if !empty(AZ_OPENSSL_LINKS:M${PHP_MODNAME})
+COMMENT:=	${COMMENT}, with OpenSSL
+.    else
+COMMENT:=	${COMMENT}, for mysqlnd with OpenSSL
+.    endif
+.  else
+CONFLICTS_INSTALL=	php${PHP_VER}-${PHP_MODNAME}-openssl
+.  endif
 .endif
 
 # The CPE of a PECL extension is that of its port: USES=cpe and CPE_PRODUCT=php

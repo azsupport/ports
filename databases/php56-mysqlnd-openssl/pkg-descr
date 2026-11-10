@@ -1,0 +1,10 @@
+mysqlnd with OpenSSL: the module mysqlnd of php56-mysqlnd built with its
+extended SSL (MYSQLND_HAVE_SSL), linked with the OpenSSL of the base
+system: the login sha256_password. The same files as php56-mysqlnd:
+install one of the two; php56-mysql-openssl, php56-mysqli-openssl and
+php56-pdo_mysql-openssl go with it.
+
+The module mysqlnd of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/mysqlnd.so, loaded by its ini in etc/php56/conf.d,
+its headers in include/php56/php/ext/mysqlnd.

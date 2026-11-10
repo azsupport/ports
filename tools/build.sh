@@ -371,11 +371,13 @@ pkg_said() {
 # our installed packages: origin name version file, one per line (put back when pkg
 # install of an official package replaced one by the official package of the same name)
 : > "$q/installed"
+# (their own variables: read empties those it reads into at the end of the file, and
+# inst_port has its own _n, _v and _f around official and gone)
 ours_back() {
-    while read -r _io _n _v _f; do
-        [ "$(pkg query %v "$_n" 2>/dev/null)" = "$_v" ] && continue
-        say "pkg install put another $_n in the place of ours ($_v): pkg add -f ${_f##*/}"
-        if ! pkg add -f "$_f" > "$q/pkg.out" 2>&1; then pkg_said "$q/pkg.out" "pkg add -f ${_f##*/} failed"; return 1; fi
+    while read -r _bo _bn _bv _bf; do
+        [ "$(pkg query %v "$_bn" 2>/dev/null)" = "$_bv" ] && continue
+        say "pkg install put another $_bn in the place of ours ($_bv): pkg add -f ${_bf##*/}"
+        if ! pkg add -f "$_bf" > "$q/pkg.out" 2>&1; then pkg_said "$q/pkg.out" "pkg add -f ${_bf##*/} failed"; return 1; fi
         cat "$q/pkg.out" >> "$log"
     done < "$q/installed"
     return 0
@@ -383,8 +385,8 @@ ours_back() {
 # gone: our packages that pkg delete removed are no longer installed for the ports after
 gone() {
     : > "$q/installed.new"
-    while read -r _io _n _v _f; do
-        if pkg info -e "$_n"; then echo "$_io $_n $_v $_f" >> "$q/installed.new"; else rm -f "$q/inst-$(key "$_io")"; fi
+    while read -r _go _gn _gv _gf; do
+        if pkg info -e "$_gn"; then echo "$_go $_gn $_gv $_gf" >> "$q/installed.new"; else rm -f "$q/inst-$(key "$_go")"; fi
     done < "$q/installed"
     mv "$q/installed.new" "$q/installed"
 }
@@ -433,7 +435,28 @@ inst_port() {
         pkg info -e "$_n" && _af=-f
         say "  pkg add ${_af:+$_af }${_f##*/}"
         # shellcheck disable=SC2086
-        if ! pkg add $_af "$_f" > "$q/pkg.out" 2>&1 || [ "$(pkg query %v "$_n" 2>/dev/null)" != "$_v" ]; then
+        pkg add $_af "$_f" > "$q/pkg.out" 2>&1
+        _r=$?
+        # an installed package of ours with the same files (the other one of a pair:
+        # phpXY-mysqlnd and phpXY-mysqlnd-openssl, which the ports on mysqlnd need one
+        # or the other of): pkg add refuses it before it installs anything ("<name>
+        # conflicts with <name>-<version> (installs files into the same place)"), so
+        # that one goes with the packages that depend on it (pkg delete: the ports
+        # that need them get them again) and pkg add runs once more
+        _cf="$(sed -n 's/.* conflicts with \([^ ]*\) (installs files into the same place).*/\1/p' "$q/pkg.out" | LC_ALL=C sort -u)"
+        if [ "$_r" != 0 ] && [ -n "$_cf" ]; then
+            cat "$q/pkg.out" >> "$log"
+            for _x in $_cf; do
+                say "  pkg delete ${_x%-*} and what depends on it (the same files as $_n)"
+                pkg delete -y "${_x%-*}" >> "$log" 2>&1 || say "  pkg delete ${_x%-*} failed"
+            done
+            gone
+            say "  pkg add ${_af:+$_af }${_f##*/}"
+            # shellcheck disable=SC2086
+            pkg add $_af "$_f" > "$q/pkg.out" 2>&1
+            _r=$?
+        fi
+        if [ "$_r" != 0 ] || [ "$(pkg query %v "$_n" 2>/dev/null)" != "$_v" ]; then
             pkg_said "$q/pkg.out" "pkg add ${_f##*/} failed"
             echo "$why" > "$q/instfail-$_ck"
             return 1
