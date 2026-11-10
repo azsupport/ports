@@ -74,7 +74,7 @@
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickWand-7.so` в `/usr/local/az/lib` для модуля imagick |
 | `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib и libssh2 внутри, zip, 7z, rar и образы ISO — через `tar` базовой системы: других пакетов не нужно |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp релиза новее официального порта, с нашим `ffmpeg` |
-| `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | их официальные origin | официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта: `unzip` с ICONV (кириллические имена архивов Windows), `wget`, `sudo` и `bash` без NLS, `wget` без IDN, `sudo` без LOGSRVD и SSL, `rsync` без ICONV, `screen` с ncurses базы; библиотек вне базовой системы нет, кроме lz4, xxhash и zstd у `rsync` (официальные пакеты) |
+| `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows; `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR; `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS; `bash` без NLS; `portmaster` только с дополнением для bash), `wget` и `rsync` наши, со статикой az (`wget`: OpenSSL, IDN, PSL, PCRE2; `rsync`: lz4, zstd, xxhash, OpenSSL; без ICONV): библиотек вне базовой системы нет |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
 | `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). 59 на версию, у 7.4 — 61; список одной версии: `pkg search -r az '^php84-'` |
@@ -379,6 +379,17 @@ env AZ_CONFIGURE_CHECK=1 sh tools/build.sh --force
 slave-портов: изменение блока php.ini, скрипта профилей, rc.d-скрипта или pkg-message
 `lang/php74` пересобирает `php74`, а не модули и `mod_php74` (pkg берёт зависимость по
 имени, не по версии). Ревизии руками не поднимаются.
+
+Порт, который линкует библиотеки `az/az`, берёт в свой `az_hash` не хеш всего az, а хеш
+последней из своих библиотек по порядку `az/az/files/deps.conf`
+([`tools/az-lib-hashes.sh`](tools/az-lib-hashes.sh)): общая часть az, собственные строки
+библиотеки (её строки `lib` и `take`, её функции сборки в `tools/az-build.sh` и
+`files/curl/build-libcurl.sh`, её патчи и дистфайлы) и хеши библиотек перед ней. Его
+библиотеки — по файлам az в его зависимостях (`${AZ_PREFIX}/lib/libxml2.so:az/az` —
+libxml2) и по `AZ_HASH_LIBS` его Makefile (программа, которая линкует больше, чем
+называет: `ftp/curl`, `multimedia/ffmpeg`). Комментарии, строки `upstream` и
+документация az в этот хеш не входят. Новая библиотека добавляется в конец строк `lib`:
+тогда пересобираются только az и порты, которые её линкуют (aZ, 10.11.2026).
 
 [`tools/install-php.sh`](tools/install-php.sh) `<версия>` ставит пакеты PHP версии из
 этого репозитория, как сервер (ядро, `mod_php74` и модули, с `php74-openssl`), а

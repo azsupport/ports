@@ -257,6 +257,12 @@ b_lz4() {
     (cd "$1/lib" && gmake -j"$ncpu" liblz4.a liblz4.pc PREFIX="$P" LIBDIR="$P/lib" BUILD_SHARED=no &&
         gmake install PREFIX="$P" LIBDIR="$P/lib" PKGCONFIGDIR="$P/lib/pkgconfig" BUILD_SHARED=no)
 }
+# xxhash: libxxhash.a, its headers and pkg-config file (not xxhsum, not the shared one)
+b_xxhash() {
+    (cd "$1" && gmake -j"$ncpu" libxxhash.a libxxhash.pc PREFIX="$P" LIBDIR="$P/lib" PKGCONFIGDIR="$P/lib/pkgconfig" &&
+        gmake install_libxxhash.a install_libxxhash.includes install_libxxhash.pc PREFIX="$P" LIBDIR="$P/lib" \
+            PKGCONFIGDIR="$P/lib/pkgconfig")
+}
 b_libxml2() { at "$1" --sysconfdir="$P/share" --without-python --with-iconv="$P" --with-zlib --without-icu --without-lzma --without-readline --without-history --with-http; }
 b_icu() { at "$1" --with-data-packaging=static --disable-layoutex --disable-tests --disable-samples --disable-extras; }
 b_oniguruma() { cm "$1" -DBUILD_TEST=OFF -DENABLE_POSIX_API=ON; }

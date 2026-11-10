@@ -120,8 +120,8 @@ if in_repo yt-dlp; then
 else
     say "yt-dlp: not in the repository, its tests are skipped"
 fi
-# the utilities (official ports, Mk/az-official.mk) as yt-dlp: the libraries some
-# of them take (lz4, xxhash, zstd of rsync) are official packages
+# the utilities (official ports, Mk/az-official.mk; wget and rsync ours) as yt-dlp:
+# what some of the official ones take (indexinfo of bash) are official packages
 utils="3proxy bash bsddialog bsnmp-ucd portmaster rsync screen sudo unzip wget yamdi zip"
 u_=""
 for p in $utils; do in_repo "$p" && u_="$u_ $p"; done

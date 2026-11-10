@@ -24,6 +24,10 @@ WWW=		https://curl.se/ \
 LICENSE=	MIT
 LICENSE_FILE=	${WRKSRC}/COPYING
 
+# the libraries of az in its hash (tools/build.sh): those up to curl in deps.conf,
+# all it links (OpenSSL, the bundled ones, curl and its patch), more than the
+# file of its dependency names
+AZ_HASH_LIBS=	curl
 BUILD_DEPENDS=	${AZ_STATIC}/lib/libnghttp2.a:az/az \
 		python3:lang/python3
 

@@ -1,9 +1,9 @@
 #!/bin/sh
-# utils-test.sh - test the utilities of the repository az, the official ports built
-# as they are with the options of aZ (Mk/az-official.mk), installed from the
-# repository: each runs (its version) and has its libraries (none missing; those of
-# the base system, but the official ones its port takes: lz4, xxhash and zstd of
-# rsync, its own of bsddialog and sudo); zip makes an archive unzip reads.
+# utils-test.sh - test the utilities of the repository az, installed from it: the
+# official ports built with the options of aZ (Mk/az-official.mk) and wget and
+# rsync with the static libraries of az: each runs (its version) and has its
+# libraries (none missing; those of the base system, but its own of bsddialog and
+# sudo); zip makes an archive unzip reads.
 #
 # Usage (FreeBSD, the packages installed): sh tools/utils-test.sh
 # Results: utils-results/tests.txt (one line per check, the summary at the end);
@@ -55,7 +55,17 @@ ver bash "GNU bash, version 5" "$P/bin/bash" --version
 ver bsddialog "1\.1" "$P/bin/bsddialog" --version
 ver portmaster "3\.35" "$P/sbin/portmaster" --version
 for b in zip unzip wget screen bash yamdi 3proxy; do libs "$P/bin/$b"; done
-libs "$P/bin/rsync" liblz4 libxxhash libzstd
+feat=" $("$P/bin/wget" --version 2>&1 | sed -n '/^[+-]/p' | tr '\n' ' ') "
+miss=""
+for f in +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm; do
+    case "$feat" in *" $f "*) ;; *) miss="$miss $f" ;; esac
+done
+if [ -z "$miss" ]; then pass "wget: +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm"; else fail "wget lacks$miss (it has:$feat)"; fi
+rv="$("$P/bin/rsync" --version 2>&1)"
+miss=""
+for f in xxh128 zstd lz4 file-flags; do printf '%s\n' "$rv" | grep -q -- "$f" || miss="$miss $f"; done
+if [ -z "$miss" ]; then pass "rsync: xxh128, zstd, lz4, file-flags"; else fail "rsync --version lacks$miss"; fi
+libs "$P/bin/rsync"
 libs "$P/bin/sudo" libsudo_util
 libs "$P/bin/bsddialog" libbsddialog
 libs "$P/lib/snmp_ucd.so"

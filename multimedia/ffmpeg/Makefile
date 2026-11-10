@@ -26,6 +26,9 @@ WWW=		https://ffmpeg.org/ \
 # GPL: --enable-gpl, with libx264 (as build-az.sh)
 LICENSE=	GPLv2+
 
+# the libraries of az in its hash (tools/build.sh): x264, dav1d and libwebp (and
+# those before them in deps.conf), more than the file of its dependency names
+AZ_HASH_LIBS=	x264 dav1d webp
 BUILD_DEPENDS=	${AZ_STATIC}/lib/libx264.a:az/az \
 		nasm:devel/nasm
 
