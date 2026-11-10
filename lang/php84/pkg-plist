@@ -149,7 +149,7 @@ include/php84/php/ext/json/php_json.h
 include/php84/php/ext/json/php_json_parser.h
 include/php84/php/ext/json/php_json_scanner.h
 include/php84/php/ext/libxml/php_libxml.h
-include/php84/php/ext/pcre/pcre2.h
+include/php84/php/pcre2.h
 include/php84/php/ext/pcre/php_pcre.h
 include/php84/php/ext/random/php_random.h
 include/php84/php/ext/random/php_random_csprng.h
