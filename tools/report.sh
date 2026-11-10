@@ -48,6 +48,21 @@ if [ -s "$top/check-tree.txt" ] && grep -q 'FAIL' "$top/check-tree.txt"; then
         printf '::error title=check-tree::%s\n' "$(printf '%s\n' "$l" | escape)"
     done
 fi
+# the curl of az against that of azsupport/php-src (curl-sync-check.txt of the
+# workflow): all of it when something differs
+if [ -s "$top/curl-sync-check.txt" ] && grep -q 'FAIL' "$top/curl-sync-check.txt"; then
+    {
+        echo "### $title: the curl of az and that of azsupport/php-src (tools/curl-sync-check.sh)"
+        echo
+        echo '```'
+        cut -c1-240 "$top/curl-sync-check.txt"
+        echo '```'
+        echo
+    } >> "$summary"
+    grep 'FAIL' "$top/curl-sync-check.txt" | head -n 30 | while read -r l; do
+        printf '::error title=curl-sync-check::%s\n' "$(printf '%s\n' "$l" | escape)"
+    done
+fi
 if [ ! -s "$res/summary.txt" ]; then
     echo "::error title=$title::no results: $res/summary.txt is missing (the build did not run to its end)"
     printf '### %s\n\nno results: %s/summary.txt is missing\n' "$title" "$res" >> "$summary"

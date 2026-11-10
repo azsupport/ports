@@ -394,7 +394,10 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 упал, чтобы прогон, упавший на PHP, оставил `az` и библиотеки) и файлы релиза
 `az-fbsd15-amd64-<уровень>`, проверяет порты `make -V` против разреженного официального
 дерева на раннере ([`tools/check-tree.sh`](tools/check-tree.sh), bmake: FAIL
-останавливает прогон там), запускает `tools/build.sh` в ВМ FreeBSD
+останавливает прогон там), сверяет curl пакета az с curl PHP из azsupport/php-src
+([`tools/curl-sync-check.sh`](tools/curl-sync-check.sh): строки данных
+`az/az/files/curl.conf` и `curl-deps.conf` и патчи `curl/` — с теми, что в `freebsd/` на
+его master; отличие тоже останавливает прогон там), запускает `tools/build.sh` в ВМ FreeBSD
 ([vmactions/freebsd-vm](https://github.com/vmactions/freebsd-vm)), потом для каждой
 версии PHP, пакет которой собран, ставит её пакеты из нового репозитория и проверяет их
 (`tools/install-php.sh`, `tools/check-php.sh`; по строке в `results/checks.txt`),
