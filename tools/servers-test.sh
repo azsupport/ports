@@ -1,7 +1,7 @@
 #!/bin/sh
 # servers-test.sh - test the server packages of the repository az, installed from it
 # (aZ, 10.11.2026): git, apache24 with ap24-mod_maxminddb, memcached,
-# mariadb1011-server and -client, vsftpd-ext, bind-tools, bind920 and qt-faststart. Each
+# mariadb1011-server and -client, vsftpd-ext, bind-tools, bind920, vips and qt-faststart. Each
 # that is installed runs (its version) and loads only libraries of the base system,
 # of az (/usr/local/az/lib) and of our other ports (pcre2, curl, its own): our ports
 # link each other's shared libraries. And:
@@ -20,6 +20,9 @@
 #   bind920      named -V with TCP Fast Open; named-checkconf of named.conf.sample; named
 #                on 127.0.0.1:15353 with a zone of its own: dig over UDP and TCP and
 #                of an IDN name (libidn2 of dig), rndc status and stop
+#   vips         the formats of aZ in vips --vips-config; JPEG, a WebP thumbnail,
+#                PNG and GIF made and read back; its libraries those of az and of the
+#                official glib, libexif, cgif, libimagequant and highway
 #   qt-faststart an MP4 of our ffmpeg (moov after mdat): moov first after it
 #
 # Usage (FreeBSD, as root, the packages installed): sh tools/servers-test.sh
@@ -280,6 +283,40 @@ if have bind920; then
         fail "rndc-confgen -a: $(head -n 2 "$T/rndc-confgen.log" | tr '\n' ' ')"
     fi
 else skip bind920; fi
+
+# vips: the formats of aZ in its configuration; noise saved as JPEG, a WebP thumbnail
+# of it, PNG and GIF (cgif with libimagequant), each read back with its loader
+if have vips; then
+    vl="libvips libglib-2.0 libgobject-2.0 libgio-2.0 libgmodule-2.0 libintl libpcre2 libffi libexif libcgif libimagequant libhwy"
+    ver vips "vips-8.18" "$P/bin/vips" --version
+    # shellcheck disable=SC2086
+    chk vips "$P/bin/vips" $vl
+    # shellcheck disable=SC2086
+    chk vipsthumbnail "$P/bin/vipsthumbnail" $vl
+    c="$("$P/bin/vips" --vips-config 2>&1)"
+    for w in "JPEG load/save with libjpeg: true" "PNG load/save with libpng: true" \
+            "WebP load/save with libwebp: true" "HEIC/AVIF load/save with libheif: true" \
+            "GIF save with cgif: true" "image quantisation with imagequant: true" \
+            "EXIF metadata support with libexif: true" "ICC profile support with lcms2: true" \
+            "SIMD support with libhwy: true" "Magick load/save with MagickCore: false" \
+            "TIFF load/save with libtiff: false"; do
+        case "$c" in *"$w"*) pass "vips --vips-config: $w" ;; *) fail "vips --vips-config: not \"$w\"" ;; esac
+    done
+    v="$T/vips"; mkdir -p "$v"
+    if "$P/bin/vips" gaussnoise "$v/n.jpg" 128 96 > "$T/vips.log" 2>&1 &&
+            "$P/bin/vipsthumbnail" "$v/n.jpg" --size 64 -o "$v/t.webp" >> "$T/vips.log" 2>&1 &&
+            "$P/bin/vips" copy "$v/n.jpg" "$v/n.png" >> "$T/vips.log" 2>&1 &&
+            "$P/bin/vips" copy "$v/n.png" "$v/n.gif" >> "$T/vips.log" 2>&1; then
+        for f in n.jpg:jpegload t.webp:webpload n.png:pngload n.gif:gifload; do
+            h="$("$P/bin/vipsheader" "$v/${f%%:*}" 2>&1)"
+            case "$h" in *"${f#*:}"*) pass "vips: ${f%%:*}: ${h#"$v"/}" ;; *) fail "vips: ${f%%:*}: $h" ;; esac
+        done
+        case "$("$P/bin/vipsheader" "$v/t.webp" 2>&1)" in *" 64x48 "*) pass "vipsthumbnail: 128x96 to 64x48" ;;
+            *) fail "vipsthumbnail: $("$P/bin/vipsheader" "$v/t.webp" 2>&1)" ;; esac
+    else
+        fail "vips: $(tail -n 3 "$T/vips.log" | tr '\n' ' ')"
+    fi
+else skip vips; fi
 
 # qt-faststart, on an MP4 of our ffmpeg (moov after mdat, as ffmpeg writes it)
 if have qt-faststart; then
