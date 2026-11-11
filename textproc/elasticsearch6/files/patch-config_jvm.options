@@ -27,7 +27,7 @@
  
  ## DNS cache policy
  # cache ttl in seconds for positive DNS lookups noting that this overrides the
-@@ -95,18 +108,29 @@
+@@ -95,35 +108,58 @@
  
  -Djava.io.tmpdir=${ES_TMPDIR}
  
@@ -54,33 +54,46 @@
  
  # specify an alternative path for JVM fatal error logs
 --XX:ErrorFile=logs/hs_err_pid%p.log
+-
+-## JDK 8 GC logging
+-
+-8:-XX:+PrintGCDetails
+-8:-XX:+PrintGCDateStamps
+-8:-XX:+PrintTenuringDistribution
+-8:-XX:+PrintGCApplicationStoppedTime
+-8:-Xloggc:logs/gc.log
+-8:-XX:+UseGCLogFileRotation
+-8:-XX:NumberOfGCLogFiles=32
+-8:-XX:GCLogFileSize=64m
+-
+-# JDK 9+ GC logging
+-9-:-Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m
 +# azsupport/ports: /var/log/elasticsearch, as the deb and rpm of Elastic (the
 +# tarball has logs, relative to lib/elasticsearch); this file and the replay file
-+# below stay: small text files, written only when the JVM itself crashes
++# below stay: small text files, written only when the JVM itself crashes (without
++# these options the JVM would write them to its working directory or to /tmp)
 +-XX:ErrorFile=/var/log/elasticsearch/hs_err_pid%p.log
 +
 +# azsupport/ports: the replay file of a JIT compiler that crashed next to it, as
 +# 8.x sets it (SystemJvmOptions: -XX:ReplayDataFile, /var/log/elasticsearch in
 +# the deb and rpm); the JVM writes it to its working directory otherwise
 +-XX:ReplayDataFile=/var/log/elasticsearch/replay_pid%p.log
- 
- ## JDK 8 GC logging
- 
-@@ -114,16 +138,27 @@
- 8:-XX:+PrintGCDateStamps
- 8:-XX:+PrintTenuringDistribution
- 8:-XX:+PrintGCApplicationStoppedTime
--8:-Xloggc:logs/gc.log
-+8:-Xloggc:/var/log/elasticsearch/gc.log
- 8:-XX:+UseGCLogFileRotation
- 8:-XX:NumberOfGCLogFiles=32
- 8:-XX:GCLogFileSize=64m
- 
- # JDK 9+ GC logging
--9-:-Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m
-+# azsupport/ports: in /var/log/elasticsearch (the tarball: logs/gc.log); the line
-+# is that of 7.17 and 8.x on JDK 17, at most 32 files of 64 MB
-+9-:-Xlog:gc*,gc+age=trace,safepoint:file=/var/log/elasticsearch/gc.log:utctime,pid,tags:filecount=32,filesize=64m
++
++## GC logging
++
++# azsupport/ports: no GC log (aZ, 11.11.2026: writes that were never of use): the
++# tarball has -Xloggc and its options for JDK 8 and -Xlog:gc*,gc+age=trace,
++# safepoint into the file gc.log (up to 32 files of 64 MB) for JDK 9 and later.
++# Elasticsearch itself still writes the collections that take long or come often
++# to its own log (JvmGcMonitorService: [gc][young], [gc][old], "overhead, spent").
++
++## the shared memory file of the JVM
++
++# azsupport/ports: no /tmp/hsperfdata_<user>/<pid>, the file of performance
++# counters that the JVM maps and keeps writing (aZ, 11.11.2026: nothing in /tmp).
++# The cost: jps, jstat and jcmd -l do not see the process; jcmd and jstack with
++# its process id still work.
++-XX:+PerfDisableSharedMem
  # due to internationalization enhancements in JDK 9 Elasticsearch need to set the provider to COMPAT otherwise
  # time/date parsing will break in an incompatible way for some date patterns and locals
 +# azsupport/ports: stays as it is on JDK 17: COMPAT is there until JDK 23 and

@@ -14,6 +14,17 @@ The heap of this server is set in /etc/rc.conf, as -Xmx takes it (-Xms and
 
 elasticsearch_heap="4g"
 
+Elasticsearch of this package keeps no archives of old logs: path.logs
+holds <cluster>.log, <cluster>_deprecation.log, the two slow logs,
+<cluster>_audit.log and <cluster>_access.log, and a file that reaches its
+size (128 MB the main log, 1 GB the others) starts anew, the old one is
+deleted (%%ETCDIR%%/log4j2.properties). It writes no GC log and no heap
+dump. The archives that are there already (<cluster>-<date>-<n>.log.gz,
+the dated slow and audit logs, gc.log*) stay until removed by hand.
+
+Its temporary directory is /tmp/elasticsearch, made anew at each start
+(elasticsearch_tmpdir in /etc/rc.conf for another place).
+
 !!! PLUGINS NOTICE !!!
 
 ElasticSearch plugins should only be installed via the elasticsearch-plugin

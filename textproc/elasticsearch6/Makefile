@@ -18,10 +18,19 @@
 # the old package); devel/jna brings the libraries libX11 and libXt. The paths of
 # jvm.options in
 # /var/log/elasticsearch, as the deb and rpm of Elastic have them: the fatal error
-# files of the JVM and the GC log (the tarball has them relative to
-# lib/elasticsearch, which the user elasticsearch cannot write; the official port
-# put the GC log in ES_TMPDIR). No heap dump at an OutOfMemoryError (aZ,
-# 11.11.2026: a file as large as the heap; the tarball has it on).
+# files of the JVM (the tarball has them relative to lib/elasticsearch, which the
+# user elasticsearch cannot write). No writes that are of no use (aZ, 11.11.2026):
+# no heap dump at an OutOfMemoryError (a file as large as the heap), no GC log
+# (the tarball: up to 32 files of 64 MB; the official port put it in ES_TMPDIR),
+# nothing in /tmp: no /tmp/hsperfdata_elasticsearch (-XX:+PerfDisableSharedMem in
+# jvm.options, -XX:-UsePerfData for the small JVMs of bin/elasticsearch and
+# bin/elasticsearch-env), and the rc script sets ES_TMPDIR to the one
+# /tmp/elasticsearch (elasticsearch_tmpdir of rc.conf), made anew at each start,
+# where the scripts made a new /tmp/elasticsearch-<number> at every start (the
+# named pipe of bash for the filter of bin/elasticsearch is made there too); no
+# archives of old logs: the log files of the tarball stay as they are, each rolled
+# at its size alone and the rolled file deleted at once
+# (files/log4j2-rollover.properties; the tarball: every day, compressed, kept).
 # jvm.options for OpenJDK 17 (aZ, 11.11.2026; files/patch-config_jvm.options, each
 # change with its source in a comment of the file): -XX:UseAVX=2 for JDK 10 alone
 # (Elastic dropped it in 7.1: fixed in JDK 11; on JDK 17 it warned at every start
@@ -112,6 +121,16 @@ PORTDOCS=	LICENSE.txt \
 		NOTICE.txt \
 		README.textile
 
+# the appenders and loggers of the config/log4j2.properties of the tarball (post-patch)
+ES_LOG4J=	appender.audit_rolling appender.console appender.deprecated_audit_rolling \
+		appender.deprecation_rolling appender.index_indexing_slowlog_rolling \
+		appender.index_search_slowlog_rolling appender.rolling logger.action \
+		logger.deprecation logger.index_indexing_slowlog \
+		logger.index_search_slowlog_rolling logger.saml2_decrypt \
+		logger.samlxml_decrypt logger.xmlsig \
+		logger.xpack_security_audit_deprecated_logfile \
+		logger.xpack_security_audit_logfile
+
 SEARCHUSER?=	elasticsearch
 SEARCHGROUP?=	${SEARCHUSER}
 USERS=		${SEARCHUSER}
@@ -129,8 +148,9 @@ post-patch:
 	@! ${GREP} -q '^[0-9:-]*-XX:[+]*HeapDump' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-XX:ErrorFile=/var/log/elasticsearch/hs_err_pid%p\.log$$' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-XX:ReplayDataFile=/var/log/elasticsearch/replay_pid%p\.log$$' ${WRKSRC}/config/jvm.options && \
-		[ "$$(${GREP} -c '/var/log/elasticsearch/gc\.log' ${WRKSRC}/config/jvm.options)" = 2 ] && \
-		! ${GREP} -E -q '(=|:)(logs/|data$$)' ${WRKSRC}/config/jvm.options || \
+		${GREP} -q '^-XX:+PerfDisableSharedMem$$' ${WRKSRC}/config/jvm.options && \
+		! ${GREP} -E -q '^[0-9:-]*-(Xlog|XX:[^ ]*GC(Log|Details|DateStamps|ApplicationStoppedTime)|XX:+PrintTenuringDistribution)' ${WRKSRC}/config/jvm.options && \
+		! ${GREP} -v '^#' ${WRKSRC}/config/jvm.options | ${GREP} -E -q '(=|:)(logs/|data$$)' || \
 		{ ${ECHO_MSG} "config/jvm.options: the paths are not those of files/patch-config_jvm.options"; ${FALSE}; }
 	@${GREP} -q '^10:-XX:UseAVX=2$$' ${WRKSRC}/config/jvm.options && \
 		! ${GREP} -q '^10-:' ${WRKSRC}/config/jvm.options && \
@@ -139,7 +159,29 @@ post-patch:
 		${GREP} -q '^-Dlog4j2\.formatMsgNoLookups=true$$' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-Xms1g$$' ${WRKSRC}/config/jvm.options && ${GREP} -q '^-Xmx1g$$' ${WRKSRC}/config/jvm.options || \
 		{ ${ECHO_MSG} "config/jvm.options: not the options of files/patch-config_jvm.options"; ${FALSE}; }
-	@${GREP} -q 'es_jdk17_warnings' ${WRKSRC}/bin/elasticsearch
+	@${GREP} -q 'es_jdk17_warnings' ${WRKSRC}/bin/elasticsearch && \
+		${GREP} -q '^export TMPDIR="\$$ES_TMPDIR"$$' ${WRKSRC}/bin/elasticsearch
+	# the small JVMs of the scripts (the check of the Java version, the parser of
+	# jvm.options, the temporary directory) without /tmp/hsperfdata_<user>
+	@${REINPLACE_CMD} -e 's|"\$$JAVA" -cp "\$$ES_CLASSPATH" org\.elasticsearch\.tools\.|"$$JAVA" -XX:-UsePerfData -cp "$$ES_CLASSPATH" org.elasticsearch.tools.|' \
+		${WRKSRC}/bin/elasticsearch ${WRKSRC}/bin/elasticsearch-env
+	@[ "$$(${GREP} -c '"\$$JAVA" -XX:-UsePerfData -cp "\$$ES_CLASSPATH" org\.elasticsearch\.tools\.' ${WRKSRC}/bin/elasticsearch)" = 1 ] && \
+		[ "$$(${GREP} -c '"\$$JAVA" -XX:-UsePerfData -cp "\$$ES_CLASSPATH" org\.elasticsearch\.tools\.' ${WRKSRC}/bin/elasticsearch-env)" = 2 ] && \
+		! ${GREP} -q '"\$$JAVA" -cp ' ${WRKSRC}/bin/elasticsearch ${WRKSRC}/bin/elasticsearch-env || \
+		{ ${ECHO_MSG} "bin/elasticsearch, bin/elasticsearch-env: not the three small JVMs this port gives -XX:-UsePerfData"; ${FALSE}; }
+	# config/log4j2.properties: that of the tarball, which has to be the one this was
+	# written for (its appenders and loggers), with files/log4j2-rollover.properties
+	# in place of its lines of rollover
+	@[ "$$(${SED} -n -E 's/^(appender|logger)\.([a-z0-9_]+)\.name *=.*/\1.\2/p' ${WRKSRC}/config/log4j2.properties | ${SORT} | ${TR} '\n' ' ')" = "${ES_LOG4J:O} " ] || \
+		{ ${ECHO_MSG} "config/log4j2.properties of the tarball: its appenders and loggers are not those files/log4j2-rollover.properties was written for: $$(${SED} -n -E 's/^(appender|logger)\.([a-z0-9_]+)\.name *=.*/\1.\2/p' ${WRKSRC}/config/log4j2.properties | ${SORT} | ${TR} '\n' ' ')"; ${FALSE}; }
+	@${REINPLACE_CMD} -E -e '/^appender\.[a-z0-9_]+\.(filePattern|policies|strategy)[. ]/d' ${WRKSRC}/config/log4j2.properties
+	@${CAT} ${FILESDIR}/log4j2-rollover.properties >> ${WRKSRC}/config/log4j2.properties
+	@[ "$$(${GREP} -c '^appender\.[a-z0-9_]*\.filePattern = .*\.log\.%i\.rolled$$' ${WRKSRC}/config/log4j2.properties)" = 6 ] && \
+		[ "$$(${GREP} -c '^appender\.[a-z0-9_]*\.filePattern' ${WRKSRC}/config/log4j2.properties)" = 6 ] && \
+		[ "$$(${GREP} -c '^appender\.[a-z0-9_]*\.strategy\.action\.type = Delete$$' ${WRKSRC}/config/log4j2.properties)" = 6 ] && \
+		! ${GREP} -v '^#' ${WRKSRC}/config/log4j2.properties | ${GREP} -E -q 'TimeBasedTriggeringPolicy|\.gz|%d\{yyyy|IfAccumulatedFileSize' && \
+		${GREP} -q '^rootLogger\.level = info$$' ${WRKSRC}/config/log4j2.properties || \
+		{ ${ECHO_MSG} "config/log4j2.properties: not the rollover of files/log4j2-rollover.properties alone"; ${FALSE}; }
 
 do-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/etc/elasticsearch
@@ -177,8 +219,9 @@ post-install:
 		${GREP} -q 'elasticsearch_java_home="${LOCALBASE}/openjdk17"' ${WRKDIR}/elasticsearch || \
 		{ ${ECHO_MSG} "rc.d/elasticsearch: elasticsearch_java_home is not ${LOCALBASE}/openjdk17 (JAVA_HOME ${JAVA_HOME})"; ${FALSE}; }
 	@${GREP} -q 'export ES_JAVA_OPTS="-Xms$${elasticsearch_heap} -Xmx$${elasticsearch_heap}"' ${WRKDIR}/elasticsearch && \
+		${GREP} -q '^export ES_TMPDIR="$${elasticsearch_tmpdir}"$$' ${WRKDIR}/elasticsearch && \
 		${SH} -n ${WRKDIR}/elasticsearch || \
-		{ ${ECHO_MSG} "rc.d/elasticsearch: no heap of elasticsearch_heap, or not a script of sh"; ${FALSE}; }
+		{ ${ECHO_MSG} "rc.d/elasticsearch: no heap of elasticsearch_heap, no ES_TMPDIR, or not a script of sh"; ${FALSE}; }
 	${ECHO} "@sample ${ETCDIR}/elasticsearch.yml.sample" >> ${TMPPLIST}
 	${ECHO} "@sample ${ETCDIR}/log4j2.properties.sample" >> ${TMPPLIST}
 	${ECHO} "@sample ${ETCDIR}/jvm.options.sample" >> ${TMPPLIST}

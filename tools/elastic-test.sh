@@ -10,7 +10,12 @@
 #   - the heap from elasticsearch_heap of rc.conf (512m here) over the -Xms and
 #     -Xmx of jvm.options; the options of jvm.options for OpenJDK 17 in the running JVM
 #     (no -XX:UseAVX, no heap dump, -XX:+ExitOnOutOfMemoryError, -Dlog4j2.formatMsgNoLookups);
-#     no warning of the JVM at the start; the GC log in /var/log/elasticsearch;
+#     no warning of the JVM at the start; no GC log; nothing of Elasticsearch in
+#     /tmp and /var/tmp from its start to its stop but its temporary directory
+#     /tmp/elasticsearch (ES_TMPDIR of the rc script), where only the library
+#     that JNA unpacks and the named pipe of bash may be; the log files of Elastic
+#     alone in path.logs, none rolled, also after a rollover forced by a size of
+#     2 KB in a copy of log4j2.properties; nothing new in /var/log/elasticsearch;
 #     a wrong elasticsearch_heap refused; no [ERROR] in the log of the start
 #     (xpack.ssl.cipher_suites of elasticsearch.yml: no unsupported ciphers);
 #   - the health of the cluster, a document indexed and found by a query;
@@ -79,11 +84,20 @@ else
     fail "elasticsearch_heap=4x: $(head -n 2 "$T/badheap.out" | tr '\n' ' ')"
 fi
 export elasticsearch_heap="512m"
-gclog=/var/log/elasticsearch/gc.log
-rm -f "$gclog"
+rm -f /var/log/elasticsearch/gc.log*
+# what the user elasticsearch has in /tmp and /var/tmp before the start (the
+# directory of this test and its temporary directory apart)
+tmpd=/tmp/elasticsearch
+tmpls() { find -x /tmp /var/tmp \( -path "$T" -o -path "$tmpd" \) -prune -o -user elasticsearch -print 2>/dev/null | sort; }
+rm -rf /tmp/hsperfdata_elasticsearch
+tmpls > "$T/tmp-before.txt"
+ls -A /var/log/elasticsearch 2>/dev/null | sort > "$T/varlog-before.txt"
+tmpwhen=""
+tmpmark() { n_="$(tmpls | comm -13 "$T/tmp-before.txt" - | tr '\n' ' ')"; [ -z "$n_" ] || tmpwhen="$tmpwhen [$1 $(date +%T): $n_]"; }
 "$P/etc/rc.d/elasticsearch" onestart > "$T/start.out" 2>&1
 r=$?
 cp "$T/start.out" "$res/elasticsearch-start.out"
+tmpmark "after onestart"
 if [ "$r" = 0 ]; then pass "rc.d/elasticsearch onestart"; else fail "rc.d/elasticsearch onestart: exit $r, $(tail -n 2 "$T/start.out" | tr '\n' ' ')"; fi
 up=""
 i=0
@@ -112,15 +126,22 @@ else
     m=""
     for o in '-XX:+UseG1GC' '-XX:G1ReservePercent=25' '-XX:InitiatingHeapOccupancyPercent=30' '-XX:+ExitOnOutOfMemoryError' \
         '-XX:ErrorFile=/var/log/elasticsearch/hs_err_pid%p.log' '-XX:ReplayDataFile=/var/log/elasticsearch/replay_pid%p.log' '-Dlog4j2.formatMsgNoLookups=true' \
-        '-Djava.locale.providers=COMPAT' '-Dio.netty.noUnsafe=true' '-XX:+AlwaysPreTouch'; do
+        '-Djava.locale.providers=COMPAT' '-Dio.netty.noUnsafe=true' '-XX:+AlwaysPreTouch' '-XX:+PerfDisableSharedMem' "-Djava.io.tmpdir=$tmpd"; do
         grep -q -x -F -e "$o" "$T/args.txt" || m="$m $o"
     done
-    if [ -z "$m" ] && ! grep -q -E 'UseAVX|HeapDump' "$T/args.txt"; then
-        pass "the options of jvm.options for OpenJDK 17 in the JVM, no -XX:UseAVX, no heap dump"
+    if [ -z "$m" ] && ! grep -q -E 'UseAVX|HeapDump|Xlog|GCLog|PrintGC' "$T/args.txt"; then
+        pass "the options of jvm.options for OpenJDK 17 in the JVM, java.io.tmpdir $tmpd; no -XX:UseAVX, no heap dump, no GC log"
     else
-        fail "the options of the JVM: missing:${m:- none}$(grep -E 'UseAVX|HeapDump' "$T/args.txt" | sed 's/^/, has /' | tr '\n' ' ')"
+        fail "the options of the JVM: missing:${m:- none}$(grep -E 'UseAVX|HeapDump|Xlog|GCLog|PrintGC' "$T/args.txt" | sed 's/^/, has /' | tr '\n' ' ')"
     fi
-    if [ -s "$gclog" ]; then pass "the GC log: $gclog, $(wc -l < "$gclog" | tr -d ' ') lines"; else fail "no GC log $gclog"; fi
+    # its temporary directory while it runs: of elasticsearch, 0700, at most the library of JNA
+    td="$(stat -f '%Su %Lp' "$tmpd" 2>/dev/null)"
+    o="$(find "$tmpd" -mindepth 1 ! -name 'jna*' ! -name 'sh-np.*' 2>/dev/null | head -n 5 | tr '\n' ' ')"
+    if [ "$td" = "elasticsearch 700" ] && [ -z "$o" ]; then
+        pass "$tmpd: $td; in it while Elasticsearch runs: $(find "$tmpd" -mindepth 1 2>/dev/null | sed "s|^$tmpd/||" | tr '\n' ' ' | sed 's/ $//;s/^$/nothing/')"
+    else
+        fail "$tmpd: ${td:-missing}; in it not of JNA and not the pipe of bash: ${o:-nothing}"
+    fi
     h="$(get '/_cluster/health?wait_for_status=yellow&timeout=60s' | sed -n 's/.*"status" *: *"\([^"]*\)".*/\1/p')"
     case "$h" in green|yellow) pass "cluster health: $h" ;; *) fail "cluster health: ${h:-no answer}" ;; esac
     send PUT /az-test '{ "settings": { "number_of_shards": 1, "number_of_replicas": 0 } }' > "$T/i.out"
@@ -144,7 +165,7 @@ fi
 # x-pack does not log its default ones that the JDK lacks as an error
 cp "$T/logs/az-test.log" "$res/elasticsearch.log" 2>/dev/null
 if grep -E '\]\[ERROR\]|unsupported ciphers' "$T/logs/az-test.log" > "$T/err.txt" 2>/dev/null; then
-    fail "the log of the start has $(wc -l < "$T/err.txt" | tr -d ' ') lines of [ERROR]: $(head -n 2 "$T/err.txt" | cut -c1-420 | tr '\n' ' ')"
+    fail "the log of the start has $(wc -l < "$T/err.txt" | tr -d ' ') lines of [ERROR]: $(head -n 2 "$T/err.txt" | sed -e 's/^[^]]*\]//' -e 's/ were requested but.*//' | cut -c1-420 | tr '\n' ' ')"
 else
     pass "the log of the start without [ERROR], no unsupported ciphers"
 fi
@@ -155,9 +176,51 @@ else
 fi
 w="$(grep -c '\]\[WARN \]' "$T/logs/az-test.log" 2>/dev/null)"
 [ "${w:-0}" = 0 ] || note "the log has $w warnings (elasticsearch.log): $(grep '\]\[WARN \]' "$T/logs/az-test.log" | head -n 3 | cut -c1-160 | tr '\n' ' ')"
+tmpmark "before onestop"
 "$P/etc/rc.d/elasticsearch" onestop > "$T/stop.out" 2>&1
 r=$?
 if [ "$r" = 0 ] && ! get / > /dev/null; then pass "rc.d/elasticsearch onestop"; else fail "rc.d/elasticsearch onestop: exit $r, $(tail -n 1 "$T/stop.out")"; fi
+# after the stop: nothing of Elasticsearch new in /tmp and /var/tmp, no GC log
+tmpls > "$T/tmp-after.txt"
+n="$(comm -13 "$T/tmp-before.txt" "$T/tmp-after.txt")"
+if [ -z "$n" ]; then
+    pass "nothing of the user elasticsearch new in /tmp and /var/tmp after start, requests and stop but $tmpd ($(find "$tmpd" -mindepth 1 2>/dev/null | sed "s|^$tmpd/||" | tr '\n' ' ' | sed 's/ $//;s/^$/empty/'))"
+else
+    fail "new in /tmp and /var/tmp: $(printf '%s' "$n" | head -n 6 | tr '\n' ' ');$tmpwhen"
+fi
+g="$(ls /var/log/elasticsearch/gc.log* "$T"/logs/gc.log* "$P"/lib/elasticsearch/logs/gc.log* 2>/dev/null | tr '\n' ' ')"
+if [ -z "$g" ]; then pass "no GC log"; else fail "a GC log: $g"; fi
+# the logs (path.logs of this test): the files of Elastic's log4j2.properties, none
+# rolled; then a start with every size of rollover at 2 KB: the main log rolls
+# many times, and the rolled files are deleted
+logs_check() {
+    l="$(ls -A "$T/logs" 2>/dev/null | grep -v -x -E 'az-test(_deprecation|_index_search_slowlog|_index_indexing_slowlog|_audit|_access)?\.log' | tr '\n' ' ')"
+    if [ -z "$l" ] && [ -f "$T/logs/az-test.log" ]; then
+        pass "path.logs $1: the log files alone, none rolled: $(ls -A "$T/logs" | tr '\n' ' ')($(wc -c < "$T/logs/az-test.log" | tr -d ' ') bytes of az-test.log)"
+    else
+        fail "path.logs $1: ${l:-no az-test.log}"
+    fi
+}
+logs_check "after start, requests and stop"
+n0="$(grep -c 'starting \.\.\.' "$T/logs/az-test.log")"
+sed -i '' -E 's|^(appender\.[a-z0-9_]+\.policies\.size\.size) = .*|\1 = 2KB|' "$conf/log4j2.properties"
+if [ "$(grep -c '^appender\.[a-z0-9_]*\.policies\.size\.size = 2KB$' "$conf/log4j2.properties")" = 6 ] && "$P/etc/rc.d/elasticsearch" onestart > "$T/start2.out" 2>&1; then
+    i=0
+    while [ "$i" -lt 90 ]; do get / | grep -q '"number"' && break; sleep 2; i=$((i + 1)); done
+    "$P/etc/rc.d/elasticsearch" onestop > /dev/null 2>&1
+    sleep 2
+    s="$(wc -c < "$T/logs/az-test.log" | tr -d ' ')"
+    if [ "$i" -lt 90 ] && [ "$s" -lt 20000 ] && [ "$(grep -c 'starting \.\.\.' "$T/logs/az-test.log")" -le "$n0" ]; then
+        logs_check "after a start with the rollover at 2 KB (az-test.log began anew)"
+    else
+        fail "the rollover at 2 KB: az-test.log has $s bytes, up after $((i * 2)) s: not rolled"
+    fi
+else
+    fail "the start with the rollover at 2 KB: $(tail -n 2 "$T/start2.out" 2>/dev/null | tr '\n' ' ')"
+fi
+ls -A /var/log/elasticsearch 2>/dev/null | sort > "$T/varlog-after.txt"
+n="$(comm -13 "$T/varlog-before.txt" "$T/varlog-after.txt" | tr '\n' ' ')"
+if [ -z "$n" ]; then pass "nothing new in /var/log/elasticsearch"; else fail "new in /var/log/elasticsearch: $n"; fi
 
 echo "elastic-test: $ok ok, $bad failed" >> "$out"
 [ "$bad" = 0 ]
