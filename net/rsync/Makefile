@@ -7,9 +7,22 @@
 # package but az (the official one takes liblz4, zstd and xxhash), and the
 # OpenSSL of the base system (MD4, MD5). Without ICONV (--iconv: GNU libiconv)
 # and IDN.
+# rsync 3.5.2 (04.11.2026) ahead of the official port (3.5.1 with the fix of the
+# delta-transfer sender, CVE-2026-119741, which 3.5.2 has): the rest of the fixes of
+# 3.5.2 (rule of 04.11.2026: a vulnerability that touches us) - a write past a buffer
+# after a read error, the stack of the daemon receiver at --max-alloc, --files-from
+# of a subdirectory of a module read from the module root past its filters, the
+# --inplace matcher past the checksums of the peer, IPv6 peers in hosts allow/deny,
+# control characters of names escaped (aZ, 11.11.2026). Its distfile: SHA-256 of the
+# release of GitHub as OpenBSD has it, the size as OpenBSD and Gentoo. The patch of
+# FLAGS of the official port brought up to 3.5.2: in options.c of 3.5.2 the
+# arguments of the server go through ADD_SERVER_ARG (bounded), --fileflags and
+# --force-change too; "file-flags" of --version after "crtimes" as before; not the
+# first lines of rsync.1 (its date and prefix only). Built with it on Linux:
+# --version and --help say file-flags and --force-change.
 
 PORTNAME=	rsync
-DISTVERSION=	3.5.1
+DISTVERSION=	3.5.2
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	net
 MASTER_SITES=	https://www.mirrorservice.org/sites/rsync.samba.org/src/ \
