@@ -6,8 +6,8 @@
 # graphicsmagick-test.sh, mc-test.sh and ytdlp-test.sh (yt-dlp with our ffmpeg),
 # the utilities of the official ports (Mk/az-official.mk) by utils-test.sh, the
 # server packages (git, Apache, memcached, MariaDB, vsftpd-ext, BIND and its tools,
-# vips, qt-faststart) by servers-test.sh, and Node.js (node24, npm-node24,
-# yarn-node24, corepack) by node-test.sh.
+# vips, qt-faststart) by servers-test.sh, Node.js (node24, npm-node24,
+# yarn-node24, corepack) by node-test.sh, and Elasticsearch 6 by elastic-test.sh.
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -185,6 +185,21 @@ if [ -n "$n_" ]; then
     cat "$res/test-programs-install-node.log" >> "$log"
     want="$want$n_"
 fi
+# Elasticsearch 6 (aZ, 11.11.2026: the legacy sites) as the server packages; its
+# OpenJDK 17 is an official package
+elastic="elasticsearch6"
+e_=""
+for p in $elastic; do in_repo "$p" && e_="$e_ $p"; done
+if [ -n "$e_" ]; then
+    say "pkg install -f$e_"
+    # shellcheck disable=SC2086
+    CONSERVATIVE_UPGRADE=no pkg install -y -f $e_ > "$res/test-programs-install-elastic.log" 2>&1 || say "pkg install of Elasticsearch says it failed (test-programs-install-elastic.log)"
+    # shellcheck disable=SC2086
+    again "$res/test-programs-install-elastic.log" $e_
+    cat "$res/test-programs-install-elastic.log" >> "$res/test-programs-install.log"
+    cat "$res/test-programs-install-elastic.log" >> "$log"
+    want="$want$e_"
+fi
 # every installed package the repository has, from the repository: a dependency pkg
 # kept or took from another one (the official glib, which mc then loaded with the
 # libintl and libiconv of /usr/local/lib: run 42994770290), once more with -r azbuild
@@ -208,7 +223,7 @@ done
 # 3. the tests: name, the packages it needs
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
         "graphicsmagick GraphicsMagick" "mc mc" "ytdlp yt-dlp ffmpeg" "utils $utils" ${s_:+"servers$s_"} \
-        ${n_:+"node$n_"}; do
+        ${n_:+"node$n_"} ${e_:+"elastic$e_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
