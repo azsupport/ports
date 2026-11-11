@@ -11,7 +11,13 @@
 # - --enable-headless-only: no X11 (make/autoconf/libraries.m4: NEEDS_LIB_X11
 #   false), libawt_headless and no libawt_xawt; no libsplashscreen, the only user
 #   of giflib and libpng (make/modules/java.desktop/lib/Awt2dLibraries.gmk), so
-#   these two are bundled and unused;
+#   these two are bundled and unused. 17u still compiles headless with the
+#   headers of X11 (rect.h of libawt includes X11/Xlib.h: the first build stopped
+#   there), so the change of OpenJDK that builds without them is backported
+#   (JDK-8376684, openjdk/jdk 1069ccebcc32, 04.02.2026: libawt with -DHEADLESS,
+#   rect.h without X11 then, libawt_headless without the files of X11 and OpenGL,
+#   which it does not use; files/patch-make_modules_java.desktop_lib_Awt2dLibraries.gmk-headless,
+#   files/patch-src_java.desktop_unix_native_common_awt_utility_rect.h);
 # - no sound: FreeBSD without ALSA and libjsound, as AIX and OpenBSD
 #   (files/patch-make_autoconf_libraries.m4-alsa,
 #   files/patch-make_modules_java.desktop_Lib.gmk); javax.sound finds no native
