@@ -105,7 +105,8 @@ const want = process.argv.slice(2).map((s) => s.split('='));
 const bad = [], good = [], none = [];
 for (const [k, w] of want) {
   const h = process.versions[k];
-  if (h === undefined) { none.push(k); continue; }
+  // nghttp3 and ngtcp2 are empty without QUIC (not built)
+  if (h === undefined || h === '') { none.push(k); continue; }
   // ICU of az: 76.1 as process.versions has it ("76.1")
   if (w && (h === w || h.startsWith(w + '.') || h.startsWith(w + '-') || h.startsWith(w + '+'))) good.push(`${k} ${h}`);
   else bad.push(`${k} ${h}, not ${w || 'known'}`);
