@@ -10,9 +10,12 @@
 #                 repository but php74-openssl-legacy (of the two kinds of openssl the
 #                 standard one; the other stays in the repository for a swap:
 #                 pkg install -y php74-openssl-legacy) and the variants with OpenSSL,
-#                 php74-<module>-openssl (the same files as php74-<module>);
-#                 php74-gmagick too (its ini is off, so it does not clash with
-#                 imagick; its CLI profile has it on)
+#                 php74-<module>-openssl (the same files as php74-<module>), and
+#                 the other packages of a module with the same files: of redis
+#                 those with compression (php74-redis-lz4, -zstd, -lz4-zstd), gd of
+#                 5.6 with T1lib (php56-gd-t1lib; tools/check-variants.sh puts them
+#                 in, one by one); php74-gmagick too (its ini is off, so it does not
+#                 clash with imagick; its CLI profile has it on)
 #   --openssl     the variants with OpenSSL in the places of their modules (the
 #                 others as without it), for their checks: CHECK_TAG=openssl sh
 #                 tools/check-php.sh 7.4; the log install-php-<version>-openssl.log
@@ -29,7 +32,7 @@
 
 set -u
 top="$(cd "$(dirname "$0")/.." && pwd)"
-usage() { sed -n 's/^# \{0,1\}//; 6,19p' "$0" >&2; exit "${1:-2}"; }
+usage() { sed -n 's/^# \{0,1\}//; 6,22p' "$0" >&2; exit "${1:-2}"; }
 say() { printf '[install-php %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 die() { say "$*" >&2; exit 2; }
 
@@ -75,6 +78,7 @@ for n in $(printf '%s\n' "$names" | grep -E "^php$short-.+-openssl\$"); do
     if [ -n "$openssl" ]; then echo "${n%-openssl}"; else echo "$n"; fi
 done > "$tmpl"
 echo "php$short-openssl-legacy" >> "$tmpl"
+printf '%s\n' "$names" | grep -E "^php$short-(redis-.+|gd-t1lib)\$" >> "$tmpl"
 want="$(printf '%s\n' "$names" | grep -v -x -F -f "$tmpl" | tr '\n' ' ')"
 # those installed go first, with what depends on them (pkg delete): pkg would refuse
 # the same files of another package

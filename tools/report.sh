@@ -139,7 +139,7 @@ fi
 if [ -s "$res/checks.txt" ]; then
     {
         cat "$res/checks.txt"
-        for f in "$res"/check-php-*.txt "$res"/*-results/tests.txt; do
+        for f in "$res"/check-php-*.txt "$res"/check-variants-*.txt "$res"/*-results/tests.txt; do
             [ -f "$f" ] || continue
             grep -q '^FAIL' "$f" || continue
             echo
@@ -158,7 +158,7 @@ if [ -s "$res/checks.txt" ]; then
         cat "$tmp/php.txt"
         echo '```'
         echo
-        for f in "$res"/check-php-*.txt; do
+        for f in "$res"/check-php-*.txt "$res"/check-variants-*.txt; do
             [ -f "$f" ] || continue
             echo "<details><summary>${f##*/}</summary>"
             echo

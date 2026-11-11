@@ -2,6 +2,10 @@ This extension provides an API for communicating with Redis database,
 a persistent key-value database with built-in net interface written
 in ANSI-C for Posix systems.
 
-PECL redis for php82 of azsupport/ports, built from ext/redis of the
-release tarball of azsupport/php-src, which bundles it:
+PECL redis for php82 of azsupport/ports, without compression, built from
+ext/redis of the release tarball of azsupport/php-src, which bundles it:
 lib/php/20220829/redis.so, loaded by its ini in etc/php82/conf.d.
+
+One of the four packages of redis, which have the same files:
+php82-redis-lz4, php82-redis-zstd, php82-redis-lz4-zstd are the others
+(only one of them installs).

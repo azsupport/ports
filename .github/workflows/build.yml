@@ -5,7 +5,8 @@ name: Build the packages of the repository az
 # official ports tree at the commit pinned in tools/build.sh; when PHP was built,
 # installs its packages from the new repository (tools/install-php.sh) and checks
 # them (tools/check-php.sh), then the variants with OpenSSL in the places of their
-# modules (install-php.sh --openssl, CHECK_TAG=openssl check-php.sh); installs the
+# modules (install-php.sh --openssl, CHECK_TAG=openssl check-php.sh) and the other
+# packages of redis and of gd of 5.6 one by one (tools/check-variants.sh); installs the
 # programs and libraries from it and tests
 # them (tools/test-programs.sh); and publishes
 # the repository of pkg as the files of the release az-fbsd<major>-amd64-<level>
@@ -275,6 +276,19 @@ jobs:
                       echo "PHP $v, the variants with OpenSSL: FAIL (check-php-$v-openssl.txt, exit $r)" >> results/checks.txt
                       rc=1
                     fi
+                  fi
+                fi
+                # the packages of a module with the same files (redis with compression,
+                # gd of 5.6 with T1lib), each in turn: tools/check-variants.sh
+                vs="$(echo "$v" | tr -d .)"
+                if [ -n "$(ls "$crepo"/php"$vs"-redis-*-[0-9]*.pkg "$crepo"/php"$vs"-gd-t1lib-[0-9]*.pkg 2>/dev/null)" ]; then
+                  r=0
+                  sh tools/check-variants.sh "$v" || r=$?
+                  if [ "$r" = 0 ]; then
+                    echo "PHP $v, the packages of redis and gd with the same files: OK (check-variants-$v.txt)" >> results/checks.txt
+                  else
+                    echo "PHP $v, the packages of redis and gd with the same files: FAIL (check-variants-$v.txt, exit $r)" >> results/checks.txt
+                    rc=1
                   fi
                 fi
               fi
