@@ -91,8 +91,9 @@
 #   compares the two: a test of configure whose result depends on those errors.
 #
 # Results: results/ of the tree: summary.txt (a line per port, "result: OK" or
-# "result: FAIL (...)" at the end), queue.txt, hashes.txt, az-lib-hashes.txt, waves.txt (AZ_JOBS above 1,
-# AZ_DRYRUN), logs/<category>_<port>.log, pkg-repo.log; with AZ_CONFIGURE_CHECK=1
+# "result: FAIL (...)" at the end), queue.txt, hashes.txt, az-lib-hashes.txt,
+# waves.txt (AZ_JOBS above 1, AZ_DRYRUN), progress.log (the screen lines as they
+# come), logs/<category>_<port>.log, pkg-repo.log; with AZ_CONFIGURE_CHECK=1
 # configure-check.txt (each port with differences, the checks with their diagnostic,
 # then the others) and configure-check/ (a file per port, the two config.log files of
 # a port with differences).
@@ -111,7 +112,15 @@ ports_url="https://github.com/freebsd/freebsd-ports"
 
 top="$(cd "$(dirname "$0")/.." && pwd)"
 usage() { sed -n 's/^# \{0,1\}//; 6,16p' "$0" >&2; exit "${1:-2}"; }
-say() { printf '[build %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
+# say: a line on the screen with the time, also into results/progress.log once it is
+# there (the result of every port among them: tools/runs-progress.sh reads it in the
+# VM while the build runs; a build job that runs at the same time writes there too)
+say() {
+    _sl="[build $(date '+%H:%M:%S')] $*"
+    printf '%s\n' "$_sl"
+    if [ -n "${res:-}" ] && [ -d "$res" ]; then printf '%s\n' "$_sl" >> "$res/progress.log" 2> /dev/null; fi
+    return 0
+}
 die() { say "$*" >&2; exit 2; }
 
 force=0
