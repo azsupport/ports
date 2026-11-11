@@ -77,7 +77,15 @@ ver sudo "Sudo version 1.9" "$P/bin/sudo" -V
 ver bash "GNU bash, version 5" "$P/bin/bash" --version
 ver bsddialog "1\.1" "$P/bin/bsddialog" --version
 ver portmaster "3\.35" "$P/sbin/portmaster" --version
-for b in zip unzip screen bash yamdi 3proxy; do libs "$P/bin/$b"; done
+for b in zip unzip screen bash yamdi; do libs "$P/bin/$b"; done
+# 3proxy 0.9.9 (net/3proxy, 11.11.2026): PCRE2 of devel/pcre2 inside it, the plugins
+# by the names of 0.9.5 too (links to the .ld.so files of 0.9.9)
+libs "$P/bin/3proxy" libpcre2-8
+miss=""
+for f in StringsPlugin.so TrafficPlugin.so pamauth.so StringsPlugin.ld.so TrafficPlugin.ld.so PamAuth.ld.so FilePlugin.ld.so TransparentPlugin.ld.so; do
+    [ -e "$P/lib/3proxy/$f" ] || miss="$miss $f"
+done
+if [ -z "$miss" ]; then pass "3proxy: the plugins, by the names of 0.9.5 too"; else fail "3proxy: no$miss in $P/lib/3proxy"; fi
 if libs_of "$P/bin/wget" libpcre2-8; then pass "wget: $libs_out"; else fail "wget: $libs_bad"; fi
 feat=" $("$P/bin/wget" --version 2>&1 | sed -n '/^[+-]/p' | tr '\n' ' ') "
 miss=""
