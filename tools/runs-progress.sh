@@ -68,11 +68,10 @@ while [ "$(date +%s)" -lt "$end" ]; do
                 echo "- ports: $nd of ${total:-?} done: built $nok, kept from the repository $nkept, failed $nfail, not built $nskip"
                 st="$(grep -E '^\[build [0-9:]+\] stage [0-9]+ of [0-9]+:' "$w/log" | tail -n 1 | sed 's/^\[build [0-9:]*\] //')"
                 [ -z "$st" ] || echo "- now: $st (results/stages.txt)"
-                # building now: started ("make package" with AZ_JOBS above 1, "<origin>:
-                # <pkgname> (<why>)" one by one) and with no result line yet
-                # (a NEED_ROOT port alone: "wave N: <origin> (alone: NEED_ROOT)")
+                # building now: started ("<origin>: make package (logs/...)", whatever
+                # AZ_JOBS: its chroot, its dependencies there, its build) and with no
+                # result line yet
                 grep -E '^\[build [0-9:]+\] [^ ]+: make package \(logs/' "$w/log" | awk '{ sub(":$", "", $3); print $3, substr($2, 1, 5) }' > "$w/run" || :
-                grep -E '^\[build [0-9:]+\] wave [0-9]+: [^ ]+ \(alone: NEED_ROOT\)' "$w/log" | awk '{ print $5, substr($2, 1, 5) }' >> "$w/run" || :
                 now=""; nowo=""
                 while read -r po pt; do
                     grep -qE "^\[build [0-9:]+\] $po: (OK|FAIL|SKIP) " "$w/done" || { now="$now $po (since $pt)"; nowo="$nowo $po"; }
