@@ -36,8 +36,10 @@
 #                    or built, no repository
 #   AZ_CONFIGURE_CHECK  1: the configure check of the PHP ports the run configures
 #                    (tools/configure-check.sh; results/configure-check.txt)
+#   AZ_CFLAGS, AZ_GCC_SO, AZ_GCC_BIN, MAKE_CONF  given to the builds (the scripts of
+#                    tools/ read them); a build sees no other variable of the caller
 #
-# How (the logic of poudriere, with make and pkg of the host):
+# How (the logic of poudriere, with make and pkg of the host, each port in a chroot):
 # - the official tree of freebsd-ports at the pinned commit below (git, depth 1, reused
 #   when it is at that commit), this tree as OVERLAYS over it;
 # - the make.conf of the run from tools/make.conf.in (CPUTYPE of the level, CFLAGS,
@@ -59,24 +61,48 @@
 #   that of its slaves either; it goes to make as AZ_HASH (the annotation az_hash of the package,
 #   Mk/bsd.overlay.mk), the revision as AZ_STAMP (PORTREVISION= ${AZ_STAMP}: each
 #   build is an upgrade for pkg; pkg takes a dependency by its name, not its version);
+#   the base of every az_hash: the official commit, the level, tools/make.conf.in and
+#   the way the builder builds ("builder chroot": each port in a chroot of its own,
+#   11.11.2026: every port built once that way);
+# - the build tools of AZ_TOOLS_OFFICIAL (below: Python, Perl, meson) come from the
+#   official packages of FreeBSD also when this tree has the origin (aZ, 11.11.2026:
+#   our python312 and perl5.42 link libraries of az, which needs them to build): for a
+#   port that needs such an origin only to build it (FETCH_, EXTRACT_, PATCH_, BUILD_
+#   or PKG_DEPENDS; not LIB_ or RUN_DEPENDS, and the port is no extension of Python, a
+#   FLAVOR py*), the official package goes into its chroot, and the hash of our port
+#   is not in its az_hash (the official commit is in the base); a port that runs with
+#   it (LIB_ or RUN_DEPENDS) or builds an extension for it gets ours, whose hash counts
+#   (results/hashes.txt names the tools a port gets official);
 # - a port whose origin has a package with the same az_hash in the repository is not
 #   built again (an incremental build) unless --force; a port that fails stops those
 #   that need it (skipped, with the reason);
-# - each port: the official packages of its dependencies by pkg install (the FreeBSD
-#   repository of the host), ours by pkg add of the packages built before (or of the
-#   repository), then make clean package with USE_PACKAGE_DEPENDS_ONLY=yes (nothing is
-#   built from source but the port itself); its log, its time, OK or FAIL;
+# - each port in a chroot of its own (work/ch/<key>), made for it in seconds and torn
+#   down after it, whatever its result (unmounted, removed; rm -x): the base system
+#   of the machine read only (nullfs), a copy of its /etc, devfs, an empty /usr/local,
+#   /tmp and a pkg database of its own; the catalogs of the run (those of the machine,
+#   updated once at the start: pkg -U, never during the run) and the cache of pkg of
+#   the machine shared, so that an official package is downloaded once (the official
+#   packages of the ports to build fetched at the start; then one chroot at a time
+#   fetches, lockf); this tree, the official tree, packages/ and the repository read
+#   only at their paths, the distfiles, WRKDIRPREFIX, the packages directory of the
+#   port and results/az-results read-write (ch_up). In it the official packages of its
+#   dependencies (and those our packages it gets need to run) by pkg -c <chroot>
+#   install from the FreeBSD repositories of the machine (not ours: az, azbuild), ours
+#   by pkg -c <chroot> add of the packages built before or of the repository (-f in the
+#   place of an official package of the same name), in the order of the queue; then
+#   make clean package in it (chroot(8), the environment of a login of root with the
+#   make.conf of the run, AZ_CPUTYPE and the variables above) with
+#   USE_PACKAGE_DEPENDS_ONLY=yes (nothing is built from source but the port itself);
+#   its log, its time (with those of its chroot and of its dependencies), OK or FAIL.
+#   The /usr/local of the machine is never touched by a build: the checks after the
+#   run (tools/install-php.sh, test-programs.sh) see nothing a build installed;
 # - AZ_JOBS above 1: waves, each of the ports whose ports of this tree they need are
-#   done; the dependencies of the ports of a wave installed first, one port after
-#   another as above (a port whose installation takes away a package that a port
-#   before it in the wave got goes to a later wave), then up to AZ_JOBS make package
-#   at once, the biggest first (the size of the package in the repository), each with
-#   its log and its own PACKAGES directory (its distfiles fetched under lockf(1),
-#   one build at a time), and no pkg add, install or delete while they run; the
-#   summary in the order of the queue, results/waves.txt;
+#   done, up to AZ_JOBS ports at once, the biggest first (the size of the package in
+#   the repository), each with its chroot, its log and its own PACKAGES directory (its
+#   distfiles fetched under lockf(1), one build at a time); the summary in the order
+#   of the queue, results/waves.txt;
 # - a NEED_ROOT port (az/az builds into the real prefix and refuses files of a package
-#   there): alone (a wave of its own), its installed package deleted before its
-#   build, the new one added after it (the old one back when it fails);
+#   there): into the /usr/local/az of its own chroot, as any port;
 # - the repository: one package per origin (of two in <dir> at the start, the newer
 #   version), the new ones in the place of the old ones of the same name or origin,
 #   away with the packages of origins this tree has no more, pkg repo, signed and
@@ -95,9 +121,10 @@
 #   compares the two: a test of configure whose result depends on those errors.
 #
 # Results: results/ of the tree: summary.txt (a line per port, "result: OK" or
-# "result: FAIL (...)" at the end), queue.txt, hashes.txt, az-lib-hashes.txt,
-# waves.txt (AZ_JOBS above 1, AZ_DRYRUN), progress.log (the screen lines as they
-# come), logs/<category>_<port>.log, pkg-repo.log; with AZ_CONFIGURE_CHECK=1
+# "result: FAIL (...)" at the end, a line "chroots:" of their times), queue.txt,
+# hashes.txt, az-lib-hashes.txt, waves.txt (AZ_JOBS above 1, AZ_DRYRUN), progress.log
+# (the screen lines as they come), logs/<category>_<port>.log, logs/chroots.log (the
+# catalogs and the official packages fetched at the start), pkg-repo.log; with AZ_CONFIGURE_CHECK=1
 # configure-check.txt (each port with differences, the checks with their diagnostic,
 # then the others) and configure-check/ (a file per port, the two config.log files of
 # a port with differences).
@@ -113,6 +140,16 @@ set -u
 # stayed at 04.11.2026: apache24 2.4.69 for 2.4.70 of 07.11.2026, aZ 10.11.2026)
 ports_commit="6e4a386577aaa191a68b11865fcb18e02f98e525"
 ports_url="https://github.com/freebsd/freebsd-ports"
+
+# The build tools a port gets from the official packages of FreeBSD even when this
+# tree has the origin (aZ, 11.11.2026): our Python and Perl link libraries of az, and
+# az/az needs python3, meson and perl5 to build (a cycle, and every package built
+# again with each update of them). For a port that needs one of these only to build
+# it, the official package (see the head); for one that runs with it or builds an
+# extension for it, ours. The origins as the dependencies name them (lang/python3 the
+# meta port of the default Python, meson needs it); an origin this tree does not have
+# is official anyway. Here only: not taken from the environment.
+AZ_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson"
 
 top="$(cd "$(dirname "$0")/.." && pwd)"
 usage() { sed -n 's/^# \{0,1\}//; 6,16p' "$0" >&2; exit "${1:-2}"; }
@@ -176,8 +213,8 @@ repo="$(cd "$repo" && pwd)"
 # the real path of the tree: the files of the hashes are named relative to it
 topr="$(cd "$top" && pwd -P)"
 rm -rf "${q:?}"/* "${res:?}" "$work/pk" "$work/cc" "$work/ccw"
-mkdir -p "$res/logs" "$q/info" "$q/deps" "$q/rdeps" "$q/odeps" "$q/orun" "$q/pkgbase" "$q/state" "$q/file" "$q/hash" ||
-    die "cannot make $res and $q"
+mkdir -p "$res/logs" "$res/az-results" "$q/info" "$q/deps" "$q/rdeps" "$q/odeps" "$q/orun" "$q/pkgbase" "$q/state" \
+    "$q/file" "$q/hash" "$q/dl" "$q/ch" "$q/chtime" || die "cannot make $res and $q"
 # make package writes packages/All/<pkgname>.pkg (the directory must exist, else
 # the package goes into the directory of the port); those of an earlier run go
 rm -f "$packages"/All/*.pkg
@@ -267,20 +304,213 @@ dep_origins() {
     tr -s ' \t' '\n\n' | sed -n 's/^[^:]*:\([^:]*\).*$/\1/p' | sed -e "s|^$ports/||" -e "s|^$top/||" | LC_ALL=C sort -u
 }
 
+# --- the chroots ------------------------------------------------------------------------
+# Each port builds in a chroot of its own, $chd/<key> (work/ch/<key>), made by ch_up and
+# torn down by ch_down after the port, whatever its result (see the head). What the
+# chroots of a run share is made once by ch_init: work/ch-etc (the /etc of the machine
+# without /etc/ssh), work/ch-local (/usr/local/etc/pkg.conf and the repositories of
+# /usr/local/etc/pkg/repos but ours), work/ch-repos (the catalogs of pkg). The base
+# system: the directories of $ch_base, read only. pkg works in a chroot from the
+# machine (pkg -c), a build in it by chroot(8) (ch_run).
+chd="$workr/ch"
+ch_base="/bin /sbin /lib /libexec /usr/bin /usr/sbin /usr/lib /usr/lib32 /usr/libexec /usr/include /usr/share /usr/libdata"
+# the pkg database (each chroot its own, the catalogs in its repos/ those of the run)
+# and the cache of the packages (shared) at the paths pkg of the machine has
+pkgdb="$(pkg config PKG_DBDIR 2> /dev/null)"; pkgdb="${pkgdb:-/var/db/pkg}"
+pkgcache="$(pkg config PKG_CACHEDIR 2> /dev/null)"; pkgcache="${pkgcache:-/var/cache/pkg}"
+# fdescfs on /dev/fd and procfs on /proc in a chroot when the machine has them
+ch_fdesc=0; ch_proc=0
+mount -p | awk '$2 == "/dev/fd" && $3 == "fdescfs" { f = 1 } END { exit !f }' && ch_fdesc=1
+mount -p | awk '$2 == "/proc" && $3 == "procfs" { f = 1 } END { exit !f }' && ch_proc=1
+
+# ch_mounts <dir>: the mount points in a directory (and on it), the deepest first
+ch_mounts() {
+    mount -p | awk -v d="$1" '$2 == d || index($2, d "/") == 1 { print length($2), $2 }' | sort -rn | cut -d ' ' -f 2-
+}
+# ch_down <chroot>: a chroot of the run away: what is mounted in it unmounted (the
+# deepest first, by force when busy), then its files, only when nothing is mounted
+# there any more (and rm -x never crosses a mount point: the distfiles, the cache, the
+# trees mounted in it stay whole); 1 when it stays (said)
+ch_down() {
+    case "$1" in "$chd"/?*) ;; *) say "  ch_down: $1 is no chroot of the run ($chd/<key>)"; return 1 ;; esac
+    [ -e "$1" ] || [ -n "$(ch_mounts "$1")" ] || return 0
+    for _m in $(ch_mounts "$1"); do
+        umount "$_m" > /dev/null 2>&1 || umount -f "$_m" > /dev/null 2>&1 || say "  cannot unmount $_m"
+    done
+    _left="$(ch_mounts "$1" | tr '\n' ' ')"
+    if [ -n "$_left" ]; then say "  the chroot $1 stays: still mounted there: $_left"; return 1; fi
+    rm -rfx "$1" 2> /dev/null && return 0
+    chflags -R 0 "$1" 2> /dev/null
+    rm -rfx "$1" 2> /dev/null || { say "  cannot remove the chroot $1"; return 1; }
+}
+# ch_all_down: every chroot of the run away (at the start: those a run before left; at
+# the end, also when the run is stopped)
+ch_all_down() {
+    [ -d "$chd" ] || return 0
+    for _x in "$chd"/*; do
+        [ -e "$_x" ] || continue
+        ch_down "$_x" || :
+    done
+    return 0
+}
+# ch_dir <dir of the machine>: that directory at the same path in the chroot $c: the
+# directories of its real path ($chr), and the symbolic links of its path the machine
+# has (/home -> usr/home), so that the paths of make.conf and of the queue work there
+ch_dir() {
+    chr="$(realpath "$1" 2> /dev/null)" || { why="no directory $1"; return 1; }
+    mkdir -p "$c$chr" 2> /dev/null || [ -d "$c$chr" ] || { why="cannot make $c$chr"; return 1; }
+    _p=""
+    for _s in $(printf '%s\n' "$1" | tr '/' ' '); do
+        _p="$_p/$_s"
+        [ -L "$_p" ] || continue
+        [ -e "$c$_p" ] || [ -L "$c$_p" ] || ln -s "$(readlink "$_p")" "$c$_p" ||
+            { why="cannot make the link $c$_p of $_p"; return 1; }
+    done
+    return 0
+}
+# ch_mount <ro|rw> <dir of the machine> [<path in the chroot>]: nullfs, at the same
+# path (the real one) or at the path given
+ch_mount() {
+    if [ $# -ge 3 ]; then
+        chr="$3"
+        mkdir -p "$c$chr" 2> /dev/null || [ -d "$c$chr" ] || { why="cannot make $c$chr"; return 1; }
+        _src="$(realpath "$2" 2> /dev/null)" || { why="no directory $2"; return 1; }
+    else
+        ch_dir "$2" || return 1
+        _src="$chr"
+    fi
+    mount -t nullfs -o "$1" "$_src" "$c$chr" > "$cs/mount.out" 2>&1 ||
+        { why="mount -t nullfs -o $1 $_src $c$chr failed: $(tail -n 1 "$cs/mount.out")"; return 1; }
+}
+# ch_fs <type> <path in the chroot>: devfs, fdescfs, procfs
+ch_fs() {
+    mkdir -p "$c$2" 2> /dev/null || [ -d "$c$2" ] || { why="cannot make $c$2"; return 1; }
+    mount -t "$1" "$1" "$c$2" > "$cs/mount.out" 2>&1 || { why="mount -t $1 $c$2 failed: $(tail -n 1 "$cs/mount.out")"; return 1; }
+}
+# ch_under <real path> <real dir>...: the path is one of the dirs or in one of them
+ch_under() {
+    _u="$1"; shift
+    for _ud in "$@"; do
+        case "$_u" in "$_ud" | "$_ud"/*) return 0 ;; esac
+    done
+    return 1
+}
+# the directories of this tree a chroot gets read only: all but those of the run (the
+# work directory, packages/, distfiles/, results/, the repository) and the hidden ones
+ch_ovl=""
+for _d in "$topr"/*/; do
+    _d="${_d%/}"
+    [ -d "$_d" ] || continue
+    _rd="$(realpath "$_d")"
+    case " $workr $(realpath "$packages") $(realpath "$distdir") $(realpath "$res") $(realpath "$repo") " in
+        *" $_rd "*) continue ;;
+    esac
+    ch_ovl="$ch_ovl ${_d##*/}"
+done
+# ch_up <key>: the chroot $c of a port ($chd/<key>; its files of the run in $cs,
+# $q/ch/<key>); 1 with $why when it could not be made
+ch_up() {
+    c="$chd/$1"; cs="$q/ch/$1"
+    rm -rf "$cs" && mkdir -p "$cs" || { why="cannot make $cs"; return 1; }
+    ch_down "$c" > /dev/null || { why="what a chroot before left in $c is still mounted there"; return 1; }
+    mkdir -p "$c" || { why="cannot make $c"; return 1; }
+    for _d in $ch_base; do
+        [ -d "$_d" ] || continue
+        ch_mount ro "$_d" || return 1
+    done
+    mkdir -p "$c/etc" "$c/tmp" "$c/var/tmp" "$c/var/run" "$c/var/log" "$c/root" "$c/usr/local/etc" \
+        "$c/usr/local/lib" "$c$pkgdb/repos" && chmod 1777 "$c/tmp" "$c/var/tmp" ||
+        { why="cannot make the directories of $c"; return 1; }
+    (cd "$work/ch-etc" && tar -cf - .) | (cd "$c/etc" && tar -xpf -)
+    [ -f "$c/etc/rc.subr" ] || { why="cannot copy work/ch-etc into $c/etc"; return 1; }
+    if [ -d "$work/ch-local" ]; then
+        (cd "$work/ch-local" && tar -cf - .) | (cd "$c/usr/local/etc" && tar -xpf -) ||
+            { why="cannot copy work/ch-local into $c/usr/local/etc"; return 1; }
+    fi
+    ch_fs devfs /dev || return 1
+    if [ "$ch_fdesc" = 1 ]; then ch_fs fdescfs /dev/fd || return 1; fi
+    if [ "$ch_proc" = 1 ]; then ch_fs procfs /proc || return 1; fi
+    # the catalogs of the run and the cache of pkg, shared
+    ch_mount rw "$work/ch-repos" "$pkgdb/repos" || return 1
+    ch_mount rw "$pkgcache" || return 1
+    # this tree read only: its directories but those of the run (each its own mount:
+    # nullfs refuses a directory over a view of itself, so that distfiles/ could not
+    # be read-write in a read-only tree), the official tree, packages/ and the
+    # repository read only
+    _ro=""
+    for _d in $ch_ovl; do
+        ch_mount ro "$top/$_d" || return 1
+        _ro="$_ro $chr"
+    done
+    for _d in "$ports" "$packages" "$repo"; do
+        # shellcheck disable=SC2086
+        ch_under "$(realpath "$_d")" $_ro && continue
+        ch_mount ro "$_d" || return 1
+        _ro="$_ro $chr"
+    done
+    # the make.conf of the run and its PORT_DBDIR (empty: no saved options)
+    ch_dir "$work" && mkdir -p "$c$chr/db" && cp -p "$work/make.conf" "$c$chr/make.conf" ||
+        { why="${why:-cannot copy make.conf into $c}"; return 1; }
+    # what the builds write: the distfiles (shared), WRKDIRPREFIX, the packages
+    # directory of the port, the results of the scripts of tools/, the work
+    # directories of the configure check
+    for _d in "$distdir" "$work/wrk" "$work/pk/$1" "$res/az-results" $( [ "$ccheck" = 1 ] && echo "$work/ccw"); do
+        mkdir -p "$_d" || { why="cannot make $_d"; return 1; }
+        # shellcheck disable=SC2086
+        if ch_under "$(realpath "$_d")" $_ro; then why="$_d is in a directory mounted read only in the chroot"; return 1; fi
+        ch_mount rw "$_d" || return 1
+    done
+    # the hints of the run-time linker (/usr/local/lib; the packages add theirs)
+    chroot "$c" /usr/sbin/service ldconfig start > /dev/null 2>&1 || :
+    return 0
+}
+# ch_run [-l <lock file>] <command>...: a command in the chroot $c (under lockf(1) of
+# the machine with -l), with the environment of a login of root, the make.conf of the
+# run, the level, and AZ_CFLAGS, AZ_GCC_SO, AZ_GCC_BIN and MAKE_CONF of the caller
+# when set (nothing else of the caller: no key, no token)
+ch_run() {
+    _lk=""
+    if [ "$1" = -l ]; then _lk="$2"; shift 2; fi
+    set -- chroot "$c" /usr/bin/env -i HOME=/root USER=root LOGNAME=root SHELL=/bin/sh \
+        PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin \
+        __MAKE_CONF="$__MAKE_CONF" ASSUME_ALWAYS_YES=yes AZ_CPUTYPE="$cputype" \
+        ${AZ_CFLAGS+"AZ_CFLAGS=$AZ_CFLAGS"} ${AZ_GCC_SO+"AZ_GCC_SO=$AZ_GCC_SO"} \
+        ${AZ_GCC_BIN+"AZ_GCC_BIN=$AZ_GCC_BIN"} ${MAKE_CONF+"MAKE_CONF=$MAKE_CONF"} "$@"
+    if [ -n "$_lk" ]; then lockf -k "$_lk" "$@"; else "$@"; fi
+}
+# the chroots a run before left (stopped), and those of this run at its end, whatever ends it
+c=""; cs="$q/ch"
+ch_all_down
+trap 'ch_all_down' EXIT
+trap 'exit 2' HUP INT TERM
+
+# tool_official <origin> <key>: a build tool of AZ_TOOLS_OFFICIAL that the port of the
+# key needs only to build (not among its LIB_ and RUN_DEPENDS), and the port is no
+# extension of Python (its FLAVOR, line 19 of its info, not py*): it gets the official
+# package of the origin, even when this tree has it
+tool_official() {
+    case " $AZ_TOOLS_OFFICIAL " in *" ${1%%@*} "*) ;; *) return 1 ;; esac
+    sed 's/@.*//' "$q/info/$2.run" | grep -qxF "${1%%@*}" && return 1
+    case "$(sed -n 19p "$q/info/$2")" in py[0-9]*) return 1 ;; esac
+    return 0
+}
+
 # port_info <origin>: what make -V says of a port of this tree into $q/info/<key>
 # (lines: 1 PKGNAME, 2 IGNORE, 3-9 FETCH_ EXTRACT_ PATCH_ BUILD_ LIB_ RUN_ PKG_DEPENDS,
 # 10 NEED_ROOT, 11 MASTERDIR, 12 FILESDIR, 13 PATCHDIR, 14 PKGDIR, 15 DISTINFO_FILE,
-# 16 .MAKE.MAKEFILES, 17 AZ_HASH_NOT_FOR_DEPENDENTS, 18 AZ_HASH_LIBS); our dependencies into $q/deps/<key> (all kinds) and
+# 16 .MAKE.MAKEFILES, 17 AZ_HASH_NOT_FOR_DEPENDENTS, 18 AZ_HASH_LIBS, 19 FLAVOR); our
+# dependencies into $q/deps/<key> (all kinds) and
 # $q/rdeps/<key> (LIB_ and RUN_DEPENDS: what pkg add of its package needs), the
-# official ones into $q/odeps/<key> and $q/orun/<key>
+# official ones into $q/odeps/<key> and $q/orun/<key>; the origins of this tree it gets
+# official (tool_official) are among the official ones, and in $q/info/<key>.tools
 port_info() {
     _k="$(key "$1")"
     [ -f "$q/info/$_k" ] && return 0
-    : > "$q/deps/$_k"; : > "$q/rdeps/$_k"; : > "$q/odeps/$_k"; : > "$q/orun/$_k"
+    : > "$q/deps/$_k"; : > "$q/rdeps/$_k"; : > "$q/odeps/$_k"; : > "$q/orun/$_k"; : > "$q/info/$_k.tools"
     if ! make -C "$top/$1" AZ_STAMP="$az_stamp" -V PKGNAME -V IGNORE -V FETCH_DEPENDS -V EXTRACT_DEPENDS \
             -V PATCH_DEPENDS -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS -V NEED_ROOT \
             -V MASTERDIR -V FILESDIR -V PATCHDIR -V PKGDIR -V DISTINFO_FILE -V .MAKE.MAKEFILES \
-            -V AZ_HASH_NOT_FOR_DEPENDENTS -V AZ_HASH_LIBS > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
+            -V AZ_HASH_NOT_FOR_DEPENDENTS -V AZ_HASH_LIBS -V FLAVOR > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
         echo "make -V failed: $(grep . "$q/info/$_k.err" | head -n 1)" > "$q/info/$_k.bad"
         return 1
     fi
@@ -288,7 +518,14 @@ port_info() {
     sed -n '7,8p' "$q/info/$_k" | dep_origins > "$q/info/$_k.run"
     for _d in $(cat "$q/info/$_k.all"); do
         [ "${_d%%@*}" = "$1" ] && continue
-        if ours "$_d"; then echo "${_d%%@*}" >> "$q/deps/$_k"; else echo "$_d" >> "$q/odeps/$_k"; fi
+        if ! ours "$_d"; then
+            echo "$_d" >> "$q/odeps/$_k"
+        elif tool_official "$_d" "$_k"; then
+            echo "$_d" >> "$q/odeps/$_k"
+            echo "${_d%%@*}" >> "$q/info/$_k.tools"
+        else
+            echo "${_d%%@*}" >> "$q/deps/$_k"
+        fi
     done
     for _d in $(cat "$q/info/$_k.run"); do
         [ "${_d%%@*}" = "$1" ] && continue
@@ -360,15 +597,20 @@ port_files() {
 }
 
 # pkgbase <origin[@flavor]>: the name of the package of an official port (PKGBASE of
-# make -V in the official tree, with its flavour), cached
+# make -V in the official tree, with its flavour), cached; why not in <cache>.why (the
+# callers take the name by $(...), where $why does not reach them)
 pkgbase() {
     _f="$q/pkgbase/$(key "$1")"
     if [ ! -s "$_f" ]; then
         _o="${1%%@*}"; _fl=""
         case "$1" in *@*) _fl="${1#*@}" ;; esac
-        [ -f "$ports/$_o/Makefile" ] || { why="no port $_o in the official tree"; return 1; }
-        make -C "$ports/$_o" ${_fl:+FLAVOR=$_fl} -V PKGBASE > "$_f" 2> "$_f.err" && [ -s "$_f" ] ||
-            { why="make -V PKGBASE of $1 failed: $(grep . "$_f.err" | head -n 1)"; rm -f "$_f"; return 1; }
+        if [ ! -f "$ports/$_o/Makefile" ]; then
+            why="no port $_o in the official tree"; echo "$why" > "$_f.why"; return 1
+        fi
+        if ! make -C "$ports/$_o" ${_fl:+FLAVOR=$_fl} -V PKGBASE > "$_f" 2> "$_f.err" || [ ! -s "$_f" ]; then
+            why="make -V PKGBASE of $1 failed: $(grep . "$_f.err" | head -n 1)"; echo "$why" > "$_f.why"
+            rm -f "$_f"; return 1
+        fi
     fi
     cat "$_f"
 }
@@ -384,103 +626,111 @@ pkg_said() {
         grep . | head -n 1 | cut -c1-200)"
 }
 
-# our installed packages: origin name version file, one per line (put back when pkg
-# install of an official package replaced one by the official package of the same name)
-: > "$q/installed"
-# (their own variables: read empties those it reads into at the end of the file, and
-# inst_port has its own _n, _v and _f around official and gone)
-ours_back() {
-    while read -r _bo _bn _bv _bf; do
-        [ "$(pkg query %v "$_bn" 2>/dev/null)" = "$_bv" ] && continue
-        say "pkg install put another $_bn in the place of ours ($_bv): pkg add -f ${_bf##*/}"
-        if ! pkg add -f "$_bf" > "$q/pkg.out" 2>&1; then pkg_said "$q/pkg.out" "pkg add -f ${_bf##*/} failed"; return 1; fi
-        cat "$q/pkg.out" >> "$log"
-    done < "$q/installed"
-    return 0
-}
-# gone: our packages that pkg delete removed are no longer installed for the ports after
-gone() {
-    : > "$q/installed.new"
-    while read -r _go _gn _gv _gf; do
-        if pkg info -e "$_gn"; then echo "$_go $_gn $_gv $_gf" >> "$q/installed.new"; else rm -f "$q/inst-$(key "$_go")"; fi
-    done < "$q/installed"
-    mv "$q/installed.new" "$q/installed"
-}
-
-# official <file of origins>: their official packages installed (pkg install), what is
-# not installed afterwards said in $why
-official() {
-    _want=""
-    for _o in $(cat "$1"); do
-        _p="$(pkgbase "$_o")" || return 1
-        pkg info -e "$_p" || _want="$_want $_p"
+# dep_lists <origin>: what a port gets in its chroot, worked out once (by the run, not by
+# its build, which may run beside others): $q/dl/<key>.ours, the ports of this tree it
+# needs and those they need to run (in the order of the queue: pkg add, each after
+# what it needs), and $q/dl/<key>.off, the official packages of its dependencies and
+# those our packages it gets need to run (the names of pkg, on one line); a name that
+# could not be worked out into $q/dl/<key>.bad
+dep_lists() {
+    _k="$(key "$1")"
+    [ -f "$q/dl/$_k.off" ] && return 0
+    LC_ALL=C sort -u "$q/deps/$_k" > "$q/dl/$_k.cl"
+    cp "$q/dl/$_k.cl" "$q/dl/$_k.new"
+    while [ -s "$q/dl/$_k.new" ]; do
+        for _c in $(cat "$q/dl/$_k.new"); do cat "$q/rdeps/$(key "$_c")"; done | LC_ALL=C sort -u |
+            grep -vxF -f "$q/dl/$_k.cl" > "$q/dl/$_k.next"
+        cat "$q/dl/$_k.next" >> "$q/dl/$_k.cl"
+        mv "$q/dl/$_k.next" "$q/dl/$_k.new"
     done
-    [ -z "$_want" ] && return 0
-    say "  pkg install$_want"
-    # shellcheck disable=SC2086
-    pkg install -y $_want > "$q/pkg.out" 2>&1
-    _miss=""
-    for _p in $_want; do pkg info -e "$_p" || _miss="$_miss $_p"; done
-    if [ -n "$_miss" ]; then pkg_said "$q/pkg.out" "pkg install did not install$_miss"; return 1; fi
-    cat "$q/pkg.out" >> "$log"
-    ours_back
-}
-
-# inst_port <origin>: the package of a port of this tree installed with what it needs to
-# run: our packages it needs first (in the order of the queue), the official ones by
-# pkg install, then pkg add of its own file (-f when a package of that name is there)
-inst_port() {
-    printf '%s\n' "$1" > "$q/cl.all"
-    cp "$q/cl.all" "$q/cl.new"
-    while [ -s "$q/cl.new" ]; do
-        for _c in $(cat "$q/cl.new"); do cat "$q/rdeps/$(key "$_c")"; done | LC_ALL=C sort -u |
-            grep -vxF -f "$q/cl.all" > "$q/cl.next"
-        cat "$q/cl.next" >> "$q/cl.all"
-        mv "$q/cl.next" "$q/cl.new"
-    done
-    for _c in $(grep -xF -f "$q/cl.all" "$q/queue.txt"); do
-        _ck="$(key "$_c")"
-        [ -f "$q/inst-$_ck" ] && continue
-        # it did not install for a port before: the same reason, not the same pkg add again
-        if [ -s "$q/instfail-$_ck" ]; then why="$(cat "$q/instfail-$_ck")"; return 1; fi
-        _f="$(cat "$q/file/$_ck" 2>/dev/null)"
-        [ -n "$_f" ] && [ -f "$_f" ] || { why="no package of $_c ($(st "$_c"))"; return 1; }
-        official "$q/orun/$_ck" || return 1
-        _n="$(pkg query -F "$_f" %n)"; _v="$(pkg query -F "$_f" %v)"
-        _af=""
-        pkg info -e "$_n" && _af=-f
-        say "  pkg add ${_af:+$_af }${_f##*/}"
-        # shellcheck disable=SC2086
-        pkg add $_af "$_f" > "$q/pkg.out" 2>&1
-        _r=$?
-        # an installed package of ours with the same files (the other one of a pair:
-        # phpXY-mysqlnd and phpXY-mysqlnd-openssl, which the ports on mysqlnd need one
-        # or the other of): pkg add refuses it before it installs anything ("<name>
-        # conflicts with <name>-<version> (installs files into the same place)"), so
-        # that one goes with the packages that depend on it (pkg delete: the ports
-        # that need them get them again) and pkg add runs once more
-        _cf="$(sed -n 's/.* conflicts with \([^ ]*\) (installs files into the same place).*/\1/p' "$q/pkg.out" | LC_ALL=C sort -u)"
-        if [ "$_r" != 0 ] && [ -n "$_cf" ]; then
-            cat "$q/pkg.out" >> "$log"
-            for _x in $_cf; do
-                say "  pkg delete ${_x%-*} and what depends on it (the same files as $_n)"
-                pkg delete -y "${_x%-*}" >> "$log" 2>&1 || say "  pkg delete ${_x%-*} failed"
-            done
-            gone
-            say "  pkg add ${_af:+$_af }${_f##*/}"
-            # shellcheck disable=SC2086
-            pkg add $_af "$_f" > "$q/pkg.out" 2>&1
-            _r=$?
+    if [ -s "$q/dl/$_k.cl" ]; then grep -xF -f "$q/dl/$_k.cl" "$q/queue.txt" > "$q/dl/$_k.ours"; else : > "$q/dl/$_k.ours"; fi
+    { cat "$q/odeps/$_k"; for _c in $(cat "$q/dl/$_k.ours"); do cat "$q/orun/$(key "$_c")"; done; } |
+        LC_ALL=C sort -u > "$q/dl/$_k.oo"
+    : > "$q/dl/$_k.names"
+    rm -f "$q/dl/$_k.bad"
+    for _o in $(cat "$q/dl/$_k.oo"); do
+        if ! _p="$(pkgbase "$_o")"; then
+            cat "$q/pkgbase/$(key "$_o").why" > "$q/dl/$_k.bad" 2> /dev/null || echo "no package name of $_o" > "$q/dl/$_k.bad"
+            break
         fi
-        if [ "$_r" != 0 ] || [ "$(pkg query %v "$_n" 2>/dev/null)" != "$_v" ]; then
-            pkg_said "$q/pkg.out" "pkg add ${_f##*/} failed"
-            echo "$why" > "$q/instfail-$_ck"
+        echo "$_p" >> "$q/dl/$_k.names"
+    done
+    LC_ALL=C sort -u "$q/dl/$_k.names" | tr '\n' ' ' | sed 's/ $//' > "$q/dl/$_k.off"
+}
+
+# ch_deps <origin>: the dependencies of a port installed in its chroot $c: the official
+# packages ($q/dl/<key>.off) fetched into the cache, one chroot at a time (lockf: two
+# fetches of one file would break it; those of the run are there already from the
+# start), and installed (pkg install -U: the catalogs of the run, not updated); then
+# ours ($q/dl/<key>.ours) by pkg add of their files (-f in the place of an official
+# package of the same name that an official one brought). No official package comes
+# after ours, so none takes the place of one of ours. 1 when they did not install
+# (the line of the summary said)
+ch_deps() {
+    if [ -s "$q/dl/$k.bad" ]; then record "$1" fail "$pn: the official dependencies: $(cat "$q/dl/$k.bad")"; return 1; fi
+    _want="$(cat "$q/dl/$k.off" 2> /dev/null)"
+    if [ -n "$_want" ]; then
+        say "  $1: pkg install $_want"
+        # shellcheck disable=SC2086
+        if ! lockf -k "$q/pkg-fetch.lock" pkg -c "$c" fetch -y -d -U $_want > "$cs/pkg.out" 2>&1; then
+            pkg_said "$cs/pkg.out" "pkg fetch failed"
+            record "$1" fail "$pn: the official dependencies: $why"
             return 1
         fi
-        cat "$q/pkg.out" >> "$log"
-        echo "$_c $_n $_v $_f" >> "$q/installed"
-        : > "$q/inst-$_ck"
+        cat "$cs/pkg.out" >> "$log"
+        # shellcheck disable=SC2086
+        pkg -c "$c" install -y -U $_want > "$cs/pkg.out" 2>&1
+        pkg -c "$c" query -a %n > "$cs/have" 2> /dev/null
+        _miss=""
+        for _p in $_want; do grep -qxF "$_p" "$cs/have" || _miss="$_miss $_p"; done
+        if [ -n "$_miss" ]; then
+            pkg_said "$cs/pkg.out" "pkg install did not install$_miss"
+            record "$1" fail "$pn: the official dependencies: $why"
+            return 1
+        fi
+        cat "$cs/pkg.out" >> "$log"
+    fi
+    for _c in $(cat "$q/dl/$k.ours"); do
+        _ck="$(key "$_c")"
+        _f="$(cat "$q/file/$_ck" 2>/dev/null)"
+        if [ -z "$_f" ] || [ ! -f "$_f" ]; then
+            record "$1" fail "$pn: our dependencies: no package of $_c ($(st "$_c"))"
+            return 1
+        fi
+        _n="$(pkg query -F "$_f" %n)"; _v="$(pkg query -F "$_f" %v)"
+        _af=""
+        pkg -c "$c" info -e "$_n" && _af=-f
+        say "  $1: pkg add ${_af:+$_af }${_f##*/}"
+        # shellcheck disable=SC2086
+        pkg -c "$c" add $_af "$_f" > "$cs/pkg.out" 2>&1
+        _r=$?
+        # a package of ours with the same files there (the other one of a pair:
+        # phpXY-mysqlnd and phpXY-mysqlnd-openssl, which the ports on mysqlnd need one
+        # or the other of; both only when the port needs both): pkg add refuses it
+        # before it installs anything ("<name> conflicts with <name>-<version> (installs
+        # files into the same place)"), so that one goes with the packages that depend
+        # on it, and pkg add runs once more
+        _cf="$(sed -n 's/.* conflicts with \([^ ]*\) (installs files into the same place).*/\1/p' "$cs/pkg.out" | LC_ALL=C sort -u)"
+        if [ "$_r" != 0 ] && [ -n "$_cf" ]; then
+            cat "$cs/pkg.out" >> "$log"
+            for _x in $_cf; do
+                say "  $1: pkg delete ${_x%-*} and what depends on it (the same files as $_n)"
+                pkg -c "$c" delete -y "${_x%-*}" >> "$log" 2>&1 || say "  $1: pkg delete ${_x%-*} failed"
+            done
+            say "  $1: pkg add ${_af:+$_af }${_f##*/}"
+            # shellcheck disable=SC2086
+            pkg -c "$c" add $_af "$_f" > "$cs/pkg.out" 2>&1
+            _r=$?
+        fi
+        if [ "$_r" != 0 ] || [ "$(pkg -c "$c" query %v "$_n" 2>/dev/null)" != "$_v" ]; then
+            pkg_said "$cs/pkg.out" "pkg add ${_f##*/} failed"
+            record "$1" fail "$pn: our dependencies: $why"
+            return 1
+        fi
+        cat "$cs/pkg.out" >> "$log"
     done
+    # the hints of the run-time linker with the libraries of the packages
+    chroot "$c" /usr/sbin/service ldconfig start > /dev/null 2>&1 || :
     return 0
 }
 
@@ -598,7 +848,14 @@ while read -r l; do say "$l"; done < "$res/stages.txt"
 # and those its AZ_HASH_LIBS names (the names of deps.conf: a program that links
 # more of the static tree than its dependencies name, ftp/curl: curl). A file of az
 # that is of no library, with no AZ_HASH_LIBS: the hash of all of az, as before.
-base_hash="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; cat "$top/tools/make.conf.in"; } | hin)"
+#
+# The base of every hash: the official commit, the level, tools/make.conf.in and the
+# way the builder builds ("builder chroot": each port in a chroot of its own, with
+# only its dependencies; a change of that way that can change the packages changes
+# this line, and every port is built again). The build tools a port gets official
+# (AZ_TOOLS_OFFICIAL) are not among its dependencies of this tree: their hash is not
+# in its own.
+base_hash="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; echo "builder chroot"; cat "$top/tools/make.conf.in"; } | hin)"
 mkdir -p "$q/dhash"
 : > "$res/hashes.txt"
 : > "$q/azlib.txt"
@@ -686,6 +943,11 @@ for o in $(cat "$q/queue.txt"); do
     [ -n "$nfd" ] && say "$o: AZ_HASH_NOT_FOR_DEPENDENTS, not in the hash of the ports that need it: $nfd"
     azn=""
     [ -f "$q/azdep-$k" ] && azn=" ($(cat "$q/azdep-$k"))"
+    if [ -s "$q/info/$k.tools" ]; then
+        tl="$(LC_ALL=C sort -u "$q/info/$k.tools" | tr '\n' ' ' | sed 's/ $//')"
+        azn="$azn (the official packages of $tl to build it: AZ_TOOLS_OFFICIAL, not in its hash)"
+        say "$o: the official packages of $tl to build it, not ours (AZ_TOOLS_OFFICIAL)"
+    fi
     echo "$o $(cat "$q/hash/$k")$azn" >> "$res/hashes.txt"
     # az: the hash of each of its libraries for the ports that link them
     if [ "$o" = az/az ]; then
@@ -804,23 +1066,107 @@ pre_port() {
     return 0
 }
 
-# deps_port <origin>: its official dependencies (pkg install) and ours (pkg add); 1
-# when they did not install (the line of the summary said)
-deps_port() {
-    why=""
-    if ! official "$q/odeps/$k"; then record "$1" fail "$pn: the official dependencies: $why"; return 1; fi
-    for d in $(cat "$q/deps/$k"); do
-        inst_port "$d" || { record "$1" fail "$pn: our dependencies: $why"; return 1; }
+# ch_init: what the chroots of the run share (not for a dry run): the copy of /etc
+# (without /etc/ssh: the host keys of the machine are of no build), pkg.conf and the
+# repositories of /usr/local/etc/pkg/repos but ours (az, azbuild: in a chroot pkg
+# install takes the official packages only), the catalogs of the machine updated once
+# in a chroot (work/ch-repos: the chroots of the run read them, pkg -U), and the
+# official packages of the ports the run may build fetched into the cache of pkg, so
+# that the builds download nothing of pkg (results/logs/chroots.log)
+ch_init() {
+    case "$(pkg -v 2>/dev/null)" in
+        [2-9].* | [1-9][0-9].*) ;;
+        *) die "pkg $(pkg -v 2>/dev/null): the chroots need pkg 2 or later (the catalogs in $pkgdb/repos)" ;;
+    esac
+    _cl="$res/logs/chroots.log"
+    : > "$_cl"
+    rm -rf "$work/ch-etc" "$work/ch-local" "$work/ch-repos" "$work/pk"
+    mkdir -p "$chd" "$work/ch-etc" "$work/ch-repos" "$pkgcache" || die "cannot make the directories of the chroots in $work"
+    (cd /etc && tar -cf - --exclude ./ssh .) | (cd "$work/ch-etc" && tar -xpf -)
+    [ -f "$work/ch-etc/rc.subr" ] || die "cannot copy /etc into $work/ch-etc"
+    if [ -f /usr/local/etc/pkg.conf ] || [ -d /usr/local/etc/pkg/repos ]; then
+        mkdir -p "$work/ch-local/pkg/repos"
+        [ -f /usr/local/etc/pkg.conf ] && cp -p /usr/local/etc/pkg.conf "$work/ch-local/"
+        for _f in /usr/local/etc/pkg/repos/*.conf; do
+            [ -f "$_f" ] || continue
+            if grep -q -E '^[[:space:]]*"?(az|azbuild)"?[[:space:]]*:|azsupport/ports' "$_f"; then
+                say "the chroots: without $_f (a repository of ours: the official packages only)"
+                continue
+            fi
+            cp -p "$_f" "$work/ch-local/pkg/repos/"
+        done
+    fi
+    if [ -d "$pkgdb/repos" ]; then (cd "$pkgdb/repos" && tar -cf - .) | (cd "$work/ch-repos" && tar -xpf -); fi
+    _t0="$(date +%s)"
+    ch_up _setup || die "no chroot for the run: $why"
+    say "a chroot in $(( $(date +%s) - _t0 ))s: $ch_base read only, a copy of /etc, devfs$( [ "$ch_fdesc" = 1 ] && echo ', fdescfs')$( [ "$ch_proc" = 1 ] && echo ', procfs'), this tree, the official tree, packages/ and the repository read only (the chroot of each port the same)"
+    {
+        echo "== the mounts of a chroot ($c):"
+        ch_mounts "$c" | sort
+        echo "== pkg update (the catalogs of the run, work/ch-repos)"
+    } >> "$_cl"
+    if pkg -c "$c" update >> "$_cl" 2>&1; then
+        say "the catalogs of the run: pkg update in a chroot ($(tail -n 1 "$_cl" | cut -c1-120))"
+    else
+        say "warning: pkg update in a chroot failed (results/logs/chroots.log): the catalogs of the machine as they are"
+    fi
+    # the official packages of the ports the run may build (no package with the same
+    # az_hash in the repository, or --force; make -V worked, no IGNORE)
+    : > "$q/prefetch"
+    _np=0
+    for _o in $(cat "$q/queue.txt"); do
+        _k="$(key "$_o")"
+        [ -f "$q/info/$_k.bad" ] && continue
+        [ -n "$(sed -n 2p "$q/info/$_k")" ] && continue
+        _hh="$(awk -v o="$_o" '$2 == o { print $3; exit }' "$q/repo-had")"
+        [ "$force" = 0 ] && [ "$_hh" = "$(cat "$q/hash/$_k")" ] && continue
+        dep_lists "$_o"
+        _np=$((_np + 1))
+        for _p in $(cat "$q/dl/$_k.off"); do echo "$_p"; done >> "$q/prefetch"
     done
-    return 0
+    _want="$(grep . "$q/prefetch" | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//')"
+    if [ -n "$_want" ]; then
+        _t0="$(date +%s)"
+        echo "== pkg fetch -d of the official packages of the $_np ports the run may build: $_want" >> "$_cl"
+        # shellcheck disable=SC2086
+        if pkg -c "$c" fetch -y -d -U $_want >> "$_cl" 2>&1; then
+            say "the official packages of the $_np ports the run may build ($(echo $_want | wc -w | tr -d ' ') and their dependencies): in the cache of pkg in $(( $(date +%s) - _t0 ))s"
+        else
+            say "warning: pkg fetch of the official packages of the run failed (results/logs/chroots.log: $(grep -i -E 'error|fail|no packages' "$_cl" | tail -n 1 | cut -c1-160)): each chroot fetches its own"
+        fi
+    fi
+    ch_down "$c" || die "the chroot $c could not be torn down"
+    rm -rf "$q/ch/_setup" "$work/pk/_setup"
 }
 
-# need_root <origin>: NEED_ROOT of the port (az/az: it installs into the real prefix
-# while it builds, and refuses files there of a package), or nothing
-need_root() {
-    _nr="$(sed -n 10p "$q/info/$(key "$1")" 2>/dev/null)"
-    case "$_nr" in ''|no|NO) _nr="" ;; esac
-    printf '%s' "$_nr"
+# job_port <origin>: a port built in a chroot of its own, after pre_port said it is to be
+# built: its chroot (ch_up), its dependencies there (ch_deps), make package (make_port),
+# then the chroot away (ch_down), whatever the result; the times of the chroot ($chs),
+# of the dependencies ($dps) in the line of the summary, with that of the teardown in
+# $q/chtime/<key>
+job_port() {
+    pre_port "$1"
+    chs=0; dps=0
+    _jt0="$(date +%s)"
+    why=""; c="$chd/$k"; cs="$q/ch/$k"
+    if ! { rm -rf "$work/pk/$k" && mkdir -p "$work/pk/$k/All"; } || ! ch_up "$k"; then
+        record "$1" fail "$pn: no chroot ($chd/$k): ${why:-cannot make $work/pk/$k}"
+    else
+        _jt1="$(date +%s)"; chs=$((_jt1 - _jt0))
+        echo "== the chroot $c in ${chs}s" >> "$log"
+        if ch_deps "$1"; then
+            dps=$(( $(date +%s) - _jt1 ))
+            echo "== the dependencies in the chroot in ${dps}s" >> "$log"
+            make_port "$1" "$work/pk/$k"
+        fi
+    fi
+    _jt2="$(date +%s)"
+    if [ -n "$c" ] && ! ch_down "$c" >> "$log" 2>&1; then
+        say "$1: its chroot $c could not be torn down (logs/$k.log)"
+    fi
+    echo "$chs $dps $(( $(date +%s) - _jt2 ))" > "$q/chtime/$k"
+    echo "== the chroot away in $(( $(date +%s) - _jt2 ))s" >> "$log"
+    rm -rf "$q/ch/$k" "$work/pk/$k"
 }
 
 # --- the configure check (AZ_CONFIGURE_CHECK=1) -----------------------------------------
@@ -830,12 +1176,13 @@ php_port() {
     return 1
 }
 # cc_flags <cc>: the permissive flags the compiler takes (tools/configure-check.sh
-# probe), once for each compiler of the run ($q/ccflags-*, written whole: the
-# builds of a wave ask at once; none, a compiler not there, is not kept)
+# probe in the chroot of the port: the compiler may be one of its packages), once for
+# each compiler of the run ($q/ccflags-*, written whole: the builds of a wave ask at
+# once; none, a compiler not there, is not kept)
 cc_flags() {
     _cf="$q/ccflags-$(printf '%s' "$1" | tr -c 'A-Za-z0-9' '_')"
     if [ ! -s "$_cf" ]; then
-        sh "$top/tools/configure-check.sh" probe "$1" 2> /dev/null | grep . > "$_cf.$k"
+        ch_run sh "$top/tools/configure-check.sh" probe "$1" 2> /dev/null | grep . > "$_cf.$k"
         if [ -s "$_cf.$k" ]; then
             printf '%s\n' "$1" > "$_cf.cc.$k" && mv -f "$_cf.cc.$k" "$_cf.cc"
             mv -f "$_cf.$k" "$_cf"
@@ -848,11 +1195,11 @@ cc_flags() {
 }
 # cc_check <origin>: after the build of a PHP port and its make clean (the results
 # of its configure saved before by make_port into $work/cc/<key>/strict): make
-# configure once more in the WRKDIRPREFIX $work/ccw/<key>, with the permissive
-# flags of its compiler in CFLAGS_<arch> (appended to its CFLAGS by bsd.port.mk;
-# what the port has in that variable stays first), the results saved, compared
-# (results/configure-check/<key>.txt, its exit status in <key>.rc; the two
-# config.log files there too when they differ), then away with both
+# configure once more in its chroot, in the WRKDIRPREFIX $work/ccw/<key> (read-write
+# there), with the permissive flags of its compiler in CFLAGS_<arch> (appended to its
+# CFLAGS by bsd.port.mk; what the port has in that variable stays first), the results
+# saved, compared (results/configure-check/<key>.txt, its exit status in <key>.rc; the
+# two config.log files there too when they differ), then away with both
 cc_check() {
     _cd="$work/cc/$k"; _pw="$work/ccw/$k"
     mkdir -p "$res/configure-check"
@@ -860,7 +1207,7 @@ cc_check() {
         rm -rf "$_pw"
         # (the last one an expression of make, not of the shell)
         # shellcheck disable=SC2016
-        make -C "$top/$1" WRKDIRPREFIX="$_pw" -V WRKDIR -V CONFIGURE_WRKSRC -V CC -V ARCH \
+        ch_run make -C "$top/$1" WRKDIRPREFIX="$_pw" -V WRKDIR -V CONFIGURE_WRKSRC -V CC -V ARCH \
             -V '${CFLAGS_${ARCH}}' > "$_cd/vars" 2> /dev/null
         _pwd="$(sed -n 1p "$_cd/vars")"; _pcw="$(sed -n 2p "$_cd/vars")"; _cc="$(sed -n 3p "$_cd/vars")"
         _arch="$(sed -n 4p "$_cd/vars")"; _own="$(sed -n 5p "$_cd/vars")"
@@ -871,15 +1218,16 @@ cc_check() {
             echo "no permissive configure: make -V WRKDIR, CC, ARCH gave '${_pwd}', '${_cc}', '${_arch}'; the flags $_cc takes: '${_fl}'" > "$_cd/permissive/none"
         else
             say "$1: the configure check: make configure again, permissive ($_cc: $_fl)"
-            make -C "$top/$1" configure USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" \
+            ch_run make -C "$top/$1" configure USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" \
                 WRKDIRPREFIX="$_pw" "CFLAGS_$_arch=${_own:+$_own }$_fl" > "$_cd/permissive.log" 2>&1
             _prc=$?
+            # the work directories of the chroot are those of the machine at the same paths
             sh "$top/tools/configure-check.sh" save "$_cd/permissive" "$_pwd" "$_pcw" "$_cc" "$_fl"
             # make configure failed before configure ran: its last lines say why
             if [ -f "$_cd/permissive/none" ]; then
                 echo "make configure: exit $_prc: $(grep . "$_cd/permissive.log" | tail -n 2 | tr '\n' ' ' | cut -c1-300)" >> "$_cd/permissive/none"
             fi
-            make -C "$top/$1" WRKDIRPREFIX="$_pw" clean > /dev/null 2>&1
+            ch_run make -C "$top/$1" WRKDIRPREFIX="$_pw" clean > /dev/null 2>&1
             rm -rf "$_pw"
         fi
     fi
@@ -900,85 +1248,81 @@ cc_check() {
     echo "configure check: $_cw" >> "$log"
 }
 
-# make_port <origin> [<packages>]: make clean package of a port, its result said (the
-# line of the summary); with <packages> (AZ_JOBS above 1) the build writes its
-# packages into <packages>/All, moved into packages/All after it (each build its
-# own: the files a build made are those, whatever builds at the same time)
+# make_port <origin> <packages>: make clean package of a port in its chroot $c, its
+# result said (the line of the summary, with the times of its chroot and of its
+# dependencies, $chs and $dps); the build writes its packages into <packages>/All
+# (read-write in the chroot), moved into packages/All after it (each build its own:
+# the files a build made are those, whatever builds at the same time). The work
+# directory of the build is that of the machine at the same path (WRKDIRPREFIX is
+# mounted there), its files read from the machine
 make_port() {
-    _pk="${2:-}"
-    mark="$q/mark-$k"
-    : > "$mark"
+    _pk="$2"
     rm -f "$packages/All/$pn.pkg"
-    if [ -n "$_pk" ]; then
-        rm -rf "$_pk" && mkdir -p "$_pk/All"
-        # the distfiles one build at a time (lockf): the ports of a wave may share one
-        # (the tarball of PHP of the modules), and two fetches of it at once break it;
-        # what fails here make package says again
-        lockf -k "$q/fetch.lock" make -C "$top/$1" checksum USE_PACKAGE_DEPENDS_ONLY=yes \
-            AZ_STAMP="$az_stamp" AZ_HASH="$h" >> "$log" 2>&1
-    fi
+    # the distfiles one build at a time (lockf on the machine): the ports of a wave may
+    # share one (the tarball of PHP of the modules), and two fetches of it at once
+    # break it; what fails here make package says again
+    ch_run -l "$q/fetch.lock" make -C "$top/$1" checksum USE_PACKAGE_DEPENDS_ONLY=yes \
+        AZ_STAMP="$az_stamp" AZ_HASH="$h" >> "$log" 2>&1
     start="$(date +%s)"
     # AZ_RESULTS: the results of the scripts of tools/ (az/az: the line of each library)
     # in results/az-results/<key>, where they stay after make clean
-    make -C "$top/$1" clean package USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" \
-        AZ_RESULTS="$res/az-results/$k" ${_pk:+PACKAGES="$_pk"} >> "$log" 2>&1
+    ch_run make -C "$top/$1" clean package USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" \
+        AZ_RESULTS="$res/az-results/$k" PACKAGES="$_pk" >> "$log" 2>&1
     rc=$?
     secs=$(( $(date +%s) - start ))
+    cht="(chroot ${chs}s, dependencies ${dps}s)"
     cck=0
     [ "$ccheck" = 1 ] && php_port "$1" && cck=1
+    wd=""
     if [ "$rc" != 0 ] || [ "$cck" = 1 ]; then
-        make -C "$top/$1" -V WRKDIR -V CONFIGURE_WRKSRC -V CC > "$q/wd-$k" 2> /dev/null
+        ch_run make -C "$top/$1" -V WRKDIR -V CONFIGURE_WRKSRC -V CC > "$q/wd-$k" 2> /dev/null
         wd="$(sed -n 1p "$q/wd-$k")"
     fi
     # the config.log files of a failed build next to its log (that of a module is in
     # <WRKDIR>/<distname>/ext/<module>), then the work directory away
     if [ "$rc" != 0 ] && [ -n "$wd" ]; then
         n=0
-        for c in $(find "$wd" -maxdepth 4 -name config.log 2>/dev/null); do
-            n=$((n + 1)); cp "$c" "$res/logs/$k.config-$n.log"
+        for cl in $(find "$wd" -maxdepth 4 -name config.log 2>/dev/null); do
+            n=$((n + 1)); cp "$cl" "$res/logs/$k.config-$n.log"
         done
     fi
     # the configure check: what the configure of the build found, before make clean
     if [ "$cck" = 1 ]; then
         sh "$top/tools/configure-check.sh" save "$work/cc/$k/strict" "$wd" "$(sed -n 2p "$q/wd-$k")" "$(sed -n 3p "$q/wd-$k")"
     fi
-    make -C "$top/$1" clean > /dev/null 2>&1
+    ch_run make -C "$top/$1" clean > /dev/null 2>&1
     [ "$cck" = 1 ] && cc_check "$1"
-    # the packages of a build of its own into packages/All
-    if [ -n "$_pk" ] && [ "$rc" = 0 ] && [ -f "$_pk/All/$pn.pkg" ]; then
+    # the packages of the build into packages/All
+    if [ "$rc" = 0 ] && [ -f "$_pk/All/$pn.pkg" ]; then
         : > "$q/made-$k"
         for f in "$_pk"/All/*.pkg; do
             [ -f "$f" ] || continue
             mv -f "$f" "$packages/All/" && echo "$packages/All/${f##*/}" >> "$q/made-$k"
         done
-        rm -rf "$_pk"
     fi
     if [ "$rc" != 0 ] || [ ! -f "$packages/All/$pn.pkg" ]; then
         rm -f "$q/made-$k"
         e="$(grep -E ' error:|Error code|^\*\*\*|^===>.*(IGNORE|not found|failed)' "$log" | head -n 1 | cut -c1-200)"
         [ "$rc" = 0 ] && e="make package made no $pn.pkg"
         # a file of a dependency that is not there: the files of its directory by that
-        # name, and the package that says it has it (at the end of the log, so that the
-        # report shows it)
+        # name in the chroot, and the package there that says it has it (at the end of
+        # the log, so that the report shows it)
         grep -o 'depends on file: [^ ]* - not found' "$log" | awk '{ print $4 }' | sort -u |
             while read -r nf; do
                 {
-                    echo "== $nf is not there; in ${nf%/*}:"
+                    echo "== $nf is not there; in ${nf%/*} of the chroot:"
                     _b="${nf##*/}"
-                    ls -la "${nf%/*}" 2>&1 | grep -F "${_b%.so}" | head -n 10
-                    echo "== pkg which $nf: $(pkg which "$nf" 2>&1 | head -n 1)"
+                    ls -la "$c${nf%/*}" 2>&1 | grep -F "${_b%.so}" | head -n 10
+                    echo "== pkg which $nf in the chroot: $(pkg -c "$c" which "$nf" 2>&1 | head -n 1)"
                 } >> "$log"
             done
         say "$1: make package failed, the last 40 lines of logs/$k.log:"
         tail -n 40 "$log" | sed 's/^/    | /'
-        record "$1" fail "$pn: ${secs}s, ${e:-make package failed} (logs/$k.log)"
+        record "$1" fail "$pn: ${secs}s $cht, ${e:-make package failed} (logs/$k.log)"
         return 1
     fi
     f="$packages/All/$pn.pkg"
     echo "$f" > "$q/file/$k"
-    rm -f "$q/inst-$k"
-    # every package the build made (a port with subpackages makes more than one)
-    [ -n "$_pk" ] || find "$packages/All" -name '*.pkg' -newer "$mark" > "$q/made-$k"
     grep -qxF "$f" "$q/made-$k" || echo "$f" >> "$q/made-$k"
     note=""
     [ "$(pkg_hash "$f")" = "$h" ] ||
@@ -987,84 +1331,29 @@ make_port() {
         *_"$az_stamp"|*_"$az_stamp",*) ;;
         *) note="$note; warning: the version has not the revision $az_stamp (PORTREVISION= \${AZ_STAMP}): no upgrade for pkg" ;;
     esac
-    record "$1" ok "$pn: ${secs}s, $(( $(wc -c < "$f") / 1024 )) KB, az_hash $hs$note"
+    record "$1" ok "$pn: ${secs}s $cht, $(( $(wc -c < "$f") / 1024 )) KB, az_hash $hs$note"
     return 0
 }
 
-# one_port <origin>: a port built as it is alone (AZ_JOBS=1: every port; above 1: a
-# NEED_ROOT port), after pre_port said it is to be built: its dependencies, the
-# NEED_ROOT steps (its installed package deleted first with pkg delete -f, those
-# that need it stay; the new one added after the build, the old one back when the
-# build fails), make package
-one_port() {
-    deps_port "$1" || return 0
-    old=""
-    nr="$(need_root "$1")"
-    if [ -n "$nr" ] && pkg info -e "${pn%-*}"; then
-        old="$(awk -v n="${pn%-*}" '$2 == n { print $4 }' "$q/installed" | tail -n 1)"
-        [ -z "$old" ] && [ -n "$had" ] && old="$repo/${had#* }"
-        say "  pkg delete -f ${pn%-*} (NEED_ROOT: it builds into the real prefix)"
-        pkg delete -y -f "${pn%-*}" >> "$log" 2>&1 || say "  pkg delete -f ${pn%-*} failed (logs/$k.log)"
-        gone
-    fi
-    if ! make_port "$1"; then
-        if [ -n "$old" ] && [ -f "$old" ]; then
-            say "  pkg add ${old##*/}: the package of before back"
-            pkg add -f "$old" >> "$log" 2>&1 || say "  pkg add ${old##*/} failed"
-        fi
-        return 0
-    fi
-    if [ -n "$nr" ]; then
-        why=""
-        inst_port "$1" || say "  the new package of $1 did not install: $why"
-    fi
-    return 0
-}
-
-# deps_ok <origin>: the dependencies a port of the wave got are still installed (the
-# official ones, ours with their versions and the official ones those need); not
-# when pkg install or pkg add for a port after it in the wave took one away
-deps_ok() {
-    _k="$(key "$1")"
-    for _o in $(cat "$q/odeps/$_k"); do
-        _p="$(pkgbase "$_o")" && pkg info -e "$_p" || return 1
-    done
-    for _d in $(cat "$q/deps/$_k"); do
-        printf '%s\n' "$_d" > "$q/ok.all"
-        cp "$q/ok.all" "$q/ok.new"
-        while [ -s "$q/ok.new" ]; do
-            for _c in $(cat "$q/ok.new"); do cat "$q/rdeps/$(key "$_c")"; done | LC_ALL=C sort -u |
-                grep -vxF -f "$q/ok.all" > "$q/ok.next"
-            cat "$q/ok.next" >> "$q/ok.all"
-            mv "$q/ok.next" "$q/ok.new"
-        done
-        for _c in $(cat "$q/ok.all"); do
-            [ -f "$q/inst-$(key "$_c")" ] || return 1
-            _l="$(awk -v o="$_c" '$1 == o { l = $2 " " $3 } END { print l }' "$q/installed")"
-            [ -n "$_l" ] && [ "$(pkg query %v "${_l% *}" 2>/dev/null)" = "${_l#* }" ] || return 1
-            for _o in $(cat "$q/orun/$(key "$_c")"); do
-                _p="$(pkgbase "$_o")" && pkg info -e "$_p" || return 1
-            done
-        done
-    done
-    return 0
-}
-
+# the chroots share what ch_init makes (not for a dry run)
+[ "$dryrun" = 1 ] || ch_init
 if [ "$serial" = 1 ]; then
-    # one port after another, in the order of the queue
+    # one port after another, in the order of the queue, each in its chroot
     for o in $(cat "$q/queue.txt"); do
-        pre_port "$o" && one_port "$o"
+        pre_port "$o" || continue
+        dep_lists "$o"
+        say "$o: make package (logs/$k.log)"
+        job_port "$o"
     done
 else
     # Waves (AZ_JOBS above 1, or AZ_DRYRUN): the ports whose ports of this tree they
     # need are done (built, kept, failed or skipped) form a wave, in the order of
-    # the queue; a NEED_ROOT port is a wave alone (as with AZ_JOBS=1). The
-    # dependencies of the ports of a wave are installed first, one port after
-    # another as with AZ_JOBS=1; a port whose installation took away what a port
-    # before it in the wave got (pkg install replacing or removing a package) goes
-    # to a later wave, and those before it get theirs again. Then no pkg add, pkg
-    # install or pkg delete while up to AZ_JOBS make package run at once, each with
-    # its log and its own packages directory; its screen output said when it ends.
+    # the queue; up to AZ_JOBS of them at once, each in a chroot of its own with only
+    # its own dependencies (so that the ports of a wave never take each other's
+    # packages away: one of a pair with the same files, phpXY-mysqlnd and
+    # phpXY-mysqlnd-openssl, goes beside the other; az/az, NEED_ROOT, as any port, into
+    # the /usr/local/az of its chroot), each with its log and its own packages
+    # directory; its screen output said when it ends.
     mkdir -p "$q/sum" "$q/jobs"
     : > "$res/waves.txt"
     wave=0
@@ -1106,49 +1395,7 @@ else
             echo "$o" > "$q/cand"
         fi
         wave=$((wave + 1))
-        # a NEED_ROOT port first in the order of the queue: alone; else the ports that
-        # are not NEED_ROOT
-        o="$(head -n 1 "$q/cand")"
-        if [ -n "$(need_root "$o")" ]; then
-            say "wave $wave: $o (alone: NEED_ROOT)"
-            echo "wave $wave: $o" >> "$res/waves.txt"
-            if [ "$dryrun" = 1 ]; then pre_port "$o"; record "$o" ok "$pn: dry run, not built"; else pre_port "$o"; one_port "$o"; fi
-            continue
-        fi
-        : > "$q/wave"
-        for o in $(cat "$q/cand"); do
-            [ -n "$(need_root "$o")" ] && continue
-            pre_port "$o"
-            if [ "$dryrun" = 1 ]; then echo "$o" >> "$q/wave"; continue; fi
-            pkg query -a '%n %v' 2> /dev/null | LC_ALL=C sort > "$q/pkgs.before"
-            deps_port "$o" || continue
-            # what the ports before it in the wave got: still there? (looked at only
-            # when its installation removed a package or changed its version)
-            pkg query -a '%n %v' 2> /dev/null | LC_ALL=C sort > "$q/pkgs.after"
-            broke=""
-            if [ -n "$(grep -vxF -f "$q/pkgs.after" "$q/pkgs.before")" ]; then
-                for w in $(cat "$q/wave"); do deps_ok "$w" || broke="$broke $w"; done
-            fi
-            if [ -z "$broke" ]; then echo "$o" >> "$q/wave"; continue; fi
-            say "$o: its dependencies took away those of$broke: a later wave"
-            for w in $(cat "$q/wave"); do
-                pre_port "$w"
-                if ! deps_port "$w"; then
-                    grep -vxF "$w" "$q/wave" > "$q/wave.new"; mv "$q/wave.new" "$q/wave"
-                fi
-            done
-            # still not: the first port of the wave alone
-            broke=""
-            for w in $(cat "$q/wave"); do deps_ok "$w" || broke="$broke $w"; done
-            if [ -n "$broke" ]; then
-                say "the dependencies of$broke are not there again: the first port of the wave alone"
-                head -n 1 "$q/wave" > "$q/wave.new"; mv "$q/wave.new" "$q/wave"
-                w="$(cat "$q/wave")"
-                [ -n "$w" ] && { pre_port "$w"; deps_port "$w" || : > "$q/wave"; }
-            fi
-            break
-        done
-        [ -s "$q/wave" ] || continue
+        cp "$q/cand" "$q/wave"
         say "wave $wave: $(wc -l < "$q/wave" | tr -d ' ') ports, up to $jobs at once: $(tr '\n' ' ' < "$q/wave")"
         echo "wave $wave: $(tr '\n' ' ' < "$q/wave" | sed 's/ $//')" >> "$res/waves.txt"
         if [ "$dryrun" = 1 ]; then
@@ -1180,16 +1427,25 @@ else
             done
             [ -n "$o" ] || break
             pre_port "$o"
+            # what it gets in its chroot, worked out here (not in the jobs beside it)
+            dep_lists "$o"
             say "$o: make package (logs/$k.log)"
             # .done after the subshell of the build, also if it ends early: the loop
-            # above would otherwise wait for it until the timeout of the job
-            ( ( make_port "$o" "$work/pk/$k" ) > "$q/jobs/$k.out" 2>&1; : > "$q/jobs/$k.done" ) &
+            # above would otherwise wait for it until the timeout of the job; the traps
+            # of the run (all chroots away) are not those of a job
+            ( trap - EXIT HUP INT TERM; ( job_port "$o" ) > "$q/jobs/$k.out" 2>&1; : > "$q/jobs/$k.done" ) &
             echo $! > "$q/jobs/$k.pid"
             running=$((running + 1))
         done
     done
     # the summary in the order of the queue
     for o in $(cat "$q/queue.txt"); do cat "$q/sum/$(key "$o")" 2> /dev/null; done >> "$sum"
+fi
+# the chroots of the run: the time of their set-up, of the dependencies in them and of
+# their teardown, in all and at most
+if [ -n "$(ls "$q/chtime" 2> /dev/null)" ]; then
+    cat "$q"/chtime/* | awk '{ n++; s += $1; d += $2; t += $3; if ($1 > ms) ms = $1; if ($2 > md) md = $2; if ($3 > mt) mt = $3 }
+        END { printf "chroots:  %d ports, each in a chroot of its own: set up in %ds in all (at most %ds), their dependencies installed in %ds (at most %ds), torn down in %ds (at most %ds)\n", n, s, ms, d, md, t, mt }' >> "$sum"
 fi
 
 # the configure check: results/configure-check.txt, the PHP ports of the queue in

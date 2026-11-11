@@ -16,7 +16,9 @@ name: Build the packages of the repository az
 # fails) and the files of that release come first: a port whose package with the
 # same az_hash is there already is not built again (unless force), and they go into
 # the new repository with the new ones. Before the VM, tools/check-tree.sh checks the
-# ports of this tree with make -V against a sparse official tree (bmake). Up to
+# ports of this tree with make -V against a sparse official tree (bmake). Each port
+# builds in a chroot of its own with only its dependencies (tools/build.sh: nothing of
+# a build is left in the /usr/local of the VM for the checks after it). Up to
 # "jobs" ports build at once (AZ_JOBS of tools/build.sh: waves of the ports whose
 # dependencies are done; 1: one after another, as before), stage after stage: the
 # groups of "ports" separated by ";", or for all of them the order of aZ (11.11.2026):
@@ -323,8 +325,14 @@ jobs:
             cat results/checks.txt
             echo "$rc" > results/rc
             echo "results/rc: $rc"
-            # not back to the runner: the official tree, the work directories, the packages (they are in repo/)
-            rm -rf work packages
+            # not back to the runner: the official tree, the work directories, the
+            # chroots, the packages (they are in repo/). tools/build.sh tears its chroots
+            # down itself (work/ch); what is still mounted under work/ goes first, and rm
+            # never crosses a mount point (-x): the distfiles and the base system mounted
+            # in a chroot are never removed, and none goes back to the runner
+            mount -p | awk -v d="$(pwd -P)/work/" 'index($2, d) == 1 { print length($2), $2 }' | sort -rn | cut -d ' ' -f 2- |
+              while read -r m; do umount -f "$m" || echo "cannot unmount $m"; done
+            rm -rfx work packages
             exit 0
 
       # vmactions copies repo/ back without deleting: what tools/build.sh removed there (an
