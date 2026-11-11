@@ -89,6 +89,7 @@
 | `yt-dlp` | `www/yt-dlp` | yt-dlp релиза новее официального порта, с нашим `ffmpeg` |
 | `node24`, `npm-node24`, `yarn-node24`, `corepack-node24` | `www/node24`, `www/npm-node24`, `www/yarn-node24`, `www/corepack-node24` | Node.js 24 (для yt-dlp и Kibana 6) с npm, Yarn 1 и corepack: `node` на brotli, c-ares, ICU, nghttp2, libuv, zstd и SQLite из az, OpenSSL (с хранилищем сертификатов базы) и zlib базы и библиотеках ниже; без DTrace; npm и Yarn — официальные порты как есть, corepack — наш (corepack-node24: 0.36 работает только на Node 22 и 24, у Node 18 — corepack-node18; один из двух) |
 | `libada`, `llhttp`, `nbytes`, `libnghttp3`, `libngtcp2`, `simdjson`, `uvwasi`, `hdr_histogram` | `devel/libada`, `www/llhttp`, `www/nbytes`, `www/libnghttp3`, `net/libngtcp2`, `devel/simdjson`, `devel/uvwasi`, `graphics/hdr_histogram` | библиотеки, которые Node.js встраивает, портами этого дерева (aZ, 11.11.2026): официальные порты как есть, `uvwasi` — наш, на libuv из az |
+| `python312`, `py312-sqlite3`, `mpdecimal` | `lang/python312`, `databases/py-sqlite3`, `math/mpdecimal` | Python 3.12 — версия Python по умолчанию дерева портов — под именами официальных пакетов (aZ, 11.11.2026), чтобы пакеты `py312-*` репозитория FreeBSD (в том числе для yt-dlp) ставились поверх него и работали с ним: опции официального пакета (LTO, PYMALLOC, IPV6, NLS), libffi, expat, readline и libintl из az, OpenSSL, ncurses, zlib, bzip2 и liblzma базы, libmpdec из `mpdecimal` (официальный порт как есть); его модуль sqlite3 — `py312-sqlite3` — на SQLite из az; без gdbm и tkinter |
 | `elasticsearch6` | `textproc/elasticsearch6` | Elasticsearch 6.8.23, последний 6.x, для легаси-сайтов, снова портом (официальный порт убран 01.01.2023, на 6.8.16): его rc-скрипт с профилями; на OpenJDK 17 из портов, четыре строки предупреждения JDK 17 о `System::setSecurityManager` из вывода запуска убраны; без ML; дампы кучи, файлы ошибок JVM и журнал GC — в `/var/db/elasticsearch` и `/var/log/elasticsearch` |
 | `perl5` | `lang/perl5.42` | Perl 5.42 под именем пакета FreeBSD (aZ, 11.11.2026), чтобы с ним работали пакеты `p5-*` из репозитория FreeBSD: официальный порт как есть (потоки, MULTIPLICITY, 64-битные целые, разделяемая libperl), без DTrace, как все сборки здесь (его пробы есть только в ядре Perl: XS-модули пакетов FreeBSD с ним загружаются и работают, [`tools/perl-test.sh`](tools/perl-test.sh)) |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows, и с исправлениями уязвимостей, которых нет в официальном порту, из Fedora: CVE-2014-8141 … CVE-2022-0530, zip-бомбы; `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR; `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS, с исправлением CVE-2026-96512 (три коммита апстрима); `bash` без NLS; `portmaster` только с дополнением для bash), `wget` и `rsync` наши, с разделяемыми библиотеками az (`wget`: IDN, PSL; `rsync` 3.5.2, раньше официального 3.5.1 ради исправлений безопасности: lz4, zstd, xxhash, без ICONV), PCRE2 из `pcre2` (`wget`) и OpenSSL базы |
@@ -261,6 +262,24 @@
   как на сервере: JSON::XS, DBI с DBD::SQLite, Text::CSV_XS, YAML::XS, Net::SSLeay и
   IO::Socket::SSL с TLS на 127.0.0.1 и другие, их символы против нашей `libperl`;
   XS-модуль, собранный под него).
+- **`lang/python312`**, **`databases/py-sqlite3`** и **`math/mpdecimal`**: Python 3.12 —
+  `PYTHON_DEFAULT` закреплённого дерева — как официальный порт с его опциями (LTO,
+  PYMALLOC, IPV6, NLS включены; libmpdec из `math/mpdecimal`, официального порта как
+  есть) и файлами, чтобы официальные пакеты `py312-*` ставились поверх нашего `python312`
+  и работали с ним (aZ, 11.11.2026); libffi (`_ctypes`), expat (`pyexpat`), readline и
+  libintl (модуль locale) из az с путём поиска библиотек `/usr/local/az/lib` вместо их
+  пакетов, OpenSSL, ncurses, zlib, bzip2 и liblzma базы; сборка видит из `/usr/local`
+  только az и libmpdec. `py312-sqlite3` — официальный порт со своими flavor'ами — на
+  SQLite из az. Без gdbm и tkinter (как в официальном пакете; aZ: не нужны). Версия — та
+  же, что у официального порта (её читает оттуда `Mk/Uses/python.mk`). Смена
+  `PYTHON_DEFAULT` или `PERL5_DEFAULT` в `Mk/bsd.default-versions.mk` main freebsd-ports
+  открывает issue [проверки апстрима](https://github.com/azsupport/php-src/blob/master/README.ru.md#проверка-апстрима)
+  azsupport/php-src: пакетам `py3XX-*` и `p5-*` FreeBSD, собранным после неё, нужен Python
+  или Perl этой версии. Тесты после установки —
+  [`tools/python-test.sh`](tools/python-test.sh) (библиотеки каждого модуля, TLS с
+  хранилищем сертификатов базы, hashlib, ctypes, decimal, expat, sqlite3, gettext,
+  readline, сжатие; `py312-six` и `py312-markupsafe` из FreeBSD поверх нашего
+  `python312`).
 - **`lang/phpXY`** и **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): ядро `phpXY` и
   модуль Apache `libphpXY.so`, каждый — из официального порта коммита своей версии
   (таблица выше); PCRE2 — из `devel/pcre2` (у 5.6 PCRE из `devel/pcre`), а не встроенная

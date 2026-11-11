@@ -89,6 +89,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `yt-dlp` | `www/yt-dlp` | yt-dlp of a release newer than the official port, with our `ffmpeg` |
 | `node24`, `npm-node24`, `yarn-node24`, `corepack-node24` | `www/node24`, `www/npm-node24`, `www/yarn-node24`, `www/corepack-node24` | Node.js 24 (for yt-dlp and Kibana 6) with npm, Yarn 1 and corepack: `node` on brotli, c-ares, ICU, nghttp2, libuv, zstd and SQLite of az, the OpenSSL (with the CA store of the base system) and zlib of the base system and the libraries below; no DTrace; npm and Yarn the official ports as they are, corepack ours (corepack-node24: 0.36 runs on Node 22 and 24 only, Node 18 gets corepack-node18; one of the two) |
 | `libada`, `llhttp`, `nbytes`, `libnghttp3`, `libngtcp2`, `simdjson`, `uvwasi`, `hdr_histogram` | `devel/libada`, `www/llhttp`, `www/nbytes`, `www/libnghttp3`, `net/libngtcp2`, `devel/simdjson`, `devel/uvwasi`, `graphics/hdr_histogram` | the libraries that Node.js bundles, as ports of this tree (aZ, 11.11.2026): the official ports as they are, `uvwasi` ours on the libuv of az |
+| `python312`, `py312-sqlite3`, `mpdecimal` | `lang/python312`, `databases/py-sqlite3`, `math/mpdecimal` | Python 3.12, the default Python of the ports tree, under the names of the official packages (aZ, 11.11.2026), so that the `py312-*` packages of the FreeBSD repository (those of yt-dlp) install over it and use it: the options of the official package (LTO, PYMALLOC, IPV6, NLS), libffi, expat, readline and libintl of az, OpenSSL, ncurses, zlib, bzip2 and liblzma of the base system, libmpdec of `mpdecimal` (the official port as it is); its module sqlite3, `py312-sqlite3`, on the SQLite of az; no gdbm and tkinter |
 | `elasticsearch6` | `textproc/elasticsearch6` | Elasticsearch 6.8.23, the last 6.x, for the legacy sites, back in the ports (the official port went on 2023-01-01, at 6.8.16): its rc script with profiles; on OpenJDK 17 of the ports, the four lines of the warning of JDK 17 about `System::setSecurityManager` taken out of its start; without ML; heap dumps, the error files of the JVM and the GC log in `/var/db/elasticsearch` and `/var/log/elasticsearch` |
 | `perl5` | `lang/perl5.42` | Perl 5.42 under the name of FreeBSD's (aZ, 11.11.2026), so that the `p5-*` packages of the FreeBSD repository work with it: the official port as it is (threads, MULTIPLICITY, 64-bit integers, the shared libperl), without DTrace, as every build here (its probes are in the core of Perl only: the XS modules of FreeBSD's packages load and run with it, [`tools/perl-test.sh`](tools/perl-test.sh)) |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives, and the fixes of the vulnerabilities the official port lacks, from Fedora: CVE-2014-8141 … CVE-2022-0530, zip bombs; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS, with the fix of CVE-2026-96512 (three upstream commits); `bash` without NLS; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL; `rsync` 3.5.2, ahead of the official 3.5.1 for its security fixes: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
@@ -261,11 +262,12 @@ Names and origins as the ports, files at the paths of the ports:
 - **`www/yt-dlp`**: the package `yt-dlp` in the place of the official one: the official
   port as it is, at a newer release of yt-dlp (the grabbers of the video sites need the
   extractors of the latest), depending on our `multimedia/ffmpeg`; its Python packages are
-  the official ones. A new release: `DISTVERSION` and `distinfo` (the size and SHA-256 of
-  `yt-dlp.tar.gz`, compared with the `SHA2-256SUMS` of the release, by
-  [`distinfo.yml`](.github/workflows/distinfo.yml) when the sandbox cannot fetch it). Tests
-  after the install: [`tools/ytdlp-test.sh`](tools/ytdlp-test.sh) (an HLS stream from a
-  local server, fixed by our ffmpeg into MP4, as the grabbers download).
+  the official ones, on our `python312` and `py312-sqlite3`. A new release: `DISTVERSION`
+  and `distinfo` (the size and SHA-256 of `yt-dlp.tar.gz`, compared with the
+  `SHA2-256SUMS` of the release, by [`distinfo.yml`](.github/workflows/distinfo.yml) when
+  the sandbox cannot fetch it). Tests after the install:
+  [`tools/ytdlp-test.sh`](tools/ytdlp-test.sh) (an HLS stream from a local server, fixed by
+  our ffmpeg into MP4, as the grabbers download).
 - **`lang/perl5.42`**: the package `perl5` (`/usr/local/bin/perl`) in the place of the
   official one (aZ, 11.11.2026: our Perl and Python under the package names of FreeBSD,
   so that the `p5-*` packages of the FreeBSD repository work with them): the official
@@ -280,6 +282,25 @@ Names and origins as the ports, files at the paths of the ports:
   XS installed over it as on a server: JSON::XS, DBI with DBD::SQLite, Text::CSV_XS,
   YAML::XS, Net::SSLeay and IO::Socket::SSL with TLS on 127.0.0.1 and others, their
   symbols against our `libperl`; an XS module built against it).
+- **`lang/python312`**, **`databases/py-sqlite3`** and **`math/mpdecimal`**: Python 3.12,
+  the `PYTHON_DEFAULT` of the pinned tree, as the official port with its options (LTO,
+  PYMALLOC, IPV6, NLS on; libmpdec of `math/mpdecimal`, the official port as it is) and its
+  files, so that the official `py312-*` packages install over our `python312` and use it
+  (aZ, 11.11.2026); libffi (`_ctypes`), expat (`pyexpat`), readline and libintl (the
+  locale module) of az with the run path `/usr/local/az/lib` instead of their packages,
+  OpenSSL, ncurses, zlib, bzip2 and liblzma of the base system; the build sees of
+  `/usr/local` only az and libmpdec. `py312-sqlite3`, the official port with its
+  flavours, on the SQLite of az. No gdbm and tkinter (as the official package; aZ: not
+  needed). Its version is that of the official port (`Mk/Uses/python.mk` reads it there).
+  A switch of `PYTHON_DEFAULT` or `PERL5_DEFAULT` in `Mk/bsd.default-versions.mk` of
+  freebsd-ports main opens an issue of the
+  [upstream check](https://github.com/azsupport/php-src#upstream-check) of
+  azsupport/php-src: the `py3XX-*` and `p5-*` packages of FreeBSD built after it need a
+  Python or Perl of that version. Tests after the install:
+  [`tools/python-test.sh`](tools/python-test.sh) (the libraries of each module, TLS with
+  the CA store of the base system, hashlib, ctypes, decimal, expat, sqlite3, gettext,
+  readline, the compressions; `py312-six` and `py312-markupsafe` of FreeBSD over our
+  `python312`).
 - **`lang/phpXY`** and **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): the core
   `phpXY` and the Apache module `libphpXY.so`, each from the official port of the commit
   of its version (the table above); PCRE2 is that of `devel/pcre2` (5.6: PCRE of
@@ -398,7 +419,7 @@ pkg install -r az curl ffmpeg ImageMagick6 ImageMagick7 mc
 ```
 
 yt-dlp without `-r az`: its Python packages are in the repository of FreeBSD, and pkg
-takes `yt-dlp` of az by `priority: 100`:
+takes `yt-dlp`, `python312` and `py312-sqlite3` of az by `priority: 100`:
 
 ```sh
 pkg install yt-dlp

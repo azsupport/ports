@@ -7,9 +7,11 @@
 # the utilities of the official ports (Mk/az-official.mk) by utils-test.sh, the
 # server packages (git, Apache, memcached, MariaDB, vsftpd-ext, BIND and its tools,
 # vips, qt-faststart) by servers-test.sh, Node.js (node24, npm-node24,
-# yarn-node24, corepack-node24) by node-test.sh, Elasticsearch 6 by elastic-test.sh,
-# and Perl (perl5, under the name of FreeBSD's) by perl-test.sh, with the XS modules
-# of FreeBSD's p5-* packages, which it installs from the FreeBSD repository itself.
+# yarn-node24, corepack-node24) by node-test.sh, Python (python312, py312-sqlite3,
+# mpdecimal; the official py312-* packages over it) by python-test.sh, Elasticsearch 6
+# by elastic-test.sh, and Perl (perl5, under the name of FreeBSD's) by perl-test.sh,
+# with the XS modules of FreeBSD's p5-* packages, which it installs from the FreeBSD
+# repository itself.
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -130,6 +132,22 @@ if [ -n "$want" ]; then
     CONSERVATIVE_UPGRADE=no pkg install -y -f -r azbuild $want > "$res/test-programs-install.log" 2>&1 || say "pkg install says it failed (test-programs-install.log)"
     cat "$res/test-programs-install.log" >> "$log"
 fi
+# Python (aZ, 11.11.2026) as the server packages: python312 under the name of the
+# official package, py312-sqlite3 and mpdecimal; before yt-dlp, which takes them from
+# the repository (priority 100) with the official py312-* packages
+pys="python312 py312-sqlite3 mpdecimal"
+p_=""
+for p in $pys; do in_repo "$p" && p_="$p_ $p"; done
+if [ -n "$p_" ]; then
+    say "pkg install -f$p_"
+    # shellcheck disable=SC2086
+    CONSERVATIVE_UPGRADE=no pkg install -y -f $p_ > "$res/test-programs-install-python.log" 2>&1 || say "pkg install of Python says it failed (test-programs-install-python.log)"
+    # shellcheck disable=SC2086
+    again "$res/test-programs-install-python.log" $p_
+    cat "$res/test-programs-install-python.log" >> "$res/test-programs-install.log"
+    cat "$res/test-programs-install-python.log" >> "$log"
+    want="$want$p_"
+fi
 # yt-dlp by itself and without -r azbuild: its python packages are official ones
 # (FreeBSD-ports), which pkg autoremove took above; yt-dlp is still that of azbuild
 # (priority 100), as inst() checks
@@ -240,8 +258,8 @@ done
 
 # 3. the tests: name, the packages it needs
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
-        "graphicsmagick GraphicsMagick" "mc mc" "ytdlp yt-dlp ffmpeg" "utils $utils" ${s_:+"servers$s_"} \
-        ${n_:+"node$n_"} ${e_:+"elastic$e_"} ${l_:+"perl$l_"}; do
+        "graphicsmagick GraphicsMagick" "mc mc" ${p_:+"python$p_"} "ytdlp yt-dlp ffmpeg" "utils $utils" \
+        ${s_:+"servers$s_"} ${n_:+"node$n_"} ${e_:+"elastic$e_"} ${l_:+"perl$l_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
