@@ -82,7 +82,8 @@ Names and origins as the ports, files at the paths of the ports:
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11: of the engines of the options InnoDB only, no GSSAPI; the socket `/tmp/mysql.sock` compiled in and in `my.cnf` |
 | `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext with its rc.d script; the variant with SSL; one of the two |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: the DNS server `named` with TCP Fast Open, no GSSAPI, DNSTAP, LMDB and statistics channels; dig, host, nslookup, delv, nsupdate and the DNSSEC tools, with IDN |
-| `vips` | `graphics/vips` | libvips 8.18 for the Lua scripts of nginx that convert images on the fly: JPEG (mozjpeg), PNG, WebP, HEIC/AVIF (load), GIF, with ICC profiles, EXIF and SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
+| `vips` | `graphics/vips` | libvips 8.18 for the Lua scripts of nginx that convert images on the fly: JPEG (mozjpeg), PNG, WebP, HEIC (load), AVIF (load and save), GIF, with ICC profiles, EXIF and SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
+| `glib`, `libexif`, `cgif`, `libimagequant`, `highway` | `devel/glib20`, `graphics/libexif`, `graphics/cgif`, `graphics/libimagequant`, `devel/highway` | the libraries of `vips` (GLib of `mc` too): GLib 2.88 shared, without introspection, NLS, documents and manual pages, on libffi, libintl and libiconv of az and PCRE2 of `pcre2`; the others the official ports as they are (libexif without NLS) |
 | `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (the moov atom of an MP4 first), back for compatibility: the official port expired on 30.06.2022 |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp of a release newer than the official port, with our `ffmpeg` |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS; `bash` without NLS; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL; `rsync`: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
@@ -135,7 +136,8 @@ Names and origins as the ports, files at the paths of the ports:
 - **`multimedia/ffmpeg`**: the package `ffmpeg` in the place of the official one:
   `bin/ffmpeg` and `bin/ffprobe` (the libraries of FFmpeg in them) with only what the
   video sites need ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
-  linking x264, dav1d and libwebp of az. Build and run: az.
+  linking x264, dav1d, SVT-AV1 (AV1 and AVIF written, aZ 11.11.2026) and libwebp of az.
+  Build and run: az.
 - **`graphics/ImageMagick6`**: `bin/convert6`, `identify6`, `mogrify6`, `composite6`
   and the others, next to ImageMagick 7, linking their libraries in `/usr/local/az/lib`:
   JPEG, PNG, WebP, GIF, HEIC and AVIF only, with our policy. Build and run: az.
@@ -202,15 +204,16 @@ Names and origins as the ports, files at the paths of the ports:
   libidn2 of az, OpenSSL, zlib and libedit of the base system.
 - **`graphics/vips`**: libvips 8.18 (aZ, 11.11.2026: for a Lua script of nginx that
   converts images on the fly) with aZ's formats: JPEG (mozjpeg), PNG (libpng), WebP,
-  HEIC/AVIF (libheif of az: load only), GIF (load built in, save with cgif and
+  HEIC/AVIF (libheif of az: both loaded, AVIF saved with SVT-AV1), GIF (load built in, save with cgif and
   libimagequant), with ICC profiles (lcms2), EXIF (libexif) and SIMD (Highway; ORC, the
   other choice, only without Highway). No TIFF, SVG, PDF, JPEG XL, ImageMagick or
   GraphicsMagick, text, FFTW and the other official options; not the loaders of
   Analyze, Radiance and PPM, the deprecated vips7 API, the C++ API, the static library,
   the manual pages and the translations. mozjpeg, png, webp, libheif, lcms2 and expat
-  of az; glib, libexif, cgif, libimagequant and highway of the official ports; zlib of
-  the base system. For images of the web, `VIPS_BLOCK_UNTRUSTED=1` in the environment
-  of nginx (`env VIPS_BLOCK_UNTRUSTED=1;`) keeps libvips from its untrusted loaders.
+  of az; glib, libexif, cgif, libimagequant and highway of their ports of this tree; zlib
+  of the base system. For images of the web, `VIPS_BLOCK_UNTRUSTED=1` in the environment
+  of nginx (`env VIPS_BLOCK_UNTRUSTED=1;` in the main context of nginx.conf; the message
+  of the package says so) keeps libvips from its untrusted loaders.
 - **`multimedia/qt-faststart`**: `bin/qt-faststart`, `tools/qt-faststart.c` of FFmpeg
   9.0.2 (public domain): the official port expired on 30.06.2022 (ffmpeg `-movflags
   +faststart` does the same); kept for compatibility until it is no longer needed (aZ,

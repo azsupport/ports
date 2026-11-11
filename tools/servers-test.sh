@@ -21,8 +21,8 @@
 #                on 127.0.0.1:15353 with a zone of its own: dig over UDP and TCP and
 #                of an IDN name (libidn2 of dig), rndc status and stop
 #   vips         the formats of aZ in vips --vips-config; JPEG, a WebP thumbnail,
-#                PNG and GIF made and read back; its libraries those of az and of the
-#                official glib, libexif, cgif, libimagequant and highway
+#                PNG, GIF and AVIF made and read back; its libraries those of az and
+#                of our glib, libexif, cgif, libimagequant and highway
 #   qt-faststart an MP4 of our ffmpeg (moov after mdat): moov first after it
 #
 # Usage (FreeBSD, as root, the packages installed): sh tools/servers-test.sh
@@ -288,7 +288,8 @@ if have bind920; then
 else skip bind920; fi
 
 # vips: the formats of aZ in its configuration; noise saved as JPEG, a WebP thumbnail
-# of it, PNG and GIF (cgif with libimagequant), each read back with its loader
+# of it, PNG, GIF (cgif with libimagequant) and AVIF (libheif with SVT-AV1), each read
+# back with its loader
 if have vips; then
     vl="libvips libglib-2.0 libgobject-2.0 libgio-2.0 libgmodule-2.0 libintl libpcre2 libffi libexif libcgif libimagequant libhwy"
     ver vips "vips-8.18" "$P/bin/vips" --version
@@ -309,8 +310,9 @@ if have vips; then
     if "$P/bin/vips" gaussnoise "$v/n.jpg" 128 96 > "$T/vips.log" 2>&1 &&
             "$P/bin/vipsthumbnail" "$v/n.jpg" --size 64 -o "$v/t.webp" >> "$T/vips.log" 2>&1 &&
             "$P/bin/vips" copy "$v/n.jpg" "$v/n.png" >> "$T/vips.log" 2>&1 &&
-            "$P/bin/vips" copy "$v/n.png" "$v/n.gif" >> "$T/vips.log" 2>&1; then
-        for f in n.jpg:jpegload t.webp:webpload n.png:pngload n.gif:gifload; do
+            "$P/bin/vips" copy "$v/n.png" "$v/n.gif" >> "$T/vips.log" 2>&1 &&
+            "$P/bin/vips" copy "$v/n.jpg" "$v/n.avif" >> "$T/vips.log" 2>&1; then
+        for f in n.jpg:jpegload t.webp:webpload n.png:pngload n.gif:gifload n.avif:heifload; do
             h="$("$P/bin/vipsheader" "$v/${f%%:*}" 2>&1)"
             case "$h" in *"${f#*:}"*) pass "vips: ${f%%:*}: ${h#"$v"/}" ;; *) fail "vips: ${f%%:*}: $h" ;; esac
         done

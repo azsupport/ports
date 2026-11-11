@@ -166,6 +166,14 @@ for im in $(awk '$1 == "im" { print $2 }' "$conf"); do
             fail "$im: $s: frames: $(last "$w/c.log")"
         fi
     done
+    # AVIF written (libheif of az with SVT-AV1, aZ 11.11.2026) and read back
+    if "$cv" "$T/photo.jpg" -resize 320x240 -quality 60 "$w/out.avif" > "$w/c.log" 2>&1 && [ -s "$w/out.avif" ]; then
+        # shellcheck disable=SC2086
+        o="$($idf -format '%m %wx%h' "$w/out.avif" 2>/dev/null)"
+        case "$o" in "AVIF 320x240"|"HEIC 320x240") pass "$im: JPEG -> AVIF (SVT-AV1): $o" ;; *) fail "$im: JPEG -> AVIF: $o" ;; esac
+    else
+        fail "$im: JPEG -> AVIF: $(last "$w/c.log")"
+    fi
     # the BMP intermediate the sites write for every screenshot and read back
     if "$cv" "$T/photo.jpg" -resize 320x240 "$w/inter.bmp" > "$w/c.log" 2>&1 && [ -s "$w/inter.bmp" ] &&
         "$cv" "$w/inter.bmp" -quality 85 "$w/from-bmp.jpg" > "$w/c.log" 2>&1 && [ -s "$w/from-bmp.jpg" ]; then

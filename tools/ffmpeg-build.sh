@@ -19,7 +19,7 @@
 # patches (make patch), then those of files/ffmpeg/; this script then builds the
 # source tree with its own options. A take line gives a new upstream release
 # instead (from AZ_TAKE_DISTFILES, else fetched; with the port's patches, or those
-# of files/deps/<name>-<version>/). FFmpeg links x264, dav1d and libwebp, the
+# of files/deps/<name>-<version>/). FFmpeg links x264, dav1d, SVT-AV1 and libwebp, the
 # shared libraries of AZ_PREFIX/lib (AZ_PREFIX: default /usr/local/az), with that
 # run path (our ports link each other's shared libraries: aZ, 10.11.2026); its own
 # libraries (libavcodec, libavformat ...) are in its two programs, which need
@@ -301,7 +301,7 @@ manifest() {
     {
         echo "FFmpeg for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $ffcflags"
-        echo "x264, dav1d and libwebp: the shared libraries of $A/lib (the package az, with that run path)"
+        echo "x264, dav1d, SVT-AV1 and libwebp: the shared libraries of $A/lib (the package az, with that run path)"
         [ -z "$nonfree" ] || echo "fdk-aac: its static library, built here (the nonfree build, files/ffmpeg-nonfree.conf)"
         echo
         while read -r n pkgname port; do
@@ -337,10 +337,10 @@ manifest() {
             echo "Licence: nonfree and unredistributable (FFmpeg with --enable-gpl and --enable-nonfree:"
             echo "x264 under the GPL and libfdk_aac under the licence of the Fraunhofer FDK AAC library);"
             echo "this package may not be given to anyone. The licences are in share/licenses/ffmpeg/"
-            echo "(fdk-aac-NOTICE; x264, dav1d and webp, shared libraries: LICENSES/ of /usr/local/az, the package az)."
+            echo "(fdk-aac-NOTICE; x264, dav1d, SVT-AV1 and webp, shared libraries: LICENSES/ of /usr/local/az, the package az)."
         else
             echo "Licence: GPL version 2 or later (FFmpeg with --enable-gpl, x264); the licences are in"
-            echo "share/licenses/ffmpeg/ (x264, dav1d and webp, shared libraries: LICENSES/ of /usr/local/az, the package az)."
+            echo "share/licenses/ffmpeg/ (x264, dav1d, SVT-AV1 and webp, shared libraries: LICENSES/ of /usr/local/az, the package az)."
         fi
         echo "Sources: the distfiles above (their SHA-256), the patches of the port at the commit above,"
         echo "files/ffmpeg/ and tools/ffmpeg-build.sh of https://github.com/azsupport/ports (multimedia/ffmpeg/files/ffmpeg.conf)."
@@ -419,7 +419,7 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
     echo "ffmpeg-build: this CPU ${why:-cannot tell the features of} -march=$cputype" >&2
     exit 1
 fi
-for pc in x264 dav1d libwebp; do
+for pc in x264 dav1d SvtAv1Enc libwebp; do
     if [ ! -f "$A/lib/pkgconfig/$pc.pc" ]; then
         printf '%-8s FAIL  no %s of the shared libraries in %s/lib/pkgconfig: install the package az first (az/az)\n' libs "$pc" "$A" >> "$res/summary.txt"
         echo "ffmpeg-build: no $A/lib/pkgconfig/$pc.pc; install the package az first (the port az/az)" >&2

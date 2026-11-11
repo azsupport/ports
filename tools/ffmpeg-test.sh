@@ -305,6 +305,27 @@ if [ -f "$T/h264_aac.mp4" ] && [ -f "$T/logo.png" ]; then
     "$ff" -hide_banner -loglevel error -y -i "$T/h264_aac.mp4" -vf scale=320:-2 $kvs -an -f mp4 "$T/sc.mp4" > "$T/sc.log" 2>&1 &&
         [ "$(dims "$T/sc.mp4")" = 320x180 ] && pass "scale=320:-2 -> $(dims "$T/sc.mp4")" || fail "scale=320:-2: $(tail -n 3 "$T/sc.log" | tr '\n' ' ')"
 fi
+# AV1 with SVT-AV1 of az (aZ, 11.11.2026): a video into Matroska, an AVIF picture
+if "$ff" -hide_banner -encoders 2>/dev/null | grep -q ' libsvtav1 '; then
+    if [ -f "$T/h264_aac.mp4" ]; then
+        if "$ff" -hide_banner -loglevel error -y -i "$T/h264_aac.mp4" -t 1 -c:v libsvtav1 -preset 12 -an \
+                -f matroska "$T/av1.mkv" > "$T/av1.log" 2>&1 && [ "$(probe "$T/av1.mkv" | cut -d' ' -f2)" = av1 ]; then
+            pass "libsvtav1: AV1 in Matroska -> $(probe "$T/av1.mkv")"
+        else
+            fail "libsvtav1: AV1 in Matroska: $(probe "$T/av1.mkv") $(tail -n 3 "$T/av1.log" | tr '\n' ' ')"
+        fi
+    fi
+    if [ -f "$T/shot.jpg" ]; then
+        if "$ff" -hide_banner -loglevel error -y -i "$T/shot.jpg" -frames:v 1 -c:v libsvtav1 -preset 12 \
+                -f avif "$T/shot.avif" > "$T/avif.log" 2>&1 && [ "$(probe "$T/shot.avif" | cut -d' ' -f2)" = av1 ]; then
+            pass "libsvtav1: AVIF picture -> $(probe "$T/shot.avif")"
+        else
+            fail "libsvtav1: AVIF picture: $(probe "$T/shot.avif") $(tail -n 3 "$T/avif.log" | tr '\n' ' ')"
+        fi
+    fi
+elif [ -z "$samples_only" ]; then
+    fail "no encoder libsvtav1 (ffmpeg.conf has it)"
+fi
 for p in logo.png shot.jpg shot.webp; do
     [ -f "$T/$p" ] || continue
     o="$(probe "$T/$p")"
