@@ -70,9 +70,10 @@
 #   5.6, a libgd 2.1.0 of 2013 with few fixes since, for the security; the
 #   official 5.6 and the static build of 5.6 of php-src take the bundled one):
 #   --with-gd=DIR, an external libgd of 2.1.0 or later, which 5.6 takes too
-#   (--with-external-gd is only its name of 7.4); see its rules. Its options are
-#   set before bsd.port.pre.mk (after it in the official 5.6): USES=xorg of X11 is
-#   read there in the framework of f16b6dd.
+#   (--with-external-gd is only its name of 7.4), with compat-gd-external.patch of
+#   the fork; see its rules. Of its options only T1LIB remains (no XPM, aZ
+#   11.11.2026; TRUETYPE, JIS and VPX did nothing with a system libgd), set before
+#   bsd.port.pre.mk (after it in the official 5.6).
 # - openssl: not the BROKEN with openssl111 of the official port (the fork
 #   builds with OpenSSL 1.1 and 3; OpenSSL of the base system here).
 # - the variants with OpenSSL, as for 7.4: ftp and mysqlnd without it,
@@ -233,17 +234,17 @@ post-patch:
 
 .if ${PHP_MODNAME} == "gd"
 # The libgd of az, as 7.4 to 8.4 (not the bundled one of 5.6, aZ 11.11.2026), with
-# PNG, JPEG (mozjpeg), WebP, FreeType and LIQ (libimagequant); FreeType, PNG and JPEG
-# of az for the checks of config.m4 too, FreeType by its pkg-config (az has no
-# freetype-config: compat-freetype-pkgconfig of the fork). The bundled libgd is not
-# extracted. imageantialias(), which 5.6 has only with the bundled libgd, as PHP 7.2
-# made it for a system libgd (graphics/php56-gd/files/patch-gd.c); XPM only with the
-# option X11 (files/patch-config.m4: libgd has gdImageCreateFromXpm without libXpm)
-AZ_LIBS=	libgd.so libfreetype.so libjpeg.so libpng16.so
+# PNG, JPEG (mozjpeg), WebP, FreeType and LIQ (libimagequant): its formats. Through
+# compat-gd-external.patch of the fork: the libraries from its gdlib.pc,
+# imageantialias() as PHP 7.2 made it for a system libgd, XPM only with
+# --with-xpm-dir (none: aZ 11.11.2026). The checks of config.m4 want PNG (always on,
+# with the zlib of the base system) and FreeType (for the TrueType text of PHP,
+# imagettftext) of az, FreeType by its pkg-config (az has no freetype-config:
+# compat-freetype-pkgconfig of the fork). The bundled libgd is not extracted.
+AZ_LIBS=	libgd.so libfreetype.so libpng16.so
 
 CONFIGURE_ARGS+=--with-gd=${AZ_PREFIX} \
 		--with-freetype-dir=${AZ_PREFIX} \
-		--with-jpeg-dir=${AZ_PREFIX} \
 		--with-png-dir=${AZ_PREFIX} \
 		--with-zlib-dir=/usr
 
@@ -252,16 +253,13 @@ EXTRACT_AFTER_ARGS=--no-same-owner --no-same-permissions --exclude libgd \
 
 USES+=		pkgconfig
 
-# T1LIB, X11 (on in the port) and VPX need a library of the ports (t1lib,
-# libXpm, libvpx; X11 is in the OPTIONS_UNSET of aZ too): off
-OPTIONS_DEFINE=	T1LIB TRUETYPE JIS X11 VPX
-OPTIONS_DEFAULT=TRUETYPE
+# T1LIB (the PostScript Type 1 fonts of PHP, imagepstext) needs t1lib of the ports:
+# off. The other options of the official port: X11 (XPM) gone (aZ 11.11.2026);
+# TRUETYPE (nothing reads its define in 5.6), JIS and VPX (for the bundled libgd)
+# did nothing with the libgd of az
+OPTIONS_DEFINE=	T1LIB
 
 T1LIB_DESC=	Include T1lib support
-TRUETYPE_DESC=	Enable TrueType string function
-JIS_DESC=	Enable JIS-mapped Japanese font support
-X11_DESC=	Enable XPM support
-VPX_DESC=	Enable VP8 codec support
 .endif
 
 .if ${PHP_MODNAME} == "gettext"
@@ -848,30 +846,12 @@ USES+=	mysql
 .	endif
 .endif
 
-# (before bsd.port.pre.mk, unlike the official 5.6: USES=xorg of X11 is read
-# there in the framework of f16b6dd, as for 7.4)
+# (before bsd.port.pre.mk, unlike the official 5.6, as for 7.4)
 .if ${PHP_MODNAME} == "gd"
 .	if ${PORT_OPTIONS:MT1LIB}
 LIB_DEPENDS+=	libt1.so:devel/t1lib
 
 CONFIGURE_ARGS+=--with-t1lib=${LOCALBASE}
-.	endif
-.	if ${PORT_OPTIONS:MTRUETYPE}
-CONFIGURE_ARGS+=--enable-gd-native-ttf
-.	endif
-.	if ${PORT_OPTIONS:MJIS}
-CONFIGURE_ARGS+=--enable-gd-jis-conv
-.	endif
-.	if ${PORT_OPTIONS:MX11}
-USES+=		xorg
-USE_XORG=	x11 xpm
-
-CONFIGURE_ARGS+=--with-xpm-dir=${LOCALBASE}
-.	endif
-.	if ${PORT_OPTIONS:MVPX}
-LIB_DEPENDS+=	libvpx.so:multimedia/libvpx
-
-CONFIGURE_ARGS+=--with-vpx-dir=${LOCALBASE}
 .	endif
 .endif
 
