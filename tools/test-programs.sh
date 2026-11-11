@@ -8,10 +8,10 @@
 # server packages (git, Apache, memcached, MariaDB, vsftpd-ext, BIND and its tools,
 # vips, qt-faststart) by servers-test.sh, Node.js (node24, npm-node24,
 # yarn-node24, corepack-node24) by node-test.sh, Python (python312, py312-sqlite3,
-# mpdecimal; the official py312-* packages over it) by python-test.sh, Elasticsearch 6
-# by elastic-test.sh, and Perl (perl5, under the name of FreeBSD's) by perl-test.sh,
-# with the XS modules of FreeBSD's p5-* packages, which it installs from the FreeBSD
-# repository itself.
+# mpdecimal, python3; the official py312-* packages over it) by python-test.sh,
+# Elasticsearch 6 by elastic-test.sh, and Perl (perl5, under the name of FreeBSD's)
+# by perl-test.sh, with the XS modules of FreeBSD's p5-* packages, which it installs
+# from the FreeBSD repository itself.
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -133,9 +133,10 @@ if [ -n "$want" ]; then
     cat "$res/test-programs-install.log" >> "$log"
 fi
 # Python (aZ, 11.11.2026) as the server packages: python312 under the name of the
-# official package, py312-sqlite3 and mpdecimal; before yt-dlp, which takes them from
-# the repository (priority 100) with the official py312-* packages
-pys="python312 py312-sqlite3 mpdecimal"
+# official package, py312-sqlite3, mpdecimal and python3 (the meta port); before
+# yt-dlp, which takes them from the repository (priority 100) with the official
+# py312-* packages
+pys="python312 py312-sqlite3 mpdecimal python3"
 p_=""
 for p in $pys; do in_repo "$p" && p_="$p_ $p"; done
 if [ -n "$p_" ]; then

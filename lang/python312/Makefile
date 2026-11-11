@@ -123,11 +123,10 @@ LTO_CONFIGURE_ON=	--with-lto
 # Use CPPFLAGS over CFLAGS due to -I ordering, causing elementtree and pyexpat
 # to break in Python 2.7, or preprocessor complaints in Python >= 3.3
 # Upstream Issue: https://bugs.python.org/issue6299
-# libintl of az
+# libintl of az (its include directory and -L: CPPFLAGS and LDFLAGS above)
 NLS_BUILD_DEPENDS=	${AZ_PREFIX}/lib/libintl.so:az/az
 NLS_RUN_DEPENDS=	${AZ_PREFIX}/lib/libintl.so:az/az
-NLS_CPPFLAGS=		-I${AZ_PREFIX}/include
-NLS_LIBS=		-L${AZ_PREFIX}/lib -lintl
+NLS_LIBS=		-lintl
 NLS_CONFIGURE_ENV_OFF=	ac_cv_lib_intl_textdomain=no ac_cv_header_libintl_h=no
 
 PYMALLOC_CONFIGURE_WITH=	pymalloc

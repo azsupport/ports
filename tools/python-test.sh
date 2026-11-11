@@ -1,13 +1,13 @@
 #!/bin/sh
 # python-test.sh - test Python 3.12 of the repository az, installed from it (aZ,
-# 11.11.2026): python312 with py312-sqlite3 and mpdecimal, under the names of the
-# official packages, so that the py312-* packages of the FreeBSD repository work
-# with it. python3.12, libpython and the extension modules load only libraries of
+# 11.11.2026): python312 with py312-sqlite3, mpdecimal and python3 (the meta port:
+# bin/python3), under the names of the official packages, so that the py312-*
+# packages of the FreeBSD repository work with it. python3.12, libpython and the extension modules load only libraries of
 # the base system, of az (/usr/local/az/lib) and of our ports (libpython, libmpdec
 # of mpdecimal): libffi, expat, readline, libintl and SQLite of az, OpenSSL, zlib,
 # bzip2, liblzma and ncurses of the base system. And:
-#   version   python3.12 -V is the version of the package; the options of aZ: LTO,
-#             PYMALLOC, IPV6, NLS, libmpdec of mpdecimal
+#   version   python3.12 -V is the version of the package, python3 the same Python;
+#             the options of aZ: LTO, PYMALLOC, IPV6, NLS, libmpdec of mpdecimal
 #   ssl       the default context with the CA store of the base system, the OpenSSL
 #             of the base system; TLS 1.3 between a server and a client of python on
 #             127.0.0.1 with a certificate of the openssl of the base system, refused
@@ -16,10 +16,12 @@
 #   ctypes    strlen and getpid of libc, qsort with a callback of Python (libffi)
 #   decimal   the C module on libmpdec: its version that of mpdecimal, 1/7 to 50 digits
 #   expat     a document with an entity parsed by pyexpat and ElementTree (its C
-#             accelerator); the version of expat that of az
+#             accelerator); the version of expat that of az (the headers of az)
 #   sqlite3   sqlite3.sqlite_version that of az, a table in memory, JSON and FTS5
 #             (az builds SQLite with them), load_extension compiled in
 #   gettext   the locale module (libintl of az): a catalog of its own in Russian
+#             (ru_RU.UTF-8 by setlocale and in the environment, which GNU libintl
+#             may read instead)
 #   readline  the GNU readline of az, its version
 #   compress  lzma, bz2 and zlib round trips (the libraries of the base system)
 #   official  py312-six (pure Python) and py312-markupsafe (a C extension) from the
@@ -89,12 +91,19 @@ pyrun() {
     esac
 }
 pkgv() { pkg query '%v' "$1" 2>/dev/null | sed 's/[_,].*//'; }
-azv() { PKG_CONFIG_LIBDIR=/usr/local/az/lib/pkgconfig pkg-config --modversion "$1" 2>/dev/null; }
+# azh <header of az> <macro>...: the version of a library of az from its header: the
+# values of the macros joined by dots (quotes away)
+azh() {
+    _h="/usr/local/az/include/$1"; shift
+    for _m in "$@"; do
+        awk -v m="$_m" '$1 == "#define" && $2 == m { gsub(/"/, "", $3); print $3; exit }' "$_h" 2>/dev/null
+    done | paste -s -d . -
+}
 # ann <package> <annotation>: the value of an annotation of an installed package
 ann() { pkg query '%At %Av' "$1" 2>/dev/null | awk -v a="$2" '$1 == a { print $2; exit }'; }
 export LANG=C.UTF-8
 
-for p in python312 py312-sqlite3 mpdecimal; do
+for p in python312 py312-sqlite3 mpdecimal python3; do
     pkg info -e "$p" || fail "$p is not installed"
 done
 [ -x "$py" ] || finish
@@ -102,6 +111,9 @@ done
 # --- the version, the libraries -------------------------------------------------------
 v="$("$py" -V 2>&1)"
 if [ "$v" = "Python $(pkgv python312)" ]; then pass "python3.12 -V: $v"; else fail "python3.12 -V: $v, the package is $(pkgv python312)"; fi
+v3="$("$P/bin/python3" -V 2>&1)"
+l3="$(readlink "$P/bin/python3")"
+if [ "$v3" = "$v" ] && [ "$l3" = python3.12 ]; then pass "python3 -> $l3: $v3"; else fail "python3 -> ${l3:-?}: $v3, not $v"; fi
 [ -n "$(ann python312 az_hash)" ] && pass "python312: the package of az (az_hash $(ann python312 az_hash | cut -c1-12))" ||
     fail "python312: no az_hash, not the package of az"
 lp="$P/lib/libpython3.12.so.1.0"
@@ -249,7 +261,7 @@ ok = (seen == ['r', 't'] and e.find('t').text == 'azsupport привет' and
 print(f"{'OK' if ok else 'FAIL'} {pyexpat.EXPAT_VERSION} (az {want}); pyexpat {seen}, "
       f"ElementTree (_elementtree) \"{e.find('t').text}\"")
 EOF
-pyrun expat "$T/t_expat.py" "$(azv expat)"
+pyrun expat "$T/t_expat.py" "$(azh expat.h XML_MAJOR_VERSION XML_MINOR_VERSION XML_MICRO_VERSION)"
 
 # --- sqlite3 ----------------------------------------------------------------------------
 cat > "$T/t_sqlite.py" <<'EOF'
@@ -268,12 +280,16 @@ ok = (sqlite3.sqlite_version == want and n == 2 and j == 3 and m == 1 and
 print(f"{'OK' if ok else 'FAIL'} SQLite {sqlite3.sqlite_version} (az {want}), {n} rows, JSON {j}, FTS5 {m}, "
       f"load_extension {'compiled in' if hasattr(db, 'enable_load_extension') else 'absent'}")
 EOF
-pyrun sqlite3 "$T/t_sqlite.py" "$(azv sqlite3)"
+pyrun sqlite3 "$T/t_sqlite.py" "$(azh sqlite3.h SQLITE_VERSION)"
 
 # --- gettext through the locale module (libintl of az) ---------------------------------
 mkdir -p "$T/locale/ru/LC_MESSAGES"
 cat > "$T/t_gettext.py" <<'EOF'
 import locale, os, struct
+# GNU libintl may take the locale of LC_MESSAGES from the environment rather than
+# from setlocale: both the same
+os.environ.pop('LANGUAGE', None)
+os.environ['LC_ALL'] = 'ru_RU.UTF-8'
 # a catalog of GNU gettext (.mo) of one message, written here
 orig, tr = b'the packages of az', 'пакеты az'.encode()
 k = [b'', orig]
@@ -307,7 +323,7 @@ readline.add_history('az')
 ok = gnu and v == want and readline.get_history_item(readline.get_current_history_length()) == 'az'
 print(f"{'OK' if ok else 'FAIL'} GNU readline {v} (az {want}), the history")
 EOF
-pyrun readline "$T/t_readline.py" "$(azv readline)"
+pyrun readline "$T/t_readline.py" "$(azh readline/readline.h RL_VERSION_MAJOR RL_VERSION_MINOR)"
 cat > "$T/t_compress.py" <<'EOF'
 import bz2, lzma, zlib
 s = b'the compression of python of azsupport ' * 200
