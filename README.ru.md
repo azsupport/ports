@@ -414,7 +414,7 @@ env AZ_CONFIGURE_CHECK=1 sh tools/build.sh --force
 - `work/make.conf` из [`tools/make.conf.in`](tools/make.conf.in) — make.conf серверов
   aZ (`CPUTYPE` уровня, `CFLAGS=-O3 -pipe -fno-strict-aliasing`, фреймворк добавляет
   `-fstack-protector-strong`; `JPEG_PORT=graphics/mozjpeg`; `OPTIONS_UNSET` для X11,
-  Wayland, GUI, DBus, CUPS, отладки, тестов, документации и man-страниц) с путями
+  Wayland, GUI, DBus, CUPS, отладки, DTrace, тестов, документации и man-страниц) с путями
   прогона, отдаётся make как `__MAKE_CONF`: `/etc/make.conf` сборочного сервера не
   читается и не меняется, а сохранённые там `make config` опции на сборку не влияют
   (свой `PORT_DBDIR`);
