@@ -1,0 +1,33 @@
+bin/3proxy
+bin/ftppr
+bin/httppr
+bin/imapp
+bin/mycrypt
+bin/pop3p
+bin/smtpp
+bin/socks
+bin/tcppm
+bin/tlspr
+bin/udppm
+lib/%%PORTNAME%%/FilePlugin.ld.so
+lib/%%PORTNAME%%/PamAuth.ld.so
+lib/%%PORTNAME%%/StringsPlugin.ld.so
+lib/%%PORTNAME%%/StringsPlugin.so
+lib/%%PORTNAME%%/TrafficPlugin.ld.so
+lib/%%PORTNAME%%/TrafficPlugin.so
+lib/%%PORTNAME%%/TransparentPlugin.ld.so
+lib/%%PORTNAME%%/pamauth.so
+share/man/man5/3proxy.cfg.5.gz
+share/man/man8/3proxy.8.gz
+share/man/man8/ftppr.8.gz
+share/man/man8/httppr.8.gz
+share/man/man8/imapp.8.gz
+share/man/man8/mycrypt.8.gz
+share/man/man8/pop3p.8.gz
+share/man/man8/smtpp.8.gz
+share/man/man8/socks.8.gz
+share/man/man8/tcppm.8.gz
+share/man/man8/tlspr.8.gz
+share/man/man8/udppm.8.gz
+@dir(,,755) %%3PROXY_LOGDIR%%
+@sample etc/3proxy.cfg.sample
