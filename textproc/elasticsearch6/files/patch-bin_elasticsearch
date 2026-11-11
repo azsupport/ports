@@ -1,6 +1,6 @@
 --- bin/elasticsearch.orig
 +++ bin/elasticsearch
-@@ -29,6 +29,12 @@
+@@ -29,6 +29,17 @@
  fi
  
  cd "$ES_HOME"
@@ -10,10 +10,15 @@
 +es_jdk17_warnings() {
 +  grep --line-buffered -v -E '^WARNING: (A terminally deprecated method in java\.lang\.System has been called|System::setSecurityManager has been called by org\.elasticsearch\.|Please consider reporting this to the maintainers of org\.elasticsearch\.|System::setSecurityManager will be removed in a future release)' >&2
 +}
++# bash makes the named pipe of ">(...)" below in TMPDIR, /tmp without it
++# (/tmp/sh-np.<random>, where /dev/fd is not mounted), and nothing removes it:
++# in the temporary directory of Elasticsearch instead, which the rc script makes
++# anew at each start
++export TMPDIR="$ES_TMPDIR"
  # manual parsing to find out, if process should be detached
  if ! echo $* | grep -E '(^-d |-d$| -d |--daemonize$|--daemonize )' > /dev/null; then
    exec \
-@@ -40,7 +46,8 @@
+@@ -40,7 +51,8 @@
      -Des.distribution.type="$ES_DISTRIBUTION_TYPE" \
      -cp "$ES_CLASSPATH" \
      org.elasticsearch.bootstrap.Elasticsearch \
@@ -23,7 +28,7 @@
  else
    exec \
      "$JAVA" \
-@@ -52,7 +59,7 @@
+@@ -52,7 +64,7 @@
      -cp "$ES_CLASSPATH" \
      org.elasticsearch.bootstrap.Elasticsearch \
      "$@" \

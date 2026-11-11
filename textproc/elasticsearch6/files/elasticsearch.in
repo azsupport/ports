@@ -23,6 +23,12 @@
 #               and -Xmx, after the options of jvm.options, which can then be
 #               the same file on every server. With profiles:
 #               elasticsearch_<profile>_heap.
+# elasticsearch_tmpdir (path):   Set to /tmp/elasticsearch by default.
+#               The temporary directory of Elasticsearch (ES_TMPDIR, its
+#               java.io.tmpdir), its own: whatever is at that path is removed
+#               and the directory made anew before each start, for
+#               elasticsearch_user with mode 0700. With profiles:
+#               elasticsearch_<profile>_tmpdir, one for each profile that runs.
 #
 . /etc/rc.subr
 
@@ -38,6 +44,7 @@ load_rc_config ${name}
 : ${elasticsearch_login_class=root}
 : ${elasticsearch_java_home="%%JAVA_HOME%%"}
 : ${elasticsearch_heap=""}
+: ${elasticsearch_tmpdir="/tmp/elasticsearch"}
 
 required_files="${elasticsearch_config}/elasticsearch.yml"
 _pidprefix=/var/run/elasticsearch/elasticsearch
@@ -53,8 +60,29 @@ command_args="-d --pidfile=${pidfile}"
 export ES_PATH_CONF=${elasticsearch_config}
 export JAVA_HOME=${elasticsearch_java_home}
 
+# The temporary directory: without ES_TMPDIR bin/elasticsearch-env makes a new
+# /tmp/elasticsearch-<number> at every start (TempDirectory) and nothing removes
+# it; this one is the same at every start. /tmp is writable by everyone, so it is
+# made anew by root: what is at that path goes (rm does not follow a symbolic
+# link), mkdir fails if something appeared there meanwhile, and only then it is
+# given to the user of Elasticsearch.
 elasticsearch_precmd()
 {
+    case "${elasticsearch_tmpdir}" in
+    */|*/../*|*/..|*/./*|*/.) _bad=1 ;;
+    /*/*) _bad="" ;;
+    *) _bad=1 ;;
+    esac
+    if [ -n "${_bad}" ]; then
+        echo "elasticsearch_tmpdir=\"${elasticsearch_tmpdir}\" is not the path of a directory below one of /: not started"
+        return 1
+    fi
+    /bin/rm -rf -- "${elasticsearch_tmpdir}"
+    if ! /bin/mkdir -m 0700 -- "${elasticsearch_tmpdir}"; then
+        echo "${elasticsearch_tmpdir}: could not be made anew (something is at that path): not started"
+        return 1
+    fi
+    /usr/sbin/chown -h ${elasticsearch_user}:${elasticsearch_group} "${elasticsearch_tmpdir}" || return 1
     /usr/bin/install -d -o ${elasticsearch_user} -g ${elasticsearch_group} -m 755 ${pidfile%/*}
     /usr/bin/install -d -o ${elasticsearch_user} -g ${elasticsearch_group} -m 755 /var/db/elasticsearch
     /usr/bin/install -d -o ${elasticsearch_user} -g ${elasticsearch_group} -m 755 /var/log/elasticsearch
@@ -79,6 +107,7 @@ if [ -n "$2" ]; then
         required_files="${elasticsearch_config}/jvm.options"
         eval elasticsearch_enable="\${elasticsearch_${profile}_enable:-${elasticsearch_enable}}"
         eval elasticsearch_heap="\${elasticsearch_${profile}_heap:-${elasticsearch_heap}}"
+        eval elasticsearch_tmpdir="\${elasticsearch_${profile}_tmpdir:-${elasticsearch_tmpdir}}"
         pidfile="${_pidprefix}.${profile}.pid"
 	command_args="-d --pidfile=${pidfile}"
 	echo "===> elasticsearch profile: ${profile}"
@@ -143,5 +172,6 @@ if [ -n "${elasticsearch_heap}" ]; then
     fi
     export ES_JAVA_OPTS="-Xms${elasticsearch_heap} -Xmx${elasticsearch_heap}"
 fi
+export ES_TMPDIR="${elasticsearch_tmpdir}"
 
 run_rc_command "$1"
