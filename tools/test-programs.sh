@@ -214,7 +214,11 @@ fi
 # the tests on node24 (node24, Kibana), in its place (3. below)
 nodes18="node18 npm-node18 yarn-node18 corepack-node18"
 n18_=""
-for p in $nodes18; do in_repo "$p" && n18_="$n18_ $p"; done
+if in_repo node18; then
+    for p in $nodes18; do in_repo "$p" && n18_="$n18_ $p"; done
+else
+    say "node18: not in the repository, its tests are skipped"
+fi
 # Elasticsearch 6 (aZ, 11.11.2026: the legacy sites) as the server packages; its
 # OpenJDK 17 is an official package
 elastic="elasticsearch6"
