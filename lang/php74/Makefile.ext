@@ -78,7 +78,11 @@
 # - the patches of the official slave ports (files/ of each port) stay as they
 #   are (the release tarball of the fork has those of lang/php74 only), except
 #   readline_cli.c of readline (in the source already), config.m4 of fileinfo,
-#   mbstring, phar and simplexml (only for the PCRE2 of the ports), and those of
+#   mbstring, phar and simplexml (--with-pcre-dir: an -I/usr/local/include for
+#   pcre2.h, which would show every header of /usr/local to the module; the core
+#   takes PCRE2 of devel/pcre2 of this tree since 10.11.2026, and the modules find
+#   pcre2.h next to php_pcre.h by the link ext/pcre/pcre2.h of the headers,
+#   lang/php74/Makefile), and those of
 #   swoole for swoole_admin_server.cc, server/manager.cc and server/master.cc
 #   (in 4.8.13 already); ours: php_xsl.c of xsl without xsltCleanupGlobals() at
 #   module shutdown (files/patch-php__xsl.c of textproc/php74-xsl), as the
