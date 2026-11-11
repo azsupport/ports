@@ -1,8 +1,0 @@
-Swoole for mysqlnd with OpenSSL: the module swoole of php84-swoole (with
-OpenSSL there too: swoole 6.2 has no build without it), with
-php84-mysqlnd-openssl instead of php84-mysqlnd. The same files as
-php84-swoole: install one of the two.
-
-PECL swoole for php84 of azsupport/ports, built from ext/swoole of the
-release tarball of azsupport/php-src, which bundles it:
-lib/php/20240924/swoole.so, loaded by its ini in etc/php84/conf.d.

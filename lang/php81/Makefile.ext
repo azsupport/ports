@@ -678,8 +678,11 @@ CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "swoole"
-# devel/pecl-swoole of 6002588334a9 (6.1.6 there): mysqlnd is a module here
-# (USE_PHP); without OpenSSL, swoole-openssl with that of the base system by
+# devel/pecl-swoole of 6002588334a9 (6.1.6 there), without --enable-mysqlnd
+# (aZ, 11.11.2026: in swoole 6.1 it only makes mysqlnd a module that must be
+# loaded and adds a line to phpinfo(); the coroutine hooks of mysqli and PDO
+# MySQL go through the streams of PHP without it); without OpenSSL,
+# swoole-openssl with that of the base system by
 # --with-openssl-dir (ext.conf; AZ_OPENSSL): the swoole 6.1 of the tarball has
 # no --enable-openssl of the port (the fork took it out: inside php-src it
 # turned the OpenSSL of mysqlnd off; swoole 6.2 has none either), and its
@@ -710,10 +713,8 @@ NOT_FOR_ARCHS_REASON=	upstream drop 32 bits support
 USES+=		compiler:c11 pkgconfig
 # C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
 AZ_GCC=		no
-USE_PHP=	mysqlnd:build
 
-CONFIGURE_ARGS+=	--enable-swoole \
-			--enable-mysqlnd
+CONFIGURE_ARGS+=	--enable-swoole
 .  if defined(AZ_OPENSSL)
 USES+=			ssl
 CONFIGURE_ARGS+=	--with-openssl-dir=/usr

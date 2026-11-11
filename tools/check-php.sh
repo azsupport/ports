@@ -31,9 +31,9 @@
 #     of curl_version() (libcurl.so.4 of the package curl, with libssh2 of az);
 #   - the modules with a variant with OpenSSL, the same way: OpenSSL in
 #     phpXY-<module>-openssl, none in phpXY-<module> (swoole 6.2 of 8.2 and later:
-#     in both, it has no build without it): ftp by ftp_ssl_connect(), mysqlnd by
-#     its login sha256_password (its extended SSL) among the plugins of
-#     phpinfo(), swoole and openswoole by SWOOLE_SSL;
+#     in phpXY-swoole, the only one: it has no build without it): ftp by
+#     ftp_ssl_connect(), mysqlnd by its login sha256_password (its extended SSL)
+#     among the plugins of phpinfo(), swoole and openswoole by SWOOLE_SSL;
 #   - readelf -d of every module of lib/php/<API> and of php, php-cgi, php-fpm and
 #     libphp of mod_phpXY: the libraries they name (NEEDED) in /lib, /usr/lib or
 #     /usr/local/az/lib, the run path (RUNPATH) none or /usr/local/az/lib, which it
@@ -487,7 +487,8 @@ while read -r p; do
                 : "FAIL protocols: " . implode(" ", $v["protocols"]);' "$@"
     fi
     # the modules with a variant with OpenSSL: with it in phpXY-<module>-openssl,
-    # without it in phpXY-<module> (swoole 6.2 of 8.2 and later: with it in both)
+    # without it in phpXY-<module> (swoole 6.2 of 8.2 and later: phpXY-swoole only,
+    # with it)
     case "$mod" in
         ftp|mysqlnd|swoole|openswoole)
             sw=no
