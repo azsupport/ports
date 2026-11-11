@@ -118,7 +118,7 @@ post-install:
 		so="$$(${READELF} -d $$f | ${SED} -n 's/.*Shared library: \[\(libffi\.so\.[0-9.]*\)\].*/\1/p')"; \
 		[ -n "$$so" ] && [ -f ${AZ_PREFIX}/lib/$$so ] || \
 			{ ${ECHO_MSG} "the libjnidispatch.so of $$j does not link the libffi of ${AZ_PREFIX}/lib: $${so:-none}"; exit 1; }; \
-		rp="$$(${READELF} -d $$f | ${SED} -n 's/.*Library runpath: \[\(.*\)\].*/\1/p')"; \
+		rp="$$(${READELF} -d $$f | ${SED} -n 's/.*Library r[a-z]*path: \[\(.*\)\].*/\1/p')"; \
 		case ":$$rp:" in *:${AZ_PREFIX}/lib:*) ;; \
 		*) ${ECHO_MSG} "the libjnidispatch.so of $$j: the run path is '$$rp', not ${AZ_PREFIX}/lib"; exit 1 ;; esac; \
 		b="$$(${READELF} -d $$f | ${SED} -n 's/.*Shared library: \[\(.*\)\].*/\1/p' | ${GREP} -E '^lib(X|xcb|jawt)' | ${TR} '\n' ' ')"; \
