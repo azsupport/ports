@@ -5,25 +5,16 @@
 #     phpXY-redis-zstd and phpXY-redis-lz4-zstd (with liblz4 and libzstd of az);
 #     5.6 has only the first (phpredis 4.3.0 knows neither lz4 nor zstd);
 #   - gd of 5.6 (aZ, 11.11.2026): php56-gd, and php56-gd-t1lib with T1lib (libt1 of
-#     devel/t1lib);
-#   - swoole of 8.1 to 8.4 (aZ, 11.11.2026): phpXY-swoole, and phpXY-swoole-sqlite with
-#     the coroutine PDO SQLite (libsqlite3 of az); 8.1 also both with OpenSSL.
+#     devel/t1lib).
 # Each goes in by pkg install -f from the repository azbuild that tools/install-php.sh
 # wrote (the others of its group out first: pkg refuses the same files), then:
 #   - php -n with the module and those of the packages it depends on: redis the
 #     constants Redis::COMPRESSION_LZ4 and Redis::COMPRESSION_ZSTD there or not as
 #     the name of the package says, and with each compression it has a round trip of
 #     Redis::_compress() and Redis::_uncompress() (no server needed); gd
-#     imagepstext() and "T1Lib Support" of gd_info() there or not; swoole the row
-#     coroutine_sqlite of phpinfo() there or not, and with it a query of PDO SQLite
-#     (the driver of swoole: no pdo_sqlite) and, in coroutines with SWOOLE_HOOK_ALL
-#     (without the hooks of curl when the module curl is not loaded: php -n),
-#     a long query that holds its coroutine only (a timer of 5 ms in another one
-#     ends first); then the same as a server runs it, with every module of conf.d
-#     (pdo_sqlite started before swoole, which takes its place), and the functions
-#     of SQL of PHP (sqliteCreateFunction(), Pdo\Sqlite::createFunction() of 8.4);
-#   - readelf -d of the module: liblz4, libzstd, libsqlite3 (of az) or libt1 named
-#     (NEEDED) or not, as the package says.
+#     imagepstext() and "T1Lib Support" of gd_info() there or not;
+#   - readelf -d of the module: liblz4, libzstd or libt1 named (NEEDED) or not, as
+#     the package says.
 # The first of each group goes in again at the end.
 #
 # Usage (as root on FreeBSD, after sh tools/install-php.sh <version>):
@@ -169,91 +160,6 @@ else
                 : "OK phpredis " . phpversion("redis") . ", " . ($done ? implode(", ", $done) : "no compression");'
         libs "redis: $p, the libraries" "$extdir/redis.so" liblz4.so "$([ "$lz" = true ] && echo yes || echo no)" \
             libzstd.so "$([ "$zs" = true ] && echo yes || echo no)"
-    done
-fi
-
-# --- swoole with the coroutine PDO SQLite (8.1 to 8.4) ---
-# sw_php: the code of the checks after "$q = true|false; $ini = true|false;"
-sw_php=$(cat <<'PHP'
-ob_start(); phpinfo(INFO_MODULES); $i = ob_get_clean();
-$c = strpos($i, "coroutine_sqlite") !== false;
-$r = "";
-if ($c !== $q) {
-    $r = "FAIL coroutine_sqlite of phpinfo() " . ($c ? "there" : "not there") . ", " . ($q ? "there" : "not there") . " wanted";
-} elseif (!$q) {
-    $r = "OK swoole " . phpversion("swoole") . ", no coroutine_sqlite";
-} elseif ($ini && !extension_loaded("pdo_sqlite")) {
-    $r = "FAIL the modules of conf.d: no pdo_sqlite";
-} else {
-    $p = new PDO("sqlite::memory:");
-    $v = $p->query("SELECT sqlite_version()")->fetchColumn();
-    $f = "";
-    if ($ini) {
-        if (PHP_VERSION_ID >= 80400) {
-            $d = PDO::connect("sqlite::memory:");
-            $d->createFunction("twice", function ($x) { return 2 * $x; }, 1);
-            $f = get_class($d) . "::createFunction(): " . $d->query("SELECT twice(21)")->fetchColumn();
-        } else {
-            $p->sqliteCreateFunction("twice", function ($x) { return 2 * $x; }, 1);
-            $f = "PDO::sqliteCreateFunction(): " . $p->query("SELECT twice(21)")->fetchColumn();
-        }
-    }
-    // without the module curl (php -n) the hooks of curl only warn that curl_init is
-    // not found: all the other hooks then
-    $h = SWOOLE_HOOK_ALL;
-    $hk = "SWOOLE_HOOK_ALL";
-    if (!extension_loaded("curl")) {
-        foreach (array("SWOOLE_HOOK_CURL", "SWOOLE_HOOK_NATIVE_CURL") as $k) {
-            if (defined($k)) $h &= ~constant($k);
-        }
-        $hk .= " but curl (no module curl)";
-    }
-    Swoole\Runtime::enableCoroutine($h);
-    $o = array();
-    Swoole\Coroutine\run(function () use (&$o) {
-        Swoole\Coroutine::create(function () use (&$o) {
-            $d = new PDO("sqlite::memory:");
-            $o[] = "query " . $d->query("WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 3000000) SELECT count(*) FROM c")->fetchColumn();
-        });
-        Swoole\Coroutine::create(function () use (&$o) { Swoole\Coroutine::sleep(0.005); $o[] = "timer"; });
-    });
-    if ($ini && substr($f, -4) !== ": 42") {
-        $r = "FAIL $f, not 42";
-    } elseif (count($o) == 2 && $o[0] === "timer") {
-        $r = "OK SQLite $v" . ($f ? ", $f" : "") . "; in coroutines with $hk: " . implode(", ", $o) . " (the query held its coroutine only)";
-    } else {
-        $r = "FAIL in coroutines with $hk: " . implode(", ", $o) . " (the query held the worker)";
-    }
-}
-echo $r;
-PHP
-)
-# inicheck <name> <code>: php with its ini files (every module of conf.d), as a
-# server runs it; the code echoes "OK ..." or "FAIL ..."; its errors shown (the
-# php.ini of a server may keep them from the screen: display_errors Off)
-inicheck() {
-    _o="$("$php" -d date.timezone=UTC -d display_errors=1 -d log_errors=0 -r "$2" 2>&1 < /dev/null)"
-    verdict "$1" "$?" "$_o"
-}
-if in_repo "php$short-swoole-sqlite"; then
-    group=""
-    for p in php$short-swoole php$short-swoole-openssl php$short-swoole-sqlite php$short-swoole-sqlite-openssl; do
-        in_repo "$p" && group="$group $p"
-    done
-    # the one tools/install-php.sh put in goes last, so that it is there again at the end
-    first=""
-    for p in $group; do pkg info -e "$p" && { first="$p"; break; }; done
-    [ -n "$first" ] || first="php$short-swoole"
-    for p in $(printf '%s\n' $group | grep -v -x "$first") "$first"; do
-        # shellcheck disable=SC2046
-        if ! put "$p" $(printf '%s\n' $group | grep -v -x "$p"); then
-            fail "swoole: $p" "did not install ($log)"
-            continue
-        fi
-        q=false; case "$p" in *-sqlite*) q=true ;; esac
-        phpcheck "swoole: $p, SQLite" "$p" "\$q = $q; \$ini = false; $sw_php"
-        [ "$q" = true ] && inicheck "swoole: $p, with the modules of conf.d" "\$q = true; \$ini = true; $sw_php"
-        libs "swoole: $p, the libraries" "$extdir/swoole.so" libsqlite3.so "$([ "$q" = true ] && echo yes || echo no)"
     done
 fi
 

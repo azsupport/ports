@@ -111,13 +111,6 @@
   mysqlnd обязательным модулем, хуки mysqli и PDO MySQL работают и без неё), они идут с
   любым из двух; swoole 6.2 (8.2–8.4) без OpenSSL не собирается, поэтому `phpXY-swoole`
   с ним, а `phpXY-swoole-openssl` нет.
-- swoole у 8.1–8.4 ещё и `phpXY-swoole-sqlite`, один из двух (aZ, 11.11.2026; файлы
-  одни и те же; у 8.1 ещё `php81-swoole-sqlite-openssl`, так что один из четырёх): с
-  корутинным PDO SQLite на SQLite из az. С хуком `SWOOLE_HOOK_PDO_SQLITE` (входит в
-  `SWOOLE_HOOK_ALL`) запрос PDO SQLite выполняется в пуле потоков swoole и держит только
-  свою корутину, а не весь воркер; без хука выполняется напрямую. swoole ставит свою
-  копию драйвера PDO sqlite на место драйвера `phpXY-pdo_sqlite` (тот грузится раньше:
-  `ext-30-pdo_sqlite.ini` идёт перед `ext-30-swoole.ini`).
 - redis четырьмя пакетами, один из четырёх (aZ, 11.11.2026; файлы одни и те же):
   `phpXY-redis` без сжатия, `phpXY-redis-lz4`, `phpXY-redis-zstd` и
   `phpXY-redis-lz4-zstd` с lz4 и zstd из az (`Redis::OPT_COMPRESSION` сайта; у 5.6 только
