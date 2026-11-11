@@ -13,8 +13,10 @@
 #                 php74-<module>-openssl (the same files as php74-<module>), and
 #                 the other packages of a module with the same files: of redis
 #                 those with compression (php74-redis-lz4, -zstd, -lz4-zstd), gd of
-#                 5.6 with T1lib (php56-gd-t1lib; tools/check-variants.sh puts them
-#                 in, one by one); php74-gmagick too (its ini is off, so it does not
+#                 5.6 with T1lib (php56-gd-t1lib), swoole of 8.1 to 8.4 with SQLite
+#                 (php84-swoole-sqlite, php81-swoole-sqlite-openssl;
+#                 tools/check-variants.sh puts them in, one by one); php74-gmagick
+#                 too (its ini is off, so it does not
 #                 clash with imagick; its CLI profile has it on)
 #   --openssl     the variants with OpenSSL in the places of their modules (the
 #                 others as without it), for their checks: CHECK_TAG=openssl sh
@@ -78,7 +80,7 @@ for n in $(printf '%s\n' "$names" | grep -E "^php$short-.+-openssl\$"); do
     if [ -n "$openssl" ]; then echo "${n%-openssl}"; else echo "$n"; fi
 done > "$tmpl"
 echo "php$short-openssl-legacy" >> "$tmpl"
-printf '%s\n' "$names" | grep -E "^php$short-(redis-.+|gd-t1lib)\$" >> "$tmpl"
+printf '%s\n' "$names" | grep -E "^php$short-(redis-.+|gd-t1lib|swoole-sqlite(-openssl)?)\$" >> "$tmpl"
 want="$(printf '%s\n' "$names" | grep -v -x -F -f "$tmpl" | tr '\n' ' ')"
 # those installed go first, with what depends on them (pkg delete): pkg would refuse
 # the same files of another package

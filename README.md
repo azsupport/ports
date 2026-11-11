@@ -90,7 +90,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives, and the fixes of the vulnerabilities the official port lacks, from Fedora: CVE-2014-8141 … CVE-2022-0530, zip bombs; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS, with the fix of CVE-2026-96512 (three upstream commits); `bash` without NLS; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL; `rsync` 3.5.2, ahead of the official 3.5.1 for its security fixes: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
-| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 70 for 7.4, 68 for 8.1, 67 for 8.2 to 8.4, 65 for 5.6 (with the variants below); the list of one: `pkg search -r az '^php84-'` |
+| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 70 for 7.4 and 8.1, 68 for 8.2 to 8.4, 65 for 5.6 (with the variants below); the list of one: `pkg search -r az '^php84-'` |
 
 - openssl in two kinds, one of the two: `phpXY-openssl` and `phpXY-openssl-legacy` (the
   legacy provider of OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
@@ -107,6 +107,13 @@ Names and origins as the ports, files at the paths of the ports:
   their hooks of mysqli and PDO MySQL work without it) and go with either; swoole 6.2
   (8.2 to 8.4) has no build without OpenSSL, so `phpXY-swoole` has it and there is no
   `phpXY-swoole-openssl`.
+- swoole of 8.1 to 8.4 also as `phpXY-swoole-sqlite`, one of the two (aZ, 11.11.2026;
+  the same files; 8.1 also `php81-swoole-sqlite-openssl`, so one of four): with the
+  coroutine PDO SQLite on the SQLite of az. With the hook `SWOOLE_HOOK_PDO_SQLITE` (in
+  `SWOOLE_HOOK_ALL`) a query of PDO SQLite runs in the thread pool of swoole and holds
+  its coroutine only, not the whole worker; without the hook it runs directly. swoole
+  puts its own copy of the PDO driver sqlite in the place of that of `phpXY-pdo_sqlite`
+  (loaded first: `ext-30-pdo_sqlite.ini` comes before `ext-30-swoole.ini`).
 - redis in four packages, one of the four (aZ, 11.11.2026; the same files): `phpXY-redis`
   without compression, `phpXY-redis-lz4`, `phpXY-redis-zstd` and `phpXY-redis-lz4-zstd`
   with the lz4 and zstd of az (`Redis::OPT_COMPRESSION` of a site; 5.6 has only

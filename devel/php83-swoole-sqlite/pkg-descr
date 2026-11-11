@@ -1,0 +1,13 @@
+Swoole with the coroutine PDO SQLite: the module swoole of php83-swoole built
+with --enable-swoole-sqlite, linked with the SQLite of az (libsqlite3).
+With the hook SWOOLE_HOOK_PDO_SQLITE (in SWOOLE_HOOK_ALL) the calls of PDO
+SQLite run in the thread pool of swoole, so a query waits in its
+coroutine only, not the whole worker; without the hook they run directly.
+swoole registers its own copy of the PDO driver sqlite in the place of
+that of php83-pdo_sqlite, which it replaces when php83-pdo_sqlite is
+loaded first (ext-30-pdo_sqlite.ini comes before ext-30-swoole.ini).
+One of php83-swoole and php83-swoole-sqlite: the same files.
+
+PECL swoole for php83 of azsupport/ports, built from ext/swoole of the
+release tarball of azsupport/php-src, which bundles it:
+lib/php/20230831/swoole.so, loaded by its ini in etc/php83/conf.d.

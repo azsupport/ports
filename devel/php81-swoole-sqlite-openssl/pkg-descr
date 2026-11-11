@@ -1,0 +1,15 @@
+Swoole with the coroutine PDO SQLite: the module swoole of
+php81-swoole-openssl built with --enable-swoole-sqlite, linked with the
+SQLite of az (libsqlite3).
+With the hook SWOOLE_HOOK_PDO_SQLITE (in SWOOLE_HOOK_ALL) the calls of PDO
+SQLite run in the thread pool of swoole, so a query waits in its
+coroutine only, not the whole worker; without the hook they run directly.
+swoole registers its own copy of the PDO driver sqlite in the place of
+that of php81-pdo_sqlite, which it replaces when php81-pdo_sqlite is
+loaded first (ext-30-pdo_sqlite.ini comes before ext-30-swoole.ini).
+One of php81-swoole, php81-swoole-openssl, php81-swoole-sqlite and
+php81-swoole-sqlite-openssl: the same files.
+
+PECL swoole for php81 of azsupport/ports, built from ext/swoole of the
+release tarball of azsupport/php-src, which bundles it:
+lib/php/20210902/swoole.so, loaded by its ini in etc/php81/conf.d.
