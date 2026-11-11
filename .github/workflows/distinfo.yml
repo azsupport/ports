@@ -3,9 +3,10 @@ name: The distinfo of a new release
 # tree at a release ahead of the official tree (www/yt-dlp), when the sandbox of
 # Claude cannot fetch them (a host it does not reach; on 09.11.2026 the release
 # downloads of GitHub answered 504 for a while, on GitHub's side): each file
-# fetched on Ubuntu from every address given (they must give the same file) and, with a
-# checksum file of the publisher (sha256sum format), found there with the same
-# SHA-256. The lines for distinfo (TIMESTAMP, SHA256, SIZE) go into the summary
+# fetched on Ubuntu from every address given (they must give the same file) and, with
+# checksum files of the publisher (sha256sum or sha512sum format: Elastic publishes
+# <file>.sha512), found there with the same SHA-256 or SHA-512. The lines for
+# distinfo (TIMESTAMP, SHA256, SIZE) go into the summary
 # of the run and into the branch runs of azsupport/azsupport (tools/runs-report.sh).
 # Started by hand: Actions, "The distinfo of a new release", "Run workflow", or
 # gh api -X POST repos/azsupport/ports/actions/workflows/distinfo.yml/dispatches
@@ -17,7 +18,7 @@ on:
         description: 'Files: <name in distinfo>=<url>[,<url>...], separated by spaces (yt-dlp/2026.10.26/yt-dlp.tar.gz=https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp.tar.gz)'
         required: true
       sums:
-        description: 'The checksum file of the publisher (sha256sum format), optional'
+        description: 'The checksum files of the publisher (sha256sum or sha512sum format), separated by spaces, optional'
         required: false
         default: ''
 
@@ -41,29 +42,31 @@ jobs:
           mkdir -p dl
           : > notes.txt
           { echo "# distinfo"; echo; echo '```'; echo "TIMESTAMP = $(date +%s)"; } > report.md
-          if [ -n "$SUMS" ]; then
-            if curl -fsSL --retry 3 -o dl/sums "$SUMS"; then echo "ok    the checksum file $SUMS" >> notes.txt
-            else echo "FAIL  the checksum file $SUMS: not fetched" >> notes.txt; rc=1; fi
-          fi
+          : > dl/sums
+          for u in $SUMS; do
+            if curl -fsSL --retry 3 -o dl/sum1 "$u"; then echo "ok    the checksum file $u" >> notes.txt; cat dl/sum1 >> dl/sums
+            else echo "FAIL  the checksum file $u: not fetched" >> notes.txt; rc=1; fi
+          done
           for f in $FILES; do
-            name="${f%%=*}"; sha=""; size=""
+            name="${f%%=*}"; sha=""; size=""; sha5=""
             for u in $(echo "${f#*=}" | tr ',' ' '); do
               rm -f dl/file
               if ! curl -fsSL --retry 3 -o dl/file "$u"; then
                 echo "FAIL  $name: $u not fetched" >> notes.txt; rc=1; continue
               fi
               s="$(sha256sum dl/file | cut -d' ' -f1)"; z="$(stat -c %s dl/file)"
+              s5="$(sha512sum dl/file | cut -d' ' -f1)"
               echo "ok    $name: $u, $z bytes, SHA-256 $s" >> notes.txt
-              if [ -z "$sha" ]; then sha="$s"; size="$z"
+              if [ -z "$sha" ]; then sha="$s"; size="$z"; sha5="$s5"
               elif [ "$s:$z" != "$sha:$size" ]; then echo "FAIL  $name: $u gives another file" >> notes.txt; rc=1; fi
             done
             [ -n "$sha" ] || continue
             if [ -s dl/sums ]; then
               base="${name##*/}"
-              if awk -v f="$base" -v s="$sha" '$1 == s && ($2 == f || $2 == "*" f) { ok = 1 } END { exit !ok }' dl/sums; then
-                echo "ok    $name: the SHA-256 of $base in the checksum file" >> notes.txt
+              if awk -v f="$base" -v s="$sha" -v s5="$sha5" '($1 == s || $1 == s5) && ($2 == f || $2 == "*" f) { ok = 1 } END { exit !ok }' dl/sums; then
+                echo "ok    $name: the SHA-256 or SHA-512 of $base in the checksum file" >> notes.txt
               else
-                echo "FAIL  $name: $base is not in the checksum file with this SHA-256" >> notes.txt; rc=1
+                echo "FAIL  $name: $base is not in the checksum file with this SHA-256 or SHA-512" >> notes.txt; rc=1
               fi
             fi
             { echo "SHA256 ($name) = $sha"; echo "SIZE ($name) = $size"; } >> report.md
