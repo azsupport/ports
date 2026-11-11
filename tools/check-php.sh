@@ -462,20 +462,22 @@ while read -r p; do
         fi
     fi
     # gd: the libgd of az in every version (5.6 too, aZ 11.11.2026: not the bundled
-    # one), imageantialias() with it (5.6: graphics/php56-gd/files/patch-gd.c), a line
-    # and a PNG
+    # one), imageantialias() with it (5.6: compat-gd-external.patch of the fork): a
+    # line with pixels between black and white; no XPM (aZ 11.11.2026); a PNG
     if [ "$mod" = gd ]; then
-        intl_check "gd: the libgd of az, imageantialias(), PNG" '
+        intl_check "gd: the libgd of az, imageantialias(), no XPM, PNG" '
             $i = gd_info();
             $im = imagecreatetruecolor(32, 32);
             $aa = function_exists("imageantialias") && imageantialias($im, true);
             imageline($im, 0, 0, 31, 20, imagecolorallocate($im, 255, 255, 255));
+            $c = imagecolorsforindex($im, imagecolorat($im, 16, 10));
             ob_start(); imagepng($im); $p = ob_get_clean();
             $b = defined("GD_BUNDLED") ? GD_BUNDLED : -1;
-            echo ($b === 0 && $aa && substr($p, 0, 8) === "\x89PNG\r\n\x1a\n")
-                ? "OK GD " . $i["GD Version"] . " (GD_BUNDLED 0), imageantialias, a PNG of " . strlen($p) . " bytes"
+            $x = !empty($i["XPM Support"]);
+            echo ($b === 0 && $aa && $c["red"] > 0 && $c["red"] < 255 && !$x && substr($p, 0, 8) === "\x89PNG\r\n\x1a\n")
+                ? "OK GD " . $i["GD Version"] . " (GD_BUNDLED 0), antialiased (pixel 16,10: " . $c["red"] . "), no XPM, a PNG of " . strlen($p) . " bytes"
                 : "FAIL GD " . $i["GD Version"] . ", GD_BUNDLED " . $b . ", imageantialias " . ($aa ? "yes" : "no")
-                    . ", PNG " . bin2hex(substr($p, 0, 8));' "$@"
+                    . ", pixel 16,10: " . $c["red"] . ", XPM " . ($x ? "yes" : "no") . ", PNG " . bin2hex(substr($p, 0, 8));' "$@"
     fi
     if [ "$mod" = curl ]; then
         intl_check "curl: SCP and SFTP" '

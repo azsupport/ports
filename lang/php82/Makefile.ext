@@ -209,7 +209,10 @@ USES+=		ssl pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "gd"
-# libgd of az, with PNG, JPEG (mozjpeg), WebP and FreeType (not the bundled one)
+# libgd of az, with PNG, JPEG (mozjpeg), WebP, FreeType and LIQ (libimagequant), not
+# the bundled one: its formats. No options: TRUETYPE (gone since PHP 7.2), JIS
+# (--enable-gd-jis-conv) and WEBP (--with-webp) of the official port are for the
+# bundled libgd only, X11 (XPM) is gone (aZ 11.11.2026)
 AZ_LIBS=	libgd.so
 
 CONFIGURE_ARGS+=--enable-gd \
@@ -217,16 +220,6 @@ CONFIGURE_ARGS+=--enable-gd \
 
 EXTRACT_AFTER_ARGS=--no-same-owner --no-same-permissions --exclude libgd \
 		${EXTSUBDIR}
-
-# no TRUETYPE, as the official 8.2: with --with-external-gd the FreeType of libgd
-# decides (that of az has it), the option did nothing
-OPTIONS_DEFINE=JIS WEBP X11
-OPTIONS_DEFAULT=WEBP
-
-JIS_DESC=	Enable JIS-mapped Japanese font support
-WEBP_DESC=  Enable WebP image format support
-X11_DESC=	Enable XPM support
-
 .endif
 
 .if ${PHP_MODNAME} == "gettext"
@@ -879,22 +872,6 @@ USE_PHP+=	mysqlnd:build
 CONFIGURE_ARGS+=--with-pdo-mysql=${LOCALBASE} \
 		--with-zlib-dir=/usr
 USES+=	mysql
-.	endif
-.endif
-
-.if ${PHP_MODNAME} == "gd"
-.	if ${PORT_OPTIONS:MJIS}
-CONFIGURE_ARGS+=--enable-gd-jis-conv
-.	endif
-.   if ${PORT_OPTIONS:MWEBP}
-# WebP of libgd of az
-CONFIGURE_ARGS+=--with-webp
-.   endif
-.	if ${PORT_OPTIONS:MX11}
-USES+=		xorg
-USE_XORG=	xpm
-
-CONFIGURE_ARGS+=--with-xpm
 .	endif
 .endif
 
