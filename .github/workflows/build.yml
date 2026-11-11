@@ -152,20 +152,34 @@ jobs:
       - name: The ports of this tree checked with make -V (bmake, a sparse official tree)
         env:
           CPUTYPE: ${{ matrix.cputype }}
+          RELEASE: ${{ inputs.release }}
         run: |
-          # bmake from the mirrors of Ubuntu, which fail at times (11.11.2026, runs
-          # 43035735575 and 43038380715: "Temporary failure resolving
-          # 'azure.archive.ubuntu.com'" for minutes): five tries, a minute apart
-          ok=0
-          for i in 1 2 3 4 5; do
-            if sudo apt-get update -qq > /dev/null && sudo apt-get install -y -qq bmake > /dev/null; then
-              ok=1
+          # bmake: that of the FreeBSD of the VM (contrib/bmake of freebsd-src, branch
+          # releng/<release>), built here in seconds; no mirror of Ubuntu (11.11.2026:
+          # apt-get of the runners could not resolve azure.archive.ubuntu.com for an
+          # hour, runs 43035735575, 43038380715 and those of the branches stopped here)
+          src="$RUNNER_TEMP/freebsd-src"
+          for i in 1 2 3; do
+            rm -rf "$src"
+            if git clone -q --depth 1 --filter=blob:none --sparse --branch "releng/$RELEASE" \
+                https://github.com/freebsd/freebsd-src "$src" && git -C "$src" sparse-checkout set contrib/bmake; then
               break
             fi
-            echo "apt-get install bmake failed (try $i of 5)"
-            [ "$i" = 5 ] || sleep 60
+            [ "$i" != 3 ] || { echo "::error title=bmake::no contrib/bmake of freebsd-src releng/$RELEASE"; exit 1; }
+            echo "git clone of freebsd-src failed (try $i of 3)"
+            sleep 30
           done
-          [ "$ok" = 1 ] || { echo "::error title=bmake::apt-get install bmake failed 5 times"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/bmake-build" "$RUNNER_TEMP/bin"
+          if ! (cd "$RUNNER_TEMP/bmake-build" && sh "$src/contrib/bmake/configure" --without-meta --without-filemon > configure.log 2>&1 &&
+              sh ./make-bootstrap.sh > build.log 2>&1); then
+            tail -n 30 "$RUNNER_TEMP/bmake-build/configure.log" "$RUNNER_TEMP/bmake-build/build.log" 2> /dev/null
+            echo "::error title=bmake::the build of contrib/bmake failed"
+            exit 1
+          fi
+          cp "$RUNNER_TEMP/bmake-build/bmake" "$RUNNER_TEMP/bin/bmake"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/bin:$PATH"
+          echo "bmake $(sed -n 's/^_MAKE_VERSION=//p' "$src/contrib/bmake/VERSION") of freebsd-src releng/$RELEASE"
           commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
           off="$RUNNER_TEMP/freebsd-ports"
           mkdir -p "$off"
