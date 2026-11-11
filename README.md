@@ -112,13 +112,6 @@ Names and origins as the ports, files at the paths of the ports:
   their hooks of mysqli and PDO MySQL work without it) and go with either; swoole 6.2
   (8.2 to 8.4) has no build without OpenSSL, so `phpXY-swoole` has it and there is no
   `phpXY-swoole-openssl`.
-- swoole of 8.1 to 8.4 also as `phpXY-swoole-sqlite`, one of the two (aZ, 11.11.2026;
-  the same files; 8.1 also `php81-swoole-sqlite-openssl`, so one of four): with the
-  coroutine PDO SQLite on the SQLite of az. With the hook `SWOOLE_HOOK_PDO_SQLITE` (in
-  `SWOOLE_HOOK_ALL`) a query of PDO SQLite runs in the thread pool of swoole and holds
-  its coroutine only, not the whole worker; without the hook it runs directly. swoole
-  puts its own copy of the PDO driver sqlite in the place of that of `phpXY-pdo_sqlite`
-  (loaded first: `ext-30-pdo_sqlite.ini` comes before `ext-30-swoole.ini`).
 - redis in four packages, one of the four (aZ, 11.11.2026; the same files): `phpXY-redis`
   without compression, `phpXY-redis-lz4`, `phpXY-redis-zstd` and `phpXY-redis-lz4-zstd`
   with the lz4 and zstd of az (`Redis::OPT_COMPRESSION` of a site; 5.6 has only
