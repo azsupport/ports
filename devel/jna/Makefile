@@ -17,11 +17,15 @@
 #   devel/apache-ant, which runs on it: one JDK in the build;
 # - the CFLAGS of make.conf (-march of the level, -fstack-protector-strong) for
 #   its C code, before the -O2 of JNA (cflags_extra.native of build.xml);
-# - checked after the install: the libjnidispatch.so of jna.jar and that of
+# - libjnidispatch.so also as a file, lib/jna/libjnidispatch.so, the same as in
+#   jna.jar (aZ, 11.11.2026: Elasticsearch stops writing at every start: with
+#   -Djna.boot.library.path=/usr/local/lib/jna JNA loads it from there, instead
+#   of extracting it from the jar into its tmpdir);
+# - checked after the install: the libjnidispatch.so of jna.jar, that of
 #   jna-platform.jar (the official port installs build/freebsd-x86-64.jar, the jar
-#   of the native library, under this name) are the one built here, which links
-#   the libffi of az by its run path and nothing of X11; the package needs az
-#   only.
+#   of the native library, under this name) and lib/jna/libjnidispatch.so are the
+#   one built here, which links the libffi of az by its run path and nothing of
+#   X11; the package needs az only.
 
 PORTNAME=	jna
 PORTREVISION=	${AZ_STAMP:U0}
@@ -76,7 +80,8 @@ ALL_TARGET=	native jar
 TEST_TARGET=	test
 
 PLIST_FILES=	${JAVAJARDIR}/jna-platform.jar \
-		${JAVAJARDIR}/jna.jar
+		${JAVAJARDIR}/jna.jar \
+		lib/jna/libjnidispatch.so
 PORTDOCS=	javadoc platform-${PORTVERSION}-javadoc.jar
 
 OPTIONS_DEFINE=	DOCS
@@ -95,6 +100,10 @@ do-install:
 		${STAGEDIR}${JAVAJARDIR}/jna-platform.jar
 	${INSTALL_DATA} ${WRKSRC}/build/jna.jar \
 		${STAGEDIR}${JAVAJARDIR}/jna.jar
+# the library of the jars as it is (stripped by native/Makefile already)
+	${MKDIR} ${STAGEDIR}${PREFIX}/lib/jna
+	${INSTALL_DATA} ${WRKSRC}/build/native-freebsd-${ANT_ARCH}/libjnidispatch.so \
+		${STAGEDIR}${PREFIX}/lib/jna/libjnidispatch.so
 
 do-install-DOCS-on:
 	@${MKDIR} ${STAGEDIR}${DOCSDIR}
@@ -102,8 +111,8 @@ do-install-DOCS-on:
 	${INSTALL_DATA} ${WRKSRC}/dist/platform-${PORTVERSION}-javadoc.jar \
 		${STAGEDIR}${DOCSDIR}
 
-# the libjnidispatch.so of the two jars: built here, the libffi of az by the run
-# path, nothing of X11 (or of JAWT)
+# the libjnidispatch.so of the two jars and lib/jna: built here, the libffi of az
+# by the run path, nothing of X11 (or of JAWT)
 post-install:
 	@[ -z "${LIB_DEPENDS}${RUN_DEPENDS:N*\:az/az}" ] || \
 		{ ${ECHO_MSG} "the package needs more than az: ${LIB_DEPENDS} ${RUN_DEPENDS:N*\:az/az}"; ${FALSE}; }
@@ -111,8 +120,9 @@ post-install:
 	${TAR} -xf ${STAGEDIR}${JAVAJARDIR}/jna.jar -C $$d/jna.jar com/sun/jna/freebsd-${ANT_ARCH}/libjnidispatch.so && \
 	${TAR} -xf ${STAGEDIR}${JAVAJARDIR}/jna-platform.jar -C $$d/jna-platform.jar libjnidispatch.so || \
 		{ ${ECHO_MSG} "no libjnidispatch.so of freebsd-${ANT_ARCH} in jna.jar and jna-platform.jar"; exit 1; }; \
-	for f in $$d/jna.jar/com/sun/jna/freebsd-${ANT_ARCH}/libjnidispatch.so $$d/jna-platform.jar/libjnidispatch.so; do \
-		j="$${f#$$d/}"; j="$${j%%/*}"; \
+	for f in $$d/jna.jar/com/sun/jna/freebsd-${ANT_ARCH}/libjnidispatch.so $$d/jna-platform.jar/libjnidispatch.so \
+		${STAGEDIR}${PREFIX}/lib/jna/libjnidispatch.so; do \
+		case "$$f" in $$d/*) j="$${f#$$d/}"; j="$${j%%/*}" ;; *) j="lib/jna" ;; esac; \
 		cmp -s $$f ${WRKSRC}/build/native-freebsd-${ANT_ARCH}/libjnidispatch.so || \
 			{ ${ECHO_MSG} "the libjnidispatch.so of $$j is not the one built here"; exit 1; }; \
 		so="$$(${READELF} -d $$f | ${SED} -n 's/.*Shared library: \[\(libffi\.so\.[0-9.]*\)\].*/\1/p')"; \
