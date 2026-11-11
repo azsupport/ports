@@ -29,10 +29,11 @@ fail() { echo "FAIL  $*" >> "$out"; bad=$((bad + 1)); }
 # libs_of <file> [<library of /usr/local/lib>...]: what it loads (ldd) when every
 # library is found and is of the base system, of az (/usr/local/az/lib: our ports
 # link each other's shared libraries, aZ 10.11.2026) or one of those named (of our
-# other ports, in /usr/local/lib); else nothing, and why in libs_bad
+# other ports, in /usr/local/lib) in libs_out; else why in libs_bad (in this shell,
+# not in $( ): a failure has to give the caller its libs_bad)
 libs_of() {
     _f="$1"; shift
-    libs_bad=""
+    libs_bad=""; libs_out=""
     _l="$(ldd "$_f" 2>&1)" || { libs_bad="ldd failed: $(printf '%s\n' "$_l" | tail -n 1)"; return 1; }
     case "$_l" in *"not found"*) libs_bad="$(printf '%s\n' "$_l" | grep 'not found' | head -n 2 | tr '\n' ' ')"; return 1 ;; esac
     _all=""
@@ -45,7 +46,7 @@ libs_of() {
         libs_bad="$libs_bad $_x"
     done
     [ -z "$libs_bad" ] || { libs_bad="not of the base system, az or our ports:$libs_bad"; return 1; }
-    echo "${_all# }"
+    libs_out="${_all# }"
 }
 finish() {
     echo "tests: $ok ok, $bad failed" >> "$out"
@@ -79,7 +80,7 @@ for v in cpiofs tarfs sfs extfs ftpfs sftpfs shell; do
     case "$vfs" in *" $v "*) ;; *) miss="$miss $v" ;; esac
 done
 if [ -z "$miss" ]; then pass "VFS:$vfs"; else fail "VFS missing:$miss (have:$vfs)"; fi
-if libs="$(libs_of "$mc" libglib-2.0 libpcre2-8)"; then pass "libraries of the base system, az, glib and pcre2: $libs"
+if libs_of "$mc" libglib-2.0 libpcre2-8; then pass "libraries of the base system, az, glib and pcre2: $libs_out"
 else fail "libraries: $libs_bad"; fi
 miss=""
 for l in mcedit mcview mcdiff; do

@@ -30,10 +30,11 @@ fail() { echo "FAIL  $*" >> "$out"; bad=$((bad + 1)); }
 # libs_of <file> [<library of /usr/local/lib>...]: what it loads (ldd) when every
 # library is found and is of the base system, of az (/usr/local/az/lib: our ports
 # link each other's shared libraries, aZ 10.11.2026) or one of those named (of our
-# other ports, in /usr/local/lib); else nothing, and why in libs_bad
+# other ports, in /usr/local/lib) in libs_out; else why in libs_bad (in this shell,
+# not in $( ): a failure has to give the caller its libs_bad)
 libs_of() {
     _f="$1"; shift
-    libs_bad=""
+    libs_bad=""; libs_out=""
     _l="$(ldd "$_f" 2>&1)" || { libs_bad="ldd failed: $(printf '%s\n' "$_l" | tail -n 1)"; return 1; }
     case "$_l" in *"not found"*) libs_bad="$(printf '%s\n' "$_l" | grep 'not found' | head -n 2 | tr '\n' ' ')"; return 1 ;; esac
     _all=""
@@ -46,7 +47,7 @@ libs_of() {
         libs_bad="$libs_bad $_x"
     done
     [ -z "$libs_bad" ] || { libs_bad="not of the base system, az or our ports:$libs_bad"; return 1; }
-    echo "${_all# }"
+    libs_out="${_all# }"
 }
 finish() {
     echo "tests: $ok ok, $bad failed" >> "$out"
@@ -77,7 +78,7 @@ for p in dict file ftp ftps gopher gophers http https imap imaps ipfs ipns mqtt 
     case "$protos" in *" $p "*) ;; *) miss="$miss $p" ;; esac
 done
 if [ -z "$miss$extra" ]; then pass "protocols:$protos"; else fail "protocols:$protos (missing:${miss:- -}; not wanted:${extra:- -})"; fi
-if libs="$(libs_of "$c" libcurl)"; then pass "libraries of the base system, az and its libcurl.so.4: $libs"
+if libs_of "$c" libcurl; then pass "libraries of the base system, az and its libcurl.so.4: $libs_out"
 else fail "libraries: $libs_bad"; fi
 # SFTP with libssh2: the key exchange with the sshd here (the VM has one), then the
 # login of nobody refused, exit 67 (-k: no known_hosts of root to check the key of
@@ -101,7 +102,7 @@ case "$r" in
 esac
 # libcurl.so: the libraries of the base system and of az only, the API of curl only
 if [ -f "$so" ]; then
-    if l="$(libs_of "$so")"; then pass "libcurl.so.4: $l"; else fail "libcurl.so.4: $libs_bad"; fi
+    if libs_of "$so"; then pass "libcurl.so.4: $libs_out"; else fail "libcurl.so.4: $libs_bad"; fi
     x="$(nm -D --defined-only "$so" | awk 'NF >= 3 && $3 !~ /^(curl_|_init$|_fini$|_edata$|_end$|__bss_start$)/' | head -n 3 | tr '\n' ' ')"
     n="$(nm -D --defined-only "$so" | grep -c ' curl_')"
     miss=""

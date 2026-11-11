@@ -44,10 +44,11 @@ note() { echo "note  $*" >> "$out"; }
 # libs_of <file> [<library of /usr/local/lib>...]: what it loads (ldd) when every
 # library is found and is of the base system, of az (/usr/local/az/lib: our ports
 # link each other's shared libraries, aZ 10.11.2026) or one of those named (of our
-# other ports, in /usr/local/lib); else nothing, and why in libs_bad
+# other ports, in /usr/local/lib) in libs_out; else why in libs_bad (in this shell,
+# not in $( ): a failure has to give the caller its libs_bad)
 libs_of() {
     _f="$1"; shift
-    libs_bad=""
+    libs_bad=""; libs_out=""
     _l="$(ldd "$_f" 2>&1)" || { libs_bad="ldd failed: $(printf '%s\n' "$_l" | tail -n 1)"; return 1; }
     case "$_l" in *"not found"*) libs_bad="$(printf '%s\n' "$_l" | grep 'not found' | head -n 2 | tr '\n' ' ')"; return 1 ;; esac
     _all=""
@@ -60,13 +61,13 @@ libs_of() {
         libs_bad="$libs_bad $_x"
     done
     [ -z "$libs_bad" ] || { libs_bad="not of the base system, az or our ports:$libs_bad"; return 1; }
-    echo "${_all# }"
+    libs_out="${_all# }"
 }
 # chk <name> <file> [<library of /usr/local/lib>...]: libs_of as a check
 chk() {
     _n="$1"; _f="$2"; shift 2
     [ -e "$_f" ] || { fail "$_n: no $_f"; return 1; }
-    if _r="$(libs_of "$_f" "$@")"; then pass "$_n: $_r"; else fail "$_n: $libs_bad"; return 1; fi
+    if libs_of "$_f" "$@"; then pass "$_n: $libs_out"; else fail "$_n: $libs_bad"; return 1; fi
 }
 # ver <name> <text of its version> <command>...: the first line with the text
 ver() {
@@ -104,7 +105,7 @@ if have apache24; then
     for m in $mods; do
         f="$P/libexec/apache24/mod_$m.so"
         if [ ! -f "$f" ]; then fail "apache24: no mod_$m.so"; continue; fi
-        libs_of "$f" libpcre2-8 > /dev/null || fail "mod_$m.so: $libs_bad"
+        libs_of "$f" libpcre2-8 || fail "mod_$m.so: $libs_bad"
     done
     case " $mods " in *" maxminddb "*) chk mod_maxminddb "$P/libexec/apache24/mod_maxminddb.so" ;; esac
     mkdir -p "$T/www"
@@ -216,7 +217,7 @@ else skip vsftpd-ext; fi
 if have bind-tools; then
     ver bind-tools "DiG 9.20" "$P/bin/dig" -v
     if chk dig "$P/bin/dig" libisc libdns libns; then
-        case " $(libs_of "$P/bin/dig" libisc libdns libns) " in
+        case " $libs_out " in
             *"/libidn2.so"*) pass "dig: IDN with libidn2 of az" ;;
             *) fail "dig: no libidn2 (IDN)" ;;
         esac

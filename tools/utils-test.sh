@@ -24,10 +24,11 @@ fail() { echo "FAIL  $*" >> "$out"; bad=$((bad + 1)); }
 # libs_of <file> [<library of /usr/local/lib>...]: what it loads (ldd) when every
 # library is found and is of the base system, of az (/usr/local/az/lib: our ports
 # link each other's shared libraries, aZ 10.11.2026) or one of those named (of our
-# other ports, in /usr/local/lib); else nothing, and why in libs_bad
+# other ports, in /usr/local/lib) in libs_out; else why in libs_bad (in this shell,
+# not in $( ): a failure has to give the caller its libs_bad)
 libs_of() {
     _f="$1"; shift
-    libs_bad=""
+    libs_bad=""; libs_out=""
     _l="$(ldd "$_f" 2>&1)" || { libs_bad="ldd failed: $(printf '%s\n' "$_l" | tail -n 1)"; return 1; }
     case "$_l" in *"not found"*) libs_bad="$(printf '%s\n' "$_l" | grep 'not found' | head -n 2 | tr '\n' ' ')"; return 1 ;; esac
     _all=""
@@ -40,7 +41,7 @@ libs_of() {
         libs_bad="$libs_bad $_x"
     done
     [ -z "$libs_bad" ] || { libs_bad="not of the base system, az or our ports:$libs_bad"; return 1; }
-    echo "${_all# }"
+    libs_out="${_all# }"
 }
 export LANG=C.UTF-8
 
@@ -77,7 +78,7 @@ ver bash "GNU bash, version 5" "$P/bin/bash" --version
 ver bsddialog "1\.1" "$P/bin/bsddialog" --version
 ver portmaster "3\.35" "$P/sbin/portmaster" --version
 for b in zip unzip screen bash yamdi 3proxy; do libs "$P/bin/$b"; done
-if l="$(libs_of "$P/bin/wget" libpcre2-8)"; then pass "wget: $l"; else fail "wget: $libs_bad"; fi
+if libs_of "$P/bin/wget" libpcre2-8; then pass "wget: $libs_out"; else fail "wget: $libs_bad"; fi
 feat=" $("$P/bin/wget" --version 2>&1 | sed -n '/^[+-]/p' | tr '\n' ' ') "
 miss=""
 for f in +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm; do
@@ -88,7 +89,7 @@ rv="$("$P/bin/rsync" --version 2>&1)"
 miss=""
 for f in xxh128 zstd lz4 file-flags; do printf '%s\n' "$rv" | grep -q -- "$f" || miss="$miss $f"; done
 if [ -z "$miss" ]; then pass "rsync: xxh128, zstd, lz4, file-flags"; else fail "rsync --version lacks$miss"; fi
-if l="$(libs_of "$P/bin/rsync")"; then pass "rsync: $l"; else fail "rsync: $libs_bad"; fi
+if libs_of "$P/bin/rsync"; then pass "rsync: $libs_out"; else fail "rsync: $libs_bad"; fi
 libs "$P/bin/sudo" libsudo_util
 libs "$P/bin/bsddialog" libbsddialog
 libs "$P/lib/snmp_ucd.so"
