@@ -10,7 +10,7 @@
 # gettext-runtime, libiconv, pcre2, libffi, zip, Perl and Python) and libraries of
 # the base system (ncursesw, libutil, libz, libcrypto). zip, jar, 7z, rar and
 # ISO 9660 open with files/ubsdtar (tar of the base system) after
-# files/archives-bsdtar.patch; Perl, Python, zip and GNU diff are no dependencies
+# files/archives-bsdtar.patch, the names of a zip of Windows (not UTF-8) in CP866; Perl, Python, zip and GNU diff are no dependencies
 # (files/mc.conf: what each of them still gives when it is installed).
 
 PORTNAME=	mc

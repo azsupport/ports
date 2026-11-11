@@ -119,6 +119,34 @@ if (cd "$T/src" && tar -a -cf "$T/t.zip" .) 2> "$T/zip.err"; then
 else
     fail "tar -a -cf t.zip: $(head -n 2 "$T/zip.err" | tr '\n' ' ')"
 fi
+# ubsdtar on a zip of Windows: its names in CP866 without the UTF-8 flag (the bytes
+# of "Документы/отчёт.txt" in CP866; its data "привет" in UTF-8), which tar -tv
+# gives as \NNN: read in CP866 (MC_UBSDTAR_ZIP_CHARSET)
+if [ -x "$h" ]; then
+    {
+    printf '\120\113\003\004\024\000\000\000\000\000\307\132\153\135\072\034\235\243'
+    printf '\015\000\000\000\015\000\000\000\023\000\000\000\204\256\252\343\254\245'
+    printf '\255\342\353\057\256\342\347\361\342\056\164\170\164\320\277\321\200\320'
+    printf '\270\320\262\320\265\321\202\012\120\113\001\002\024\003\024\000\000\000'
+    printf '\000\000\307\132\153\135\072\034\235\243\015\000\000\000\015\000\000\000'
+    printf '\023\000\000\000\000\000\000\000\000\000\000\000\200\001\000\000\000\000'
+    printf '\204\256\252\343\254\245\255\342\353\057\256\342\347\361\342\056\164\170'
+    printf '\164\120\113\005\006\000\000\000\000\001\000\001\000\101\000\000\000\076'
+    printf '\000\000\000\000\000'
+    } > "$T/win.zip"
+    LC_ALL=C.UTF-8 sh "$h" list "$T/win.zip" > "$T/win-list.txt" 2>&1
+    if grep -q ' Документы/отчёт\.txt$' "$T/win-list.txt"; then
+        pass "ubsdtar list: a zip of Windows with names in CP866 (Документы/отчёт.txt)"
+    else
+        fail "ubsdtar list of a zip with names in CP866: $(head -n 2 "$T/win-list.txt" | tr '\n' ' ')"
+    fi
+    if LC_ALL=C.UTF-8 sh "$h" copyout "$T/win.zip" "Документы/отчёт.txt" "$T/win-out.txt" &&
+            [ "$(cat "$T/win-out.txt")" = "привет" ]; then
+        pass "ubsdtar copyout: Документы/отчёт.txt of a zip with names in CP866"
+    else
+        fail "ubsdtar copyout of a zip with names in CP866: $(head -c 200 "$T/win-out.txt" 2>/dev/null)"
+    fi
+fi
 
 # ubsdtar on a hard link in ISO 9660 (tar of the base system writes it): NAME -> FILE
 # in the list, the data of FILE on copyout
