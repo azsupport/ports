@@ -24,13 +24,20 @@
 #             libpng and HarfBuzz
 #   jna       getpid of libc through JNA (jna.jar of devel/jna, as Elasticsearch
 #             loads it: jna.nosys) is the pid of ProcessHandle; its libjnidispatch.so
-#             with the libffi of az
-#   deps      pkg info -d of openjdk17 and jna: az only; the packages elasticsearch6
-#             needs, all of them, when it is installed
+#             with the libffi of az; then with the libjnidispatch.so of the package
+#             (-Djna.boot.library.path=/usr/local/lib/jna -Djna.nosys=false, aZ
+#             11.11.2026: Elasticsearch writes nothing at its start): that file
+#             loaded (-Djna.debug_load.jna=true logs which jnidispatch, procstat),
+#             nothing extracted from the jar (-Djna.debug_load=true logs an
+#             extraction; jna.tmpdir stays empty)
+#   deps      pkg info -d of openjdk17 and jna: az only; elasticsearch6, when it is
+#             installed: bash, jna and openjdk17, and among all the packages it
+#             needs none of a desktop
 #
 # Usage (FreeBSD, as root, the packages installed): sh tools/java-test.sh
 # Results: java-results/tests.txt (one line per check, the summary at the end), the
-# output of the programs next to it; exit status 0 when every check passed.
+# output of the programs next to it; the same on the standard output, its last lines
+# what the fonts gave and the summary; exit status 0 when every check passed.
 
 set -u
 res="${AZ_RESULTS:-$(pwd)/java-results}"
@@ -49,7 +56,17 @@ note() { echo "note  $*" >> "$out"; }
 pkgv() { pkg query '%v' "$1" 2>/dev/null | sed 's/[_,].*//'; }
 # val <file> <key>: the value of the line "<key>=..." the program printed
 val() { sed -n "s/^$2=//p" "$1" | head -n 1; }
-done_() { echo "java-test: $ok ok, $bad failed" >> "$out"; [ "$bad" = 0 ]; exit $?; }
+# done_: the summary, tests.txt on the standard output, its last lines what the fonts
+# gave and the summary (test-programs.sh shows the last three); the exit status
+done_() {
+    echo "java-test: $ok ok, $bad failed" >> "$out"
+    cat "$out"
+    echo "fonts: ${font_sum:-not tried}"
+    echo "fonts without fontconfig: ${nofc_sum:-not tried}"
+    echo "java-test: $ok ok, $bad failed"
+    [ "$bad" = 0 ]; exit $?
+}
+font_sum=""; nofc_sum=""
 unset DISPLAY
 
 for p in openjdk17 jna; do
@@ -401,6 +418,8 @@ note "fonts: fontconfig in the process: ${fc:-none}"
 note "without fontconfig (USE_J2D_FONTCONFIG=no, as with our packages only): the families: $(val "$res/java-nofc.out" font_families)"
 note "without fontconfig: a logical font: $(val "$res/java-nofc.out" font_logical)"
 note "without fontconfig: the font file: $(val "$res/java-nofc.out" font_file)"
+font_sum="fontconfig ${fc:-none}; families $(val "$o" font_families | cut -c1-80); SansSerif $(val "$o" font_logical | cut -c1-80); the file $(val "$o" font_file | cut -c1-60)"
+nofc_sum="families $(val "$res/java-nofc.out" font_families | cut -c1-110); the file $(val "$res/java-nofc.out" font_file | cut -c1-40)"
 # sound
 s="$(val "$o" sound)"
 case "$s" in [0-9]*" mixers"*) pass "AudioSystem.getMixerInfo(): $s" ;; *) fail "AudioSystem.getMixerInfo(): ${s:-not told}" ;; esac
@@ -448,6 +467,28 @@ if [ -n "$jd" ]; then
     b="$(readelf -d "$jd" 2>/dev/null | sed -n 's/.*Shared library: \[\(.*\)\].*/\1/p' | grep -E '^lib(X|xcb|jawt)' | tr '\n' ' ')"
     [ -z "$b" ] && pass "JNA: libjnidispatch.so links nothing of X11" || fail "JNA: libjnidispatch.so links $b"
 fi
+# jna with the library of the package as Elasticsearch can load it (aZ, 11.11.2026):
+# lib/jna/libjnidispatch.so by jna.boot.library.path, nothing extracted
+o="$res/jna-boot.out"
+lj="$P/lib/jna/libjnidispatch.so"
+rm -rf "$T/jna-boot"; mkdir -p "$T/jna-boot"
+(cd "$T" && "$J/bin/java" -Djna.boot.library.path="$P/lib/jna" -Djna.nosys=false -Djna.debug_load=true \
+    -Djna.debug_load.jna=true -Djna.tmpdir="$T/jna-boot" -cp "$T/classes:$jna" AzJnaTest) > "$o" 2> "$res/jna-boot.err"
+r=$?
+jp="$(val "$o" jna_pid)"; vp="$(val "$o" java_pid)"
+x="$(ls "$T/jna-boot" 2>/dev/null | tr '\n' ' ')"
+if [ "$r" = 0 ] && [ -n "$jp" ] && [ "$jp" = "$vp" ] && grep -q "Found jnidispatch at $lj\$" "$res/jna-boot.err" &&
+    sed -n 's/^map=//p' "$o" | grep -qx "$lj" && ! grep -q -E 'Extracting library|Looking in classpath' "$res/jna-boot.err" &&
+    [ -z "$x" ]; then
+    pass "JNA with -Djna.boot.library.path=$P/lib/jna -Djna.nosys=false: $lj loaded (getpid() $jp), nothing extracted"
+else
+    fail "JNA with -Djna.boot.library.path=$P/lib/jna: exit $r, getpid() ${jp:-not told} (the JVM ${vp:-not told}), $(grep -E 'Found jnidispatch|Extracting' "$res/jna-boot.err" | head -n 2 | tr '\n' ' ')${x:+, in jna.tmpdir: $x}"
+fi
+# the file of the package is the library of jna.jar (extracted by the run above, kept)
+if [ -n "$jd" ]; then
+    if cmp -s "$lj" "$jd"; then pass "$lj is the libjnidispatch.so of jna.jar"
+    else fail "$lj is not the libjnidispatch.so of jna.jar ($jd)"; fi
+fi
 
 # deps
 for p in openjdk17 jna; do
@@ -456,6 +497,9 @@ for p in openjdk17 jna; do
     if [ "$d" = "az " ]; then pass "pkg info -d $p: az only"; else fail "pkg info -d $p: ${d:-nothing}"; fi
 done
 if pkg info -e elasticsearch6; then
+    d="$(pkg query '%dn' elasticsearch6 | LC_ALL=C sort -u | tr '\n' ' ')"
+    if [ "$d" = "bash jna openjdk17 " ]; then pass "pkg info -d elasticsearch6: bash, jna, openjdk17"
+    else fail "pkg info -d elasticsearch6: ${d:-nothing}, not bash, jna, openjdk17"; fi
     # every package elasticsearch6 needs, also through the others
     have="elasticsearch6"; new="elasticsearch6"
     while [ -n "$new" ]; do
@@ -470,8 +514,8 @@ if pkg info -e elasticsearch6; then
     # shellcheck disable=SC2086
     all="$(printf '%s\n' $have | grep -vx elasticsearch6 | LC_ALL=C sort | tr '\n' ' ')"
     # shellcheck disable=SC2086
-    extra="$(printf '%s\n' $have | grep -v -E '^(elasticsearch6|bash|gettext-runtime|indexinfo|jna|openjdk17|az)$' | tr '\n' ' ')"
-    if [ -z "$extra" ]; then pass "elasticsearch6 needs: $all"; else fail "elasticsearch6 needs more than bash, jna, openjdk17, az: $extra(all: $all)"; fi
+    desk="$(printf '%s\n' $have | grep -E '^(lib(X|xcb|ICE|SM|fontenc|drm|GL|EGL).*|xorg.*|.*-fonts?-.*|fontconfig|freetype2|alsa-lib|alsa-plugins|harfbuzz.*|glib|python3.*|giflib|png|jpeg-turbo|lcms2|tiff|javavmwrapper|dejavu|mkfontscale|cups|avahi.*|dbus|gtk.*|cairo|pango)$' | tr '\n' ' ')"
+    if [ -z "$desk" ]; then pass "elasticsearch6 needs, in all: $all(nothing of a desktop)"; else fail "elasticsearch6 needs packages of a desktop: $desk(all: $all)"; fi
 else
     note "elasticsearch6 is not installed: its packages not counted"
 fi
