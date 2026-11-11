@@ -3,7 +3,7 @@
 # in the place of that of the official port: what mc --version says it was built with
 # (GLib, ncurses(w), libssh2, the editor, the subshell, the codepages, the VFS with
 # sftpfs and shell; no X11 and no translations, as misc/mc/files/mc.conf has it), its
-# libraries (the base system, the shared ones of az and of pcre2), the links mcedit, mcview and mcdiff, its paths
+# libraries (the base system, the shared ones of az, glib and pcre2), the links mcedit, mcview and mcdiff, its paths
 # (mc -F), the extfs helper ubsdtar on a zip that tar of the base system makes (list,
 # as mc reads it, copyout) and on a hard link in ISO 9660, and mc itself in a
 # terminal (script(1)): the panels drawn and F10 quits;
@@ -79,7 +79,7 @@ for v in cpiofs tarfs sfs extfs ftpfs sftpfs shell; do
     case "$vfs" in *" $v "*) ;; *) miss="$miss $v" ;; esac
 done
 if [ -z "$miss" ]; then pass "VFS:$vfs"; else fail "VFS missing:$miss (have:$vfs)"; fi
-if libs="$(libs_of "$mc" libpcre2-8)"; then pass "libraries of the base system, az and pcre2: $libs"
+if libs="$(libs_of "$mc" libglib-2.0 libpcre2-8)"; then pass "libraries of the base system, az, glib and pcre2: $libs"
 else fail "libraries: $libs_bad"; fi
 miss=""
 for l in mcedit mcview mcdiff; do
