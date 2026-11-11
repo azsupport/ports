@@ -461,6 +461,22 @@ while read -r p; do
             skip "ssh2: the handshake with the sshd here" "no sshd on 127.0.0.1:22"
         fi
     fi
+    # gd: the libgd of az in every version (5.6 too, aZ 11.11.2026: not the bundled
+    # one), imageantialias() with it (5.6: graphics/php56-gd/files/patch-gd.c), a line
+    # and a PNG
+    if [ "$mod" = gd ]; then
+        intl_check "gd: the libgd of az, imageantialias(), PNG" '
+            $i = gd_info();
+            $im = imagecreatetruecolor(32, 32);
+            $aa = function_exists("imageantialias") && imageantialias($im, true);
+            imageline($im, 0, 0, 31, 20, imagecolorallocate($im, 255, 255, 255));
+            ob_start(); imagepng($im); $p = ob_get_clean();
+            $b = defined("GD_BUNDLED") ? GD_BUNDLED : -1;
+            echo ($b === 0 && $aa && substr($p, 0, 8) === "\x89PNG\r\n\x1a\n")
+                ? "OK GD " . $i["GD Version"] . " (GD_BUNDLED 0), imageantialias, a PNG of " . strlen($p) . " bytes"
+                : "FAIL GD " . $i["GD Version"] . ", GD_BUNDLED " . $b . ", imageantialias " . ($aa ? "yes" : "no")
+                    . ", PNG " . bin2hex(substr($p, 0, 8));' "$@"
+    fi
     if [ "$mod" = curl ]; then
         intl_check "curl: SCP and SFTP" '
             $v = curl_version();

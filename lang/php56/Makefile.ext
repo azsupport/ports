@@ -66,11 +66,13 @@
 #   the run path of a module is ${AZ_PREFIX}/lib only), for dom, simplexml,
 #   soap, wddx, xml, xmlreader, xmlrpc, xmlwriter and xsl.
 # - not TEST_TARGET: the official 5.6 has none.
-# - gd with the bundled libgd of PHP 5.6 (the official 5.6 and the static build
-#   of 5.6 of php-src: --with-gd), with FreeType, PNG and JPEG of az, not the
-#   libgd of az of 7.4 (--with-external-gd is of PHP 7.4); see its rules. Its
-#   options are set before bsd.port.pre.mk (after it in the official 5.6):
-#   USES=xorg of X11 is read there in the framework of f16b6dd.
+# - gd with the libgd of az, as 7.4 to 8.4 (aZ, 11.11.2026: the bundled libgd of
+#   5.6, a libgd 2.1.0 of 2013 with few fixes since, for the security; the
+#   official 5.6 and the static build of 5.6 of php-src take the bundled one):
+#   --with-gd=DIR, an external libgd of 2.1.0 or later, which 5.6 takes too
+#   (--with-external-gd is only its name of 7.4); see its rules. Its options are
+#   set before bsd.port.pre.mk (after it in the official 5.6): USES=xorg of X11 is
+#   read there in the framework of f16b6dd.
 # - openssl: not the BROKEN with openssl111 of the official port (the fork
 #   builds with OpenSSL 1.1 and 3; OpenSSL of the base system here).
 # - the variants with OpenSSL, as for 7.4: ftp and mysqlnd without it,
@@ -230,16 +232,23 @@ post-patch:
 .endif
 
 .if ${PHP_MODNAME} == "gd"
-# The bundled libgd of PHP 5.6 (as the official port), with FreeType, PNG and
-# JPEG (mozjpeg) of az; FreeType by its pkg-config, that of az (az has no
-# freetype-config: compat-freetype-pkgconfig of the fork)
-AZ_LIBS=	libfreetype.so libjpeg.so libpng16.so
+# The libgd of az, as 7.4 to 8.4 (not the bundled one of 5.6, aZ 11.11.2026), with
+# PNG, JPEG (mozjpeg), WebP, FreeType and LIQ (libimagequant); FreeType, PNG and JPEG
+# of az for the checks of config.m4 too, FreeType by its pkg-config (az has no
+# freetype-config: compat-freetype-pkgconfig of the fork). The bundled libgd is not
+# extracted. imageantialias(), which 5.6 has only with the bundled libgd, as PHP 7.2
+# made it for a system libgd (graphics/php56-gd/files/patch-gd.c); XPM only with the
+# option X11 (files/patch-config.m4: libgd has gdImageCreateFromXpm without libXpm)
+AZ_LIBS=	libgd.so libfreetype.so libjpeg.so libpng16.so
 
-CONFIGURE_ARGS+=--with-gd \
+CONFIGURE_ARGS+=--with-gd=${AZ_PREFIX} \
 		--with-freetype-dir=${AZ_PREFIX} \
 		--with-jpeg-dir=${AZ_PREFIX} \
 		--with-png-dir=${AZ_PREFIX} \
 		--with-zlib-dir=/usr
+
+EXTRACT_AFTER_ARGS=--no-same-owner --no-same-permissions --exclude libgd \
+		${EXTSUBDIR}
 
 USES+=		pkgconfig
 
@@ -253,8 +262,6 @@ TRUETYPE_DESC=	Enable TrueType string function
 JIS_DESC=	Enable JIS-mapped Japanese font support
 X11_DESC=	Enable XPM support
 VPX_DESC=	Enable VP8 codec support
-
-PHP_HEADER_DIRS=libgd
 .endif
 
 .if ${PHP_MODNAME} == "gettext"
