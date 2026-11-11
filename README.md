@@ -74,7 +74,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, the programs with 6 at the end (`convert6`, `identify6`, ...); its libraries in `/usr/local/az/lib` |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); its `libMagickCore-7.so` and `libMagickWand-7.so` in `/usr/local/az/lib`, which `magick` and the module imagick link |
 | `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) with the formats of our ImageMagick; its libraries in `/usr/local/az/lib`, which `gm` and the module gmagick link |
-| `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; GLib inside, libssh2 of az, PCRE2 of `pcre2`; zip, 7z, rar and ISO images through `tar` of the base system |
+| `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; GLib inside, libssh2 of az, PCRE2 of `pcre2`; zip, 7z, rar and ISO images through `tar` of the base system (the names of a zip of Windows in CP866) |
 | `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 and PCRE 8.45, the official ports: the PCRE of every package (PHP, Apache, git, wget, mc, MariaDB; nginx later) |
 | `git` | `devel/git` | git without Perl, Python, Tcl/Tk, gettext, the manual pages and git daemon; HTTPS through our `curl`, `git grep -P` with `pcre2` |
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi and env too), no SSL; APR and libmaxminddb of az |

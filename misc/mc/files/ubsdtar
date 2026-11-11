@@ -9,6 +9,11 @@
 
 TAR="${MC_UBSDTAR_TAR:-/usr/bin/tar}"
 here="$(dirname "$0")"
+# the code page of the names of a zip or jar that are not UTF-8: Windows writes them
+# in its OEM code page, CP866 for Russian (tar -tv gives their bytes as \NNN then,
+# and mc shows them so); a zip with the UTF-8 flag or with UTF-8 names stays as it is
+ZIPCP="${MC_UBSDTAR_ZIP_CHARSET:-CP866}"
+opts=""
 
 # the lines of tar -tv, which are those of ls -l, as mc reads them: the names
 # without ./ and without the / of a directory, the root directory of the archive
@@ -32,8 +37,20 @@ ub_awk='
         seen[name] = 1
         printf "%s %s %s %s %s %s %s %s %s%s\n", f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8], name, to
     }'
+# ub_opts <archive>: the names of a zip or jar in $ZIPCP when tar -tv has \NNN in them
+ub_opts() {
+    opts=""
+    case "$1" in
+        *.[zZ][iI][pP] | *.[jJ][aA][rR])
+            if LC_TIME=C "$TAR" -tvf "$1" 2> /dev/null | grep -q '\\[0-7][0-7][0-7]'; then
+                opts="--options zip:hdrcharset=$ZIPCP"
+            fi ;;
+    esac
+}
 ub_list() {
-    LC_TIME=C "$TAR" -tvf "$1" | awk "$ub_awk"
+    ub_opts "$1"
+    # shellcheck disable=SC2086
+    LC_TIME=C "$TAR" $opts -tvf "$1" | awk "$ub_awk"
 }
 
 # a name as a pattern of tar: * ? [ ] \ escaped
@@ -44,11 +61,15 @@ ub_pat() {
 # one file to stdout of tar; a hard link has no data of its own in tar and ISO 9660:
 # that of the file it links to
 ub_copyout() {
+    ub_opts "$1"
     p="$(ub_pat "$2")"
-    "$TAR" -xOf "$1" -- "$p" > "$3" || return
+    # shellcheck disable=SC2086
+    "$TAR" $opts -xOf "$1" -- "$p" > "$3" || return
     [ -s "$3" ] && return
-    to="$(LC_TIME=C "$TAR" -tvf "$1" -- "$p" | awk -v target=1 "$ub_awk" | sed -n 1p)"
-    [ -z "$to" ] || "$TAR" -xOf "$1" -- "$(ub_pat "$to")" > "$3"
+    # shellcheck disable=SC2086
+    to="$(LC_TIME=C "$TAR" $opts -tvf "$1" -- "$p" | awk -v target=1 "$ub_awk" | sed -n 1p)"
+    # shellcheck disable=SC2086
+    [ -z "$to" ] || "$TAR" $opts -xOf "$1" -- "$(ub_pat "$to")" > "$3"
 }
 
 # what tar cannot do: the helper of mc for the format, when there is one
