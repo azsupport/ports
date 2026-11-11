@@ -20,7 +20,8 @@
 #                        curl_features to curl
 #   files/curl-deps.conf the line of a library to it (psl-list to libpsl)
 #   files/curl.conf      to curl
-#   files/curl/<name>-<version>.patch, files/deps/<name>-<version>/  to that library
+#   files/curl/<name>-<version>.patch, files/deps/<name>-<version>/,
+#   files/deps/<name>-<version>.patch  to that library
 #   Makefile             a line of MASTER_SITES or DISTFILES with :<group> to the
 #                        library of the group (cares: c-ares, psllist: libpsl)
 #   distinfo             the lines of a distfile of such a group to its library;
@@ -123,6 +124,8 @@ while read -r f; do
             } else if (path == "az/az/files/curl.conf") {
                 o = ("curl" in lib) ? "curl" : "common"
             } else if (path ~ /^az\/az\/files\/curl\/[^\/]+\.patch$/) {
+                b = path; sub(/.*\//, "", b); o = prefixlib(b); if (o == "") o = "common"
+            } else if (path ~ /^az\/az\/files\/deps\/[^\/]+\.patch$/) {
                 b = path; sub(/.*\//, "", b); o = prefixlib(b); if (o == "") o = "common"
             } else if (path ~ /^az\/az\/files\/deps\/[^\/]+\//) {
                 b = path; sub(/^az\/az\/files\/deps\//, "", b); sub(/\/.*/, "", b); o = prefixlib(b); if (o == "") o = "common"

@@ -786,6 +786,20 @@ build_one() {
         rm -rf "$wd.so"
         # shellcheck disable=SC2086
         pmake "$port" $targs patch || { echo "make patch failed"; exit 1; }
+        # a fix the port lacks (a vulnerability that touches us, or a bug we have; rule
+        # of 04.11.2026): files/deps/<name>-<version>.patch, -p0 as those of files/curl,
+        # after the patches of the port (or of the take line); one for another version
+        # than the one built stops the build, so that it gets reviewed
+        # shellcheck disable=SC2086
+        xv="${take_ver:-$(pmake "$port" $targs -V DISTVERSION 2>/dev/null)}"
+        for xp in "$files/deps/$n"-*.patch; do
+            [ -f "$xp" ] || continue
+            if [ "$xp" != "$files/deps/$n-$xv.patch" ]; then
+                echo "== ${xp##*/}: for another version of $n than $xv: bring it up to $xv or drop it"; exit 1
+            fi
+            echo "== ${xp##*/} (files/deps)"
+            (cd "$src" && patch -p0 -s -f < "$xp") || { echo "== ${xp##*/} does not apply"; exit 1; }
+        done
         # what the configure stage of the framework fixes in the sources before configure,
         # which make patch does not do: FreeBSD 1x taken for 1.x by old autotools
         # (run-autotools-fixup) and the libtool fixes of USES=libtool (patch-libtool);
