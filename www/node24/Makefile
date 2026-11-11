@@ -48,7 +48,7 @@ LIB_DEPENDS=	libada.so:devel/libada \
 		libsimdjson.so:devel/simdjson \
 		libuvwasi.so:devel/uvwasi
 RUN_DEPENDS=	${AZ_NODE_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@} \
-		corepack>=0:www/corepack
+		corepack-node24>=0:www/corepack-node24
 
 USES=		compiler:c++20-lang gmake localbase pkgconfig python:build shebangfix tar:xz
 

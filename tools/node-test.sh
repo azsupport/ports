@@ -1,6 +1,6 @@
 #!/bin/sh
 # node-test.sh - test Node.js of the repository az, installed from it (aZ,
-# 11.11.2026): node24 with npm-node24, yarn-node24 and corepack, on the libraries of
+# 11.11.2026): node24 with npm-node24, yarn-node24 and corepack-node24, on the libraries of
 # az and those that Node.js bundles as ports of this tree. node loads only libraries
 # of the base system, of az (/usr/local/az/lib) and of our ports (ada, llhttp,
 # nbytes, nghttp3, ngtcp2, simdjson, uvwasi, hdr_histogram), and the versions it
@@ -282,9 +282,9 @@ if pkg info -e yarn-node24; then
 else
     note "yarn-node24 is not installed: not tested"
 fi
-if pkg info -e corepack; then
+if pkg info -e corepack-node24; then
     v="$(HOME="$T/home" "$P/bin/corepack" --version 2>&1)"
-    if [ "$v" = "$(pkgv corepack)" ]; then pass "corepack --version: $v"; else fail "corepack --version: $v, the package is $(pkgv corepack)"; fi
+    if [ "$v" = "$(pkgv corepack-node24)" ]; then pass "corepack --version: $v"; else fail "corepack --version: $v, the package is $(pkgv corepack-node24)"; fi
     mkdir -p "$T/shims"
     if HOME="$T/home" "$P/bin/corepack" enable --install-directory "$T/shims" pnpm > "$T/corepack.log" 2>&1 &&
             [ -e "$T/shims/pnpm" ]; then
@@ -293,7 +293,7 @@ if pkg info -e corepack; then
         fail "corepack enable: $(tail -n 1 "$T/corepack.log")"
     fi
 else
-    fail "corepack is not installed (a dependency of node24)"
+    fail "corepack-node24 is not installed (a dependency of node24)"
 fi
 
 echo "node-test: $ok ok, $bad failed" >> "$out"

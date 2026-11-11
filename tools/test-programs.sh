@@ -7,7 +7,7 @@
 # the utilities of the official ports (Mk/az-official.mk) by utils-test.sh, the
 # server packages (git, Apache, memcached, MariaDB, vsftpd-ext, BIND and its tools,
 # vips, qt-faststart) by servers-test.sh, Node.js (node24, npm-node24,
-# yarn-node24, corepack) by node-test.sh, and Elasticsearch 6 by elastic-test.sh.
+# yarn-node24, corepack-node24) by node-test.sh, and Elasticsearch 6 by elastic-test.sh.
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -172,7 +172,7 @@ if [ -n "$s_" ]; then
 fi
 # Node.js (aZ, 11.11.2026) as the server packages: node24 with npm, yarn and
 # corepack (gmake and Python of npm are official packages)
-nodes="node24 npm-node24 yarn-node24 corepack"
+nodes="node24 npm-node24 yarn-node24 corepack-node24"
 n_=""
 for p in $nodes; do in_repo "$p" && n_="$n_ $p"; done
 if [ -n "$n_" ]; then
