@@ -4,10 +4,14 @@
 # as poudriere builds), into the repository of pkg "az", signed.
 #
 # Usage (as root on FreeBSD; the tree is the one this script is in):
-#   sh tools/build.sh [--force] [--repo <dir>] [<origin> ...]
+#   sh tools/build.sh [--force] [--repo <dir>] [<origin> ... [";" <origin> ...] ...]
 #
 #   <origin>      the ports to build (category/port of this tree) and the ports of
 #                 this tree they need; none: every <category>/<port> with a Makefile
+#   ";"           between groups of them: stages, each built after the one before it
+#                 (with the ports it needs that no stage before it has); none, for
+#                 every port: az, then PHP 5.6, 7.4, 8.1, 8.3, 8.2, 8.4 (each with
+#                 mod_php and its modules), then the rest (the order of aZ, 11.11.2026)
 #   --force       build every port of the queue, also those whose package with the
 #                 same az_hash is in the repository already
 #   --repo <dir>  the repository: the files of the release az-fbsd<major>-amd64-<level>
@@ -481,14 +485,31 @@ inst_port() {
 }
 
 # --- the queue -----------------------------------------------------------------------
+# the stages: the ports asked for in groups separated by ";", each group (with the
+# ports of this tree it needs that no group before it has) built after the one before
+# it; without ports the order of aZ (11.11.2026: "Первым делом ... az, на php 5.6, 7.4,
+# 8.1, 8.3, 8.2, 8.4 - в таком порядке"): az, then each PHP version (its core, mod_php
+# and modules), then the other ports. $q/groups: "<group> <origin>"
+: > "$q/groups"
+g=1
 for o in "$@"; do
+    if [ "$o" = ";" ]; then g=$((g + 1)); continue; fi
     ours "${o%/}" || die "not a port of this tree: $o (no $top/${o%/}/Makefile)"
+    echo "$g ${o%/}" >> "$q/groups"
 done
-if [ $# -gt 0 ]; then
-    for o in "$@"; do echo "${o%/}"; done
-else
-    all_ports
-fi | LC_ALL=C sort -u > "$q/want.txt"
+if [ $# -eq 0 ]; then
+    all_ports > "$q/all.txt"
+    g=1
+    grep -qxF az/az "$q/all.txt" && { echo "1 az/az" >> "$q/groups"; g=2; }
+    for v in 56 74 81 83 82 84; do
+        grep -E "^(lang/php$v|www/mod_php$v|[^/]+/php$v-.*)\$" "$q/all.txt" | sed "s#^#$g #" > "$q/g.txt"
+        [ -s "$q/g.txt" ] || continue
+        cat "$q/g.txt" >> "$q/groups"; g=$((g + 1))
+    done
+    awk '{ print $2 }' "$q/groups" > "$q/g.txt"
+    grep -vxF -f "$q/g.txt" "$q/all.txt" | sed "s#^#$g #" >> "$q/groups" || :
+fi
+awk '{ print $2 }' "$q/groups" | LC_ALL=C sort -u > "$q/want.txt"
 [ -s "$q/want.txt" ] || die "no ports to build (no <category>/<port>/Makefile in $top)"
 # the closure: the ports asked for and the ports of this tree they need
 cp "$q/want.txt" "$q/set.txt"
@@ -525,8 +546,38 @@ while [ -s "$q/left.txt" ]; do
         break
     fi
 done
+# the stages: each group with the ports of this tree it needs, less those of the
+# groups before it, in the order of the queue ($q/stage-<n>.txt); the queue then
+# stage after stage (each port still after the ports it needs)
+: > "$q/staged"
+nst=0
+for g in $(awk '{ print $1 }' "$q/groups" | sort -un); do
+    awk -v g="$g" '$1 == g { print $2 }' "$q/groups" | LC_ALL=C sort -u > "$q/cl"
+    cp "$q/cl" "$q/cl.new"
+    while [ -s "$q/cl.new" ]; do
+        for o in $(cat "$q/cl.new"); do cat "$q/deps/$(key "$o")"; done | LC_ALL=C sort -u | grep -vxF -f "$q/cl" > "$q/cl.next" || :
+        cat "$q/cl.next" >> "$q/cl"
+        mv "$q/cl.next" "$q/cl.new"
+    done
+    grep -xF -f "$q/cl" "$q/queue.txt" | grep -vxF -f "$q/staged" > "$q/st.txt" || :
+    [ -s "$q/st.txt" ] || continue
+    nst=$((nst + 1))
+    mv "$q/st.txt" "$q/stage-$nst.txt"
+    cat "$q/stage-$nst.txt" >> "$q/staged"
+done
+# what no group has (none, unless a loop above): a last stage
+grep -vxF -f "$q/staged" "$q/queue.txt" > "$q/st.txt" || :
+if [ -s "$q/st.txt" ]; then nst=$((nst + 1)); mv "$q/st.txt" "$q/stage-$nst.txt"; fi
+i=1; while [ "$i" -le "$nst" ]; do cat "$q/stage-$i.txt"; i=$((i + 1)); done > "$q/queue.txt"
 cp "$q/queue.txt" "$res/queue.txt"
-say "the queue: $(wc -l < "$q/queue.txt" | tr -d ' ') ports (results/queue.txt)"
+say "the queue: $(wc -l < "$q/queue.txt" | tr -d ' ') ports (results/queue.txt), $nst stage$( [ "$nst" = 1 ] || echo s)"
+: > "$res/stages.txt"
+i=1
+while [ "$i" -le "$nst" ]; do
+    echo "stage $i: $(wc -l < "$q/stage-$i.txt" | tr -d ' ') ports: $(head -n 3 "$q/stage-$i.txt" | tr '\n' ' ')$( [ "$(wc -l < "$q/stage-$i.txt")" -gt 3 ] && echo '...')" >> "$res/stages.txt"
+    i=$((i + 1))
+done
+while read -r l; do say "$l"; done < "$res/stages.txt"
 
 # --- the az_hash of each port, in the order of the queue -------------------------------
 # Two hashes a port: its az_hash ($q/hash/<key>), and the one the ports that need it
@@ -1017,6 +1068,10 @@ else
     mkdir -p "$q/sum" "$q/jobs"
     : > "$res/waves.txt"
     wave=0
+    # the waves of a stage only, the stages one after another
+    stage=1
+    cp "$q/stage-1.txt" "$q/stage.txt"
+    [ "$nst" = 1 ] || say "stage 1 of $nst: $(wc -l < "$q/stage.txt" | tr -d ' ') ports"
     while :; do
         # the ports that are ready, those that need no build said at once (the next
         # ones may be ready then)
@@ -1025,7 +1080,7 @@ else
         while [ "$more" = 1 ]; do
             more=0
             : > "$q/cand"
-            for o in $(cat "$q/queue.txt"); do
+            for o in $(cat "$q/stage.txt"); do
                 [ -n "$(st "$o")" ] && continue
                 ready=1
                 for d in $(cat "$q/deps/$(key "$o")"); do
@@ -1036,10 +1091,17 @@ else
             done
         done
         if [ ! -s "$q/cand" ]; then
-            # nothing ready: done, or a loop in the dependencies (the first port left
-            # in the order of the queue, as with AZ_JOBS=1)
-            o="$(for o in $(cat "$q/queue.txt"); do [ -z "$(st "$o")" ] && { echo "$o"; break; }; done)"
-            [ -n "$o" ] || break
+            # nothing ready: the stage is done (the next one), or a loop in the
+            # dependencies (the first port left in the order of the queue, as with
+            # AZ_JOBS=1)
+            o="$(for o in $(cat "$q/stage.txt"); do [ -z "$(st "$o")" ] && { echo "$o"; break; }; done)"
+            if [ -z "$o" ]; then
+                stage=$((stage + 1))
+                [ "$stage" -le "$nst" ] || break
+                cp "$q/stage-$stage.txt" "$q/stage.txt"
+                say "stage $stage of $nst: $(wc -l < "$q/stage.txt" | tr -d ' ') ports"
+                continue
+            fi
             pre_port "$o" || continue
             echo "$o" > "$q/cand"
         fi
