@@ -86,13 +86,18 @@ EXTRA_PATCHES=	${FILESDIR}/suse/CVE-2026-21637.patch:-p1 \
 		${FILESDIR}/suse/CVE-2025-59465.patch:-p1 \
 		${FILESDIR}/suse/cves.patch:-p1
 
-# llhttp: Node 18 links -lhttp_parser without --shared-http-parser-libname, and its
-# llhttp.h comes from ${LOCALBASE}/include (USES=localbase)
+# llhttp: Node 18 links -lhttp_parser without --shared-http-parser-libname and has
+# no pkg-config name for it, so no -L either: the -L${LOCALBASE}/lib of
+# USES=localbase is in LIBS, which the makefiles of gyp set for each target
+# ("unable to find library -lllhttp": run 43053513194); it comes after the -L of az
+# of LDFLAGS on the command line of the linker. llhttp.h comes from
+# ${LOCALBASE}/include (USES=localbase).
 CONFIGURE_ARGS=	--prefix=${PREFIX:S|^${DESTDIR}||} \
 		--shared-brotli \
 		--shared-cares \
 		--shared-http-parser \
 		--shared-http-parser-libname=llhttp \
+		--shared-http-parser-libpath=${LOCALBASE}/lib \
 		--shared-libuv \
 		--shared-nghttp2 \
 		--shared-zlib \
