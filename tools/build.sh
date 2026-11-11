@@ -467,13 +467,17 @@ ch_up() {
 # ch_run [-l <lock file>] <command>...: a command in the chroot $c (under lockf(1) of
 # the machine with -l), with the environment of a login of root, the make.conf of the
 # run, the level, and AZ_CFLAGS, AZ_GCC_SO, AZ_GCC_BIN and MAKE_CONF of the caller
-# when set (nothing else of the caller: no key, no token)
+# when set (nothing else of the caller: no key, no token). NOCLEANDEPENDS: make clean
+# of a port leaves the ports it depends on alone: they may build at that moment in
+# another chroot of the wave, with the same WRKDIRPREFIX (11.11.2026: make clean of
+# ftp/curl, which takes the official perl5 to build, removed the work directory of
+# lang/perl5.42 under its Configure; that of www/node18 the one of lang/python312)
 ch_run() {
     _lk=""
     if [ "$1" = -l ]; then _lk="$2"; shift 2; fi
     set -- chroot "$c" /usr/bin/env -i HOME=/root USER=root LOGNAME=root SHELL=/bin/sh \
         PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin \
-        __MAKE_CONF="$__MAKE_CONF" ASSUME_ALWAYS_YES=yes AZ_CPUTYPE="$cputype" \
+        __MAKE_CONF="$__MAKE_CONF" ASSUME_ALWAYS_YES=yes NOCLEANDEPENDS=yes AZ_CPUTYPE="$cputype" \
         ${AZ_CFLAGS+"AZ_CFLAGS=$AZ_CFLAGS"} ${AZ_GCC_SO+"AZ_GCC_SO=$AZ_GCC_SO"} \
         ${AZ_GCC_BIN+"AZ_GCC_BIN=$AZ_GCC_BIN"} ${MAKE_CONF+"MAKE_CONF=$MAKE_CONF"} "$@"
     if [ -n "$_lk" ]; then lockf -k "$_lk" "$@"; else "$@"; fi
