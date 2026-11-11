@@ -17,10 +17,11 @@
 # jna-4.5.1.jar out (aZ linked lib/jna.jar to it by hand after every install of
 # the old package); devel/jna brings the libraries libX11 and libXt. The paths of
 # jvm.options in
-# /var/db/elasticsearch and /var/log/elasticsearch, as the deb and rpm of Elastic
-# have them in /var/lib and /var/log: heap dumps, the fatal error files of the JVM
-# and the GC log (the tarball has them relative to lib/elasticsearch, which the
-# user elasticsearch cannot write; the official port put the GC log in ES_TMPDIR).
+# /var/log/elasticsearch, as the deb and rpm of Elastic have them: the fatal error
+# files of the JVM and the GC log (the tarball has them relative to
+# lib/elasticsearch, which the user elasticsearch cannot write; the official port
+# put the GC log in ES_TMPDIR). No heap dump at an OutOfMemoryError (aZ,
+# 11.11.2026: a file as large as the heap; the tarball has it on).
 # jvm.options for OpenJDK 17 (aZ, 11.11.2026; files/patch-config_jvm.options, each
 # change with its source in a comment of the file): -XX:UseAVX=2 for JDK 10 alone
 # (Elastic dropped it in 7.1: fixed in JDK 11; on JDK 17 it warned at every start
@@ -125,7 +126,7 @@ post-patch:
 	# the JNA of devel/jna instead (do-install)
 	@${RM} ${WRKSRC}/lib/jna-*.jar
 	# files/patch-config_jvm.options: the paths, and what it sets for OpenJDK 17
-	@${GREP} -q '^-XX:HeapDumpPath=/var/db/elasticsearch$$' ${WRKSRC}/config/jvm.options && \
+	@! ${GREP} -q '^[0-9:-]*-XX:[+]*HeapDump' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-XX:ErrorFile=/var/log/elasticsearch/hs_err_pid%p\.log$$' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-XX:ReplayDataFile=/var/log/elasticsearch/replay_pid%p\.log$$' ${WRKSRC}/config/jvm.options && \
 		[ "$$(${GREP} -c '/var/log/elasticsearch/gc\.log' ${WRKSRC}/config/jvm.options)" = 2 ] && \

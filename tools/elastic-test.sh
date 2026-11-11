@@ -9,9 +9,10 @@
 #     are taken out), and its log has no JNA that failed (the JNA it bundles);
 #   - the heap from elasticsearch_heap of rc.conf (512m here) over the -Xms and
 #     -Xmx of jvm.options; the options of jvm.options for OpenJDK 17 in the running JVM
-#     (no -XX:UseAVX, -XX:+ExitOnOutOfMemoryError, -Dlog4j2.formatMsgNoLookups);
+#     (no -XX:UseAVX, no heap dump, -XX:+ExitOnOutOfMemoryError, -Dlog4j2.formatMsgNoLookups);
 #     no warning of the JVM at the start; the GC log in /var/log/elasticsearch;
-#     a wrong elasticsearch_heap refused;
+#     a wrong elasticsearch_heap refused; no [ERROR] in the log of the start
+#     (xpack.ssl.cipher_suites of elasticsearch.yml: no unsupported ciphers);
 #   - the health of the cluster, a document indexed and found by a query;
 #   - stopped by its rc script.
 #
@@ -109,15 +110,15 @@ else
         fail "the heap: last $(grep '^-Xm[sx]' "$T/args.txt" | tail -n 2 | tr '\n' ' '), heap_max_in_bytes ${hm:-not told}, not the 512m of elasticsearch_heap"
     fi
     m=""
-    for o in '-XX:+UseG1GC' '-XX:G1ReservePercent=25' '-XX:InitiatingHeapOccupancyPercent=30' '-XX:+ExitOnOutOfMemoryError' '-XX:+HeapDumpOnOutOfMemoryError' '-XX:HeapDumpPath=/var/db/elasticsearch' \
+    for o in '-XX:+UseG1GC' '-XX:G1ReservePercent=25' '-XX:InitiatingHeapOccupancyPercent=30' '-XX:+ExitOnOutOfMemoryError' \
         '-XX:ErrorFile=/var/log/elasticsearch/hs_err_pid%p.log' '-XX:ReplayDataFile=/var/log/elasticsearch/replay_pid%p.log' '-Dlog4j2.formatMsgNoLookups=true' \
         '-Djava.locale.providers=COMPAT' '-Dio.netty.noUnsafe=true' '-XX:+AlwaysPreTouch'; do
         grep -q -x -F -e "$o" "$T/args.txt" || m="$m $o"
     done
-    if [ -z "$m" ] && ! grep -q 'UseAVX' "$T/args.txt"; then
-        pass "the options of jvm.options for OpenJDK 17 in the JVM, no -XX:UseAVX"
+    if [ -z "$m" ] && ! grep -q -E 'UseAVX|HeapDump' "$T/args.txt"; then
+        pass "the options of jvm.options for OpenJDK 17 in the JVM, no -XX:UseAVX, no heap dump"
     else
-        fail "the options of the JVM: missing:${m:- none}$(grep 'UseAVX' "$T/args.txt" | sed 's/^/, has /')"
+        fail "the options of the JVM: missing:${m:- none}$(grep -E 'UseAVX|HeapDump' "$T/args.txt" | sed 's/^/, has /' | tr '\n' ' ')"
     fi
     if [ -s "$gclog" ]; then pass "the GC log: $gclog, $(wc -l < "$gclog" | tr -d ' ') lines"; else fail "no GC log $gclog"; fi
     h="$(get '/_cluster/health?wait_for_status=yellow&timeout=60s' | sed -n 's/.*"status" *: *"\([^"]*\)".*/\1/p')"
@@ -138,6 +139,14 @@ if grep -i -E 'warning|deprecated|unrecognized|ignoring option' "$T/start.out" >
     fail "the start printed $(wc -l < "$T/warn.txt" | tr -d ' ') warnings: $(head -n 2 "$T/warn.txt" | cut -c1-200 | tr '\n' ' ')"
 else
     pass "the start without a warning of the JVM ($(wc -l < "$T/start.out" | tr -d ' ') lines: elasticsearch-start.out)"
+fi
+# xpack.ssl.cipher_suites of elasticsearch.yml: the suites this JDK has, so that
+# x-pack does not log its default ones that the JDK lacks as an error
+cp "$T/logs/az-test.log" "$res/elasticsearch.log" 2>/dev/null
+if grep -E '\]\[ERROR\]|unsupported ciphers' "$T/logs/az-test.log" > "$T/err.txt" 2>/dev/null; then
+    fail "the log of the start has $(wc -l < "$T/err.txt" | tr -d ' ') lines of [ERROR]: $(head -n 2 "$T/err.txt" | cut -c1-420 | tr '\n' ' ')"
+else
+    pass "the log of the start without [ERROR], no unsupported ciphers"
 fi
 if grep -E -i 'jna (not found|is not available)|unable to load jna|cannot load jna' "$T/logs/az-test.log" > "$T/jna.txt" 2>/dev/null; then
     fail "JNA: $(head -n 1 "$T/jna.txt" | cut -c1-200)"
