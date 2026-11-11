@@ -10,7 +10,8 @@
 #
 # Usage: sh tools/runs-progress.sh <part> [<minutes>]   (in the background: nohup ... &)
 #   <part>     the part of the run (x86-64-v3, x86-64-v2...)
-#   <minutes>  how often (10)
+#   <minutes>  how often (10); the first look after 4 minutes (the VM is up and the
+#              queue with its stages is there by then)
 # Environment: RUNS_TOKEN (tools/runs-report.sh), GITHUB_WORKSPACE (the tree, at the
 # same path in the VM of vmactions), GITHUB_* as GitHub Actions sets them;
 # RUNS_PROGRESS_SLEEP the seconds between two looks instead of <minutes> (a test).
@@ -33,8 +34,10 @@ vm=""
 last=""
 o="-o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
 
+nap="${RUNS_PROGRESS_SLEEP:-240}"
 while [ "$(date +%s)" -lt "$end" ]; do
-    sleep "${RUNS_PROGRESS_SLEEP:-$(( every * 60 ))}"
+    sleep "$nap"
+    nap="${RUNS_PROGRESS_SLEEP:-$(( every * 60 ))}"
     # the VM gave its results back: the report of the run comes next
     [ -f results/rc ] && break
     if [ -z "$vm" ]; then
@@ -63,6 +66,8 @@ while [ "$(date +%s)" -lt "$end" ]; do
                 nkept="$(grep -c 'in the repository already' "$w/done")"
                 nskip=$(( nd - nok - nfail - nkept ))
                 echo "- ports: $nd of ${total:-?} done: built $nok, kept from the repository $nkept, failed $nfail, not built $nskip"
+                st="$(grep -E '^\[build [0-9:]+\] stage [0-9]+ of [0-9]+:' "$w/log" | tail -n 1 | sed 's/^\[build [0-9:]*\] //')"
+                [ -z "$st" ] || echo "- now: $st (results/stages.txt)"
                 # building now: started ("make package" with AZ_JOBS above 1, "<origin>:
                 # <pkgname> (<why>)" one by one) and with no result line yet
                 grep -E '^\[build [0-9:]+\] [^ ]+: make package \(logs/' "$w/log" | awk '{ sub(":$", "", $3); print $3, substr($2, 1, 5) }' > "$w/run" || :
