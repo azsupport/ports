@@ -11,7 +11,7 @@
  			 * dir, rename() might return success but do nothing! */
 --- compat.c.orig
 +++ compat.c
-@@ -40,6 +40,7 @@
+@@ -41,6 +41,7 @@
  extern int basis_dir_cnt;
  extern int prune_empty_dirs;
  extern int protocol_version;
@@ -19,7 +19,7 @@
  extern int protect_args;
  extern int preserve_uid;
  extern int preserve_gid;
-@@ -47,6 +48,7 @@
+@@ -48,6 +49,7 @@
  extern int preserve_crtimes;
  extern int preserve_acls;
  extern int preserve_xattrs;
@@ -27,7 +27,7 @@
  extern int xfer_flags_as_varint;
  extern int need_messages_from_generator;
  extern int delete_mode, delete_before, delete_during, delete_after;
-@@ -87,7 +89,7 @@
+@@ -88,7 +90,7 @@
  int xattr_sum_len = 0;
  
  /* These index values are for the file-list's extra-attribute array. */
@@ -36,7 +36,7 @@
  
  int receiver_symlink_times = 0; /* receiver can set the time on a symlink */
  int sender_symlink_iconv = 0;	/* sender should convert symlink content */
-@@ -645,6 +647,8 @@
+@@ -646,6 +648,8 @@
  		uid_ndx = ++file_extra_cnt;
  	if (preserve_gid)
  		gid_ndx = ++file_extra_cnt;
@@ -45,7 +45,7 @@
  	if (preserve_acls && !am_sender)
  		acls_ndx = ++file_extra_cnt;
  	if (preserve_xattrs)
-@@ -763,6 +767,10 @@
+@@ -772,6 +776,10 @@
  			fprintf(stderr, "Both rsync versions must be at least 3.2.0 for --crtimes.\n");
  			exit_cleanup(RERR_PROTOCOL);
  		}
@@ -410,7 +410,7 @@
 +
 --- flist.c.orig
 +++ flist.c
-@@ -57,6 +57,7 @@
+@@ -58,6 +58,7 @@
  extern int preserve_hard_links;
  extern int preserve_devices;
  extern int preserve_specials;
@@ -418,7 +418,7 @@
  extern int delete_during;
  extern int missing_args;
  extern int eol_nulls;
-@@ -483,6 +484,9 @@
+@@ -712,6 +713,9 @@
  	static time_t crtime;
  #endif
  	static mode_t mode;
@@ -428,7 +428,7 @@
  #ifdef SUPPORT_HARD_LINKS
  	static int64 dev;
  #endif
-@@ -526,6 +530,14 @@
+@@ -755,6 +759,14 @@
  		xflags |= XMIT_SAME_MODE;
  	else
  		mode = file->mode;
@@ -443,7 +443,7 @@
  
  	if (preserve_devices && IS_DEVICE(mode)) {
  		if (protocol_version < 28) {
-@@ -687,6 +699,10 @@
+@@ -916,6 +928,10 @@
  #endif
  	if (!(xflags & XMIT_SAME_MODE))
  		write_int(f, to_wire_mode(mode));
@@ -454,7 +454,7 @@
  	if (atimes_ndx && !S_ISDIR(mode) && !(xflags & XMIT_SAME_ATIME))
  		write_varlong(f, atime, 4);
  	if (preserve_uid && !(xflags & XMIT_SAME_UID)) {
-@@ -781,6 +797,9 @@
+@@ -1010,6 +1026,9 @@
  	static time_t crtime;
  #endif
  	static mode_t mode;
@@ -464,7 +464,7 @@
  #ifdef SUPPORT_HARD_LINKS
  	static int64 dev;
  #endif
-@@ -899,6 +918,10 @@
+@@ -1128,6 +1147,10 @@
  			if (crtimes_ndx)
  				crtime = F_CRTIME(first);
  #endif
@@ -475,7 +475,7 @@
  			if (preserve_uid)
  				uid = F_OWNER(first);
  			if (preserve_gid)
-@@ -995,6 +1018,10 @@
+@@ -1224,6 +1247,10 @@
  
  	if (chmod_modes && !S_ISLNK(mode) && mode)
  		mode = tweak_mode(mode, chmod_modes);
@@ -486,7 +486,7 @@
  
  	if (preserve_uid && !(xflags & XMIT_SAME_UID)) {
  		if (protocol_version < 30)
-@@ -1203,6 +1230,10 @@
+@@ -1432,6 +1459,10 @@
  	}
  #endif
  	file->mode = mode;
@@ -497,7 +497,7 @@
  	if (preserve_uid)
  		F_OWNER(file) = uid;
  	if (preserve_gid) {
-@@ -1667,6 +1698,10 @@
+@@ -1896,6 +1927,10 @@
  	}
  #endif
  	file->mode = st.st_mode;
@@ -519,7 +519,7 @@
  extern int preserve_mtimes;
  extern int omit_dir_times;
  extern int omit_link_times;
-@@ -499,6 +501,10 @@
+@@ -536,6 +538,10 @@
  			return 0;
  		if (perms_differ(file, sxp))
  			return 0;
@@ -530,7 +530,7 @@
  		if (ownership_differs(file, sxp))
  			return 0;
  #ifdef SUPPORT_ACLS
-@@ -560,6 +566,11 @@
+@@ -597,6 +603,11 @@
  			iflags |= ITEM_REPORT_OWNER;
  		if (gid_ndx && !(file->flags & FLAG_SKIP_GROUP) && sxp->st.st_gid != (gid_t)F_GROUP(file))
  			iflags |= ITEM_REPORT_GROUP;
@@ -542,7 +542,7 @@
  #ifdef SUPPORT_ACLS
  		if (preserve_acls && !S_ISLNK(file->mode)) {
  			if (!ACL_READY(*sxp))
-@@ -1414,9 +1425,16 @@
+@@ -1451,9 +1462,16 @@
  	int dfd = held_dfd_for(fname, file);
  	if (dfd >= 0) {
  		const char *slash = strrchr(fname, '/');
@@ -561,7 +561,7 @@
  }
  
  static void gen_entry_set_times(const char *fname, struct file_struct *file, STRUCT_STAT *stp)
-@@ -1424,7 +1442,14 @@
+@@ -1461,7 +1479,14 @@
  	int dfd = held_dfd_for(fname, file);
  	if (dfd >= 0) {
  		const char *slash = strrchr(fname, '/');
@@ -577,7 +577,7 @@
  			return;	/* handled (success or error) by the at-on-dfd tier */
  	}
  	set_times(fname, stp);
-@@ -1493,7 +1518,12 @@
+@@ -1530,7 +1555,12 @@
  	int dfd = held_dfd_for(path, file);
  	if (dfd >= 0) {
  		const char *slash = strrchr(path, '/');
@@ -591,7 +591,7 @@
  	}
  	return do_unlink_at(path);
  }
-@@ -1508,9 +1538,14 @@
+@@ -1545,9 +1575,14 @@
  	if (odfd >= 0 && ndfd >= 0) {
  		const char *os = strrchr(opath, '/');
  		const char *ns = strrchr(npath, '/');
@@ -608,7 +608,7 @@
  }
  
  #ifdef SUPPORT_XATTRS
-@@ -1855,6 +1890,10 @@
+@@ -1892,6 +1927,10 @@
  		if (!preserve_perms) { /* See comment in non-dir code below. */
  			file->mode = dest_mode(file->mode, sx.st.st_mode, dflt_perms, statret == 0);
  		}
@@ -619,7 +619,7 @@
  		if (statret != 0 && basis_dir[0] != NULL) {
  			int j = try_dests_non(file, fname, ndx, fnamecmpbuf, &sx, itemizing, code);
  			if (j == -2) {
-@@ -1900,6 +1939,11 @@
+@@ -1937,6 +1976,11 @@
  		 * readable and writable permissions during the time we are
  		 * putting files within them.  This is then restored to the
  		 * former permissions after the transfer is done. */
@@ -631,7 +631,7 @@
  #ifdef HAVE_CHMOD
  		if (!am_root && (file->mode & S_IRWXU) != S_IRWXU && dir_tweaking) {
  			mode_t mode = file->mode | S_IRWXU;
-@@ -2607,6 +2651,10 @@
+@@ -2651,6 +2695,10 @@
  				gen_entry_set_times(fname, file, &st);
  			}
  		}
@@ -644,7 +644,7 @@
  				maybe_send_keepalive(time(NULL), MSK_ALLOW_FLUSH);
 --- log.c.orig
 +++ log.c
-@@ -763,7 +763,8 @@
+@@ -848,7 +848,8 @@
  			     : iflags & ITEM_REPORT_ATIME ? 'u' : 'n';
  			c[9] = !(iflags & ITEM_REPORT_ACL) ? '.' : 'a';
  			c[10] = !(iflags & ITEM_REPORT_XATTR) ? '.' : 'x';
@@ -674,7 +674,7 @@
  extern int msgs2stderr;
  extern int module_id;
  extern int read_only;
-@@ -1010,6 +1014,22 @@
+@@ -1023,6 +1027,22 @@
  	 * points to an identical file won't be replaced by the referent. */
  	copy_links = copy_dirlinks = copy_unsafe_links = 0;
  
@@ -715,7 +715,7 @@
  int io_timeout = 0;
  int prune_empty_dirs = 0;
  int use_qsort = 0;
-@@ -642,6 +644,10 @@
+@@ -643,6 +645,10 @@
    {"perms",           'p', POPT_ARG_VAL,    &preserve_perms, 1, 0, 0 },
    {"no-perms",         0,  POPT_ARG_VAL,    &preserve_perms, 0, 0, 0 },
    {"no-p",             0,  POPT_ARG_VAL,    &preserve_perms, 0, 0, 0 },
@@ -726,7 +726,7 @@
    {"executability",   'E', POPT_ARG_NONE,   &preserve_executability, 0, 0, 0 },
    {"acls",            'A', POPT_ARG_NONE,   0, 'A', 0, 0 },
    {"no-acls",          0,  POPT_ARG_VAL,    &preserve_acls, 0, 0, 0 },
-@@ -745,6 +751,12 @@
+@@ -746,6 +752,12 @@
    {"remove-source-files",0,POPT_ARG_VAL,    &remove_source_files, 1, 0, 0 },
    {"force",            0,  POPT_ARG_VAL,    &force_delete, 1, 0, 0 },
    {"no-force",         0,  POPT_ARG_VAL,    &force_delete, 0, 0, 0 },
@@ -739,7 +739,7 @@
    {"ignore-errors",    0,  POPT_ARG_VAL,    &ignore_errors, 1, 0, 0 },
    {"no-ignore-errors", 0,  POPT_ARG_VAL,    &ignore_errors, 0, 0, 0 },
    {"max-delete",       0,  POPT_ARG_INT,    &max_delete, 0, 0, 0 },
-@@ -1105,6 +1117,15 @@
+@@ -1123,6 +1135,15 @@
  #ifndef SUPPORT_CRTIMES
  	parse_one_refuse_match(0, "crtimes", list_end);
  #endif
@@ -755,36 +755,36 @@
  
  	/* Now we use the descrip values to actually mark the options for refusal. */
  	for (op = long_options; op != list_end; op++) {
-@@ -2918,6 +2939,9 @@
+@@ -2993,6 +3014,9 @@
  	if (xfer_dirs && !recurse && delete_mode && am_sender)
- 		args[ac++] = "--no-r";
+ 		ADD_SERVER_ARG("--no-r");
  
 +	if (preserve_file_flags)
-+		args[ac++] = "--fileflags";
++		ADD_SERVER_ARG("--fileflags");
 +
  	if (do_compression && do_compression_level != CLVL_NOT_SPECIFIED) {
  		if (asprintf(&arg, "--compress-level=%d", do_compression_level) < 0)
  			goto oom;
-@@ -3013,6 +3037,16 @@
- 			args[ac++] = "--delete-excluded";
+@@ -3088,6 +3112,16 @@
+ 			ADD_SERVER_ARG("--delete-excluded");
  		if (force_delete)
- 			args[ac++] = "--force";
+ 			ADD_SERVER_ARG("--force");
 +#ifdef SUPPORT_FORCE_CHANGE
 +		if (force_change) {
 +			if (force_change == ALL_IMMUTABLE)
-+				args[ac++] = "--force-change";
++				ADD_SERVER_ARG("--force-change");
 +			else if (force_change == USR_IMMUTABLE)
-+				args[ac++] = "--force-uchange";
++				ADD_SERVER_ARG("--force-uchange");
 +			else if (force_change == SYS_IMMUTABLE)
-+				args[ac++] = "--force-schange";
++				ADD_SERVER_ARG("--force-schange");
 +		}
 +#endif
  		if (write_batch < 0)
- 			args[ac++] = "--only-write-batch=X";
+ 			ADD_SERVER_ARG("--only-write-batch=X");
  		if (am_root > 1)
 --- receiver.c.orig
 +++ receiver.c
-@@ -264,11 +264,11 @@
+@@ -277,11 +277,11 @@
  		return -1;
  	}
  	prior_mode = cst.st_mode & CHMOD_BITS;
@@ -798,7 +798,7 @@
  		restore_errno = errno;
  		if (fd >= 0)
  			close(fd);
-@@ -704,7 +704,7 @@
+@@ -720,7 +720,7 @@
  			 * an excluded subtree. */
  			int rret;
  			operator_path_resolve = 1;
@@ -807,9 +807,9 @@
  			operator_path_resolve = 0;
  			if (rret < 0) {
  				rsyserr(FERROR_XFER, errno,
---- rsync.1.md.orig	2026-08-02 21:10:00.000000000 +0000
-+++ rsync.1.md	2026-08-21 20:48:04.173090000 +0000
-@@ -558,6 +558,7 @@
+--- rsync.1.md.orig
++++ rsync.1.md
+@@ -573,6 +573,7 @@
  --chmod=CHMOD            affect file and/or directory permissions
  --acls, -A               preserve ACLs (implies --perms)
  --xattrs, -X             preserve extended attributes
@@ -817,7 +817,7 @@
  --owner, -o              preserve owner (super-user only)
  --group, -g              preserve group
  --devices                preserve device files (super-user only)
-@@ -598,7 +599,10 @@
+@@ -613,7 +614,10 @@
  --ignore-missing-args    ignore missing source arguments without error
  --delete-missing-args    delete missing source arguments from destination
  --ignore-errors          delete even if there are I/O errors
@@ -829,7 +829,7 @@
  --max-delete=NUM         don't delete more than NUM files
  --max-size=SIZE          don't transfer any file larger than SIZE
  --min-size=SIZE          don't transfer any file smaller than SIZE
-@@ -945,6 +949,7 @@
+@@ -965,6 +969,7 @@
      recursion and want to preserve almost everything.  Be aware that it does
      **not** include preserving ACLs (`-A`), xattrs (`-X`), atimes (`-U`),
      crtimes (`-N`), nor the finding and preserving of hardlinks (`-H`).
@@ -837,7 +837,7 @@
  
      The only exception to the above equivalence is when [`--files-from`](#opt)
      is specified, in which case [`-r`](#opt) is not implied.
-@@ -2246,8 +2251,8 @@
+@@ -2270,8 +2275,8 @@
      [`--ignore-missing-args`](#opt) option a step farther: each missing argument
      will become a deletion request of the corresponding destination file on the
      receiving side (should it exist).  If the destination file is a non-empty
@@ -848,7 +848,7 @@
      independent of any other type of delete processing.
  
      The missing source files are represented by special file-list entries which
-@@ -2258,7 +2263,38 @@
+@@ -2282,7 +2287,38 @@
      Tells [`--delete`](#opt) to go ahead and delete files even when there are
      I/O errors.
  
@@ -888,7 +888,7 @@
  
      This option tells rsync to delete a non-empty directory when it is to be
      replaced by a non-directory.  This is only relevant if deletions are not
-@@ -3365,7 +3401,7 @@
+@@ -3405,7 +3441,7 @@
      but that also turns on the output of other verbose messages.
  
      The "%i" escape has a cryptic output that is 11 letters long.  The general
@@ -897,17 +897,9 @@
      of update being done, **X** is replaced by the file-type, and the other
      letters represent attributes that may be output if they are being modified.
  
---- rsync.1.orig	2026-08-13 00:05:31.000000000 +0000
-+++ rsync.1	2026-08-21 21:22:19.276574000 +0000
-@@ -1,5 +1,5 @@
--.TH "rsync" "1" "13 Aug 2026" "rsync 3.5.0" "User Commands"
--.\" prefix=/usr
-+.TH "rsync" "1" "7 Aug 2026" "rsync 3.5.0" "User Commands"
-+.\" prefix=/usr/local
- .P
- .SH "NAME"
- .P
-@@ -661,6 +661,7 @@
+--- rsync.1.orig
++++ rsync.1
+@@ -676,6 +676,7 @@
  --chmod=CHMOD            affect file and/or directory permissions
  --acls, -A               preserve ACLs (implies --perms)
  --xattrs, -X             preserve extended attributes
@@ -915,7 +907,7 @@
  --owner, -o              preserve owner (super-user only)
  --group, -g              preserve group
  --devices                preserve device files (super-user only)
-@@ -701,7 +702,10 @@
+@@ -716,7 +717,10 @@
  --ignore-missing-args    ignore missing source arguments without error
  --delete-missing-args    delete missing source arguments from destination
  --ignore-errors          delete even if there are I/O errors
@@ -927,7 +919,7 @@
  --max-delete=NUM         don't delete more than NUM files
  --max-size=SIZE          don't transfer any file larger than SIZE
  --min-size=SIZE          don't transfer any file smaller than SIZE
-@@ -1035,6 +1039,7 @@
+@@ -1055,6 +1059,7 @@
  recursion and want to preserve almost everything.  Be aware that it does
  \fBnot\fP include preserving ACLs (\fB\-A\fP), xattrs (\fB\-X\fP), atimes (\fB\-U\fP),
  crtimes (\fB\-N\fP), nor the finding and preserving of hardlinks (\fB\-H\fP).
@@ -935,7 +927,7 @@
  .IP
  The only exception to the above equivalence is when \fB\-\-files\-from\fP
  is specified, in which case \fB\-r\fP is not implied.
-@@ -2309,8 +2314,8 @@
+@@ -2334,8 +2339,8 @@
  \fB\-\-ignore\-missing\-args\fP option a step farther: each missing argument
  will become a deletion request of the corresponding destination file on the
  receiving side (should it exist).  If the destination file is a non-empty
@@ -946,7 +938,7 @@
  independent of any other type of delete processing.
  .IP
  The missing source files are represented by special file-list entries which
-@@ -2318,7 +2323,30 @@
+@@ -2343,7 +2348,30 @@
  .IP "\fB\-\-ignore\-errors\fP"
  Tells \fB\-\-delete\fP to go ahead and delete files even when there are
  I/O errors.
@@ -978,7 +970,7 @@
  This option tells rsync to delete a non-empty directory when it is to be
  replaced by a non-directory.  This is only relevant if deletions are not
  active (see \fB\-\-delete\fP for details).
-@@ -3425,7 +3453,7 @@
+@@ -3466,7 +3494,7 @@
  but that also turns on the output of other verbose messages.
  .IP
  The "%i" escape has a cryptic output that is 11 letters long.  The general
@@ -1139,7 +1131,7 @@
  #define XMIT_CRTIME_EQ_MTIME (1<<17)	/* any protocol - restricted by command-line option */
  
  /* These flags are used in the live flist data. */
-@@ -223,6 +223,7 @@
+@@ -224,6 +224,7 @@
  #define ATTRS_SKIP_MTIME	(1<<1)
  #define ATTRS_ACCURATE_TIME	(1<<2)
  #define ATTRS_SKIP_ATIME	(1<<3)
@@ -1147,7 +1139,7 @@
  #define ATTRS_SKIP_CRTIME	(1<<5)
  
  #define MSG_FLUSH	2
-@@ -251,6 +252,7 @@
+@@ -252,6 +253,7 @@
  #define ITEM_REPORT_GROUP (1<<6)
  #define ITEM_REPORT_ACL (1<<7)
  #define ITEM_REPORT_XATTR (1<<8)
@@ -1155,7 +1147,7 @@
  #define ITEM_REPORT_CRTIME (1<<10)
  #define ITEM_BASIS_TYPE_FOLLOWS (1<<11)
  #define ITEM_XNAME_FOLLOWS (1<<12)
-@@ -628,6 +630,31 @@
+@@ -645,6 +647,31 @@
  #define SUPPORT_CRTIMES 1
  #endif
  
@@ -1187,7 +1179,7 @@
  /* Find a variable that is either exactly 32-bits or longer.
   * If some code depends on 32-bit truncation, it will need to
   * take special action in a "#if SIZEOF_INT32 > 4" section. */
-@@ -861,6 +888,7 @@
+@@ -878,6 +905,7 @@
  extern int depth_ndx;
  extern int uid_ndx;
  extern int gid_ndx;
@@ -1195,7 +1187,7 @@
  extern int acls_ndx;
  extern int xattrs_ndx;
  extern int file_sum_extra_cnt;
-@@ -916,6 +944,11 @@
+@@ -933,6 +961,11 @@
  /* When the associated option is on, all entries will have these present: */
  #define F_OWNER(f) REQ_EXTRA(f, uid_ndx)->unum
  #define F_GROUP(f) REQ_EXTRA(f, gid_ndx)->unum
@@ -1232,7 +1224,7 @@
  extern int am_daemon;
  extern int local_server;
  extern int inc_recurse;
-@@ -400,7 +401,7 @@
+@@ -409,7 +410,7 @@
  	struct file_struct *file;
  	struct file_list *flist;
  	STRUCT_STAT st;
@@ -1241,7 +1233,7 @@
  
  	if (!remove_source_files)
  		return;
-@@ -450,7 +451,14 @@
+@@ -459,7 +460,14 @@
  		return;
  	}
  
@@ -1267,7 +1259,7 @@
  extern int inplace;
  extern int preallocate_files;
  extern int sparse_files;
-@@ -641,7 +642,23 @@
+@@ -849,7 +850,23 @@
  {
  	if (dry_run) return 0;
  	RETURN_ERROR_IF_RO_OR_LO;
@@ -1292,7 +1284,7 @@
  }
  
  /*
-@@ -678,6 +695,18 @@
+@@ -886,6 +903,18 @@
  			return -1;
  		ret = unlinkat(dfd, bname, 0);
  		e = errno;
@@ -1311,7 +1303,7 @@
  		close(dfd);
  		errno = e;
  		return ret;
-@@ -709,6 +738,18 @@
+@@ -917,6 +946,18 @@
  
  	ret = unlinkat(dfd, bname, 0);
  	e = errno;
@@ -1330,7 +1322,7 @@
  	close(dfd);
  	errno = e;
  	return ret;
-@@ -1078,7 +1119,7 @@
+@@ -1286,7 +1327,7 @@
  }
  #endif
  
@@ -1339,7 +1331,7 @@
  {
  	if (dry_run) return 0;
  	RETURN_ERROR_IF_RO_OR_LO;
-@@ -1086,7 +1127,28 @@
+@@ -1294,7 +1335,28 @@
  #ifndef HAVE_LCHOWN
  #define lchown chown
  #endif
@@ -1369,7 +1361,7 @@
  }
  
  /*
-@@ -1103,7 +1165,7 @@
+@@ -1311,7 +1373,7 @@
    Falls through to do_lchown() in the dry-run / non-daemon / chrooted /
    absolute-path / no-parent cases, identical to do_chmod_at().
  */
@@ -1378,7 +1370,7 @@
  {
  #if defined AT_FDCWD && defined AT_SYMLINK_NOFOLLOW
  	extern int am_daemon, am_chrooted;
-@@ -1123,12 +1185,29 @@
+@@ -1331,12 +1393,29 @@
  	 * fall straight through to the unconfined full-path do_lchown(). */
  	if (operator_path_resolve && fname && *fname) {
  		if (symlink_optout_allowed())
@@ -1409,7 +1401,7 @@
  		close(dfd);
  		errno = e;
  		return ret;
-@@ -1136,14 +1215,14 @@
+@@ -1344,14 +1423,14 @@
  #endif
  
  	if (!secure_relpath_active())
@@ -1427,7 +1419,7 @@
  
  	dlen = slash - fname;
  	if (dlen >= sizeof dirpath) {
-@@ -1160,11 +1239,28 @@
+@@ -1368,11 +1447,28 @@
  
  	ret = fchownat(dfd, bname, owner, group, AT_SYMLINK_NOFOLLOW);
  	e = errno;
@@ -1457,7 +1449,7 @@
  #endif
  }
  
-@@ -1215,7 +1311,7 @@
+@@ -1423,7 +1519,7 @@
  			return -1;
  		close(sock);
  #ifdef HAVE_CHMOD
@@ -1466,7 +1458,7 @@
  #else
  		return 0;
  #endif
-@@ -1391,7 +1487,21 @@
+@@ -1599,7 +1695,21 @@
  {
  	if (dry_run) return 0;
  	RETURN_ERROR_IF_RO_OR_LO;
@@ -1489,7 +1481,7 @@
  }
  
  /*
-@@ -1422,6 +1532,18 @@
+@@ -1630,6 +1740,18 @@
  			return -1;
  		ret = unlinkat(dfd, bname, AT_REMOVEDIR);
  		e = errno;
@@ -1508,7 +1500,7 @@
  		close(dfd);
  		errno = e;
  		return ret;
-@@ -1453,6 +1575,18 @@
+@@ -1661,6 +1783,18 @@
  
  	ret = unlinkat(dfd, bname, AT_REMOVEDIR);
  	e = errno;
@@ -1527,7 +1519,7 @@
  	close(dfd);
  	errno = e;
  	return ret;
-@@ -1563,7 +1697,7 @@
+@@ -1771,7 +1905,7 @@
  }
  
  #ifdef HAVE_CHMOD
@@ -1536,7 +1528,7 @@
  {
  	static int switch_step = 0;
  	int code;
-@@ -1603,6 +1737,23 @@
+@@ -1813,6 +1947,23 @@
  			code = chmod(path, mode & CHMOD_BITS); /* DISCOURAGED FUNCTION */
  		break;
  	}
@@ -1560,7 +1552,7 @@
  	if (code != 0 && (preserve_perms || preserve_executability))
  		return code;
  	return 0;
-@@ -1767,7 +1918,7 @@
+@@ -1977,7 +2128,7 @@
    Falls back to do_chmod() for absolute paths and for paths with no parent
    component, where there is nothing to protect against.
  */
@@ -1569,7 +1561,7 @@
  {
  #ifdef AT_FDCWD
  	extern int am_daemon, am_chrooted;
-@@ -1788,12 +1939,27 @@
+@@ -1998,12 +2149,27 @@
  	 * S_ISLNK(mode) still needs do_chmod()'s lchmod()/setattrlist() handling. */
  	if (operator_path_resolve && fname && *fname && !S_ISLNK(mode)) {
  		if (symlink_optout_allowed())
@@ -1598,7 +1590,7 @@
  		close(dfd);
  		errno = e;
  		return ret;
-@@ -1807,14 +1973,14 @@
+@@ -2017,14 +2183,14 @@
  	 * already access.  Everywhere else, fall through to plain
  	 * do_chmod() to avoid the dirfd-open overhead on every call. */
  	if (!secure_relpath_active())
@@ -1616,7 +1608,7 @@
  
  	dlen = slash - fname;
  	if (dlen >= sizeof dirpath) {
-@@ -1831,20 +1997,64 @@
+@@ -2041,20 +2207,64 @@
  
  	ret = do_fchmodat_nofollow(dfd, bname, mode);
  	e = errno;
@@ -1684,7 +1676,7 @@
  }
  
  /*
-@@ -1863,7 +2073,7 @@
+@@ -2073,7 +2283,7 @@
    Falls through to do_rename() in dry-run, non-daemon, chrooted and
    absolute-path cases, identical to the other do_*_at() wrappers.
  */
@@ -1693,7 +1685,7 @@
  {
  #ifdef AT_FDCWD
  	extern int am_daemon, am_chrooted;
-@@ -1879,10 +2089,10 @@
+@@ -2089,10 +2299,10 @@
  	RETURN_ERROR_IF_RO_OR_LO;
  
  	if (!secure_relpath_active())
@@ -1706,7 +1698,7 @@
  
  #if defined O_NOFOLLOW && defined O_DIRECTORY
  	/* Operator-supplied path (e.g. a --backup-dir destination or a --temp-dir
-@@ -1890,7 +2100,7 @@
+@@ -2100,7 +2310,7 @@
  	 * uid0/euid symlinks, refuse others; absolute and relative alike). */
  	if (operator_path_resolve) {
  		if (symlink_optout_allowed())
@@ -1715,7 +1707,7 @@
  		old_dfd = owner_walk_parent(old_path, &old_bname);
  		if (old_dfd < 0)
  			return -1;
-@@ -1903,6 +2113,21 @@
+@@ -2113,6 +2323,21 @@
  		}
  		ret = renameat(old_dfd, old_bname, new_dfd, new_bname);
  		e = errno;
@@ -1737,7 +1729,7 @@
  		close(new_dfd);
  		close(old_dfd);
  		errno = e;
-@@ -1996,6 +2221,24 @@
+@@ -2206,6 +2431,24 @@
  
  	ret = renameat(old_dfd, old_bname, new_dfd, new_bname);
  	e = errno;
@@ -1762,7 +1754,7 @@
  	if (new_owns)
  		close(new_dfd);
  	if (old_owns)
-@@ -2003,7 +2246,7 @@
+@@ -2213,7 +2456,7 @@
  	errno = e;
  	return ret;
  #else
@@ -1844,7 +1836,7 @@
  
 --- t_stub.c.orig
 +++ t_stub.c
-@@ -32,7 +32,9 @@
+@@ -33,7 +33,9 @@
  int protect_args = 0;
  int module_id = -1;
  int relative_paths = 0;
@@ -1854,7 +1846,7 @@
  int preserve_xattrs = 0;
  int preserve_perms = 0;
  int preserve_executability = 0;
-@@ -130,3 +132,23 @@
+@@ -132,3 +134,23 @@
  {
  	return cst ? 0 : 0;
  }
@@ -1889,12 +1881,12 @@
 +#endif
 +			"file-flags",
 +
- 	"*Optimizations",
- 
- #ifndef USE_ROLL_SIMD
+ #ifndef SUPPORT_IDN
+ 		"no "
+ #endif
 --- util1.c.orig
 +++ util1.c
-@@ -32,6 +32,7 @@
+@@ -35,6 +35,7 @@
  extern int modify_window;
  extern int relative_paths;
  extern int preserve_xattrs;
@@ -1902,7 +1894,7 @@
  extern int omit_link_times;
  extern int preallocate_files;
  extern int operator_path_resolve;
-@@ -117,6 +118,33 @@
+@@ -120,6 +121,33 @@
  	rprintf(FCLIENT, " (%d args)\n", cnt);
  }
  
@@ -1936,7 +1928,7 @@
  /* This returns 0 for success, 1 for a symlink if symlink time-setting
   * is not possible, or -1 for any other error. */
  int set_times(const char *fname, STRUCT_STAT *stp)
-@@ -144,6 +172,10 @@
+@@ -147,6 +175,10 @@
  #include "case_N.h"
  		if (do_utimensat_at(fname, stp) == 0)
  			break;
@@ -1947,7 +1939,7 @@
  		if (errno != ENOSYS)
  			return -1;
  		switch_step++;
-@@ -153,6 +185,10 @@
+@@ -156,6 +188,10 @@
  #include "case_N.h"
  		if (do_lutimes(fname, stp) == 0)
  			break;
@@ -1958,7 +1950,7 @@
  		if (errno != ENOSYS)
  			return -1;
  		switch_step++;
-@@ -174,6 +210,10 @@
+@@ -177,6 +213,10 @@
  		if (do_utime(fname, stp) == 0)
  			break;
  #endif
@@ -1969,7 +1961,7 @@
  
  		return -1;
  	}
-@@ -581,7 +621,7 @@
+@@ -584,7 +624,7 @@
  	}
  
  	/* maybe we should return rename()'s exit status? Nah. */
@@ -1978,7 +1970,7 @@
  		errno = ETXTBSY;
  		return -1;
  	}
-@@ -613,8 +653,14 @@
+@@ -616,8 +656,14 @@
  			const char *os = strrchr(from, '/');
  			const char *ns = strrchr(to, '/');
  			rr = do_rename_atfd(ofd, os ? os + 1 : from, nfd, ns ? ns + 1 : to);
