@@ -9,6 +9,7 @@
 # vips, qt-faststart) by servers-test.sh, Node.js (node24, npm-node24,
 # yarn-node24, corepack-node24) by node-test.sh, Python (python312, py312-sqlite3,
 # mpdecimal, python3; the official py312-* packages over it) by python-test.sh,
+# OpenJDK 17 and JNA (openjdk17, headless, and jna without X11) by java-test.sh,
 # Elasticsearch 6 by elastic-test.sh, Kibana 6 (on our node24, with elasticsearch6)
 # by kibana-test.sh, Node.js 18 (node18, npm-node18, yarn-node18, corepack-node18) by
 # node18-test.sh after the tests on node24, installed in the place of node24 (one of
@@ -219,8 +220,23 @@ if in_repo node18; then
 else
     say "node18: not in the repository, its tests are skipped"
 fi
+# OpenJDK 17 and JNA (aZ, 11.11.2026: ours, headless and without X11, those of
+# Elasticsearch 6) as the server packages, before Elasticsearch
+javas="openjdk17 jna"
+j_=""
+for p in $javas; do in_repo "$p" && j_="$j_ $p"; done
+if [ -n "$j_" ]; then
+    say "pkg install -f$j_"
+    # shellcheck disable=SC2086
+    CONSERVATIVE_UPGRADE=no pkg install -y -f $j_ > "$res/test-programs-install-java.log" 2>&1 || say "pkg install of Java says it failed (test-programs-install-java.log)"
+    # shellcheck disable=SC2086
+    again "$res/test-programs-install-java.log" $j_
+    cat "$res/test-programs-install-java.log" >> "$res/test-programs-install.log"
+    cat "$res/test-programs-install-java.log" >> "$log"
+    want="$want$j_"
+fi
 # Elasticsearch 6 (aZ, 11.11.2026: the legacy sites) as the server packages; its
-# OpenJDK 17 is an official package
+# OpenJDK 17 and JNA are those above
 elastic="elasticsearch6"
 e_=""
 for p in $elastic; do in_repo "$p" && e_="$e_ $p"; done
@@ -288,7 +304,7 @@ done
 # 3. the tests: name, the packages it needs
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
         "graphicsmagick GraphicsMagick" "mc mc" ${p_:+"python$p_"} "ytdlp yt-dlp ffmpeg" "utils $utils" \
-        ${s_:+"servers$s_"} ${n_:+"node$n_"} ${e_:+"elastic$e_"} \
+        ${s_:+"servers$s_"} ${n_:+"node$n_"} ${j_:+"java$j_"} ${e_:+"elastic$e_"} \
         ${k_:+"kibana$k_ elasticsearch6 node24"} ${n18_:+"node18$n18_"} ${l_:+"perl$l_"}; do
     # shellcheck disable=SC2086
     set -- $spec
