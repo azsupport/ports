@@ -71,9 +71,8 @@
 #   official 5.6 and the static build of 5.6 of php-src take the bundled one):
 #   --with-gd=DIR, an external libgd of 2.1.0 or later, which 5.6 takes too
 #   (--with-external-gd is only its name of 7.4), with compat-gd-external.patch of
-#   the fork; see its rules. Of its options only T1LIB remains (no XPM, aZ
-#   11.11.2026; TRUETYPE, JIS and VPX did nothing with a system libgd), set before
-#   bsd.port.pre.mk (after it in the official 5.6).
+#   the fork; see its rules. No options (aZ 11.11.2026: no XPM, no T1lib;
+#   TRUETYPE, JIS and VPX did nothing with a system libgd).
 # - openssl: not the BROKEN with openssl111 of the official port (the fork
 #   builds with OpenSSL 1.1 and 3; OpenSSL of the base system here).
 # - the variants with OpenSSL, as for 7.4: ftp and mysqlnd without it,
@@ -253,13 +252,10 @@ EXTRACT_AFTER_ARGS=--no-same-owner --no-same-permissions --exclude libgd \
 
 USES+=		pkgconfig
 
-# T1LIB (the PostScript Type 1 fonts of PHP, imagepstext) needs t1lib of the ports:
-# off. The other options of the official port: X11 (XPM) gone (aZ 11.11.2026);
-# TRUETYPE (nothing reads its define in 5.6), JIS and VPX (for the bundled libgd)
-# did nothing with the libgd of az
-OPTIONS_DEFINE=	T1LIB
-
-T1LIB_DESC=	Include T1lib support
+# No options. Of those of the official port, X11 (XPM) and T1LIB (the PostScript
+# Type 1 fonts of imagepstext with t1lib, abandoned in 2007 and gone from PHP 7.0)
+# are gone (aZ 11.11.2026); TRUETYPE (nothing reads its define in 5.6), JIS and VPX
+# (for the bundled libgd) did nothing with the libgd of az
 .endif
 
 .if ${PHP_MODNAME} == "gettext"
@@ -843,15 +839,6 @@ CONFIGURE_ARGS+=--with-pdo-mysql=${LOCALBASE} \
 		--with-zlib-dir=/usr
 
 USES+=	mysql
-.	endif
-.endif
-
-# (before bsd.port.pre.mk, unlike the official 5.6, as for 7.4)
-.if ${PHP_MODNAME} == "gd"
-.	if ${PORT_OPTIONS:MT1LIB}
-LIB_DEPENDS+=	libt1.so:devel/t1lib
-
-CONFIGURE_ARGS+=--with-t1lib=${LOCALBASE}
 .	endif
 .endif
 
