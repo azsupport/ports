@@ -14,6 +14,9 @@ COMMENT=	FFmpeg for the video sites, with libfdk_aac (nonfree)
 RESTRICTED=	FFmpeg with libfdk_aac and libx264: nonfree and unredistributable
 CONFLICTS_INSTALL=	ffmpeg ffmpeg-nox11
 AZ_FFMPEG_ENV=	AZ_FFMPEG_NONFREE=yes
+# fdk-aac of the nonfree build: cmake (tools/ffmpeg-build.sh, b_fdkaac); each port
+# builds in a chroot with only its dependencies (tools/build.sh)
+BUILD_DEPENDS=	cmake:devel/cmake-core
 
 MASTERDIR=	${.CURDIR}/../ffmpeg
 

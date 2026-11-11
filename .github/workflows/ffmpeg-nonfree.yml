@@ -135,6 +135,8 @@ jobs:
               r=0
               env AZ_RESULTS="$PWD/results/ffmpeg" sh tools/ffmpeg-test.sh --samples || r=$?
               for p in ffmpeg ffmpeg-nox11; do pkg info -e "$p" && env ASSUME_ALWAYS_YES=yes pkg delete -y -f "$p"; done
+              # the build left nothing installed here (its chroot): pkg add takes az and
+              # what else the package needs from repo/, beside it
               env ASSUME_ALWAYS_YES=yes pkg add "$f" || r=1
               /usr/local/bin/ffmpeg -hide_banner -encoders 2>/dev/null | grep ' libfdk_aac ' || { echo "no libfdk_aac in the ffmpeg of the package"; r=1; }
               env AZ_RESULTS="$PWD/results/ffmpeg" sh tools/ffmpeg-test.sh || r=$?
@@ -147,8 +149,11 @@ jobs:
             echo "$rc" > results/rc
             echo "results/rc: $rc"
             # back to the runner: results/ and nonfree-repo/ only (no other package, no
-            # official tree, no work directory)
-            rm -rf work packages repo distfiles multimedia/ffmpeg-nonfree
+            # official tree, no work directory); what a chroot of tools/build.sh left
+            # mounted under work/ goes first, and rm never crosses a mount point (-x)
+            mount -p | awk -v d="$(pwd -P)/work/" 'index($2, d) == 1 { print length($2), $2 }' | sort -rn | cut -d ' ' -f 2- |
+              while read -r m; do umount -f "$m" || echo "cannot unmount $m"; done
+            rm -rfx work packages repo distfiles multimedia/ffmpeg-nonfree
             exit 0
 
       - name: The outcome of the build and of the tests
