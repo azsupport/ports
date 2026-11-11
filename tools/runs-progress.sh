@@ -73,9 +73,9 @@ while [ "$(date +%s)" -lt "$end" ]; do
                 # (a NEED_ROOT port alone: "wave N: <origin> (alone: NEED_ROOT)")
                 grep -E '^\[build [0-9:]+\] [^ ]+: make package \(logs/' "$w/log" | awk '{ sub(":$", "", $3); print $3, substr($2, 1, 5) }' > "$w/run" || :
                 grep -E '^\[build [0-9:]+\] wave [0-9]+: [^ ]+ \(alone: NEED_ROOT\)' "$w/log" | awk '{ print $5, substr($2, 1, 5) }' >> "$w/run" || :
-                now=""
+                now=""; nowo=""
                 while read -r po pt; do
-                    grep -qE "^\[build [0-9:]+\] $po: (OK|FAIL|SKIP) " "$w/done" || now="$now $po (since $pt)"
+                    grep -qE "^\[build [0-9:]+\] $po: (OK|FAIL|SKIP) " "$w/done" || { now="$now $po (since $pt)"; nowo="$nowo $po"; }
                 done < "$w/run"
                 echo "- building now:${now:- -}"
                 if [ "$nfail" != 0 ]; then
@@ -86,6 +86,21 @@ while [ "$(date +%s)" -lt "$end" ]; do
                 echo "The last lines of tools/build.sh in the VM (results/progress.log):"
                 echo
                 tail -n 15 "$w/log" | cut -c 1-300 | sed 's/^/    /'
+                # the log of each port building now, its length and last line (the
+                # key of tools/build.sh: / and @ as _): a long build (az, node24) adds
+                # no line to progress.log for an hour, this shows how it goes, and
+                # the report changes with it, so it is committed every time
+                if [ -n "$nowo" ]; then
+                    echo
+                    echo "The logs of the ports building now (results/logs, lines and the last one):"
+                    echo
+                    for po in $nowo; do
+                        lf="$ws/results/logs/$(printf '%s' "$po" | tr '/@' '__').log"
+                        # shellcheck disable=SC2086
+                        ssh $o "$vm" "wc -l < '$lf' 2>/dev/null; tail -n 1 '$lf' 2>/dev/null" < /dev/null > "$w/plog" 2> /dev/null || :
+                        echo "    $po: $(sed -n 1p "$w/plog" | tr -d ' ') lines; $(sed -n 2p "$w/plog" | cut -c 1-200)"
+                    done
+                fi
             else
                 echo "- ssh $vm failed: $(tail -n 1 "$w/err" | cut -c 1-200)"
             fi
