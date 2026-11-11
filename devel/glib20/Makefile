@@ -11,9 +11,16 @@
 # system; the file monitor of GIO the inotify of the base system (FreeBSD 15).
 # Python only to build: the scripts of GLib (glib-mkenums, gdbus-codegen ...) need
 # it to run, the libraries do not.
+# GLib 2.88.4 (08.10.2026) ahead of the official port (2.88.3), for its security
+# fixes (rule of 04.11.2026): fourteen backports to glib-2-88 (Unicode normalization,
+# corrupted GVariant data, GMarkup error paths, GResource, GIOChannel, the fields of
+# the structured log, socket addresses, the mode of a new file), in what mc and vips
+# use; the patches of the official port apply to it as they are. Its distfile: the
+# SHA-256 of download.gnome.org and of its checksum file (workflow distinfo.yml,
+# run 42971518990), the size as Gentoo.
 
 PORTNAME=	glib
-DISTVERSION=	2.88.3
+DISTVERSION=	2.88.4
 PORTREVISION=	${AZ_STAMP:U0}
 PORTEPOCH=	2
 CATEGORIES=	devel
