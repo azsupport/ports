@@ -14,7 +14,8 @@ JPEG_PORT=graphics/mozjpeg
 DISABLE_VULNERABILITIES=yes
 DISABLE_LICENSES=yes
 BATCH=yes
-OPTIONS_UNSET=X11 WAYLAND GUI DBUS CUPS DEBUG TEST DOCS EXAMPLES INFO MAN3 MANPAGES
+# DTRACE too (aZ, 11.11.2026): faster, and not needed in production
+OPTIONS_UNSET=X11 WAYLAND GUI DBUS CUPS DEBUG TEST DOCS EXAMPLES INFO MAN3 MANPAGES DTRACE
 
 # The paths of tools/build.sh. PORT_DBDIR is its own and empty, so that the options
 # saved by make config on a build server (/var/db/ports) do not change a build: only

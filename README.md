@@ -438,10 +438,11 @@ What it does, with the logic of poudriere:
 - `work/make.conf` from [`tools/make.conf.in`](tools/make.conf.in), the make.conf of
   aZ's servers (`CPUTYPE` of the level, `CFLAGS=-O3 -pipe -fno-strict-aliasing`, the
   framework adds `-fstack-protector-strong`; `JPEG_PORT=graphics/mozjpeg`;
-  `OPTIONS_UNSET` of X11, Wayland, GUI, DBus, CUPS, debug, tests, documentation and
-  manual pages) with the paths of the run, given to make as `__MAKE_CONF`: the
-  `/etc/make.conf` of a build server is neither read nor changed, and the options
-  saved by `make config` there do not change a build (`PORT_DBDIR` of its own);
+  `OPTIONS_UNSET` of X11, Wayland, GUI, DBus, CUPS, debug, DTrace, tests,
+  documentation and manual pages) with the paths of the run, given to make as
+  `__MAKE_CONF`: the `/etc/make.conf` of a build server is neither read nor changed,
+  and the options saved by `make config` there do not change a build (`PORT_DBDIR` of
+  its own);
 - the queue: the ports and the ports of this tree they need (the origins of their
   `*_DEPENDS` that are ours), each after those it needs;
 - a port whose origin has a package with the same `az_hash` in the repository is not
