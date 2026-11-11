@@ -1,0 +1,10 @@
+GD: image creation and manipulation with libgd of the package az (PNG,
+JPEG, WebP, FreeType), not the one bundled in PHP 5.6, and with T1lib:
+the PostScript Type 1 fonts of imagepsloadfont() and imagepstext(),
+with libt1 of devel/t1lib.
+
+The module gd of PHP 5.6 for php56 of azsupport/ports,
+which installs side by side with the other versions of PHP:
+lib/php/20131226/gd.so, loaded by its ini in etc/php56/conf.d, its
+headers in include/php56/php/ext/gd. The same files as php56-gd: one
+of the two installs.

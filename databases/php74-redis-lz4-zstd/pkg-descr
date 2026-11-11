@@ -1,0 +1,12 @@
+This extension provides an API for communicating with Redis database,
+a persistent key-value database with built-in net interface written
+in ANSI-C for Posix systems.
+
+PECL redis for php74 of azsupport/ports, with the lz4 and zstd
+compression of az (liblz4, libzstd), built from ext/redis of the release
+tarball of azsupport/php-src, which bundles it:
+lib/php/20190902/redis.so, loaded by its ini in etc/php74/conf.d.
+
+One of the four packages of redis, which have the same files:
+php74-redis, php74-redis-lz4, php74-redis-zstd are the others (only one
+of them installs).

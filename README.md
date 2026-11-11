@@ -89,7 +89,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS; `bash` without NLS; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL; `rsync`: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
-| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 65 per version, 67 for 7.4, 64 for 5.6 (with the variants with OpenSSL below); the list of one: `pkg search -r az '^php84-'` |
+| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 68 per version, 70 for 7.4, 65 for 5.6 (with the variants below); the list of one: `pkg search -r az '^php84-'` |
 
 - openssl in two kinds, one of the two: `phpXY-openssl` and `phpXY-openssl-legacy` (the
   legacy provider of OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
@@ -103,6 +103,16 @@ Names and origins as the ports, files at the paths of the ports:
   `phpXY-pdo_mysql-openssl` (5.6 also `php56-mysql-openssl`), `phpXY-swoole-openssl` and
   `phpXY-openswoole-openssl` with `phpXY-mysqlnd-openssl`. Swoole 6.2 (8.2 to 8.4) has no
   build without OpenSSL: there `phpXY-swoole` has it too.
+- redis in four packages, one of the four (aZ, 11.11.2026; the same files): `phpXY-redis`
+  without compression, `phpXY-redis-lz4`, `phpXY-redis-zstd` and `phpXY-redis-lz4-zstd`
+  with the lz4 and zstd of az (`Redis::OPT_COMPRESSION` of a site; 5.6 has only
+  `php56-redis`: phpredis 4.3.0 knows neither). All with igbinary and sessions in Redis.
+- gd of 5.6 also as `php56-gd-t1lib`, one of the two (aZ, 11.11.2026): with T1lib, the
+  PostScript Type 1 fonts of `imagepsloadfont()` and `imagepstext()` (gone from PHP 7.0),
+  on libt1 of our `devel/t1lib`: the official port without X11, with the fixes of the
+  vulnerabilities of t1lib 5.1.2 it lacks, as Gentoo carries them (CVE-2010-2642,
+  CVE-2011-0433, CVE-2011-5244, CVE-2011-0764, CVE-2011-1552, CVE-2011-1553,
+  CVE-2011-1554).
 - `phpXY-swoole` and `phpXY-openswoole` can both be installed; the ini of openswoole is
   off (they define the same classes), its package message says how to switch.
 - `phpXY-imagick` and `phpXY-gmagick` can both be installed, but must not be loaded into one

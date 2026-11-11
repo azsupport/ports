@@ -71,8 +71,8 @@
 #   official 5.6 and the static build of 5.6 of php-src take the bundled one):
 #   --with-gd=DIR, an external libgd of 2.1.0 or later, which 5.6 takes too
 #   (--with-external-gd is only its name of 7.4), with compat-gd-external.patch of
-#   the fork; see its rules. No options (aZ 11.11.2026: no XPM, no T1lib;
-#   TRUETYPE, JIS and VPX did nothing with a system libgd).
+#   the fork; see its rules. No options (aZ 11.11.2026: no XPM; TRUETYPE, JIS and
+#   VPX did nothing with a system libgd); T1lib as the package php56-gd-t1lib.
 # - openssl: not the BROKEN with openssl111 of the official port (the fork
 #   builds with OpenSSL 1.1 and 3; OpenSSL of the base system here).
 # - the variants with OpenSSL, as for 7.4: ftp and mysqlnd without it,
@@ -98,7 +98,8 @@ COMMENT=	The ${PHP_MODNAME} shared extension for php
 USES+=	php:ext,noflavors
 # openssl-legacy builds ext/openssl; <module>-openssl ext/<module> (the
 # variants with OpenSSL: AZ_OPENSSL below)
-PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//}
+# (gd-t1lib: gd with T1lib, php56-gd-t1lib)
+PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//:S/^gd-t1lib$/gd/}
 PHP_VER=	56
 IGNORE_WITH_PHP=	71 72 73
 
@@ -252,10 +253,21 @@ EXTRACT_AFTER_ARGS=--no-same-owner --no-same-permissions --exclude libgd \
 
 USES+=		pkgconfig
 
-# No options. Of those of the official port, X11 (XPM) and T1LIB (the PostScript
-# Type 1 fonts of imagepstext with t1lib, abandoned in 2007 and gone from PHP 7.0)
-# are gone (aZ 11.11.2026); TRUETYPE (nothing reads its define in 5.6), JIS and VPX
-# (for the bundled libgd) did nothing with the libgd of az
+# No options. Of those of the official port X11 (XPM) is gone (aZ 11.11.2026);
+# TRUETYPE (nothing reads its define in 5.6), JIS and VPX (for the bundled libgd)
+# did nothing with the libgd of az. T1LIB (the PostScript Type 1 fonts of
+# imagepstext, with t1lib, abandoned in 2007 and gone from PHP 7.0) is a package of
+# its own (aZ 11.11.2026): php56-gd-t1lib, with libt1 of devel/t1lib of this tree
+# (with the fixes of its vulnerabilities) and files/patch-config.m4 of the official
+# port there (libt1 needs libm); the same files as php56-gd, so one of the two
+.  if ${PKGNAMESUFFIX} == "-gd-t1lib"
+COMMENT=	The gd shared extension for php, with T1lib
+LIB_DEPENDS+=	libt1.so:devel/t1lib
+CONFIGURE_ARGS+=--with-t1lib=${LOCALBASE}
+CONFLICTS_INSTALL=	php56-gd
+.  else
+CONFLICTS_INSTALL=	php56-gd-t1lib
+.  endif
 .endif
 
 .if ${PHP_MODNAME} == "gettext"

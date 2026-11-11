@@ -82,7 +82,8 @@ COMMENT=	The ${PHP_MODNAME} shared extension for php
 USES+=	php:ext,noflavors
 # openssl-legacy builds ext/openssl; <module>-openssl ext/<module> (the
 # variants with OpenSSL: AZ_OPENSSL below)
-PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//}
+# (redis-lz4, redis-zstd, redis-lz4-zstd: the packages of redis, AZ_REDIS below)
+PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//:C/^redis-.*/redis/}
 PHP_VER=	84
 IGNORE_WITH_PHP=	82 83 85 86
 
@@ -113,6 +114,16 @@ AZ_OPENSSL=	yes
 # the patches of the module: those of its port without OpenSSL
 PATCHDIR=	${.CURDIR:S/-openssl$//}/files
 .endif
+
+# The packages of redis (aZ, 11.11.2026): phpXY-redis without compression, and
+# phpXY-redis-lz4, phpXY-redis-zstd and phpXY-redis-lz4-zstd with the lz4 and
+# zstd of az; the same files, so one of the four at a time
+AZ_REDIS_PKGS=	redis redis-lz4 redis-zstd redis-lz4-zstd
+AZ_REDIS=	${PKGNAMESUFFIX:S/^-//}
+AZ_REDIS_COMMENT.redis=		without compression
+AZ_REDIS_COMMENT.redis-lz4=	with lz4 compression
+AZ_REDIS_COMMENT.redis-zstd=	with zstd compression
+AZ_REDIS_COMMENT.redis-lz4-zstd=	with lz4 and zstd compression
 
 .if ${PHP_MODNAME} == "bcmath"
 CONFIGURE_ARGS+=--enable-bcmath
@@ -667,11 +678,11 @@ SASL_LIB_DEPENDS=	libsasl2.so:security/cyrus-sasl2
 
 .if ${PHP_MODNAME} == "redis"
 # databases/php-redis of 1a235373d266 (the release of GitHub there, ext/redis of
-# the tarball here): its options LZ4 and ZSTD (on by default there; here LZ4
-# off, aZ 11.11.2026; zstd also in ext.conf) with liblz4 and libzstd of az;
-# IGBINARY on (ext.conf); the json serializer of redis is on by default (json is
-# in the core)
-COMMENT=	Extension to access Redis
+# the tarball here): not with its options LZ4 and ZSTD (on by default there) but
+# as four packages (aZ, 11.11.2026: AZ_REDIS above): without compression, lz4,
+# zstd, lz4 and zstd, with liblz4 and libzstd of az; IGBINARY on (ext.conf); the
+# json serializer of redis is on by default (json is in the core)
+COMMENT=	Extension to access Redis, ${AZ_REDIS_COMMENT.${AZ_REDIS}}
 WWW=		https://github.com/phpredis/phpredis
 
 LICENSE=	PHP301
@@ -680,24 +691,24 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 USE_PHP=	session:build
 
 CONFIGURE_ARGS+=--enable-redis
+.  if ${AZ_REDIS:M*-lz4*}
+CONFIGURE_ARGS+=--enable-redis-lz4 \
+		--with-liblz4=${AZ_PREFIX}
+AZ_LIBS+=	liblz4.so
+.  endif
+.  if ${AZ_REDIS:M*-zstd}
+CONFIGURE_ARGS+=--enable-redis-zstd \
+		--with-libzstd=${AZ_PREFIX}
+AZ_LIBS+=	libzstd.so
+.  endif
+CONFLICTS_INSTALL=	${AZ_REDIS_PKGS:N${AZ_REDIS}:S/^/php${PHP_VER}-/}
 
-OPTIONS_DEFINE=	IGBINARY LZ4 ZSTD
-OPTIONS_DEFAULT=IGBINARY ZSTD
-
+OPTIONS_DEFINE=	IGBINARY
+OPTIONS_DEFAULT=IGBINARY
 IGBINARY_DESC=	Build with Igbinary serializer
-LZ4_DESC=	Build with lz4 support
-ZSTD_DESC=	Build with zstd support
 
 IGBINARY_USE=			PHP=igbinary:build
 IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
-
-LZ4_CONFIGURE_ON=	--enable-redis-lz4 \
-			--with-liblz4=${AZ_PREFIX}
-LZ4_VARS=		AZ_LIBS+=liblz4.so
-
-ZSTD_CONFIGURE_ON=	--enable-redis-zstd \
-			--with-libzstd=${AZ_PREFIX}
-ZSTD_VARS=		AZ_LIBS+=libzstd.so
 .endif
 
 .if ${PHP_MODNAME} == "ssh2"
