@@ -189,6 +189,19 @@ jobs:
             echo "::warning title=signing key::no PKG_SIGNING_KEY: the repository will not be signed (and not published)"
           fi
 
+      # the progress of the build while the VM builds (GitHub gives the log of a job only
+      # when it ends): tools/runs-progress.sh in the background, every 10 minutes into
+      # the branch runs of azsupport/azsupport (secret RUNS_TOKEN), until the VM gives
+      # results/ back; its own log for the step at the end
+      - name: The progress of the build, to azsupport/azsupport
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          PART: ${{ matrix.cputype }}
+        run: |
+          nohup sh tools/runs-progress.sh "$PART" 10 > "$RUNNER_TEMP/runs-progress.log" 2>&1 &
+          echo "tools/runs-progress.sh: pid $!, every 10 minutes"
+
       - name: Build and check in FreeBSD ${{ inputs.release }}
         id: build
         uses: vmactions/freebsd-vm@v1
@@ -428,6 +441,11 @@ jobs:
             printf '%s\n' "$have" | grep -qxF "$f" || { echo "not in the release $tag: $f"; exit 1; }
           done
           echo "published: $url ($(ls "$dir" | wc -l) files)"
+
+      - name: The log of the progress reporter
+        if: always()
+        continue-on-error: true
+        run: tail -n 20 "$RUNNER_TEMP/runs-progress.log" 2>/dev/null || echo "no log of tools/runs-progress.sh"
 
       # the report into the branch runs of the private azsupport/azsupport (secret RUNS_TOKEN)
       - name: Report to azsupport/azsupport

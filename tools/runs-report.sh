@@ -5,7 +5,8 @@
 # the API (azsupport/azsupport, tools/brief.py shows the latest ones). The same
 # script as tools/runs-report.sh of azsupport/php-src, with the name of this
 # repository before the name of the workflow in the path (ports-build/...), so that
-# the reports of the two repositories do not mix.
+# the reports of the two repositories do not mix, and the report of a part in the
+# place of its progress (<part>-progress, tools/runs-progress.sh).
 #
 # Usage: sh tools/runs-report.sh <report.md> <part>
 #   <report.md>  the job summary of the run (what the report scripts wrote)
@@ -61,6 +62,12 @@ else
 fi
 
 mkdir -p "$r/$wf/$day"
+# the report of a part takes the place of its progress (tools/runs-progress.sh of
+# azsupport/ports), of whatever day it was written
+case "$part" in
+    *-progress) ;;
+    *) find "$r/$wf" -name "$run-$part-progress.md" -exec rm -f {} + 2> /dev/null ;;
+esac
 {
     echo "# $wf — $part — $day"
     echo
