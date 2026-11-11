@@ -82,7 +82,8 @@
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11: из движков опций только InnoDB, без GSSAPI; сокет `/tmp/mysql.sock` вкомпилирован и прописан в `my.cnf` |
 | `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext со своим скриптом rc.d; вариант с SSL; ставится один из двух |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: DNS-сервер `named` с TCP Fast Open, без GSSAPI, DNSTAP, LMDB и каналов статистики; dig, host, nslookup, delv, nsupdate и утилиты DNSSEC, с IDN |
-| `vips` | `graphics/vips` | libvips 8.18 для скриптов Lua в nginx, перекодирующих картинки на лету: JPEG (mozjpeg), PNG, WebP, HEIC/AVIF (чтение), GIF, с ICC-профилями, EXIF и SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
+| `vips` | `graphics/vips` | libvips 8.18 для скриптов Lua в nginx, перекодирующих картинки на лету: JPEG (mozjpeg), PNG, WebP, HEIC (чтение), AVIF (чтение и запись), GIF, с ICC-профилями, EXIF и SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
+| `glib`, `libexif`, `cgif`, `libimagequant`, `highway` | `devel/glib20`, `graphics/libexif`, `graphics/cgif`, `graphics/libimagequant`, `devel/highway` | библиотеки `vips` (GLib — и `mc`): GLib 2.88 разделяемая, без introspection, NLS, документации и man-страниц, на libffi, libintl и libiconv из az и PCRE2 из `pcre2`; остальные — официальные порты как есть (libexif без NLS) |
 | `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (атом moov в начало MP4), возвращён для совместимости: официальный порт удалён 30.06.2022 |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp релиза новее официального порта, с нашим `ffmpeg` |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip`, `3proxy` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows; `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR; `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS; `bash` без NLS; `portmaster` только с дополнением для bash), `wget` и `rsync` наши, с разделяемыми библиотеками az (`wget`: IDN, PSL; `rsync`: lz4, zstd, xxhash, без ICONV), PCRE2 из `pcre2` (`wget`) и OpenSSL базы |
@@ -132,7 +133,8 @@
 - **`multimedia/ffmpeg`**: пакет `ffmpeg` вместо официального: `bin/ffmpeg` и
   `bin/ffprobe` (библиотеки FFmpeg внутри них), только с тем, что нужно видеосайтам
   ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
-  линкуются с x264, dav1d и libwebp из az. Сборка и работа: az.
+  линкуются с x264, dav1d, SVT-AV1 (запись AV1 и AVIF, aZ 11.11.2026) и libwebp из az.
+  Сборка и работа: az.
 - **`graphics/ImageMagick6`**: `bin/convert6`, `identify6`, `mogrify6`, `composite6` и
   остальные, рядом с ImageMagick 7, линкуются со своими библиотеками в
   `/usr/local/az/lib`: только JPEG, PNG, WebP, GIF, HEIC и AVIF, с нашей policy. Сборка и
@@ -195,14 +197,15 @@
   (DNS over HTTPS) и libidn2 из az, OpenSSL, zlib и libedit базы.
 - **`graphics/vips`**: libvips 8.18 (aZ, 11.11.2026: для скрипта Lua в nginx,
   перекодирующего картинки на лету) с форматами aZ: JPEG (mozjpeg), PNG (libpng), WebP,
-  HEIC/AVIF (libheif из az: только чтение), GIF (чтение встроенное, запись через cgif и
+  HEIC/AVIF (libheif из az: оба читаются, AVIF пишется через SVT-AV1), GIF (чтение встроенное, запись через cgif и
   libimagequant), с ICC-профилями (lcms2), EXIF (libexif) и SIMD (Highway; ORC — другой
   вариант, только без Highway). Без TIFF, SVG, PDF, JPEG XL, ImageMagick и
   GraphicsMagick, текста, FFTW и прочих официальных опций; без загрузчиков Analyze,
   Radiance и PPM, устаревшего API vips7, C++-API, статической библиотеки, man-страниц и
   переводов. mozjpeg, png, webp, libheif, lcms2 и expat из az; glib, libexif, cgif,
-  libimagequant и highway из официальных портов; zlib базы. Для картинок из веба —
-  `VIPS_BLOCK_UNTRUSTED=1` в окружении nginx (`env VIPS_BLOCK_UNTRUSTED=1;`): libvips не
+  libimagequant и highway из их портов этого дерева; zlib базы. Для картинок из веба —
+  `VIPS_BLOCK_UNTRUSTED=1` в окружении nginx (`env VIPS_BLOCK_UNTRUSTED=1;` в основном
+  контексте nginx.conf; об этом говорит и сообщение пакета): libvips не
   берёт недоверенные загрузчики.
 - **`multimedia/qt-faststart`**: `bin/qt-faststart` из `tools/qt-faststart.c` FFmpeg 9.0.2
   (public domain): официальный порт удалён 30.06.2022 (то же делает ffmpeg `-movflags

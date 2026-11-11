@@ -565,6 +565,7 @@ az_lib_of() {
         cares) _b=c-ares ;;
         apr-1 | aprutil-1) _b=apr ;;
         urcu | urcu-*) _b=liburcu ;;
+        SvtAv1Enc) _b=svtav1 ;;
     esac
     for _n in "lib$_b" "$_b"; do
         awk -v n="$_n" '$1 == n { f = 1 } END { exit !f }' "$q/azlib.txt" && { echo "$_n"; return 0; }

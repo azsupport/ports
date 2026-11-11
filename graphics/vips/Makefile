@@ -1,9 +1,9 @@
 # graphics/vips: libvips of azsupport/ports in the place of the official
 # graphics/vips (aZ, 11.11.2026: for a Lua script of nginx that converts images on
 # the fly). One set of formats, aZ's: JPEG (mozjpeg), PNG (libpng), WebP,
-# HEIC/AVIF (libheif of az: load only, it has no encoder), GIF (load built in,
-# save with cgif and libimagequant), with ICC profiles (lcms2), EXIF (libexif) and
-# SIMD (Highway; ORC is the other choice, libvips takes it only without Highway).
+# HEIC/AVIF (libheif of az: both loaded, AVIF saved with SVT-AV1), GIF (load built
+# in, save with cgif and libimagequant), with ICC profiles (lcms2), EXIF (libexif)
+# and SIMD (Highway; ORC is the other choice, libvips takes it only without Highway).
 # Nothing else of the official options: no TIFF, SVG, PDF, JPEG XL, ImageMagick or
 # GraphicsMagick (magickload), FFTW, text (pango, fontconfig), libarchive, OpenEXR,
 # OpenJPEG, libraw, Ultra HDR, FITS, Matlab; no SPNG (libvips 8.18 takes it only
@@ -12,8 +12,10 @@
 # library, the manual pages and the translations; no bash and python to run. The
 # libraries of our ports, as shared ones (aZ, 10.11.2026: our ports link each
 # other's shared libraries): mozjpeg, png, webp, libheif, lcms2 and expat of az,
-# with the run path /usr/local/az/lib; of the official ports glib, libexif, cgif,
-# libimagequant and highway (no port of ours has them); zlib of the base system.
+# with the run path /usr/local/az/lib; glib, libexif, cgif, libimagequant and
+# highway of the ports of this tree (devel/glib20, graphics/libexif, graphics/cgif,
+# graphics/libimagequant, devel/highway: aZ, 11.11.2026); zlib of the base system.
+# pkg-message: VIPS_BLOCK_UNTRUSTED for nginx.
 # Every library through a .pc of the work with only its own headers (the include
 # directories of az and of /usr/local have others: GNU iconv.h, libintl.h ...).
 
@@ -136,7 +138,7 @@ VIPS_OFFICIAL_PC=	cgif:-lcgif \
 # ports alone in vips/lib, a .pc each in vips/pc with the version (and the flags
 # other than -I) of its real one: libjpeg, libpng, libwebp, libheif, lcms2 and
 # expat of az (-L of az, which has no other library libvips links); cgif,
-# libimagequant, libexif and highway of /usr/local; glib, gobject and gio with
+# libimagequant, libexif and highway of /usr/local (their ports); glib, gobject and gio with
 # their own include directories (glib-2.0), without -lintl (libvips without NLS)
 pre-configure:
 	@${MKDIR} ${WRKDIR}/vips/include ${WRKDIR}/vips/lib ${WRKDIR}/vips/pc

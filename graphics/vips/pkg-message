@@ -1,0 +1,14 @@
+[
+{ type: install
+  message: <<EOM
+For images of the web (a Lua script of nginx that converts them on the fly),
+put this line into the main context of nginx.conf (not into http {}):
+
+  env VIPS_BLOCK_UNTRUSTED=1;
+
+Then libvips in the workers of nginx opens none of its untrusted loaders (the
+vips format and CSV: nothing a browser sends); JPEG, PNG, WebP, GIF, HEIC and
+AVIF are not affected. This libvips has no ImageMagick or GraphicsMagick.
+EOM
+}
+]
