@@ -58,8 +58,9 @@ COMMENT=	The ${PHP_MODNAME} shared extension for php
 USES+=	php:ext,noflavors
 # openssl-legacy builds ext/openssl; <module>-openssl ext/<module> (the
 # variants with OpenSSL: AZ_OPENSSL below)
-# (redis-lz4, redis-zstd, redis-lz4-zstd: the packages of redis, AZ_REDIS below)
-PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//:C/^redis-.*/redis/}
+# (redis-lz4, redis-zstd, redis-lz4-zstd: the packages of redis, AZ_REDIS below;
+# swoole-sqlite: swoole with the coroutine PDO SQLite, AZ_SWOOLE_SQLITE below)
+PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//:S/^swoole-sqlite$/swoole/:C/^redis-.*/redis/}
 PHP_VER=	83
 IGNORE_WITH_PHP=	82 84 85 86
 
@@ -90,6 +91,15 @@ AZ_OPENSSL=	yes
 # the patches of the module: those of its port without OpenSSL
 PATCHDIR=	${.CURDIR:S/-openssl$//}/files
 .endif
+
+# swoole-sqlite (aZ, 11.11.2026): swoole with the coroutine PDO SQLite
+# (SQLITE, see its rules), with the patches of swoole; the same files as
+# swoole, so one of the two at a time
+.if ${PKGNAMESUFFIX:M-swoole-sqlite*}
+AZ_SWOOLE_SQLITE=	yes
+PATCHDIR=	${.CURDIR:H}/php${PHP_VER}-swoole/files
+.endif
+AZ_SWOOLE_PKGS=	swoole swoole-sqlite
 
 # The packages of redis (aZ, 11.11.2026): phpXY-redis without compression, and
 # phpXY-redis-lz4, phpXY-redis-zstd and phpXY-redis-lz4-zstd with the lz4 and
@@ -721,6 +731,20 @@ CONFIGURE_ARGS+=	--enable-swoole
 
 OPTIONS_DEFINE=		BROTLI CARES CURL SOCKETS SQLITE ZSTD
 OPTIONS_DEFAULT=	BROTLI SOCKETS
+# SQLITE in swoole-sqlite only (aZ, 11.11.2026): with the hook
+# SWOOLE_HOOK_PDO_SQLITE (in SWOOLE_HOOK_ALL) the calls of PDO SQLite run in
+# the thread pool of swoole, so a query waits in its coroutine only, not the
+# whole worker; without the hook they run directly. swoole registers its own
+# copy of the PDO driver sqlite (thirdparty/pdo_sqlite) in the place of that
+# of pdo_sqlite, which it replaces when pdo_sqlite starts first
+# (ext-30-pdo_sqlite.ini comes before ext-30-swoole.ini). The SQLite of az
+# (pkg-config), not USES=sqlite.
+.  if defined(AZ_SWOOLE_SQLITE)
+OPTIONS_SLAVE=		SQLITE
+COMMENT:=		${COMMENT}, with coroutine PDO SQLite
+.  else
+OPTIONS_EXCLUDE+=	SQLITE
+.  endif
 BROTLI_CONFIGURE_OFF=	--disable-brotli
 BROTLI_CONFIGURE_ON=	--enable-brotli
 BROTLI_VARS=		AZ_LIBS+=libbrotlienc.so
@@ -735,7 +759,7 @@ SOCKETS_USE=		PHP=sockets:build
 SQLITE_CONFIGURE_OFF=	--disable-swoole-sqlite
 SQLITE_CONFIGURE_ON=	--enable-swoole-sqlite
 SQLITE_USE=		PHP=pdo:build
-SQLITE_USES=		sqlite
+SQLITE_VARS=		AZ_LIBS+=libsqlite3.so
 ZSTD_CONFIGURE_OFF=	--disable-zstd
 ZSTD_CONFIGURE_ON=	--enable-zstd
 ZSTD_LIB_DEPENDS=	libzstd.so:archivers/zstd
@@ -804,6 +828,10 @@ COMMENT:=	${COMMENT}, for mysqlnd with OpenSSL
 .  else
 CONFLICTS_INSTALL=	php${PHP_VER}-${PHP_MODNAME}-openssl
 .  endif
+.endif
+# swoole: one of its packages (AZ_SWOOLE_PKGS above)
+.if ${PHP_MODNAME} == "swoole"
+CONFLICTS_INSTALL=	${AZ_SWOOLE_PKGS:N${PKGNAMESUFFIX:S/^-//}:S/^/php${PHP_VER}-/}
 .endif
 
 # The CPE of a PECL extension is that of its port: USES=cpe and CPE_PRODUCT=php
