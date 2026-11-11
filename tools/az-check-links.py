@@ -7,16 +7,44 @@ For every .pc file of the bundle, the archives that `pkgconf --static --libs`
 names are taken together; a symbol that they leave undefined but that another
 archive of the bundle defines means that archive is missing from the link line
 (as libhashkit was from libmemcached.pc). Symbols defined nowhere in the bundle
-are left to the base system (libc, libthr, libc++, libz, ...) and not reported.
+are left to the base system (libc, libthr, libc++, libz, ...) and not reported,
+and so are those that the runtime libraries of the base system define, which
+every link has (libc, libm, libthr, the compiler runtime, libc++), also when an
+archive of the bundle defines them too: the Rust libimagequant.a has fmod and
+other functions of libm and of the compiler runtime of its own
+(compiler_builtins), which icu and libxml2 do not need it for.
 
 Usage: python3 tools/check-deps-links.py <dir that holds lib/ and lib/pkgconfig/> [more pkgconfig dirs]
 The more dirs (colon separated) are for the .pc files of the base system that the
 bundle's ones require (zlib, bzip2: /usr/libdata/pkgconfig on FreeBSD).
+AZ_BASE_LIBS (colon separated) names other runtime libraries than those of
+FreeBSD (BASE below), for a test elsewhere.
 Needs nm (binutils or llvm) and pkgconf. Exit status 1 when something is missing.
 """
 import os
 import subprocess
 import sys
+
+
+# the runtime libraries of the base system that a link of C or C++ has (libm and
+# libthr: PHP and the programs link them)
+BASE = ['/lib/libc.so.7', '/lib/libm.so.5', '/lib/libthr.so.3', '/lib/libgcc_s.so.1',
+        '/usr/lib/libgcc.a', '/usr/lib/libc++.so.1', '/lib/libcxxrt.so.1']
+
+
+def base_symbols():
+    """The symbols the runtime libraries of the base system define."""
+    out = set()
+    libs = os.environ['AZ_BASE_LIBS'].split(':') if os.environ.get('AZ_BASE_LIBS') else BASE
+    for lib in libs:
+        if not os.path.exists(lib):
+            continue
+        cmd = ['nm', '-g', '--defined-only', lib] if lib.endswith('.a') else ['nm', '-D', '--defined-only', lib]
+        for line in subprocess.run(cmd, capture_output=True, text=True).stdout.splitlines():
+            parts = line.split()
+            if len(parts) == 3:
+                out.add(parts[2].split('@')[0])
+    return out
 
 
 def nm_symbols(archive):
@@ -40,6 +68,7 @@ def main():
     pcdir = os.path.join(libdir, 'pkgconfig')
     archives = sorted(f for f in os.listdir(libdir) if f.endswith('.a'))
     syms = {a: nm_symbols(os.path.join(libdir, a)) for a in archives}
+    base = base_symbols()
     definers = {}
     for a in archives:
         for s in syms[a][0]:
@@ -63,7 +92,7 @@ def main():
         if not line:
             continue
         defined = set().union(*(syms[a][0] for a in line))
-        undefined = set().union(*(syms[a][1] for a in line)) - defined
+        undefined = set().union(*(syms[a][1] for a in line)) - defined - base
         needs = {}
         for s in undefined:
             for a in definers.get(s, ()):
