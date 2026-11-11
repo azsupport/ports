@@ -32,9 +32,11 @@
 #   the stamp of the build, from lang/php81); no lang/php81-extensions (the
 #   meta-port), as for 7.4 and 8.3;
 # - the patches of the official slaves (files/) as they are, but config.m4 of
-#   fileinfo, mbstring, phar and simplexml (only for the PCRE2 of the ports;
-#   the PHP_HASH of the one of phar is for a check that 8.1 no longer has), as
-#   for 7.4; patch-config.m4 of devel/pecl-swoole made again for 6.1.12. The
+#   fileinfo, mbstring, phar and simplexml (--with-pcre-dir: an
+#   -I/usr/local/include for pcre2.h; the modules find pcre2.h of devel/pcre2
+#   next to php_pcre.h by the link ext/pcre/pcre2.h of the headers,
+#   lang/php81/Makefile; the PHP_HASH of the one of phar is for a check that 8.1
+#   no longer has), as for 7.4; patch-config.m4 of devel/pecl-swoole made again for 6.1.12. The
 #   patches of ext/mysqli in files/ of the official core (patch-ext_mysqli_*,
 #   in php-src freebsd/patches/8.1/SKIPPED) go into the tree of the core,
 #   which builds no mysqli: the module mysqli of the ports is built with

@@ -11,8 +11,8 @@
 # the ini of gmagick, the profiles, GCC but for intl and imagick), as
 # lang/php81/Makefile.ext for 8.1:
 # LIB_DEPENDS, USES and USE_GNOME of the libraries of the ports become AZ_LIBS
-# and the directories of az; no --with-pcre-dir (the PCRE of the ports; the
-# bundled PCRE of the fork is in the core); config0.m4 and config9.m4 as
+# and the directories of az; no --with-pcre-dir (the modules find pcre.h of
+# devel/pcre next to php_pcre.h, see lang/php56/Makefile); config0.m4 and config9.m4 as
 # config.m4 by Mk/Uses/php.mk (not the post-extract of openssl, sqlite3 and
 # zlib); the PHP_MOD_PRIO of opcache (10) and session (18) in
 # Mk/php-modules.mk. Mk/Uses/php.mk is that of 036685c034ba for every version
@@ -47,10 +47,13 @@
 #   COMMENT, the LICENSE (PHP301, of lang/php56) and the CPE of PHP as the
 #   bundled modules.
 # - the patches of the official slaves (files/) as they are, but config.m4 of
-#   fileinfo, filter, mbstring, phar and simplexml (only for the PCRE of the
-#   ports: --with-pcre-dir, the bundled PCRE of the fork is in the core; that
-#   of phar also sets PHP_HASH=yes for a check that PHP_HASH, empty under
-#   phpize, passes anyway), readline_cli.c of readline (in the source already:
+#   fileinfo, filter, mbstring, phar and simplexml (--with-pcre-dir: an
+#   -I/usr/local/include for pcre.h, which would show every header of
+#   /usr/local to the module; the core takes PCRE 8.45 of devel/pcre of this
+#   tree since 10.11.2026, and the modules find pcre.h next to php_pcre.h by the
+#   link ext/pcre/pcre.h of the headers, lang/php56/Makefile; that of phar also
+#   sets PHP_HASH=yes for a check that PHP_HASH, empty under phpize, passes
+#   anyway), readline_cli.c of readline (in the source already:
 #   it includes config.h first), patch-openssl11 of openssl (in the source
 #   already: the branch of Remi Collet builds with OpenSSL 1.1 and the fork with
 #   OpenSSL 3) and config.m4 of wddx (--with-libxml-dir and PHP_SETUP_LIBXML,
