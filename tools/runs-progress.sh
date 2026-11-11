@@ -70,7 +70,9 @@ while [ "$(date +%s)" -lt "$end" ]; do
                 [ -z "$st" ] || echo "- now: $st (results/stages.txt)"
                 # building now: started ("make package" with AZ_JOBS above 1, "<origin>:
                 # <pkgname> (<why>)" one by one) and with no result line yet
+                # (a NEED_ROOT port alone: "wave N: <origin> (alone: NEED_ROOT)")
                 grep -E '^\[build [0-9:]+\] [^ ]+: make package \(logs/' "$w/log" | awk '{ sub(":$", "", $3); print $3, substr($2, 1, 5) }' > "$w/run" || :
+                grep -E '^\[build [0-9:]+\] wave [0-9]+: [^ ]+ \(alone: NEED_ROOT\)' "$w/log" | awk '{ print $5, substr($2, 1, 5) }' >> "$w/run" || :
                 now=""
                 while read -r po pt; do
                     grep -qE "^\[build [0-9:]+\] $po: (OK|FAIL|SKIP) " "$w/done" || now="$now $po (since $pt)"
