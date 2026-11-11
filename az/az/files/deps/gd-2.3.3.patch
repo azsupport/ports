@@ -1,0 +1,17 @@
+Description: imagesetinterpolation() and imagescale() with IMG_BICUBIC (GD_BICUBIC, GD_BICUBIC_FIXED) failed with libgd 2.3.3: its gdImageSetInterpolationMethod() lost their case (libgd issue #847); PHP gd of every version takes this libgd
+Origin: upstream https://github.com/libgd/libgd/commit/39abd7238cea2ba8baa4bcac1d6fc01c6cb8afab (in libgd master, no release yet), the hunk of src/gd_interpolation.c as Gentoo carries it (media-libs/gd files/gd-2.3.3-GD_BICUBIC.patch), -p0
+
+--- src/gd_interpolation.c
++++ src/gd_interpolation.c
+@@ -2257,6 +2257,11 @@ BGD_DECLARE(int) gdImageSetInterpolationMethod(gdImagePtr im, gdInterpolationMet
+ 		case GD_BESSEL:
+ 			im->interpolation = filter_bessel;
+ 			break;
++		case GD_BICUBIC_FIXED:
++		case GD_BICUBIC:
++			/* no interpolation as gdImageScale calls a dedicated function */
++			im->interpolation = NULL;
++			break;
+ 		case GD_BLACKMAN:
+ 			im->interpolation = filter_blackman;
+ 			break;
