@@ -21,6 +21,13 @@
 # have them in /var/lib and /var/log: heap dumps, the fatal error files of the JVM
 # and the GC log (the tarball has them relative to lib/elasticsearch, which the
 # user elasticsearch cannot write; the official port put the GC log in ES_TMPDIR).
+# jvm.options for OpenJDK 17 (aZ, 11.11.2026; files/patch-config_jvm.options, each
+# change with its source in a comment of the file): -XX:UseAVX=2 for JDK 10 alone
+# (Elastic dropped it in 7.1: fixed in JDK 11; on JDK 17 it warned at every start
+# on a CPU without AVX2), -XX:+ExitOnOutOfMemoryError (7.16), -XX:ReplayDataFile
+# (8.x); the G1 options of 6.8.23 for JDK 14 and later stay. The heap of a server
+# is elasticsearch_heap of rc.conf (-Xms and -Xmx in ES_JAVA_OPTS, after
+# jvm.options), so that jvm.options is one file for all.
 
 PORTNAME=	elasticsearch
 PORTVERSION=	6.8.23
@@ -117,16 +124,20 @@ post-patch:
 	@${RM} -r ${WRKSRC}/modules/x-pack-ml
 	# the JNA of devel/jna instead (do-install)
 	@${RM} ${WRKSRC}/lib/jna-*.jar
-	@${REINPLACE_CMD} -e 's|^-XX:HeapDumpPath=data$$|-XX:HeapDumpPath=/var/db/elasticsearch|' \
-		-e 's|^-XX:ErrorFile=logs/|-XX:ErrorFile=/var/log/elasticsearch/|' \
-		-e 's|-Xloggc:logs/gc\.log|-Xloggc:/var/log/elasticsearch/gc.log|' \
-		-e 's|file=logs/gc\.log|file=/var/log/elasticsearch/gc.log|' \
-		${WRKSRC}/config/jvm.options
+	# files/patch-config_jvm.options: the paths, and what it sets for OpenJDK 17
 	@${GREP} -q '^-XX:HeapDumpPath=/var/db/elasticsearch$$' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-XX:ErrorFile=/var/log/elasticsearch/hs_err_pid%p\.log$$' ${WRKSRC}/config/jvm.options && \
+		${GREP} -q '^-XX:ReplayDataFile=/var/log/elasticsearch/replay_pid%p\.log$$' ${WRKSRC}/config/jvm.options && \
 		[ "$$(${GREP} -c '/var/log/elasticsearch/gc\.log' ${WRKSRC}/config/jvm.options)" = 2 ] && \
-		! ${GREP} -E -q '(=|:)logs/' ${WRKSRC}/config/jvm.options || \
-		{ ${ECHO_MSG} "config/jvm.options: the paths of the tarball are not those this port changes"; ${FALSE}; }
+		! ${GREP} -E -q '(=|:)(logs/|data$$)' ${WRKSRC}/config/jvm.options || \
+		{ ${ECHO_MSG} "config/jvm.options: the paths are not those of files/patch-config_jvm.options"; ${FALSE}; }
+	@${GREP} -q '^10:-XX:UseAVX=2$$' ${WRKSRC}/config/jvm.options && \
+		! ${GREP} -q '^10-:' ${WRKSRC}/config/jvm.options && \
+		${GREP} -q '^9-:-XX:+ExitOnOutOfMemoryError$$' ${WRKSRC}/config/jvm.options && \
+		${GREP} -q '^14-:-XX:G1ReservePercent=25$$' ${WRKSRC}/config/jvm.options && \
+		${GREP} -q '^-Dlog4j2\.formatMsgNoLookups=true$$' ${WRKSRC}/config/jvm.options && \
+		${GREP} -q '^-Xms1g$$' ${WRKSRC}/config/jvm.options && ${GREP} -q '^-Xmx1g$$' ${WRKSRC}/config/jvm.options || \
+		{ ${ECHO_MSG} "config/jvm.options: not the options of files/patch-config_jvm.options"; ${FALSE}; }
 	@${GREP} -q 'es_jdk17_warnings' ${WRKSRC}/bin/elasticsearch
 
 do-install:
@@ -156,13 +167,17 @@ do-install-DOCS-on:
 
 post-install:
 	# JNA: a link to the jna.jar of devel/jna, no other JNA; the rc script on the
-	# OpenJDK 17 of the dependency
+	# OpenJDK 17 of the dependency (its file of the work directory: install-rc-script
+	# puts it into the stage directory after post-install)
 	@[ "$$(readlink ${STAGEDIR}${PREFIX}/lib/elasticsearch/lib/jna.jar)" = "${JAVAJARDIR}/jna.jar" ] && \
 		! ls ${STAGEDIR}${PREFIX}/lib/elasticsearch/lib/jna-*.jar > /dev/null 2>&1 || \
 		{ ${ECHO_MSG} "lib/jna.jar is not the link to ${JAVAJARDIR}/jna.jar alone"; ${FALSE}; }
 	@[ "${JAVA_HOME}" = "${LOCALBASE}/openjdk17" ] && \
-		${GREP} -q 'elasticsearch_java_home="${LOCALBASE}/openjdk17"' ${STAGEDIR}${PREFIX}/etc/rc.d/elasticsearch || \
+		${GREP} -q 'elasticsearch_java_home="${LOCALBASE}/openjdk17"' ${WRKDIR}/elasticsearch || \
 		{ ${ECHO_MSG} "rc.d/elasticsearch: elasticsearch_java_home is not ${LOCALBASE}/openjdk17 (JAVA_HOME ${JAVA_HOME})"; ${FALSE}; }
+	@${GREP} -q 'export ES_JAVA_OPTS="-Xms$${elasticsearch_heap} -Xmx$${elasticsearch_heap}"' ${WRKDIR}/elasticsearch && \
+		${SH} -n ${WRKDIR}/elasticsearch || \
+		{ ${ECHO_MSG} "rc.d/elasticsearch: no heap of elasticsearch_heap, or not a script of sh"; ${FALSE}; }
 	${ECHO} "@sample ${ETCDIR}/elasticsearch.yml.sample" >> ${TMPPLIST}
 	${ECHO} "@sample ${ETCDIR}/log4j2.properties.sample" >> ${TMPPLIST}
 	${ECHO} "@sample ${ETCDIR}/jvm.options.sample" >> ${TMPPLIST}

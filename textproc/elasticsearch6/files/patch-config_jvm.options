@@ -1,0 +1,92 @@
+--- config/jvm.options.orig
++++ config/jvm.options
+@@ -19,6 +19,12 @@
+ # Xms represents the initial size of total heap space
+ # Xmx represents the maximum size of total heap space
+ 
++# azsupport/ports: this file can be the same on every server. The heap of a
++# server is set in /etc/rc.conf, elasticsearch_heap="4g": the rc script passes
++# -Xms and -Xmx of that size in ES_JAVA_OPTS, which bin/elasticsearch puts after
++# the options of this file (the JVM takes the last -Xms and -Xmx). The two lines
++# below are the heap without elasticsearch_heap.
++
+ -Xms1g
+ -Xmx1g
+ 
+@@ -46,6 +52,13 @@
+ 14-:-XX:+UseG1GC
+ 14-:-XX:G1ReservePercent=25
+ 14-:-XX:InitiatingHeapOccupancyPercent=30
++# azsupport/ports: the three lines above are those of 6.8.23 and stay: they are
++# what Elasticsearch 7.17, which Elastic ships with JDK 17 and later, runs with on
++# a heap of 8 GB and more (JvmErgonomics; IHOP 30 on any heap). For a heap below
++# 8 GB 7.10 and later choose -XX:G1HeapRegionSize=4m and -XX:G1ReservePercent=15
++# (elastic/elasticsearch#59667, measured on 7.x); on 6.8.23 with a heap of 1 GB
++# and of 4 GB a load of indexing and searches showed no fewer GC pauses with
++# them (11.11.2026), so they are not set here.
+ 
+ ## DNS cache policy
+ # cache ttl in seconds for positive DNS lookups noting that this overrides the
+@@ -101,12 +114,29 @@
+ # heap dumps are created in the working directory of the JVM
+ -XX:+HeapDumpOnOutOfMemoryError
+ 
++# azsupport/ports: exit right after the heap dump, as 7.16 and later do
++# (elastic/elasticsearch#71542: "safer to use the JVM's built-in support for
++# terminating the process on OOM" than the handler of Elasticsearch, which 6.8
++# relies on and which does not see an OutOfMemoryError that some code caught);
++# the bootstrap checks of 6.8 name this flag as the one to use. A node that ran
++# out of heap is not left half alive in the cluster.
++9-:-XX:+ExitOnOutOfMemoryError
++
+ # specify an alternative path for heap dumps; ensure the directory exists and
+ # has sufficient space
+--XX:HeapDumpPath=data
++# azsupport/ports: /var/db/elasticsearch, which the rc script creates (the tarball
++# has data, relative to lib/elasticsearch, where Elasticsearch cannot write)
++-XX:HeapDumpPath=/var/db/elasticsearch
+ 
+ # specify an alternative path for JVM fatal error logs
+--XX:ErrorFile=logs/hs_err_pid%p.log
++# azsupport/ports: /var/log/elasticsearch, as the deb and rpm of Elastic (the
++# tarball has logs, relative to lib/elasticsearch)
++-XX:ErrorFile=/var/log/elasticsearch/hs_err_pid%p.log
++
++# azsupport/ports: the replay file of a JIT compiler that crashed next to it, as
++# 8.x sets it (SystemJvmOptions: -XX:ReplayDataFile, /var/log/elasticsearch in
++# the deb and rpm); the JVM writes it to its working directory otherwise
++-XX:ReplayDataFile=/var/log/elasticsearch/replay_pid%p.log
+ 
+ ## JDK 8 GC logging
+ 
+@@ -114,16 +144,27 @@
+ 8:-XX:+PrintGCDateStamps
+ 8:-XX:+PrintTenuringDistribution
+ 8:-XX:+PrintGCApplicationStoppedTime
+-8:-Xloggc:logs/gc.log
++8:-Xloggc:/var/log/elasticsearch/gc.log
+ 8:-XX:+UseGCLogFileRotation
+ 8:-XX:NumberOfGCLogFiles=32
+ 8:-XX:GCLogFileSize=64m
+ 
+ # JDK 9+ GC logging
+-9-:-Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m
++# azsupport/ports: in /var/log/elasticsearch (the tarball: logs/gc.log); the line
++# is that of 7.17 and 8.x on JDK 17, at most 32 files of 64 MB
++9-:-Xlog:gc*,gc+age=trace,safepoint:file=/var/log/elasticsearch/gc.log:utctime,pid,tags:filecount=32,filesize=64m
+ # due to internationalization enhancements in JDK 9 Elasticsearch need to set the provider to COMPAT otherwise
+ # time/date parsing will break in an incompatible way for some date patterns and locals
++# azsupport/ports: stays as it is on JDK 17: COMPAT is there until JDK 23 and
++# JDK 17 says nothing about it; 7.17 on JDK 17 runs with SPI,COMPAT, where SPI is
++# for a class that 6.8 does not have (IsoCalendarDataProvider)
+ 9-:-Djava.locale.providers=COMPAT
+ 
+ # temporary workaround for C2 bug with JDK 10 on hardware with AVX-512
+-10-:-XX:UseAVX=2
++# azsupport/ports: for JDK 10 alone, not for 10 and later: the bug is fixed in
++# JDK 11, and Elastic took the line out of 7.1 and later for that reason
++# (elastic/elasticsearch#40828; it came with #32138). On JDK 17 it kept AVX-512
++# off where the CPU has it, and on a CPU without AVX2 the JVM printed "UseAVX=2
++# is not supported on this CPU, setting it to UseAVX=1" at every start
++# (src/hotspot/cpu/x86/vm_version_x86.cpp, since JDK 11).
++10:-XX:UseAVX=2
