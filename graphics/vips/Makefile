@@ -139,7 +139,9 @@ VIPS_OFFICIAL_PC=	cgif:-lcgif \
 # other than -I) of its real one: libjpeg, libpng, libwebp, libheif, lcms2 and
 # expat of az (-L of az, which has no other library libvips links); cgif,
 # libimagequant, libexif and highway of /usr/local (their ports); glib, gobject and gio with
-# their own include directories (glib-2.0), without -lintl (libvips without NLS)
+# their own include directories (glib-2.0), without -lintl (libvips without NLS), and
+# libintl.h of az among the headers: glib/gi18n-lib.h of GLib includes it (the GLib of
+# devel/glib20 is on the libintl of az, so no libintl.h is in /usr/local/include)
 pre-configure:
 	@${MKDIR} ${WRKDIR}/vips/include ${WRKDIR}/vips/lib ${WRKDIR}/vips/pc
 	@${LN} -sf ${AZ_PREFIX}/include/expat.h ${AZ_PREFIX}/include/expat_external.h \
@@ -151,7 +153,7 @@ pre-configure:
 		${AZ_PREFIX}/include/pnglibconf.h ${AZ_PREFIX}/include/webp \
 		${LOCALBASE}/include/cgif.h ${LOCALBASE}/include/libimagequant.h \
 		${LOCALBASE}/include/libexif ${LOCALBASE}/include/hwy \
-		${WRKDIR}/vips/include/
+		${AZ_PREFIX}/include/libintl.h ${WRKDIR}/vips/include/
 	@${LN} -sf ${LOCALBASE}/lib/libcgif.so ${LOCALBASE}/lib/libimagequant.so \
 		${LOCALBASE}/lib/libexif.so ${LOCALBASE}/lib/libhwy.so \
 		${LOCALBASE}/lib/libglib-2.0.so ${LOCALBASE}/lib/libgobject-2.0.so \
