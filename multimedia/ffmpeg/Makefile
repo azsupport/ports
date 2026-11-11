@@ -31,7 +31,8 @@ LICENSE=	GPLv2+
 # the libraries of az in its hash (tools/build.sh): x264, dav1d, SVT-AV1 and libwebp
 # (and those before them in deps.conf), more than the files of its dependency names
 AZ_HASH_LIBS=	x264 dav1d svtav1 webp
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libx264.so:az/az \
+# += : the nonfree variant (nonfree/ffmpeg/Makefile.in) has its own before it
+BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libx264.so:az/az \
 		${AZ_PREFIX}/lib/libSvtAv1Enc.so:az/az \
 		nasm:devel/nasm
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libx264.so:az/az \
