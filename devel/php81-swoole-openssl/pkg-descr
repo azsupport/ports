@@ -1,7 +1,6 @@
 Swoole with OpenSSL: the module swoole of php81-swoole built with the
-OpenSSL of the base system (its SSL and TLS: SWOOLE_SSL, HTTPS, WSS),
-with php81-mysqlnd-openssl instead of php81-mysqlnd. The same files as
-php81-swoole: install one of the two.
+OpenSSL of the base system (its SSL and TLS: SWOOLE_SSL, HTTPS, WSS).
+The same files as php81-swoole: install one of the two.
 
 PECL swoole for php81 of azsupport/ports, built from ext/swoole of the
 release tarball of azsupport/php-src, which bundles it:

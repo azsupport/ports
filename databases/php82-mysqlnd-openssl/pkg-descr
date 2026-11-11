@@ -2,8 +2,8 @@ mysqlnd with OpenSSL: the module mysqlnd of php82-mysqlnd built with its
 extended SSL (MYSQLND_HAVE_SSL), linked with the OpenSSL of the base
 system: the logins caching_sha2_password (the default of MySQL 8 and
 later) and sha256_password. The same files as php82-mysqlnd: install one
-of the two; php82-mysqli-openssl, php82-pdo_mysql-openssl,
-php82-swoole-openssl and php82-openswoole-openssl go with it.
+of the two; php82-mysqli-openssl, php82-pdo_mysql-openssl and
+php82-openswoole-openssl go with it.
 
 The module mysqlnd of PHP 8.2 for php82 of azsupport/ports, which
 installs side by side with the other versions of PHP:

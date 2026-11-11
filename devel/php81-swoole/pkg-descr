@@ -11,8 +11,10 @@ Asynchronous & concurrent & distributed networking framework for PHP.
 * async dns lookup
 * support IPv4/IPv6/UnixSocket/TCP/UDP
 
-Without OpenSSL (no SSL and TLS of swoole: SWOOLE_SSL, HTTPS, WSS), with
-php81-mysqlnd; php81-swoole-openssl has it, with php81-mysqlnd-openssl.
+Without OpenSSL (no SSL and TLS of swoole: SWOOLE_SSL, HTTPS, WSS);
+php81-swoole-openssl has it. Neither needs a module mysqlnd: the
+coroutine hooks of mysqli and PDO MySQL work with php81-mysqlnd or
+php81-mysqlnd-openssl.
 
 PECL swoole for php81 of azsupport/ports, built from ext/swoole of the
 release tarball of azsupport/php-src, which bundles it:

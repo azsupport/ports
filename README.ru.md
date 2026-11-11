@@ -90,7 +90,7 @@
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows, и с исправлениями уязвимостей, которых нет в официальном порту, из Fedora: CVE-2014-8141 … CVE-2022-0530, zip-бомбы; `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR; `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS, с исправлением CVE-2026-96512 (три коммита апстрима); `bash` без NLS; `portmaster` только с дополнением для bash), `wget` и `rsync` наши, с разделяемыми библиотеками az (`wget`: IDN, PSL; `rsync` 3.5.2, раньше официального 3.5.1 ради исправлений безопасности: lz4, zstd, xxhash, без ICONV), PCRE2 из `pcre2` (`wget`) и OpenSSL базы |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
-| `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). 68 на версию, у 7.4 — 70, у 5.6 — 65 (с вариантами, ниже); список одной версии: `pkg search -r az '^php84-'` |
+| `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). у 7.4 — 70, у 8.1 — 68, у 8.2–8.4 — 67, у 5.6 — 65 (с вариантами, ниже); список одной версии: `pkg search -r az '^php84-'` |
 
 - openssl в двух видах, один из двух: `phpXY-openssl` и `phpXY-openssl-legacy` (с
   legacy-провайдером OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
@@ -101,8 +101,11 @@
   без входа caching_sha2_password и sha256_password (MySQL 8 и новее; у MariaDB их нет):
   они есть в `phpXY-mysqlnd-openssl`. Модули на mysqlnd идут с одним из двух:
   `phpXY-mysqli-openssl`, `phpXY-pdo_mysql-openssl` (у 5.6 ещё `php56-mysql-openssl`),
-  `phpXY-swoole-openssl` и `phpXY-openswoole-openssl` — с `phpXY-mysqlnd-openssl`.
-  Swoole 6.2 (8.2–8.4) без OpenSSL не собирается: там `phpXY-swoole` тоже с ним.
+  `phpXY-openswoole-openssl` и `php74-swoole-openssl` — с `phpXY-mysqlnd-openssl`.
+  Swoole 6.1 и 6.2 (8.1–8.4) mysqlnd не нужен (aZ, 11.11.2026: его опция только делала
+  mysqlnd обязательным модулем, хуки mysqli и PDO MySQL работают и без неё), они идут с
+  любым из двух; swoole 6.2 (8.2–8.4) без OpenSSL не собирается, поэтому `phpXY-swoole`
+  с ним, а `phpXY-swoole-openssl` нет.
 - redis четырьмя пакетами, один из четырёх (aZ, 11.11.2026; файлы одни и те же):
   `phpXY-redis` без сжатия, `phpXY-redis-lz4`, `phpXY-redis-zstd` и
   `phpXY-redis-lz4-zstd` с lz4 и zstd из az (`Redis::OPT_COMPRESSION` сайта; у 5.6 только

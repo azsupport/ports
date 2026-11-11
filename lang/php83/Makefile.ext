@@ -81,9 +81,9 @@ RUN_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
 
 # The variants with OpenSSL, as lang/php74/Makefile.ext has them: ftp,
 # mysqlnd and openswoole without OpenSSL, <module>-openssl with that of the
-# base system; mysqli, pdo_mysql and swoole <module>-openssl for
-# mysqlnd-openssl (swoole 6.2 has OpenSSL in both: see its rules)
-AZ_OPENSSL_MODULES=	ftp mysqli mysqlnd openswoole pdo_mysql swoole
+# base system; mysqli and pdo_mysql <module>-openssl for mysqlnd-openssl.
+# Not swoole: 6.2 has OpenSSL always and needs no mysqlnd (see its rules)
+AZ_OPENSSL_MODULES=	ftp mysqli mysqlnd openswoole pdo_mysql
 AZ_OPENSSL_LINKS=	ftp mysqlnd openswoole
 .if ${PKGNAMESUFFIX:M-*-openssl}
 AZ_OPENSSL=	yes
@@ -680,7 +680,10 @@ CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
 
 .if ${PHP_MODNAME} == "swoole"
 # devel/php-swoole of eb0100f974b6 (6.2.3 there), built from ext/swoole of the
-# tarball: mysqlnd is a module here (USE_PHP); the options BROTLI, with the
+# tarball, without --enable-mysqlnd (aZ, 11.11.2026): in swoole 6.2 it only
+# makes mysqlnd a module that must be loaded (ZEND_MOD_REQUIRED) and adds a
+# line to phpinfo(); the coroutine hooks of mysqli and PDO MySQL go through
+# the streams of PHP (SWOOLE_HOOK_TCP) without it. The options BROTLI, with the
 # brotli of az, and SOCKETS on (ext.conf); not USES=localbase:ldflags: no
 # library of the ports by default. Brotli and OpenSSL by pkg-config, into
 # SWOOLE_SHARED_LIBADD: not the --with-brotli-dir and --with-openssl-dir of
@@ -688,8 +691,9 @@ CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
 # phpize does not link (swoole.so needed no libssl, libcrypto, libbrotlienc and
 # libbrotlidec). Swoole 6.2 has no --enable-openssl (OpenSSL is always in:
 # include/swoole_ssl.h includes its headers, no build without it), so not that
-# of the port either, and swoole has OpenSSL, as swoole-openssl, the same for
-# mysqlnd-openssl (AZ_OPENSSL). The pkg-config of the modules is that of az
+# of the port either: swoole has OpenSSL always, and no variant swoole-openssl
+# (aZ, 11.11.2026: it differed only by its dependency on mysqlnd-openssl).
+# The pkg-config of the modules is that of az
 # (Mk/Uses/php.mk): it searches ${AZ_PREFIX}/lib/pkgconfig, where az has no
 # OpenSSL, then /usr/libdata/pkgconfig, where FreeBSD 15 installs libssl.pc and
 # libcrypto.pc of its OpenSSL, and nothing else (PKG_CONFIG_PATH unset): never
@@ -712,10 +716,8 @@ NOT_FOR_ARCHS_REASON=	upstream drop 32 bits support
 USES+=		compiler:c11 pkgconfig ssl
 # C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
 AZ_GCC=		no
-USE_PHP=	mysqlnd:build
 
-CONFIGURE_ARGS+=	--enable-swoole \
-			--enable-mysqlnd
+CONFIGURE_ARGS+=	--enable-swoole
 
 OPTIONS_DEFINE=		BROTLI CARES CURL SOCKETS SQLITE ZSTD
 OPTIONS_DEFAULT=	BROTLI SOCKETS
