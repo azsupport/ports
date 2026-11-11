@@ -20,10 +20,12 @@
 # all of them built by upstream: the servers tlspr (by the name in the TLS
 # ClientHello) and imapp (0.9.8), FilePlugin and TransparentPlugin. PCRE2 the shared
 # library of devel/pcre2 of this tree, PAM (PamAuth) of the base system; without
-# TLS (the MITM and TLS servers inside 3proxy since 0.9.7), as the official port (aZ
-# decides); no ODBC, no LDAP plugin. Not the install of CMake: it puts files in
-# /opt, an rc.d script and a config directory of its own. Built with it on Linux:
-# users with CL, CR ($1$, $3$) and NT passwords and a pcre rule without an ACL.
+# TLS (the TLS servers and clients and the MITM inside 3proxy since 0.9.7), as the
+# official port: net/3proxy-openssl (PKGNAMESUFFIX -openssl, the same files) has it,
+# on the OpenSSL of the base system (aZ, 11.11.2026); no ODBC, no LDAP plugin. Not
+# the install of CMake: it puts files in /opt, an rc.d script and a config directory
+# of its own. Built with it on Linux: users with CL, CR ($1$, $3$) and NT passwords
+# and a pcre rule without an ACL.
 
 PORTNAME=	3proxy
 DISTVERSION=	0.9.9.3
@@ -32,7 +34,7 @@ CATEGORIES=	net
 MASTER_SITES=	https://github.com/3proxy/3proxy/releases/download/${DISTVERSION}/
 
 MAINTAINER=	github@azsupport.com
-COMMENT=	Proxy servers set (support HTTP(S), FTP, SOCKS, POP3, TCP & UDP) (of azsupport/ports)
+COMMENT?=	Proxy servers set (support HTTP(S), FTP, SOCKS, POP3, TCP & UDP) (of azsupport/ports)
 WWW=		https://3proxy.org/ \
 		https://github.com/azsupport/ports
 
@@ -46,10 +48,19 @@ USE_RC_SUBR=	3proxy
 
 CMAKE_ARGS=	-D3PROXY_BINARY_PREFIX= \
 		-D3PROXY_USE_WOLFSSL=OFF \
-		-D3PROXY_USE_OPENSSL=OFF \
 		-D3PROXY_USE_PCRE2=ON \
 		-D3PROXY_USE_PAM=ON \
 		-D3PROXY_USE_ODBC=OFF
+
+# TLS only in 3proxy-openssl
+.if ${PKGNAMESUFFIX:U} == "-openssl"
+CMAKE_ARGS+=	-D3PROXY_USE_OPENSSL=ON
+USES+=		ssl
+CONFLICTS_INSTALL=	3proxy
+.else
+CMAKE_ARGS+=	-D3PROXY_USE_OPENSSL=OFF
+CONFLICTS_INSTALL=	3proxy-openssl
+.endif
 
 PLIST_SUB=	3PROXY_LOGDIR=${3PROXY_LOGDIR} \
 		PORTNAME=${PORTNAME}
@@ -69,12 +80,17 @@ post-patch:
 	@${REINPLACE_CMD} -E -e 's|#!/.+|#!${PREFIX}/bin/3proxy|' -e 's|/[^ ]+/3proxy\.cfg|${PREFIX}/etc/3proxy.cfg|' \
 		-e 's|3proxy\.cfg \(3\)|3proxy.cfg (5)|' ${WRKSRC}/man/3proxy.8
 
-# its CMake finds PCRE2 and PAM QUIET: a build without them stops here
+# its CMake finds PCRE2 and PAM QUIET: a build without them stops here, and
+# 3proxy-openssl without libssl
 post-build:
 	@${READELF} -d ${BUILD_WRKSRC}/bin/3proxy | ${GREP} -q 'libpcre2-8' || \
 		{ ${ECHO_MSG} "==> 3proxy was built without PCRE2"; ${FALSE}; }
 	@${TEST} -f ${BUILD_WRKSRC}/bin/PamAuth.ld.so || \
 		{ ${ECHO_MSG} "==> 3proxy was built without PAM (PamAuth.ld.so)"; ${FALSE}; }
+.if ${PKGNAMESUFFIX:U} == "-openssl"
+	@${READELF} -d ${BUILD_WRKSRC}/bin/3proxy | ${GREP} -q 'libssl' || \
+		{ ${ECHO_MSG} "==> 3proxy-openssl was built without TLS"; ${FALSE}; }
+.endif
 
 do-install:
 	@${MKDIR} ${STAGEDIR}${3PROXY_LOGDIR} ${STAGEDIR}${PREFIX}/lib/${PORTNAME}
