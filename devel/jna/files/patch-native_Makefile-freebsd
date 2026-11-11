@@ -1,0 +1,26 @@
+--- native/Makefile.orig	2024-03-29 21:57:29 UTC
++++ native/Makefile
+@@ -296,12 +296,22 @@
+ ifneq (,$(or $(findstring bsd,$(OS)),$(findstring dragonfly,$(OS))))
+ ARCH=$(shell uname -m | sed 's/i.86/i386/g')
+ PCFLAGS+=-fPIC
++ifeq ($(OS),freebsd)
++# FreeBSD (devel/jna of azsupport/ports): no JAWT, as for Android and macOS, so
++# no headers of X11 and Xt (jawt_md.h); with DYNAMIC_LIBFFI the directory of the
++# libffi of pkg-config as the run path
++CDEFINES+=-DNO_JAWT
++ifeq ($(DYNAMIC_LIBFFI),true)
++FFI_RPATH=-Wl,-rpath,$(shell pkg-config --variable=libdir libffi)
++endif
++else
+ # This is a mess: X11 headers locate in /usr/local/include on FreeBSD and
+ # DragonFly, in /usr/X11R7/include on NetBSD, and in /usr/X11R6/include on
+ # OpenBSD.
+ CINCLUDES+=-I%%LOCALBASE%%/include -I/usr/X11R7/include -I/usr/X11R6/include
+ CINCLUDES+=$(X11INC)  # Allow extra X11 include path if necessary.
+-LDFLAGS=-o $@ -shared
++endif
++LDFLAGS=-o $@ -shared $(FFI_RPATH)
+ ifeq ($(ARCH),i386)
+ LDFLAGS+=-Wl,-z,notext
+ endif
