@@ -3,7 +3,7 @@
 # port misc/mc, in the place of that of the ports (/usr/local/bin/mc and its links
 # mcedit, mcview and mcdiff, etc/mc, libexec/mc, share/mc), from the official FreeBSD
 # port of misc/mc/files/mc.conf with the configure lines there (what is on and off,
-# and why), with GLib linked in.
+# and why), against the shared GLib of our port devel/glib20.
 #
 # Usage (FreeBSD; the port misc/mc runs it in its post-fetch and do-build):
 #   sh tools/mc-build.sh --fetch    fetch the distfiles of the official ports of
@@ -14,19 +14,19 @@
 # ports commit of az/az/files/deps.conf (the official tree PORTSDIR, at that commit),
 # checks them against its distinfo, extracts them and applies the port's patches
 # (make patch; those of misc/mc make mcdiff run gdiff), then those of files/ of
-# misc/mc (files/*.patch, in the order of their names); this script then builds each
-# source tree with its own options: libffi (the build of GLib needs it for GObject,
-# which mc does not link) and GLib static and position independent into the work
-# directory (AZ_WORK/mc/static; nothing of them is installed: only mc links GLib),
-# GLib against the shared libraries of our other ports: libintl and libiconv of the
-# package az (/usr/local/az/lib, installed) and libpcre2-8.so of devel/pcre2 (our
-# ports link each other's shared libraries: aZ, 10.11.2026), and mc (prefix
-# /usr/local) against them and libssh2 of az (with the OpenSSL of the base system,
-# which it was built with), with the run path /usr/local/az/lib, into the stage
-# AZ_STAGEDIR (default AZ_WORK/stage/mc), with files/ubsdtar in libexec/mc/extfs.d,
-# its VERSIONS in share/doc/mc and the licences of mc and of what is in it (GLib,
-# libffi) in share/licenses/mc. So mc needs the packages az and pcre2 and libraries of
-# the base system (ncursesw, libutil, libz, libthr, libc). The work directory is AZ_WORK/mc (default
+# misc/mc (files/*.patch, in the order of their names); this script then builds mc
+# (prefix /usr/local) against the shared libraries of our ports (aZ, 10.11.2026: our
+# ports link each other's shared libraries): GLib of devel/glib20 (libglib-2.0.so of
+# /usr/local/lib, itself on libintl, libiconv and libffi of az and PCRE2 of
+# devel/pcre2; mc had a static GLib of its own before 11.11.2026), seen through a .pc
+# of its own in the work (AZ_WORK/mc/deps: glib-2.0 with the include directories of
+# GLib and libglib-2.0.so alone in a directory, nothing else of /usr/local), and
+# libssh2 of az (with the OpenSSL of the base system, which it was built with), with
+# the run path /usr/local/az/lib, into the stage AZ_STAGEDIR (default
+# AZ_WORK/stage/mc), with files/ubsdtar in libexec/mc/extfs.d, its VERSIONS in
+# share/doc/mc and its licence in share/licenses/mc. So mc needs the packages az and
+# glib (with pcre2) and libraries of the base system (ncursesw, libutil, libz,
+# libthr, libc). The work directory is AZ_WORK/mc (default
 # /var/tmp/az-work/mc). Results go to AZ_RESULTS (default mc-results/ of the current
 # directory: summary.txt, a log per port, bins.txt, version.txt, VERSIONS); the
 # summary is printed at the end.
@@ -52,8 +52,8 @@ conf="$files/mc.conf"
 deps_conf="${AZ_DEPS_CONF:-$tools/../az/az/files/deps.conf}"
 A="${AZ_PREFIX:-/usr/local/az}"
 work="${AZ_WORK:-/var/tmp/az-work}/mc"
-# the libraries built here, static, for the link of mc only
-W="$work/static"
+# the .pc of GLib and the link of its library, for the build of mc only
+W="$work/deps"
 F=/usr/local
 stage="${AZ_STAGEDIR:-${AZ_WORK:-/var/tmp/az-work}/stage/mc}"
 res="${AZ_RESULTS:-$(pwd)/mc-results}"
@@ -86,25 +86,14 @@ opt="${AZ_CFLAGS:-$(mkconf_get CFLAGS)}"
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 cflags="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing"
 export CC=cc CXX=c++
-# The builds see the work tree W and the shared tree of az, nothing else of /usr/local
-# (the base compiler does not search it; pkg-config only these and the base system);
-# PCRE2 of devel/pcre2 through W (pcre2_dir below: pcre2.h, libpcre2-8.so and its .pc
-# alone there); pkg-config --static, for the link of mc with the static GLib: the
-# libraries behind it (libintl, libiconv, PCRE2), shared ones.
-mkdir -p "$work/bin"
-printf '%s\n' '#!/bin/sh' 'exec pkgconf --static "$@"' > "$work/bin/pkg-config-static"
-chmod +x "$work/bin/pkg-config-static"
-export PKG_CONFIG="$work/bin/pkg-config-static"
-# python3 in PATH for the scripts the build of GLib runs by their #!/usr/bin/env python3
-# (tools/gen-visibility-macros.py; the port devel/glib20 has BINARY_ALIAS
-# python3=${PYTHON_CMD}): the Python the port misc/mc gives (AZ_PYTHON), else none
-if [ -n "${AZ_PYTHON:-}" ] && [ -x "$AZ_PYTHON" ]; then ln -sf "$AZ_PYTHON" "$work/bin/python3"; fi
-export PATH="$work/bin:$PATH"
-# (libdata/pkgconfig of W too: USES=pathfix of devel/libffi puts libffi.pc there)
-export PKG_CONFIG_LIBDIR="$W/lib/pkgconfig:$W/libdata/pkgconfig:$A/lib/pkgconfig:/usr/libdata/pkgconfig"
+# The build sees W (GLib of devel/glib20: glib_dir below) and the shared tree of az,
+# nothing else of /usr/local (the base compiler does not search it; pkg-config only
+# these and the base system)
+export PKG_CONFIG=pkgconf
+export PKG_CONFIG_LIBDIR="$W/lib/pkgconfig:$A/lib/pkgconfig:/usr/libdata/pkgconfig"
 unset PKG_CONFIG_PATH
-export CPPFLAGS="-I$W/include -I$A/include"
-export LDFLAGS="-L$W/lib -L$A/lib -Wl,-rpath,$A/lib"
+export CPPFLAGS="-I$A/include"
+export LDFLAGS="-L$A/lib -Wl,-rpath,$A/lib"
 unset AR RANLIB NM
 
 ports_commit="$(awk '$1 == "ports" { print $2 }' "$deps_conf")"
@@ -149,47 +138,25 @@ fix_guess() {
     done
 }
 
-# PCRE2 of devel/pcre2 (/usr/local) for GLib: pcre2.h, libpcre2-8.so and a
-# libpcre2-8.pc of their own in W, so that no other header or library of /usr/local
-# is seen; the link takes the SONAME of the library (libpcre2-8.so.0 of
-# /usr/local/lib, one of ldconfig), no run path
-pcre2_dir() {
-    # the Version of the .pc (--modversion; it has no variable version)
-    v="$(pkgconf --modversion /usr/local/libdata/pkgconfig/libpcre2-8.pc 2>/dev/null)"
-    for _f in /usr/local/include/pcre2.h /usr/local/lib/libpcre2-8.so; do
-        [ -e "$_f" ] || { echo "mc-build: no $_f (the package pcre2 of devel/pcre2)" >&2; return 1; }
+# GLib of devel/glib20 (/usr/local): a glib-2.0.pc of its own in W with the include
+# directories of GLib (glib-2.0 and lib/glib-2.0/include: only its headers) and
+# libglib-2.0.so alone in W/glib, so that no other header or library of /usr/local
+# is seen; the link takes the SONAME of the library (libglib-2.0.so.0 of
+# /usr/local/lib, one of ldconfig), no run path for it. No gmodule: mc takes it only
+# for Aspell, which is off.
+glib_dir() {
+    _pc=/usr/local/libdata/pkgconfig/glib-2.0.pc
+    for _f in "$_pc" /usr/local/include/glib-2.0/glib.h /usr/local/lib/glib-2.0/include/glibconfig.h \
+            /usr/local/lib/libglib-2.0.so; do
+        [ -e "$_f" ] || { echo "mc-build: no $_f (the package glib of devel/glib20)" >&2; return 1; }
     done
-    [ -n "$v" ] || { echo "mc-build: no version of PCRE2 in /usr/local/libdata/pkgconfig/libpcre2-8.pc (pkgconf --modversion)" >&2; return 1; }
-    mkdir -p "$W/pcre2/include" "$W/pcre2/lib" "$W/lib/pkgconfig" &&
-        ln -sf /usr/local/include/pcre2.h "$W/pcre2/include/pcre2.h" &&
-        ln -sf /usr/local/lib/libpcre2-8.so "$W/pcre2/lib/libpcre2-8.so" &&
-        printf '%s\n' "prefix=$W/pcre2" 'libdir=${prefix}/lib' 'includedir=${prefix}/include' '' \
-            'Name: libpcre2-8' 'Description: PCRE2 of devel/pcre2' "Version: $v" \
-            'Libs: -L${libdir} -lpcre2-8' 'Cflags: -I${includedir}' > "$W/lib/pkgconfig/libpcre2-8.pc"
-}
-# libffi: the options of the port (CONFIGURE_ARGS), static, for the build of GLib
-b_libffi() {
-    fix_guess "$1"
-    (cd "$1" && CFLAGS="$cflags -fPIC" ./configure --prefix="$W" --libdir="$W/lib" --includedir="$W/include" \
-        --enable-static --disable-shared --with-pic --disable-multi-os-directory --disable-docs &&
-        gmake -j"$ncpu" && gmake install)
-}
-# GLib: the meson options of the port devel/glib20 in its flavor bootstrap (MESON_ARGS:
-# no introspection, translations, documents and manual pages), static and position
-# independent, without the tests, libelf (of the gresource tool) and the probes
-# (dtrace, systemtap, sysprof); as tools/az-build.sh runs meson (release, the
-# optimization of CFLAGS)
-b_glib() {
-    # the file monitor of GIO as the port has it: inotify of the base system where it
-    # has one (FreeBSD 15), else kqueue (the port: libinotify-kqueue, a package)
-    if [ -f /usr/include/sys/inotify.h ]; then fmon=inotify; else fmon=kqueue; fi
-    (cd "$1" && CFLAGS="$cflags -fPIC" meson setup _az --prefix="$W" --libdir=lib --buildtype=release \
-        -Doptimization=plain --default-library=static -Db_staticpic=true --wrap-mode=nodownload \
-        -Db_lundef=false -Dinstalled_tests=false -Dlibmount=disabled -Druntime_dir=/var/run \
-        -Dselinux=disabled -Dsysprof=disabled -Dsystemtap=disabled -Ddtrace=disabled -Dxattr=false \
-        -Dtests=false -Dnls=disabled -Dintrospection=disabled -Dman-pages=disabled -Ddocumentation=false \
-        -Dlibelf=disabled -Dfile_monitor_backend="$fmon" &&
-        ninja -C _az -j "$ncpu" && ninja -C _az install)
+    v="$(pkgconf --modversion "$_pc" 2>/dev/null)"
+    [ -n "$v" ] || { echo "mc-build: no version of GLib in $_pc (pkgconf --modversion)" >&2; return 1; }
+    mkdir -p "$W/glib" "$W/lib/pkgconfig" &&
+        ln -sf /usr/local/lib/libglib-2.0.so "$W/glib/libglib-2.0.so" &&
+        printf '%s\n' 'Name: GLib' 'Description: GLib of devel/glib20' "Version: $v" \
+            "Libs: -L$W/glib -lglib-2.0" \
+            'Cflags: -I/usr/local/include/glib-2.0 -I/usr/local/lib/glib-2.0/include' > "$W/lib/pkgconfig/glib-2.0.pc"
 }
 # mc: after the port's patches those of files/ (the archives through ubsdtar), then
 # configure with the paths of the port and the configure lines of mc.conf; the
@@ -219,17 +186,10 @@ b_mc() {
     # OPTIONS_UNSET of the make.conf of the servers); the help of mc (F1) stays
     rm -rf "$stage$F/share/man"
     install -m 755 "$files/ubsdtar" "$stage$F/libexec/mc/extfs.d/ubsdtar" || return 1
-    # the licences of mc and of what is linked in: GLib and libffi, from their sources
-    # (the shared libraries it links are those of the packages az and pcre2, with
-    # their licences, and of the base system)
+    # the licence of mc (the shared libraries it links are those of the packages az
+    # and glib, with their licences, and of the base system)
     lic="$stage$F/share/licenses/mc"
     mkdir -p "$lic" && cp "$1/COPYING" "$lic/mc-COPYING" || return 1
-    for n in glib libffi; do
-        s="$(cat "$work/src-$n")"
-        for f in "$s"/COPYING* "$s"/LICENSE "$s"/LICENSE.*; do
-            [ -f "$f" ] && cp "$f" "$lic/$n-${f##*/}"
-        done
-    done
     return 0
 }
 
@@ -273,10 +233,10 @@ manifest() {
     {
         echo "Midnight Commander for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $cflags"
-        echo "GLib and libffi: static, built here; libssh2, libintl and libiconv: the shared libraries"
-        echo "of $A/lib (the package az, with that run path); PCRE2: libpcre2-8.so of devel/pcre2"
-        echo "($(pkgconf --modversion /usr/local/libdata/pkgconfig/libpcre2-8.pc 2>/dev/null)); OpenSSL: that of the base system:"
-        awk '$1 == "libssh2" || $1 == "gettext" || $1 == "libiconv" { print "    " $0 }' \
+        echo "GLib: libglib-2.0.so of devel/glib20 ($(pkgconf --modversion /usr/local/libdata/pkgconfig/glib-2.0.pc 2>/dev/null));"
+        echo "libssh2: the shared library of $A/lib (the package az, with that run path), with the"
+        echo "OpenSSL of the base system:"
+        awk '$1 == "libssh2" { print "    " $0 }' \
             "$A/share/doc/az/VERSIONS" 2>/dev/null
         echo
         while read -r n pkgname port; do
@@ -300,8 +260,8 @@ manifest() {
         echo "configure of mc (after --prefix=$F, the paths and the flags):"
         conf_opts | sed 's/^/    /'
         echo
-        echo "Licence: GPL version 3 or later (mc); GLib LGPL, libffi MIT: the licences are in"
-        echo "share/licenses/mc/ (those of the shared libraries in their packages)."
+        echo "Licence: GPL version 3 or later (mc), in share/licenses/mc/ (those of the shared"
+        echo "libraries in their packages)."
         echo "Sources: the distfiles above (their SHA-256), the patches of the ports at the commit above,"
         echo "files/ of misc/mc and tools/mc-build.sh of https://github.com/azsupport/ports (misc/mc/files/mc.conf)."
     } > "$res/VERSIONS"
@@ -320,13 +280,14 @@ check_bins() {
     rp="$(readelf -d "$f" | sed -n 's/.*[Ll]ibrary r[a-z]*path: \[\(.*\)\].*/\1/p')"
     printf 'mc: %s KB, ELF type %s, RELRO %s, BIND_NOW %s, run path %s; libraries: %s\n' \
         "$(du -Ak "$f" | cut -f1)" "$type" "$relro" "$now" "${rp:-none}" "$libs" >> "$res/bins.txt"
-    # the base system, the shared tree of az (by the run path) and PCRE2 of devel/pcre2
+    # the base system, the shared tree of az (by the run path), GLib of devel/glib20
+    # and PCRE2 of devel/pcre2 (which GLib links)
     for l in $libs; do
         case "$l" in
-            /lib/* | /usr/lib/* | /usr/local/lib/libpcre2-8.so.*) ;;
+            /lib/* | /usr/lib/* | /usr/local/lib/libglib-2.0.so.* | /usr/local/lib/libpcre2-8.so.*) ;;
             "$A"/static/*) echo "mc: $l of the static tree" ;;
             "$A"/lib/*) case ":$rp:" in *":$A/lib:"*) ;; *) echo "mc: $l without the run path $A/lib (${rp:-none})" ;; esac ;;
-            *) echo "mc: $l, not of the base system, az or pcre2" ;;
+            *) echo "mc: $l, not of the base system, az, glib or pcre2" ;;
         esac
     done >> "$res/bins-bad.txt"
     [ "$type" = DYN ] || echo "mc: not a PIE (ELF type $type)" >> "$res/bins-bad.txt"
@@ -389,7 +350,7 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
     echo "mc-build: this CPU ${why:-cannot tell the features of} -march=$cputype" >&2
     exit 1
 fi
-for f in lib/libssh2.so lib/libintl.so lib/libiconv.so lib/pkgconfig/libssh2.pc include/libintl.h include/iconv.h; do
+for f in lib/libssh2.so lib/pkgconfig/libssh2.pc include/libssh2.h; do
     if [ ! -e "$A/$f" ]; then
         printf '%-8s FAIL  no %s of the shared libraries in %s: install the package az first (az/az)\n' libs "$f" "$A" >> "$res/summary.txt"
         echo "mc-build: no $A/$f; install the package az first (the port az/az)" >&2
@@ -407,7 +368,7 @@ if [ -n "${AZ_MC_VERSION:-}" ]; then
     fi
 fi
 rm -rf "$W"
-pcre2_dir 2> "$res/pcre2.err" || { echo "pcre2    FAIL  $(cat "$res/pcre2.err")" >> "$res/summary.txt"; cat "$res/pcre2.err" >&2; report; exit 1; }
+glib_dir 2> "$res/glib.err" || { echo "glib     FAIL  $(cat "$res/glib.err")" >> "$res/summary.txt"; cat "$res/glib.err" >&2; report; exit 1; }
 rc=0
 for n in $progs; do
     say "$n ($(port_of "$n"))"
