@@ -4,9 +4,10 @@
 # ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc and yt-dlp, by
 # tools/az-test.sh, curl-test.sh, ffmpeg-test.sh, imagemagick-test.sh,
 # graphicsmagick-test.sh, mc-test.sh and ytdlp-test.sh (yt-dlp with our ffmpeg),
-# the utilities of the official ports (Mk/az-official.mk) by utils-test.sh, and the
+# the utilities of the official ports (Mk/az-official.mk) by utils-test.sh, the
 # server packages (git, Apache, memcached, MariaDB, vsftpd-ext, BIND and its tools,
-# vips, qt-faststart) by servers-test.sh.
+# vips, qt-faststart) by servers-test.sh, and Node.js (node24, npm-node24,
+# yarn-node24, corepack) by node-test.sh.
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -169,6 +170,21 @@ if [ -n "$s_" ]; then
     cat "$res/test-programs-install-servers.log" >> "$log"
     want="$want$s_"
 fi
+# Node.js (aZ, 11.11.2026) as the server packages: node24 with npm, yarn and
+# corepack (gmake and Python of npm are official packages)
+nodes="node24 npm-node24 yarn-node24 corepack"
+n_=""
+for p in $nodes; do in_repo "$p" && n_="$n_ $p"; done
+if [ -n "$n_" ]; then
+    say "pkg install -f$n_"
+    # shellcheck disable=SC2086
+    CONSERVATIVE_UPGRADE=no pkg install -y -f $n_ > "$res/test-programs-install-node.log" 2>&1 || say "pkg install of Node.js says it failed (test-programs-install-node.log)"
+    # shellcheck disable=SC2086
+    again "$res/test-programs-install-node.log" $n_
+    cat "$res/test-programs-install-node.log" >> "$res/test-programs-install.log"
+    cat "$res/test-programs-install-node.log" >> "$log"
+    want="$want$n_"
+fi
 # every installed package the repository has, from the repository: a dependency pkg
 # kept or took from another one (the official glib, which mc then loaded with the
 # libintl and libiconv of /usr/local/lib: run 42994770290), once more with -r azbuild
@@ -191,7 +207,8 @@ done
 
 # 3. the tests: name, the packages it needs
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
-        "graphicsmagick GraphicsMagick" "mc mc" "ytdlp yt-dlp ffmpeg" "utils $utils" ${s_:+"servers$s_"}; do
+        "graphicsmagick GraphicsMagick" "mc mc" "ytdlp yt-dlp ffmpeg" "utils $utils" ${s_:+"servers$s_"} \
+        ${n_:+"node$n_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
