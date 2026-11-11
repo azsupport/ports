@@ -7,10 +7,16 @@
 # On OpenJDK 17 of the ports (aZ: it ran on OpenJDK 17 for him; Java 18 and later
 # throw at System.setSecurityManager, which Elasticsearch 6 calls): the four lines
 # of the warning of JDK 17 about it are taken out of the stderr of
-# bin/elasticsearch, nothing else (aZ, 11.11.2026). Without the module
-# x-pack-ml (its native programs are for Linux, macOS and Windows). The JNA that
-# Elasticsearch bundles (jna-4.5.1.jar, with its library for FreeBSD amd64), not
-# devel/jna, which brings libX11 and libXt. The paths of jvm.options in
+# bin/elasticsearch, nothing else (aZ, 11.11.2026). The rc script runs it on
+# OpenJDK 17 without elasticsearch_java_home in rc.conf: USES=java with
+# JAVA_VERSION 17 gives it ${LOCALBASE}/openjdk17 (the official port had USE_JAVA,
+# which the framework of today no longer knows; aZ had to set
+# elasticsearch_java_home="/usr/local/openjdk17" in rc.conf). Without the module
+# x-pack-ml (its native programs are for Linux, macOS and Windows). JNA of
+# devel/jna, as the official port: lib/jna.jar a link to its jna.jar, the bundled
+# jna-4.5.1.jar out (aZ linked lib/jna.jar to it by hand after every install of
+# the old package); devel/jna brings the libraries libX11 and libXt. The paths of
+# jvm.options in
 # /var/db/elasticsearch and /var/log/elasticsearch, as the deb and rpm of Elastic
 # have them in /var/lib and /var/log: heap dumps, the fatal error files of the JVM
 # and the GC log (the tarball has them relative to lib/elasticsearch, which the
@@ -32,15 +38,15 @@ WWW=		https://www.elastic.co/ \
 # License (as the official port, which named Apache 2.0 only)
 LICENSE=	APACHE20
 
-RUN_DEPENDS=	bash>0:shells/bash
+RUN_DEPENDS=	bash>0:shells/bash \
+		jna>0:devel/jna
 
-USES=		cpe shebangfix
+USES=		cpe java shebangfix
 CPE_VENDOR=	elastic
 
 CONFLICTS_INSTALL=	elasticsearch elasticsearch[0-9] elasticsearch[0-9][0-9]
 
 NO_ARCH=	yes
-USE_JAVA=	yes
 NO_BUILD=	yes
 JAVA_VERSION=	17
 USE_RC_SUBR=	${PORTNAME}
@@ -109,6 +115,8 @@ SUB_FILES=	pkg-message
 post-patch:
 	# ML is not supported on FreeBSD
 	@${RM} -r ${WRKSRC}/modules/x-pack-ml
+	# the JNA of devel/jna instead (do-install)
+	@${RM} ${WRKSRC}/lib/jna-*.jar
 	@${REINPLACE_CMD} -e 's|^-XX:HeapDumpPath=data$$|-XX:HeapDumpPath=/var/db/elasticsearch|' \
 		-e 's|^-XX:ErrorFile=logs/|-XX:ErrorFile=/var/log/elasticsearch/|' \
 		-e 's|-Xloggc:logs/gc\.log|-Xloggc:/var/log/elasticsearch/gc.log|' \
@@ -138,6 +146,7 @@ do-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/lib/elasticsearch/plugins
 	${MKDIR} ${STAGEDIR}${PREFIX}/libexec/elasticsearch
 	${INSTALL} -lrs ${STAGEDIR}${ETCDIR} ${STAGEDIR}${PREFIX}/lib/elasticsearch/config
+	${LN} -sf ${JAVAJARDIR}/jna.jar ${STAGEDIR}${PREFIX}/lib/elasticsearch/lib/jna.jar
 
 do-install-DOCS-on:
 	${MKDIR} ${STAGEDIR}${DOCSDIR}
@@ -146,6 +155,14 @@ do-install-DOCS-on:
 .endfor
 
 post-install:
+	# JNA: a link to the jna.jar of devel/jna, no other JNA; the rc script on the
+	# OpenJDK 17 of the dependency
+	@[ "$$(readlink ${STAGEDIR}${PREFIX}/lib/elasticsearch/lib/jna.jar)" = "${JAVAJARDIR}/jna.jar" ] && \
+		! ls ${STAGEDIR}${PREFIX}/lib/elasticsearch/lib/jna-*.jar > /dev/null 2>&1 || \
+		{ ${ECHO_MSG} "lib/jna.jar is not the link to ${JAVAJARDIR}/jna.jar alone"; ${FALSE}; }
+	@[ "${JAVA_HOME}" = "${LOCALBASE}/openjdk17" ] && \
+		${GREP} -q 'elasticsearch_java_home="${LOCALBASE}/openjdk17"' ${STAGEDIR}${PREFIX}/etc/rc.d/elasticsearch || \
+		{ ${ECHO_MSG} "rc.d/elasticsearch: elasticsearch_java_home is not ${LOCALBASE}/openjdk17 (JAVA_HOME ${JAVA_HOME})"; ${FALSE}; }
 	${ECHO} "@sample ${ETCDIR}/elasticsearch.yml.sample" >> ${TMPPLIST}
 	${ECHO} "@sample ${ETCDIR}/log4j2.properties.sample" >> ${TMPPLIST}
 	${ECHO} "@sample ${ETCDIR}/jvm.options.sample" >> ${TMPPLIST}

@@ -2,7 +2,9 @@
 # elastic-test.sh - test Elasticsearch 6 of the repository az, installed from it (aZ,
 # 11.11.2026: for the legacy sites): elasticsearch6 started by its rc script, as a
 # server starts it, on 127.0.0.1:9200 with a data and log directory of the test:
-#   - its version 6.8.23 and the JVM it runs on (OpenJDK 17 of the ports);
+#   - its version 6.8.23 and the JVM it runs on (OpenJDK 17 of the ports, the default
+#     of its rc script: no elasticsearch_java_home in rc.conf);
+#   - lib/jna.jar a link to the jna.jar of devel/jna, which is a whole zip;
 #   - the start says nothing of System::setSecurityManager (the four lines of JDK 17
 #     are taken out), and its log has no JNA that failed (the JNA it bundles);
 #   - the health of the cluster, a document indexed and found by a query;
@@ -35,6 +37,20 @@ if ! pkg info -e elasticsearch6; then
     echo "elastic-test: $ok ok, $bad failed" >> "$out"
     exit 1
 fi
+# its rc script runs it on OpenJDK 17 by itself, its JNA is that of devel/jna
+if grep -q '^: ${elasticsearch_java_home="/usr/local/openjdk17"}' "$P/etc/rc.d/elasticsearch"; then
+    pass "rc.d/elasticsearch: elasticsearch_java_home /usr/local/openjdk17 by default"
+else
+    fail "rc.d/elasticsearch: elasticsearch_java_home is not /usr/local/openjdk17 by default: $(grep -m 1 'elasticsearch_java_home=' "$P/etc/rc.d/elasticsearch")"
+fi
+j="$P/lib/elasticsearch/lib/jna.jar"
+l="$(readlink "$j")"
+if [ "$l" = "$P/share/java/classes/jna.jar" ] && [ -f "$l" ] && unzip -tqq "$l" > /dev/null 2>&1; then
+    pass "lib/jna.jar -> $l (devel/jna $(pkg query '%v' jna 2>/dev/null)), a whole zip"
+else
+    fail "lib/jna.jar: ${l:-not a link}$([ -n "$l" ] && [ ! -f "$l" ] && echo ', missing')$([ -f "$l" ] && ! unzip -tqq "$l" > /dev/null 2>&1 && echo ', not a whole zip')"
+fi
+if ls "$P"/lib/elasticsearch/lib/jna-*.jar > /dev/null 2>&1; then fail "another JNA in lib: $(ls "$P"/lib/elasticsearch/lib/jna-*.jar | tr '\n' ' ')"; fi
 # a configuration of the test: that of the package, its own paths and port
 conf="$T/conf"
 mkdir -p "$conf" "$T/data" "$T/logs"
