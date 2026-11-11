@@ -293,7 +293,9 @@
   как есть (новая версия приходит вместе с закреплённым коммитом; из его патчей два,
   которые линкуют fontconfig, не берутся — по имени и SHA-256) и собирает OpenJDK 17 без
   графики (`--enable-headless-only`: `libawt_headless`, нет `libawt_xawt` и
-  `libsplashscreen`, поэтому giflib и libpng остаются встроенными и не используются),
+  `libsplashscreen`, поэтому giflib и libpng остаются встроенными и не используются;
+  и без заголовков X11 — с перенесённым изменением OpenJDK для этого, JDK-8376684 от
+  04.02.2026: 17u без графики их требует),
   без звука (на FreeBSD нет ALSA и `libjsound`, как на AIX и OpenBSD: `javax.sound` не
   находит устройств) и без DTrace, на libjpeg (mozjpeg), FreeType и Little CMS из az
   (путь поиска библиотек `/usr/local/az/lib` после `$ORIGIN` — в трёх библиотеках,
