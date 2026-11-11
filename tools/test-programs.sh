@@ -169,6 +169,19 @@ if [ -n "$s_" ]; then
     cat "$res/test-programs-install-servers.log" >> "$log"
     want="$want$s_"
 fi
+# every installed package the repository has, from the repository: a dependency pkg
+# kept or took from another one (the official glib, which mc then loaded with the
+# libintl and libiconv of /usr/local/lib: run 42994770290), once more with -r azbuild
+deps_=""
+for p in $(pkg query '%n' 2> /dev/null | LC_ALL=C sort -u); do
+    in_repo "$p" && ! inst "$p" && deps_="$deps_ $p"
+done
+if [ -n "$deps_" ]; then
+    # shellcheck disable=SC2086
+    again "$res/test-programs-install-deps.log" $deps_
+    cat "$res/test-programs-install-deps.log" >> "$res/test-programs-install.log" 2> /dev/null
+    cat "$res/test-programs-install-deps.log" >> "$log" 2> /dev/null
+fi
 for p in $want; do
     inst "$p" && continue
     say "$p did not install from the repository; what pkg said:"
