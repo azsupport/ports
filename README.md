@@ -90,6 +90,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `node24`, `npm-node24`, `yarn-node24`, `corepack-node24` | `www/node24`, `www/npm-node24`, `www/yarn-node24`, `www/corepack-node24` | Node.js 24 (for yt-dlp and Kibana 6) with npm, Yarn 1 and corepack: `node` on brotli, c-ares, ICU, nghttp2, libuv, zstd and SQLite of az, the OpenSSL (with the CA store of the base system) and zlib of the base system and the libraries below; no DTrace; npm and Yarn the official ports as they are, corepack ours (corepack-node24: 0.36 runs on Node 22 and 24 only, Node 18 gets corepack-node18; one of the two) |
 | `libada`, `llhttp`, `nbytes`, `libnghttp3`, `libngtcp2`, `simdjson`, `uvwasi`, `hdr_histogram` | `devel/libada`, `www/llhttp`, `www/nbytes`, `www/libnghttp3`, `net/libngtcp2`, `devel/simdjson`, `devel/uvwasi`, `graphics/hdr_histogram` | the libraries that Node.js bundles, as ports of this tree (aZ, 11.11.2026): the official ports as they are, `uvwasi` ours on the libuv of az |
 | `elasticsearch6` | `textproc/elasticsearch6` | Elasticsearch 6.8.23, the last 6.x, for the legacy sites, back in the ports (the official port went on 2023-01-01, at 6.8.16): its rc script with profiles; on OpenJDK 17 of the ports, the four lines of the warning of JDK 17 about `System::setSecurityManager` taken out of its start; without ML; heap dumps, the error files of the JVM and the GC log in `/var/db/elasticsearch` and `/var/log/elasticsearch` |
+| `perl5` | `lang/perl5.42` | Perl 5.42 under the name of FreeBSD's (aZ, 11.11.2026), so that the `p5-*` packages of the FreeBSD repository work with it: the official port as it is (threads, MULTIPLICITY, 64-bit integers, the shared libperl), without DTrace, as every build here (its probes are in the core of Perl only: the XS modules of FreeBSD's packages load and run with it, [`tools/perl-test.sh`](tools/perl-test.sh)) |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives, and the fixes of the vulnerabilities the official port lacks, from Fedora: CVE-2014-8141 … CVE-2022-0530, zip bombs; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS, with the fix of CVE-2026-96512 (three upstream commits); `bash` without NLS; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL; `rsync` 3.5.2, ahead of the official 3.5.1 for its security fixes: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
@@ -265,6 +266,20 @@ Names and origins as the ports, files at the paths of the ports:
   [`distinfo.yml`](.github/workflows/distinfo.yml) when the sandbox cannot fetch it). Tests
   after the install: [`tools/ytdlp-test.sh`](tools/ytdlp-test.sh) (an HLS stream from a
   local server, fixed by our ffmpeg into MP4, as the grabbers download).
+- **`lang/perl5.42`**: the package `perl5` (`/usr/local/bin/perl`) in the place of the
+  official one (aZ, 11.11.2026: our Perl and Python under the package names of FreeBSD,
+  so that the `p5-*` packages of the FreeBSD repository work with them): the official
+  port as it is, Perl 5.42.3, the default version of the pinned tree, with its options
+  (threads, MULTIPLICITY, 64-bit integers, the shared `libperl`; no GDBM) and the `-O3`
+  of the builds, without DTrace (`OPTIONS_UNSET` of every build here): the probes of
+  DTrace are compiled into the core of Perl only (`mydtrace.h`: `USE_DTRACE` and
+  `PERL_CORE`), so an XS module takes nothing of DTrace, and those of FreeBSD's packages,
+  built against its perl with DTrace, load and run with ours. Tests after the install:
+  [`tools/perl-test.sh`](tools/perl-test.sh) (the `Config` of ours against that of
+  FreeBSD's `perl5`, the libraries, every XS module of Perl; official `p5-*` packages with
+  XS installed over it as on a server: JSON::XS, DBI with DBD::SQLite, Text::CSV_XS,
+  YAML::XS, Net::SSLeay and IO::Socket::SSL with TLS on 127.0.0.1 and others, their
+  symbols against our `libperl`; an XS module built against it).
 - **`lang/phpXY`** and **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): the core
   `phpXY` and the Apache module `libphpXY.so`, each from the official port of the commit
   of its version (the table above); PCRE2 is that of `devel/pcre2` (5.6: PCRE of

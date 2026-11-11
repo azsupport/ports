@@ -90,6 +90,7 @@
 | `node24`, `npm-node24`, `yarn-node24`, `corepack-node24` | `www/node24`, `www/npm-node24`, `www/yarn-node24`, `www/corepack-node24` | Node.js 24 (для yt-dlp и Kibana 6) с npm, Yarn 1 и corepack: `node` на brotli, c-ares, ICU, nghttp2, libuv, zstd и SQLite из az, OpenSSL (с хранилищем сертификатов базы) и zlib базы и библиотеках ниже; без DTrace; npm и Yarn — официальные порты как есть, corepack — наш (corepack-node24: 0.36 работает только на Node 22 и 24, у Node 18 — corepack-node18; один из двух) |
 | `libada`, `llhttp`, `nbytes`, `libnghttp3`, `libngtcp2`, `simdjson`, `uvwasi`, `hdr_histogram` | `devel/libada`, `www/llhttp`, `www/nbytes`, `www/libnghttp3`, `net/libngtcp2`, `devel/simdjson`, `devel/uvwasi`, `graphics/hdr_histogram` | библиотеки, которые Node.js встраивает, портами этого дерева (aZ, 11.11.2026): официальные порты как есть, `uvwasi` — наш, на libuv из az |
 | `elasticsearch6` | `textproc/elasticsearch6` | Elasticsearch 6.8.23, последний 6.x, для легаси-сайтов, снова портом (официальный порт убран 01.01.2023, на 6.8.16): его rc-скрипт с профилями; на OpenJDK 17 из портов, четыре строки предупреждения JDK 17 о `System::setSecurityManager` из вывода запуска убраны; без ML; дампы кучи, файлы ошибок JVM и журнал GC — в `/var/db/elasticsearch` и `/var/log/elasticsearch` |
+| `perl5` | `lang/perl5.42` | Perl 5.42 под именем пакета FreeBSD (aZ, 11.11.2026), чтобы с ним работали пакеты `p5-*` из репозитория FreeBSD: официальный порт как есть (потоки, MULTIPLICITY, 64-битные целые, разделяемая libperl), без DTrace, как все сборки здесь (его пробы есть только в ядре Perl: XS-модули пакетов FreeBSD с ним загружаются и работают, [`tools/perl-test.sh`](tools/perl-test.sh)) |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows, и с исправлениями уязвимостей, которых нет в официальном порту, из Fedora: CVE-2014-8141 … CVE-2022-0530, zip-бомбы; `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR; `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS, с исправлением CVE-2026-96512 (три коммита апстрима); `bash` без NLS; `portmaster` только с дополнением для bash), `wget` и `rsync` наши, с разделяемыми библиотеками az (`wget`: IDN, PSL; `rsync` 3.5.2, раньше официального 3.5.1 ради исправлений безопасности: lz4, zstd, xxhash, без ICONV), PCRE2 из `pcre2` (`wget`) и OpenSSL базы |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
@@ -247,6 +248,19 @@
   grep -P, Apache с модулями серверов на своём порту, memcached, MariaDB на сокете по
   умолчанию `/tmp/mysql.sock`, named со своей зоной — dig по UDP, TCP и по имени IDN,
   rndc, vips с JPEG, WebP, PNG и GIF, библиотеки каждого).
+- **`lang/perl5.42`**: пакет `perl5` (`/usr/local/bin/perl`) вместо официального (aZ,
+  11.11.2026: наши Perl и Python под именами пакетов FreeBSD, чтобы с ними работали пакеты
+  `p5-*` из репозитория FreeBSD): официальный порт как есть — Perl 5.42.3, версия по
+  умолчанию закреплённого дерева, с его опциями (потоки, MULTIPLICITY, 64-битные целые,
+  разделяемая `libperl`; без GDBM) и `-O3` сборок, без DTrace (`OPTIONS_UNSET` всех сборок
+  здесь): пробы DTrace компилируются только в ядро Perl (`mydtrace.h`: `USE_DTRACE` и
+  `PERL_CORE`), поэтому XS-модуль ничего от DTrace не берёт, и модули пакетов FreeBSD,
+  собранные под его perl с DTrace, загружаются и работают с нашим. Тесты после установки —
+  [`tools/perl-test.sh`](tools/perl-test.sh) (`Config` нашего против `perl5` FreeBSD,
+  библиотеки, все XS-модули Perl; официальные пакеты `p5-*` с XS, поставленные поверх него
+  как на сервере: JSON::XS, DBI с DBD::SQLite, Text::CSV_XS, YAML::XS, Net::SSLeay и
+  IO::Socket::SSL с TLS на 127.0.0.1 и другие, их символы против нашей `libperl`;
+  XS-модуль, собранный под него).
 - **`lang/phpXY`** и **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): ядро `phpXY` и
   модуль Apache `libphpXY.so`, каждый — из официального порта коммита своей версии
   (таблица выше); PCRE2 — из `devel/pcre2` (у 5.6 PCRE из `devel/pcre`), а не встроенная

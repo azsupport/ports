@@ -7,7 +7,9 @@
 # the utilities of the official ports (Mk/az-official.mk) by utils-test.sh, the
 # server packages (git, Apache, memcached, MariaDB, vsftpd-ext, BIND and its tools,
 # vips, qt-faststart) by servers-test.sh, Node.js (node24, npm-node24,
-# yarn-node24, corepack-node24) by node-test.sh, and Elasticsearch 6 by elastic-test.sh.
+# yarn-node24, corepack-node24) by node-test.sh, Elasticsearch 6 by elastic-test.sh,
+# and Perl (perl5, under the name of FreeBSD's) by perl-test.sh, with the XS modules
+# of FreeBSD's p5-* packages, which it installs from the FreeBSD repository itself.
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -32,7 +34,7 @@
 
 set -u
 top="$(cd "$(dirname "$0")/.." && pwd)"
-usage() { sed -n 's/^# \{0,1\}//; 7,10p' "$0" >&2; exit "${1:-2}"; }
+usage() { sed -n 's/^# \{0,1\}//; 14,17p' "$0" >&2; exit "${1:-2}"; }
 say() { printf '[test-programs %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
 repo=""
@@ -200,6 +202,22 @@ if [ -n "$e_" ]; then
     cat "$res/test-programs-install-elastic.log" >> "$log"
     want="$want$e_"
 fi
+# Perl (aZ, 11.11.2026: under the name of FreeBSD's, so that its p5-* packages work
+# with it) as the server packages: perl5; perl-test.sh installs the official p5-*
+# packages with XS over it (as a server does) and takes them away again
+perls="perl5"
+l_=""
+for p in $perls; do in_repo "$p" && l_="$l_ $p"; done
+if [ -n "$l_" ]; then
+    say "pkg install -f$l_"
+    # shellcheck disable=SC2086
+    CONSERVATIVE_UPGRADE=no pkg install -y -f $l_ > "$res/test-programs-install-perl.log" 2>&1 || say "pkg install of Perl says it failed (test-programs-install-perl.log)"
+    # shellcheck disable=SC2086
+    again "$res/test-programs-install-perl.log" $l_
+    cat "$res/test-programs-install-perl.log" >> "$res/test-programs-install.log"
+    cat "$res/test-programs-install-perl.log" >> "$log"
+    want="$want$l_"
+fi
 # every installed package the repository has, from the repository: a dependency pkg
 # kept or took from another one (the official glib, which mc then loaded with the
 # libintl and libiconv of /usr/local/lib: run 42994770290), once more with -r azbuild
@@ -223,7 +241,7 @@ done
 # 3. the tests: name, the packages it needs
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
         "graphicsmagick GraphicsMagick" "mc mc" "ytdlp yt-dlp ffmpeg" "utils $utils" ${s_:+"servers$s_"} \
-        ${n_:+"node$n_"} ${e_:+"elastic$e_"}; do
+        ${n_:+"node$n_"} ${e_:+"elastic$e_"} ${l_:+"perl$l_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
