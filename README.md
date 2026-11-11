@@ -314,7 +314,9 @@ Names and origins as the ports, files at the paths of the ports:
   the pinned commit as they are (a new version comes with the pin; of its patches the
   two that link fontconfig are left out, by name and SHA-256) and builds OpenJDK 17
   headless (`--enable-headless-only`: `libawt_headless`, no `libawt_xawt` and
-  `libsplashscreen`, so giflib and libpng stay bundled and unused), without sound (no
+  `libsplashscreen`, so giflib and libpng stay bundled and unused; without the
+  headers of X11 too, with the change of OpenJDK for that backported, JDK-8376684
+  of 04.02.2026: 17u needs them headless), without sound (no
   ALSA and `libjsound` on FreeBSD, as on AIX and OpenBSD: `javax.sound` finds no
   devices) and without DTrace, on the libjpeg (mozjpeg), FreeType and Little CMS of az
   (the run path `/usr/local/az/lib` after `$ORIGIN`, in the three libraries that link
