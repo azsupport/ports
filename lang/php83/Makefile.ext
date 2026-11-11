@@ -617,9 +617,10 @@ SASL_LIB_DEPENDS=	libsasl2.so:security/cyrus-sasl2
 
 .if ${PHP_MODNAME} == "redis"
 # databases/php-redis of eb0100f974b6 (the release of GitHub there, ext/redis of
-# the tarball here): its options LZ4 and ZSTD (on by default; zstd also in
-# ext.conf) with liblz4 and libzstd of az; IGBINARY on (ext.conf); the json
-# serializer of redis is on by default (json is in the core)
+# the tarball here): its options LZ4 and ZSTD (on by default there; here LZ4
+# off, aZ 11.11.2026; zstd also in ext.conf) with liblz4 and libzstd of az;
+# IGBINARY on (ext.conf); the json serializer of redis is on by default (json is
+# in the core)
 COMMENT=	Extension to access Redis
 WWW=		https://github.com/phpredis/phpredis
 
@@ -631,7 +632,7 @@ USE_PHP=	session:build
 CONFIGURE_ARGS+=--enable-redis
 
 OPTIONS_DEFINE=	IGBINARY LZ4 ZSTD
-OPTIONS_DEFAULT=IGBINARY LZ4 ZSTD
+OPTIONS_DEFAULT=IGBINARY ZSTD
 
 IGBINARY_DESC=	Build with Igbinary serializer
 LZ4_DESC=	Build with lz4 support
