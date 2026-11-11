@@ -17,6 +17,12 @@
 #               Set it to the config file location.
 # elasticsearch_java_home (path): Set to %%JAVA_HOME%% by default.
 #               Set it to the root of the JDK to use.
+# elasticsearch_heap (size):     Not set by default: the heap is the -Xms and
+#               -Xmx of jvm.options (1g). Set it to the size of the heap of this
+#               server, as -Xmx takes it (512m, 4g, ...): it becomes both -Xms
+#               and -Xmx, after the options of jvm.options, which can then be
+#               the same file on every server. With profiles:
+#               elasticsearch_<profile>_heap.
 #
 . /etc/rc.subr
 
@@ -31,6 +37,7 @@ load_rc_config ${name}
 : ${elasticsearch_config=%%PREFIX%%/etc/elasticsearch}
 : ${elasticsearch_login_class=root}
 : ${elasticsearch_java_home="%%JAVA_HOME%%"}
+: ${elasticsearch_heap=""}
 
 required_files="${elasticsearch_config}/elasticsearch.yml"
 _pidprefix=/var/run/elasticsearch/elasticsearch
@@ -71,6 +78,7 @@ if [ -n "$2" ]; then
         required_files="${elasticsearch_config}/elasticsearch.yml"
         required_files="${elasticsearch_config}/jvm.options"
         eval elasticsearch_enable="\${elasticsearch_${profile}_enable:-${elasticsearch_enable}}"
+        eval elasticsearch_heap="\${elasticsearch_${profile}_heap:-${elasticsearch_heap}}"
         pidfile="${_pidprefix}.${profile}.pid"
 	command_args="-d --pidfile=${pidfile}"
 	echo "===> elasticsearch profile: ${profile}"
@@ -123,6 +131,17 @@ fi
 if [ "x${elasticsearch_props}" != "x" ]; then
     echo "The elasticsearch_props variable is no longer supported please set this in ${elasticsearch_config}/jvm.options"
     exit 1;
+fi
+
+# The heap of this server: -Xms and -Xmx, equal, in ES_JAVA_OPTS, which
+# bin/elasticsearch puts after the options of jvm.options (the JVM takes the last
+# -Xms and -Xmx), so that jvm.options is the same file on every server.
+if [ -n "${elasticsearch_heap}" ]; then
+    if ! expr "${elasticsearch_heap}" : '[1-9][0-9]*[kKmMgG]\{0,1\}$' > /dev/null; then
+        echo "elasticsearch_heap=\"${elasticsearch_heap}\" is not a size of -Xmx (512m, 4g, ...)"
+        exit 1
+    fi
+    export ES_JAVA_OPTS="-Xms${elasticsearch_heap} -Xmx${elasticsearch_heap}"
 fi
 
 run_rc_command "$1"

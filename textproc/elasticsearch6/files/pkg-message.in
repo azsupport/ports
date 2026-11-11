@@ -9,6 +9,11 @@ You may need to set:
 
 sysctl security.bsd.unprivileged_mlock=1
 
+The heap of this server is set in /etc/rc.conf, as -Xmx takes it (-Xms and
+-Xmx get the same size; without it the heap is the 1g of jvm.options):
+
+elasticsearch_heap="4g"
+
 !!! PLUGINS NOTICE !!!
 
 ElasticSearch plugins should only be installed via the elasticsearch-plugin
