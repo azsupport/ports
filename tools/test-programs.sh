@@ -10,9 +10,11 @@
 # yarn-node24, corepack-node24) by node-test.sh, Python (python312, py312-sqlite3,
 # mpdecimal, python3; the official py312-* packages over it) by python-test.sh,
 # Elasticsearch 6 by elastic-test.sh, Kibana 6 (on our node24, with elasticsearch6)
-# by kibana-test.sh, and Perl (perl5, under the name of FreeBSD's)
-# by perl-test.sh, with the XS modules of FreeBSD's p5-* packages, which it installs
-# from the FreeBSD repository itself.
+# by kibana-test.sh, Node.js 18 (node18, npm-node18, yarn-node18, corepack-node18) by
+# node18-test.sh after the tests on node24, installed in the place of node24 (one of
+# the two: pkg takes node24 and its npm, yarn and corepack away), and Perl (perl5,
+# under the name of FreeBSD's) by perl-test.sh, with the XS modules of FreeBSD's
+# p5-* packages, which it installs from the FreeBSD repository itself.
 #
 # Usage (as root on FreeBSD, after tools/build.sh and the checks of PHP):
 #   sh tools/test-programs.sh [--repo <dir>]
@@ -207,6 +209,12 @@ if [ -n "$n_" ]; then
     cat "$res/test-programs-install-node.log" >> "$log"
     want="$want$n_"
 fi
+# Node.js 18 (aZ, 11.11.2026: a legacy project): node18 with npm, yarn and corepack,
+# one of node18 and node24 (the same files), so installed only for its test, after
+# the tests on node24 (node24, Kibana), in its place (3. below)
+nodes18="node18 npm-node18 yarn-node18 corepack-node18"
+n18_=""
+for p in $nodes18; do in_repo "$p" && n18_="$n18_ $p"; done
 # Elasticsearch 6 (aZ, 11.11.2026: the legacy sites) as the server packages; its
 # OpenJDK 17 is an official package
 elastic="elasticsearch6"
@@ -277,12 +285,37 @@ done
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
         "graphicsmagick GraphicsMagick" "mc mc" ${p_:+"python$p_"} "ytdlp yt-dlp ffmpeg" "utils $utils" \
         ${s_:+"servers$s_"} ${n_:+"node$n_"} ${e_:+"elastic$e_"} \
-        ${k_:+"kibana$k_ elasticsearch6 node24"} ${l_:+"perl$l_"}; do
+        ${k_:+"kibana$k_ elasticsearch6 node24"} ${n18_:+"node18$n18_"} ${l_:+"perl$l_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
+    if [ "$t" = node18 ]; then
+        # node18 and its npm, yarn and corepack in the place of node24 and its own:
+        # pkg install as on a server, which removes those of node24 (their files).
+        # What needs node24 besides its npm and yarn (kibana6, tested before) goes
+        # first, as on a server, where node18 cannot come under it
+        : > "$res/test-programs-install-node18.log"
+        r24_="$(pkg query '%rn' node24 2> /dev/null | grep -v -x -e npm-node24 -e yarn-node24 | tr '\n' ' ')"
+        if [ -n "$r24_" ]; then
+            say "pkg delete $r24_(they need node24; their tests are done)"
+            # shellcheck disable=SC2086
+            pkg delete -y $r24_ >> "$res/test-programs-install-node18.log" 2>&1 || say "pkg delete $r24_failed (test-programs-install-node18.log)"
+        fi
+        say "pkg install -f$n18_ (in the place of$n_)"
+        # shellcheck disable=SC2086
+        CONSERVATIVE_UPGRADE=no pkg install -y -f $n18_ >> "$res/test-programs-install-node18.log" 2>&1 || say "pkg install of Node.js 18 says it failed (test-programs-install-node18.log)"
+        # shellcheck disable=SC2086
+        again "$res/test-programs-install-node18.log" $n18_
+        cat "$res/test-programs-install-node18.log" >> "$res/test-programs-install.log"
+        cat "$res/test-programs-install-node18.log" >> "$log"
+    fi
     miss=""
     for p in "$@"; do inst "$p" || miss="$miss $p"; done
+    if [ -n "$miss" ] && [ "$t" = node18 ]; then
+        line "$t: FAIL (not installed from the repository in the place of node24:$miss; test-programs-install-node18.log: $(grep -v '^\[' "$res/test-programs-install-node18.log" | tail -n 2 | tr '\n' ' ' | cut -c1-160))"
+        rc=1
+        continue
+    fi
     if [ -n "$miss" ]; then
         line "$t: SKIP (not installed from the repository:$miss)"
         continue
