@@ -16,7 +16,8 @@
 #     Redis::_compress() and Redis::_uncompress() (no server needed); gd
 #     imagepstext() and "T1Lib Support" of gd_info() there or not; swoole the row
 #     coroutine_sqlite of phpinfo() there or not, and with it a query of PDO SQLite
-#     (the driver of swoole: no pdo_sqlite) and, in coroutines with SWOOLE_HOOK_ALL,
+#     (the driver of swoole: no pdo_sqlite) and, in coroutines with SWOOLE_HOOK_ALL
+#     (without the hooks of curl when the module curl is not loaded: php -n),
 #     a long query that holds its coroutine only (a timer of 5 ms in another one
 #     ends first); then the same as a server runs it, with every module of conf.d
 #     (pdo_sqlite started before swoole, which takes its place), and the functions
@@ -90,18 +91,31 @@ phpargs() {
     done
     printf '%s -d extension=%s.so' "$_a" "$(mod_of "$1")"
 }
+# verdict <name> <exit status> <output>: the one line "OK ..." or "FAIL ..." of the
+# code, else a failure with the first line it printed, or with its exit status (and
+# signal) when it printed nothing
+verdict() {
+    case "$3" in
+        *"
+"*) ;;
+        "OK "*) ok "$1" "${3#OK }"; return ;;
+        "FAIL "*) fail "$1" "${3#FAIL }"; return ;;
+    esac
+    _l="$(printf '%s\n' "$3" | sed -n '/[^[:space:]]/{p;q;}')"
+    if [ -z "$_l" ]; then
+        _l="no output, exit status $2"
+        [ "$2" -gt 128 ] 2> /dev/null && _l="$_l (signal $(($2 - 128)))"
+    elif [ "$2" != 0 ]; then
+        _l="$_l (exit status $2)"
+    fi
+    fail "$1" "$_l"
+}
 # phpcheck <name> <package> <code>: php -n with the modules of the package; the code
 # echoes "OK ..." or "FAIL ..."
 phpcheck() {
     # shellcheck disable=SC2046
     _o="$("$php" -n -d "extension_dir=$extdir" $(phpargs "$2") -r "$3" 2>&1 < /dev/null)"
-    case "$_o" in
-        *"
-"*) ;;
-        "OK "*) ok "$1" "${_o#OK }"; return ;;
-        "FAIL "*) fail "$1" "${_o#FAIL }"; return ;;
-    esac
-    fail "$1" "$(printf '%s\n' "$_o" | sed -n '/[^[:space:]]/{p;q;}')"
+    verdict "$1" "$?" "$_o"
 }
 # libs <name> <module file> <library: yes|no> ...: the libraries it names (NEEDED)
 libs() {
@@ -184,7 +198,17 @@ if ($c !== $q) {
             $f = "PDO::sqliteCreateFunction(): " . $p->query("SELECT twice(21)")->fetchColumn();
         }
     }
-    Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
+    // without the module curl (php -n) the hooks of curl only warn that curl_init is
+    // not found: all the other hooks then
+    $h = SWOOLE_HOOK_ALL;
+    $hk = "SWOOLE_HOOK_ALL";
+    if (!extension_loaded("curl")) {
+        foreach (array("SWOOLE_HOOK_CURL", "SWOOLE_HOOK_NATIVE_CURL") as $k) {
+            if (defined($k)) $h &= ~constant($k);
+        }
+        $hk .= " but curl (no module curl)";
+    }
+    Swoole\Runtime::enableCoroutine($h);
     $o = array();
     Swoole\Coroutine\run(function () use (&$o) {
         Swoole\Coroutine::create(function () use (&$o) {
@@ -196,25 +220,20 @@ if ($c !== $q) {
     if ($ini && substr($f, -4) !== ": 42") {
         $r = "FAIL $f, not 42";
     } elseif (count($o) == 2 && $o[0] === "timer") {
-        $r = "OK SQLite $v" . ($f ? ", $f" : "") . "; in coroutines with SWOOLE_HOOK_ALL: " . implode(", ", $o) . " (the query held its coroutine only)";
+        $r = "OK SQLite $v" . ($f ? ", $f" : "") . "; in coroutines with $hk: " . implode(", ", $o) . " (the query held its coroutine only)";
     } else {
-        $r = "FAIL in coroutines with SWOOLE_HOOK_ALL: " . implode(", ", $o) . " (the query held the worker)";
+        $r = "FAIL in coroutines with $hk: " . implode(", ", $o) . " (the query held the worker)";
     }
 }
 echo $r;
 PHP
 )
 # inicheck <name> <code>: php with its ini files (every module of conf.d), as a
-# server runs it; the code echoes "OK ..." or "FAIL ..."
+# server runs it; the code echoes "OK ..." or "FAIL ..."; its errors shown (the
+# php.ini of a server may keep them from the screen: display_errors Off)
 inicheck() {
-    _o="$("$php" -d date.timezone=UTC -r "$2" 2>&1 < /dev/null)"
-    case "$_o" in
-        *"
-"*) ;;
-        "OK "*) ok "$1" "${_o#OK }"; return ;;
-        "FAIL "*) fail "$1" "${_o#FAIL }"; return ;;
-    esac
-    fail "$1" "$(printf '%s\n' "$_o" | sed -n '/[^[:space:]]/{p;q;}')"
+    _o="$("$php" -d date.timezone=UTC -d display_errors=1 -d log_errors=0 -r "$2" 2>&1 < /dev/null)"
+    verdict "$1" "$?" "$_o"
 }
 if in_repo "php$short-swoole-sqlite"; then
     group=""
