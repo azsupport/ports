@@ -94,6 +94,7 @@
 | `elasticsearch6` | `textproc/elasticsearch6` | Elasticsearch 6.8.23, последний 6.x, для легаси-сайтов, снова портом (официальный порт убран 01.01.2023, на 6.8.16): его rc-скрипт с профилями; на OpenJDK 17 из портов, четыре строки предупреждения JDK 17 о `System::setSecurityManager` из вывода запуска убраны; без ML; файлы ошибок при падении JVM — в `/var/log/elasticsearch`; без лишней записи (aZ, 11.11.2026): нет дампа кучи при OutOfMemoryError, нет журнала GC, в `/tmp` только один `/tmp/elasticsearch` (нет `hsperfdata`; это временный каталог, `elasticsearch_tmpdir` в `rc.conf`, создаётся заново при каждом запуске), нет архивов старых журналов (файлы журналов из `log4j2.properties` Elastic как есть, ротация только по размеру, старый файл сразу удаляется: ни файлов с датой, ни `.gz`); `xpack.ssl.cipher_suites` без четырёх наборов, которых в OpenJDK 17 больше нет (нет `[ERROR]` о неподдерживаемых шифрах при запуске); `jvm.options` для OpenJDK 17, один файл на все серверы (`-XX:UseAVX=2` только для JDK 10: на JDK 17 она давала предупреждение при каждом запуске на процессоре без AVX2; `-XX:+ExitOnOutOfMemoryError`; у каждой правки в файле указан источник); куча сервера — `elasticsearch_heap="4g"` в `rc.conf` (`-Xms` и `-Xmx`), без неё — 31g из `jvm.options` (ниже порога сжатых указателей; для сервера с 64 ГБ памяти и больше: при меньшей памяти задать `elasticsearch_heap`, не больше половины памяти); утилиты при ручном запуске (`elasticsearch-keystore`, `elasticsearch-plugin` и другие) тоже ничего не оставляют в `/tmp` |
 | `kibana6` | `textproc/kibana6` | Kibana 6.8.23, последний 6.x, для легаси-сайтов вместе с `elasticsearch6`, снова портом (официальный порт убран 31.03.2022, на 6.8.16, с Node.js 10): на нашем `node24`, с возвращённым из Node.js 10 тем, что ему нужно (`util.is*` и `util.log`, MD4 webpack 4 как MD5, необработанный отказ промиса — предупреждение, IPv4-адрес `localhost` первым), с исправлениями hapi для Node.js 11 и 16 в его hapi 17 и с `re2` (метки Timelion) как node-re2 1.27.1, собранным под этот Node.js; его rc-скрипт с daemon(8), от пользователя www, `reload` для журнала; без Machine Learning и Reporting (Chromium и PhantomJS для FreeBSD нет), бандлы браузера собраны при сборке под этот набор плагинов |
 | `perl5` | `lang/perl5.42` | Perl 5.42 под именем пакета FreeBSD (aZ, 11.11.2026), чтобы с ним работали пакеты `p5-*` из репозитория FreeBSD: официальный порт как есть (потоки, MULTIPLICITY, 64-битные целые, разделяемая libperl), без DTrace, как все сборки здесь (его пробы есть только в ядре Perl: XS-модули пакетов FreeBSD с ним загружаются и работают, [`tools/perl-test.sh`](tools/perl-test.sh)) |
+| `openjdk17`, `jna`, `apache-ant` | `java/openjdk17`, `devel/jna`, `devel/apache-ant` | JDK и JNA для `elasticsearch6`, наши (aZ, 11.11.2026), чтобы сервер с Elasticsearch не получал ничего от рабочего стола: OpenJDK 17 без графики в `/usr/local/openjdk17`, без X11, звука, шрифтов и javavmwrapper (нет `/usr/local/bin/java`), на libjpeg, FreeType и Little CMS из az; JNA без X11 и JAWT, на libffi из az; Ant — официальный порт — на нашем JDK, для сборки JNA. `openjdk17` и `jna` зависят только от `az` |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows, и с исправлениями уязвимостей, которых нет в официальном порту, из Fedora: CVE-2014-8141 … CVE-2022-0530, zip-бомбы; `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR; `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS, с исправлением CVE-2026-96512 (три коммита апстрима); `bash` без NLS; `portmaster` только с дополнением для bash), `wget` и `rsync` наши, с разделяемыми библиотеками az (`wget`: IDN, PSL; `rsync` 3.5.2, раньше официального 3.5.1 ради исправлений безопасности: lz4, zstd, xxhash, без ICONV), PCRE2 из `pcre2` (`wget`) и OpenSSL базы |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
@@ -283,6 +284,37 @@
   каждого модуля, TLS с хранилищем сертификатов базы, hashlib, ctypes, decimal, expat,
   sqlite3, gettext, readline, сжатие; `py312-six` и `py312-markupsafe` из FreeBSD поверх
   нашего `python312`).
+- **`java/openjdk17`**, **`devel/jna`** и **`devel/apache-ant`**: JDK и JNA для
+  `textproc/elasticsearch6`, наши (aZ, 11.11.2026: сервер с Elasticsearch не получает
+  ничего от рабочего стола; официальный `openjdk17` тянет около 50 его пакетов — X11,
+  шрифты, ALSA, HarfBuzz с GLib и Python, giflib, PNG, javavmwrapper, — официальный
+  `jna` — libX11 и libXt), с именами, origin, версиями и путями официальных пакетов.
+  `openjdk17` берёт версию, distinfo и патчи официального порта закреплённого коммита
+  как есть (новая версия приходит вместе с закреплённым коммитом; из его патчей два,
+  которые линкуют fontconfig, не берутся — по имени и SHA-256) и собирает OpenJDK 17 без
+  графики (`--enable-headless-only`: `libawt_headless`, нет `libawt_xawt` и
+  `libsplashscreen`, поэтому giflib и libpng остаются встроенными и не используются),
+  без звука (на FreeBSD нет ALSA и `libjsound`, как на AIX и OpenBSD: `javax.sound` не
+  находит устройств) и без DTrace, на libjpeg (mozjpeg), FreeType и Little CMS из az
+  (путь поиска библиотек `/usr/local/az/lib` после `$ORIGIN` — в трёх библиотеках,
+  которые их линкуют), zlib базы и встроенном HarfBuzz (его нет ни в одном нашем
+  порту); без шрифтов и javavmwrapper (нет `/usr/local/bin/java`: Elasticsearch берёт
+  `JAVA_HOME`); CUPS и заголовки fontconfig (из az) — только для сборки. fontconfig не
+  линкуется: OpenJDK загружает `libfontconfig.so.1` через dlopen по имени, когда ему
+  нужны шрифты системы, а rtld FreeBSD ищет её в `LD_LIBRARY_PATH`, пути поиска
+  `bin/java`, подсказках ldconfig и в `/lib`, `/usr/lib`, но не в `/usr/local/az/lib`:
+  с одними нашими пакетами у Java нет шрифтов системы (текст бросает «Fontconfig head
+  is null», и с файлом шрифта тоже; Elasticsearch текст не рисует), с установленными
+  официальными `fontconfig` и шрифтами (`pkg install dejavu`) берёт их. `jna`: JNA
+  официального порта так же, без JAWT (`-DNO_JAWT` на FreeBSD, как JNA собирается для
+  Android и macOS) и X11, его `libjnidispatch.so` — на разделяемой libffi из az вместо
+  встроенной статической копии; собран нашими `openjdk17` и `apache-ant` (официальный
+  порт с `JAVA_VERSION` 17, `bin/ant` на нашей `java`): в сборке один JDK. Порты
+  проверяют то, что собрали (ни один ELF JDK не линкует библиотеки X11, ALSA, giflib,
+  libpng, HarfBuzz и fontconfig; библиотеки az — по пути поиска; зависимости — только
+  az). Тесты после установки — [`tools/java-test.sh`](tools/java-test.sh) (без графики,
+  ImageIO с JPEG и PNG, преобразование ICC, текст, `AudioSystem`, TLS 1.3 на 127.0.0.1,
+  библиотеки az в процессе, `getpid()` через JNA, зависимости пакетов).
 - **`lang/phpXY`** и **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): ядро `phpXY` и
   модуль Apache `libphpXY.so`, каждый — из официального порта коммита своей версии
   (таблица выше); PCRE2 — из `devel/pcre2` (у 5.6 PCRE из `devel/pcre`), а не встроенная
