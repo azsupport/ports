@@ -153,8 +153,19 @@ jobs:
         env:
           CPUTYPE: ${{ matrix.cputype }}
         run: |
-          sudo apt-get update -qq > /dev/null
-          sudo apt-get install -y -qq bmake > /dev/null
+          # bmake from the mirrors of Ubuntu, which fail at times (11.11.2026, runs
+          # 43035735575 and 43038380715: "Temporary failure resolving
+          # 'azure.archive.ubuntu.com'" for minutes): five tries, a minute apart
+          ok=0
+          for i in 1 2 3 4 5; do
+            if sudo apt-get update -qq > /dev/null && sudo apt-get install -y -qq bmake > /dev/null; then
+              ok=1
+              break
+            fi
+            echo "apt-get install bmake failed (try $i of 5)"
+            [ "$i" = 5 ] || sleep 60
+          done
+          [ "$ok" = 1 ] || { echo "::error title=bmake::apt-get install bmake failed 5 times"; exit 1; }
           commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
           off="$RUNNER_TEMP/freebsd-ports"
           mkdir -p "$off"
