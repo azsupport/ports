@@ -17,7 +17,10 @@ name: Build the packages of the repository az
 # the new repository with the new ones. Before the VM, tools/check-tree.sh checks the
 # ports of this tree with make -V against a sparse official tree (bmake). Up to
 # "jobs" ports build at once (AZ_JOBS of tools/build.sh: waves of the ports whose
-# dependencies are done; 1: one after another, as before). With "configure_check"
+# dependencies are done; 1: one after another, as before), stage after stage: the
+# groups of "ports" separated by ";", or for all of them the order of aZ (11.11.2026):
+# az, then PHP 5.6, 7.4, 8.1, 8.3, 8.2, 8.4 (each with mod_php and its modules), then
+# the rest; with "both", x86-64-v3 first, then x86-64-v2. With "configure_check"
 # each PHP port built is configured once more, with the errors of C of GCC 14+ and
 # clang 16+ as warnings, and compared with its build (AZ_CONFIGURE_CHECK of
 # tools/build.sh: results/configure-check.txt, a section of the report).
@@ -36,7 +39,7 @@ on:
         options: [x86-64-v3, x86-64-v2, both]
         default: x86-64-v3
       ports:
-        description: 'Ports to build (category/port, separated by spaces; with the ports of this tree they need); empty: all'
+        description: 'Ports to build (category/port, separated by spaces; with the ports of this tree they need), in groups separated by " ; " built one after another; empty: all, az first, then PHP 5.6, 7.4, 8.1, 8.3, 8.2, 8.4, then the rest'
         required: false
         default: ''
       force:
@@ -65,8 +68,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 350
+    # both: x86-64-v3 first, then x86-64-v2 (the order of aZ, 11.11.2026: v3 is needed first)
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         cputype: ${{ inputs.cputype == 'both' && fromJSON('["x86-64-v3", "x86-64-v2"]') || fromJSON(format('["{0}"]', inputs.cputype)) }}
     name: build (${{ matrix.cputype }})
