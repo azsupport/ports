@@ -114,6 +114,12 @@ int main(void)
 }
 EOF
 spc="libxml-2.0 gdlib icu-uc libzip libsodium oniguruma sqlite3 gmp libxslt libffi tidy"
+# libgd with LIQ: libimagequant of graphics/libimagequant (aZ, 11.11.2026)
+if ldd "$A/lib/libgd.so" 2>/dev/null | grep -q 'libimagequant\.so.* => /usr/local/lib/'; then
+    tpass "libgd: LIQ, libimagequant of the package libimagequant"
+else
+    tfail "libgd: no libimagequant: $(ldd "$A/lib/libgd.so" 2>&1 | tr '\n' ' ')"
+fi
 # one libcurl, that of the package curl (aZ, 10.11.2026): none in the shared tree
 if ls "$A"/lib/libcurl.so* > /dev/null 2>&1; then
     tfail "a libcurl in $A/lib: $(ls "$A"/lib/libcurl.so* | tr '\n' ' ')(the libcurl of the packages is that of the package curl)"
@@ -131,8 +137,8 @@ if cf="$("$A/bin/pkg-config" --cflags $spc)" && lf="$("$A/bin/pkg-config" --libs
         cc -O2 -fPIC $cf $mcf -o "$t/t" "$t/t.c" $lf $mlf -Wl,-rpath,"$A/lib" && "$t/t" &&
             ldd "$t/t" > "$t/ldd.txt" &&
             echo "libraries of the program: $(awk 'NF > 2 && $2 == "=>" { print $3 }' "$t/ldd.txt" | tr '\n' ' ')" &&
-            bad="$(awk -v a="$A/lib/" 'NF > 2 && $2 == "=>" && index($3, a) != 1 && $3 !~ /^\/(usr\/)?lib\// { print $1 " " $3 }' "$t/ldd.txt" | tr '\n' ' ')" &&
-            { [ -z "$bad" ] || { echo "not of $A/lib or the base system: $bad"; false; }; }
+            bad="$(awk -v a="$A/lib/" 'NF > 2 && $2 == "=>" && index($3, a) != 1 && $3 !~ /^\/(usr\/)?lib\// && $3 !~ /^\/usr\/local\/lib\/libimagequant\.so/ { print $1 " " $3 }' "$t/ldd.txt" | tr '\n' ' ')" &&
+            { [ -z "$bad" ] || { echo "not of $A/lib, the base system or libimagequant (of libgd): $bad"; false; }; }
     } > "$res/shared-link.txt" 2>&1; then
     tpass "shared libraries of $A: $(grep -m 1 '^libxml2 ' "$res/shared-link.txt"), from $A/lib and the base system"
 else

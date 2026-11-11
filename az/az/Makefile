@@ -183,6 +183,11 @@ BUILD_DEPENDS=	bison:devel/bison \
 		ninja:devel/ninja \
 		python3:lang/python3 \
 		tclsh8.6:lang/tcl86
+# libimagequant of graphics/libimagequant for gd (LIQ: the palette of imagegif() and
+# imagetruecolortopalette() of PHP; aZ, 11.11.2026): the one library of a port of
+# this tree in az, linked (libgd.so takes libimagequant.so of /usr/local/lib; the
+# static tree links to its archive), to build and to run. GPLv3 or later.
+LIB_DEPENDS=	libimagequant.so:graphics/libimagequant
 # GCC of the packages for the shared libraries of AZ_GCC_SO of tools/az-build.sh
 # (sqlite3, expat, lcms2: at least 2% faster with it, tools/lib-bench.sh); a build
 # dependency only, nothing of it at run time (-static-libgcc)

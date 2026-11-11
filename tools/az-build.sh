@@ -285,12 +285,36 @@ b_freetype2() {
     cm "$1" -DFT_REQUIRE_ZLIB=ON -DFT_DISABLE_BZIP2=OFF -DFT_DISABLE_PNG=ON -DFT_DISABLE_HARFBUZZ=ON \
         -DFT_DISABLE_BROTLI=ON
 }
+# gd: the port runs autoreconf (USES=autoreconf); without fontconfig, X, TIFF, AVIF,
+# HEIF. LIQ (the palette of imagegif() and imagetruecolortopalette() of PHP; aZ,
+# 11.11.2026) with libimagequant of the port graphics/libimagequant, the one library
+# of a port of this tree in az, linked, not built here (it is Rust): in the static
+# tree its archive and header as links to those of the port and an imagequant.pc of
+# its own with the libraries its Rust code needs (the Libs.private of the .pc of the
+# port; LIBS for the test of configure), which gdlib.pc requires; for the shared
+# build a directory of the work with its header and libimagequant.so (libgd.so takes
+# libimagequant.so.0.* of /usr/local/lib, one of ldconfig, by its SONAME)
 b_gd() {
-    # the port runs autoreconf (USES=autoreconf); without fontconfig, X, TIFF, AVIF, HEIF
+    lq=/usr/local/libdata/pkgconfig/imagequant.pc
+    for f in /usr/local/include/libimagequant.h /usr/local/lib/libimagequant.a "$lq"; do
+        [ -e "$f" ] || { echo "== no $f (the package libimagequant of graphics/libimagequant)"; return 1; }
+    done
+    ll="$(pkgconf --static --libs-only-l --libs-only-other "$lq" | tr ' ' '\n' | grep -v -x -e -limagequant -e '' | tr '\n' ' ')"
+    mkdir -p "$P/include" "$P/lib/pkgconfig" &&
+        ln -sf /usr/local/include/libimagequant.h "$P/include/libimagequant.h" &&
+        ln -sf /usr/local/lib/libimagequant.a "$P/lib/libimagequant.a" &&
+        printf '%s\n' "prefix=$P" 'libdir=${prefix}/lib' 'includedir=${prefix}/include' '' 'Name: imagequant' \
+            'Description: libimagequant of graphics/libimagequant' "Version: $(pkgconf --modversion "$lq")" \
+            'Libs: -L${libdir} -limagequant' "Libs.private: $ll" 'Cflags: -I${includedir}' \
+            > "$P/lib/pkgconfig/imagequant.pc" || return 1
     (cd "$1" && autoreconf -fi) &&
-        at "$1" --enable-gd-formats --with-zlib --with-png="$P" --with-jpeg="$P" --with-webp="$P" \
-            --with-freetype="$P" --without-fontconfig --without-xpm --without-x --without-tiff \
-            --without-avif --without-heif --without-raqm --without-liq --with-libiconv-prefix="$P"
+        (LIBS="$ll" && export LIBS &&
+            at "$1" --enable-gd-formats --with-zlib --with-png="$P" --with-jpeg="$P" --with-webp="$P" \
+                --with-freetype="$P" --without-fontconfig --without-xpm --without-x --without-tiff \
+                --without-avif --without-heif --without-raqm --with-liq="$P" --with-libiconv-prefix="$P") &&
+        grep -q '^#define HAVE_LIBIMAGEQUANT 1' "$1/src/config.h" ||
+        { echo "== gd: configure found no libimagequant (src/config.h)"; return 1; }
+    pc_add "$P/lib/pkgconfig/gdlib.pc" Requires.private imagequant
 }
 b_libmcrypt() { at "$1"; }
 b_libevent() { at "$1" --enable-openssl --enable-thread-support --disable-samples --disable-libevent-regress; }
@@ -506,10 +530,24 @@ s_freetype2() {
         -DFT_DISABLE_BROTLI=ON
 }
 s_gd() {
+    for f in /usr/local/include/libimagequant.h /usr/local/lib/libimagequant.so; do
+        [ -e "$f" ] || { echo "== no $f (the package libimagequant of graphics/libimagequant)"; return 1; }
+    done
+    q="$work/liq-so"
+    mkdir -p "$q/include" "$q/lib" &&
+        ln -sf /usr/local/include/libimagequant.h "$q/include/libimagequant.h" &&
+        ln -sf /usr/local/lib/libimagequant.so "$q/lib/libimagequant.so" || return 1
     (cd "$1" && autoreconf -fi) &&
         at_so "$1" --enable-gd-formats --with-zlib --with-png="$S" --with-jpeg="$S" --with-webp="$S" \
             --with-freetype="$S" --without-fontconfig --without-xpm --without-x --without-tiff \
-            --without-avif --without-heif --without-raqm --without-liq --with-libiconv-prefix="$S"
+            --without-avif --without-heif --without-raqm --with-liq="$q" --with-libiconv-prefix="$S" &&
+        grep -q '^#define HAVE_LIBIMAGEQUANT 1' "$1/src/config.h" ||
+        { echo "== gd: configure found no libimagequant (src/config.h)"; return 1; }
+    # the directory of the work out of gdlib.pc (Libs.private: -limagequant)
+    for pc in "$S/lib/pkgconfig/gdlib.pc" "$S/libdata/pkgconfig/gdlib.pc"; do
+        [ -f "$pc" ] && sed -i '' "s| -L$q/lib||g" "$pc"
+    done
+    return 0
 }
 s_libmcrypt() { at_so "$1"; }
 s_libmemcached() {
@@ -1025,6 +1063,8 @@ finish_so() {
             case "$lp" in
                 "$P"/*) echo "$b: $l of the static tree ($lp)" ;;
                 "$S"/lib/*) [ -n "$rp" ] || echo "$b: $l of $S/lib without the run path $S/lib" ;;
+                # libgd takes libimagequant of graphics/libimagequant (LIQ, aZ 11.11.2026)
+                /usr/local/lib/libimagequant.so.*) case "$b" in libgd.so*) ;; *) echo "$b: $l of /usr/local ($lp)" ;; esac ;;
                 /usr/local/*) echo "$b: $l of /usr/local ($lp)" ;;
                 /lib/*|/usr/lib/*) ;;
                 *) echo "$b: $l not found in $S/lib or the base system (${lp:-?})" ;;
