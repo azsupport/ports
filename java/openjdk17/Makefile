@@ -300,7 +300,7 @@ post-install:
 	@cd ${STAGEDIR}${INSTALLDIR}/lib && for e in ${AZ_JDK_AZ_LINKS}; do \
 		f="$${e%%:*}"; l="$${e#*:}"; \
 		so="$$(${READELF} -d $$f | ${SED} -n "s/.*Shared library: \[\($$l\.so\.[0-9.]*\)\].*/\1/p")"; \
-		rp="$$(${READELF} -d $$f | ${SED} -n 's/.*Library runpath: \[\(.*\)\].*/\1/p')"; \
+		rp="$$(${READELF} -d $$f | ${SED} -n 's/.*Library r[a-z]*path: \[\(.*\)\].*/\1/p')"; \
 		[ -n "$$so" ] || { ${ECHO_MSG} "lib/$$f does not link $$l"; exit 1; }; \
 		[ -f ${AZ_PREFIX}/lib/$$so ] && [ ! -e "$$so" ] || \
 			{ ${ECHO_MSG} "lib/$$f: $$so is not ${AZ_PREFIX}/lib/$$so alone"; exit 1; }; \
