@@ -37,6 +37,7 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 # the libraries of az, to build and to run (no ldconfig hints for /usr/local/az/lib:
 # by a file)
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az \
+		${AZ_PREFIX}/lib/libintl.so:az/az \
 		${AZ_PREFIX}/lib/libjpeg.so:az/az \
 		${AZ_PREFIX}/lib/libpng16.so:az/az \
 		${AZ_PREFIX}/lib/libwebp.so:az/az \
@@ -45,6 +46,7 @@ BUILD_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az \
 		${AZ_PREFIX}/lib/libheif.so:az/az \
 		${AZ_PREFIX}/lib/liblcms2.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az \
+		${AZ_PREFIX}/lib/libintl.so:az/az \
 		${AZ_PREFIX}/lib/libjpeg.so:az/az \
 		${AZ_PREFIX}/lib/libpng16.so:az/az \
 		${AZ_PREFIX}/lib/libwebp.so:az/az \
@@ -139,9 +141,12 @@ VIPS_OFFICIAL_PC=	cgif:-lcgif \
 # other than -I) of its real one: libjpeg, libpng, libwebp, libheif, lcms2 and
 # expat of az (-L of az, which has no other library libvips links); cgif,
 # libimagequant, libexif and highway of /usr/local (their ports); glib, gobject and gio with
-# their own include directories (glib-2.0), without -lintl (libvips without NLS), and
-# libintl.h of az among the headers: glib/gi18n-lib.h of GLib includes it (the GLib of
-# devel/glib20 is on the libintl of az, so no libintl.h is in /usr/local/include)
+# their own include directories (glib-2.0), and libintl.h and libintl.so of az among
+# the headers and the libraries: glib/gi18n-lib.h and glib/gi18n.h of GLib include it
+# (the GLib of devel/glib20 is on the libintl of az, so no libintl.h is in
+# /usr/local/include), and the tools (vips, vipsedit ...) call gettext of glib/gi18n.h,
+# libintl_gettext of GNU libintl.h: glib-2.0 with -lintl (libvips without NLS: the
+# strings as they are)
 pre-configure:
 	@${MKDIR} ${WRKDIR}/vips/include ${WRKDIR}/vips/lib ${WRKDIR}/vips/pc
 	@${LN} -sf ${AZ_PREFIX}/include/expat.h ${AZ_PREFIX}/include/expat_external.h \
@@ -157,7 +162,7 @@ pre-configure:
 	@${LN} -sf ${LOCALBASE}/lib/libcgif.so ${LOCALBASE}/lib/libimagequant.so \
 		${LOCALBASE}/lib/libexif.so ${LOCALBASE}/lib/libhwy.so \
 		${LOCALBASE}/lib/libglib-2.0.so ${LOCALBASE}/lib/libgobject-2.0.so \
-		${LOCALBASE}/lib/libgio-2.0.so ${WRKDIR}/vips/lib/
+		${LOCALBASE}/lib/libgio-2.0.so ${AZ_PREFIX}/lib/libintl.so ${WRKDIR}/vips/lib/
 .for e in ${VIPS_AZ_PC}
 	@r=${AZ_PREFIX}/lib/pkgconfig/${e:C/^[^:]*://:C/:.*//}.pc; \
 	v="$$(PKG_CONFIG_LIBDIR=${AZ_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig pkgconf --modversion $$r)" && \
@@ -179,7 +184,7 @@ pre-configure:
 	${PRINTF} '%s\n' 'bindir=${LOCALBASE}/bin' 'glib_genmarshal=$${bindir}/glib-genmarshal' \
 		'gobject_query=$${bindir}/gobject-query' 'glib_mkenums=$${bindir}/glib-mkenums' \
 		'Name: GLib' 'Description: glib of the official port' "Version: $$v" \
-		'Libs: -L${WRKDIR}/vips/lib -lglib-2.0' "Cflags: $$g" > ${WRKDIR}/vips/pc/glib-2.0.pc && \
+		'Libs: -L${WRKDIR}/vips/lib -lglib-2.0 -lintl' "Cflags: $$g" > ${WRKDIR}/vips/pc/glib-2.0.pc && \
 	${PRINTF} '%s\n' 'bindir=${LOCALBASE}/bin' 'glib_genmarshal=$${bindir}/glib-genmarshal' \
 		'gobject_query=$${bindir}/gobject-query' 'glib_mkenums=$${bindir}/glib-mkenums' \
 		'Name: GObject' 'Description: gobject of the official port' "Version: $$v" 'Requires: glib-2.0' \
