@@ -150,7 +150,7 @@ Names and origins as the ports, files at the paths of the ports:
   (static, position independent), only for the static PHP builds of `az-menu.sh`;
   `bin/pkg-config` of each,
   `VERSIONS` in `share/doc/az`, the licences in `LICENSES/`. It builds into
-  `/usr/local/az` of the build machine (as root, `NEED_ROOT`) and packages that tree.
+  `/usr/local/az` of its chroot (as root, `NEED_ROOT`) and packages that tree.
   No dependencies.
 - **`ftp/curl`**: the package `curl` in the place of the official one: `bin/curl` and
   `lib/libcurl.so.4` (only `curl_*` exported), the libcurl of every package (the PHP
@@ -462,20 +462,44 @@ What it does, with the logic of poudriere:
   built again (an incremental build; [Versions and rebuilds](#versions-and-rebuilds))
   unless `--force`; a port that fails stops the ports that need it (skipped, with the
   reason);
-- each port: the official packages of its dependencies by `pkg install` (the FreeBSD
-  repository of the machine), ours by `pkg add` of the packages built before, then
-  `make clean package` with `USE_PACKAGE_DEPENDS_ONLY=yes` (nothing is built from
-  source but the port itself); its log and its time;
+- each port in a chroot of its own (`work/ch/<key>`, aZ 11.11.2026), made for it in
+  seconds and torn down after it, whatever its result: the base system of the machine
+  read only (nullfs of `/bin`, `/sbin`, `/lib`, `/libexec`, `/usr/bin`, `/usr/sbin`,
+  `/usr/lib`, `/usr/lib32`, `/usr/libexec`, `/usr/include`, `/usr/share`,
+  `/usr/libdata`), a copy of its `/etc` (pkg, `resolv.conf`, the users the packages
+  add; not `/etc/ssh`), devfs, `/tmp`, an empty `/usr/local` and a pkg database of its
+  own; this tree, the official tree, `packages/` and the repository read only at their
+  paths; the distfiles, the work directories (`WRKDIRPREFIX`), the packages directory
+  of the port and `results/az-results` read-write. The catalogs of pkg are those of the
+  run (the machine's, updated once at the start; `pkg -U` in a chroot) and the cache of
+  pkg is that of the machine, shared: the official packages of the ports to build are
+  fetched at the start, later fetches one chroot at a time. In the chroot the official
+  packages of the port's dependencies (and those our packages it gets need to run) come
+  by `pkg -c <chroot> install` from the FreeBSD repositories of the machine (never ours,
+  `az` or `azbuild`), ours by `pkg -c <chroot> add` of the packages built before or of
+  the repository, in the order of the queue (`-f` in the place of an official package
+  of the same name); then `make clean package` in it (`chroot`, the environment of a
+  login of root with the make.conf of the run and `AZ_CPUTYPE`) with
+  `USE_PACKAGE_DEPENDS_ONLY=yes` (nothing is built from source but the port itself);
+  its log and its time, with those of its chroot and of its dependencies (a line
+  `chroots:` in the summary). No build touches the `/usr/local` of the machine: the
+  checks after the run see only what they install;
+- the build tools of `AZ_TOOLS_OFFICIAL` in `tools/build.sh` (`lang/python3`,
+  `lang/python312`, `lang/perl5.42`, `devel/meson`) come from the official packages of
+  FreeBSD also when this tree has the origin (aZ, 11.11.2026: our Python and Perl link
+  libraries of az, which needs them to build): a port that needs one only to build it
+  (`FETCH_`, `EXTRACT_`, `PATCH_`, `BUILD_` or `PKG_DEPENDS`) gets the official package
+  in its chroot, and the hash of our port is not in its `az_hash`; a port that runs
+  with it (`LIB_` or `RUN_DEPENDS`) or builds an extension for it (a `FLAVOR` `py*`)
+  gets ours (`results/hashes.txt` names the tools a port gets official);
 - up to `AZ_JOBS` ports at once (default 4), in waves: the ports whose ports of this
-  tree they need are done form a wave; the dependencies of its ports are installed
-  first, one port after another (a port whose installation takes away what a port
-  before it in the wave got goes to a later wave), then their `make package` run at
-  once with no `pkg add`, `pkg install` or `pkg delete` meanwhile, the biggest first,
-  each with its log and its own packages directory; the summary in the order of the
+  tree they need are done form a wave, the biggest first, each in its chroot with its
+  log and its own packages directory (two packages with the same files, `php84-mysqlnd`
+  and `php84-mysqlnd-openssl`, build side by side); the summary in the order of the
   queue; `results/waves.txt`. `AZ_JOBS=1`: one port after another, as before;
   `AZ_DRYRUN=1`: the waves of the run said, nothing built;
-- a `NEED_ROOT` port (`az/az`: it builds into the real `/usr/local/az`): alone, its
-  installed package is deleted before its build and the new one added after it;
+- a `NEED_ROOT` port (`az/az`: it builds into `/usr/local/az`): into that of its own
+  chroot, as any port;
 - `AZ_CONFIGURE_CHECK=1`, the configure check: after the build of each PHP port (the
   cores, `mod_phpXY`, every module, the PECL ones and those of clang too), also when
   the build fails after its configure, `make configure` once more in a work directory
@@ -496,7 +520,8 @@ What it does, with the logic of poudriere:
   ones in the place of the old ones, `pkg repo`, signed with the key of
   `AZ_PKG_KEY_FILE` and checked ([`tools/pkg-repo-sign.sh`](tools/pkg-repo-sign.sh));
 - the results in `results/`: `summary.txt` (a line per port, `result: OK` or
-  `result: FAIL (...)` at the end), `queue.txt`, `hashes.txt`, `waves.txt`, `logs/`,
+  `result: FAIL (...)` at the end), `queue.txt`, `hashes.txt`, `waves.txt`, `logs/`
+  (`logs/chroots.log`: the catalogs and the official packages fetched at the start),
   `configure-check.txt` (`AZ_CONFIGURE_CHECK`).
 
 ### Versions and rebuilds
@@ -507,8 +532,10 @@ pkg (`php74-7.4.33_26110817`), and `AZ_HASH`, which goes into the package as the
 annotation `az_hash` (`pkg info -A php74`): the SHA-256 of the files of the port (with
 those of its `MASTERDIR`), of the makefiles of `Mk/` of this tree it reads
 (`Mk/bsd.overlay.mk`; `Mk/Uses/php.mk` only for the PHP ports), of the official commit,
-the level and `tools/make.conf.in`, and of the `az_hash` of each port of this tree it
-needs. A port
+the level, `tools/make.conf.in` and the way the builder builds (`builder chroot`: each
+port in a chroot of its own; every port was built again once for it, 11.11.2026), and
+of the `az_hash` of each port of this tree it needs (not of a build tool it gets
+official, `AZ_TOOLS_OFFICIAL`: the official commit is in its hash already). A port
 whose package in the repository has the same `az_hash` is not built again; a change of
 a port builds it and every port that needs it again (a change of `az/az`: all that
 link it). The files a port lists in `AZ_HASH_NOT_FOR_DEPENDENTS` (installed and used
