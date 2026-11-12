@@ -1,0 +1,29 @@
+A file of an @includedir with a ":" in its name was read as a list of paths separated
+by ":" (the regression of sudo 1.9.14, sudo bug #1085): open_sudoers() opens a file
+of an includedir as it is named. The upstream commit ff0b6be (24.01.2026) of
+https://github.com/sudo-project/sudo
+(https://github.com/sudo-project/sudo/commit/ff0b6bebceec5c7d01fd296300125d51325c6ff4),
+which no release has yet, as Debian carries it on 1.9.17p2 (sid 1.9.17p2-11,
+debian/patches/0008-open_sudoers-Do-not-perform-path-expansion-on-files-.patch).
+
+diff --git a/plugins/sudoers/sudoers.c b/plugins/sudoers/sudoers.c
+index 1a80317..261e89c 100644
+--- a/plugins/sudoers/sudoers.c
++++ b/plugins/sudoers/sudoers.c
+@@ -1286,7 +1286,15 @@ open_sudoers(const char *path, char **outfile, bool doedit, bool *keepopen)
+     int error, fd;
+     debug_decl(open_sudoers, SUDOERS_DEBUG_PLUGIN);
+ 
+-    fd = sudo_open_conf_path(path, fname, sizeof(fname), open_file);
++    if (outfile == NULL) {
++	/* Single file, do not treat as a path. */
++	fd = open_file(path, O_RDONLY|O_NONBLOCK);
++        if (fd != -1)
++            (void)fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) & ~O_NONBLOCK);
++    } else {
++	/* Could be a colon-separated path of file names. */
++	fd = sudo_open_conf_path(path, fname, sizeof(fname), open_file);
++    }
+     if (sudoers_ctx.parser_conf.ignore_perms) {
+ 	/* Skip sudoers security checks when ignore_perms is set. */
+ 	if (fd == -1 || fstat(fd, &sb) == -1)
