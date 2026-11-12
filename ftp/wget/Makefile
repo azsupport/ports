@@ -6,8 +6,8 @@
 # it takes no package but az and pcre2 (the official one takes libidn2 and
 # libunistring, libpsl, pcre2). The unistring of IRI is the one wget bundles
 # (--with-included-libunistring); iconv that of libc. Without
-# NLS, NTLM, OPIE (S/KEY), Metalink, the man page (MANPAGES of the make.conf of the
-# servers) and the info page.
+# NLS, NTLM, Metalink, the man page (MANPAGES of the make.conf of the servers) and
+# the info page.
 
 PORTNAME=	wget
 DISTVERSION=	1.25.0
@@ -43,11 +43,7 @@ GNU_CONFIGURE_MANPREFIX=	${PREFIX}/share
 # wget links, its run path in LDFLAGS; PCRE2 of devel/pcre2 by hand too: pcre2.h
 # alone in a directory of the work (no other header of /usr/local),
 # libpcre2-8.so by its path (no -L/usr/local/lib for the others); OpenSSL of the
-# base system (--with-libssl-prefix). Without OPIE (S/KEY one-time passwords of the
-# FTP login, on by default; 12.11.2026): CVE-2026-16599, an FTP server set the
-# number of MD5 iterations of the S/KEY challenge, unbounded (up to 2^31), and hung
-# wget (upstream e9697d9, no release has it yet); no server of aZ asks for S/KEY,
-# so the code goes, not only the bug
+# base system (--with-libssl-prefix)
 CONFIGURE_ARGS=	--with-ssl=openssl \
 		--with-libssl-prefix=${OPENSSLBASE} \
 		--enable-ipv6 \
@@ -58,7 +54,6 @@ CONFIGURE_ARGS=	--with-ssl=openssl \
 		--disable-pcre \
 		--disable-nls \
 		--disable-ntlm \
-		--disable-opie \
 		--without-metalink \
 		--without-libuuid
 CONFIGURE_ENV=	PKG_CONFIG="${AZ_PREFIX}/bin/pkg-config" \
