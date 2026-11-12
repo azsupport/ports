@@ -74,7 +74,7 @@
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, программы с 6 на конце (`convert6`, `identify6`, ...); его библиотеки — в `/usr/local/az/lib` |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickCore-7.so` и `libMagickWand-7.so` в `/usr/local/az/lib`, с ними линкуются `magick` и модуль imagick |
 | `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) с форматами нашего ImageMagick; его библиотеки в `/usr/local/az/lib`, с ними линкуются `gm` и модуль gmagick |
-| `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib из `glib`, libssh2 из az, PCRE2 из `pcre2`; zip, 7z, rar и образы ISO — через `tar` базовой системы (имена zip из Windows — в CP866); исправления mc после 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), у каждого — источник): переполнение `%cd` длинным именем в архиве, Reget, портивший следующие файлы копирования, мышь при `TERM=xterm` (Gentoo) и падение при протаскивании, выход из subshell на FreeBSD (NetBSD), своё приглашение tcsh, приглашение с байтами не UTF-8, дескриптор канала subshell (Debian), строки «ls -l» с именами в один байт (Alpine), ftp: переподключение после простоя, пароль из `~/.netrc`; наши: ни одной своей строки mc (его cd, инициализация, меню пользователя) в истории subshell на tcsh, 1000 записей в каждом списке истории mc (а не 60) |
+| `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib из `glib`, libssh2 из az, PCRE2 из `pcre2`; zip, 7z, rar и образы ISO — через `tar` базовой системы (имена zip из Windows — в CP866); исправления mc после 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), у каждого — источник): переполнение `%cd` длинным именем в архиве, Reget, портивший следующие файлы копирования, мышь при `TERM=xterm` (Gentoo) и падение при протаскивании, выход из subshell на FreeBSD (NetBSD), своё приглашение tcsh, приглашение с байтами не UTF-8, дескриптор канала subshell (Debian), строки «ls -l» с именами в один байт (Alpine), ftp: переподключение после простоя, пароль из `~/.netrc`; копии, клонирующие блоки на ZFS (`copy_file_range`, upstream #5082); наши: ни одной своей строки mc (его cd, инициализация, меню пользователя) в истории subshell на tcsh, 1000 записей в каждом списке истории mc (а не 60) |
 | `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 и PCRE 8.45, официальные порты: PCRE всех пакетов (PHP, Apache, git, wget, mc, MariaDB; потом nginx) |
 | `git` | `devel/git` | git без Perl, Python, Tcl/Tk, gettext, man-страниц и git daemon; HTTPS через наш `curl`, `git grep -P` с `pcre2` |
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 только с prefork и модулями серверов (и cgi, env), без SSL; APR и libmaxminddb из az |
@@ -188,6 +188,16 @@
   умолчанию `num_history_items_recorded`, а уже существующий `~/.config/mc/ini` его
   перекрывает (mc пишет туда значение при выходе, если включён `auto_save_setup`, — по
   умолчанию включён: на сервере, где он уже есть, останется 60, пока не поменять там).
+  Копирование (F5, F6 между каталогами) клонирует блоки, где файловая система умеет
+  (клонирование файлов upstream из #5082, [`files/copy-clone-1.patch`](misc/mc/files/copy-clone-1.patch)
+  и его исправление `copy-clone-2-reget.patch`; mc-build.sh делает autoreconf для его
+  `configure.ac`, проверяет `HAVE_COPY_FILE_RANGE` и `HAVE_FILE_CLONING_BY_RANGE` и запускает
+  его unit-тест): на FreeBSD через `copy_file_range(2)` с `COPY_FILE_RANGE_CLONE`, что ZFS
+  делает клонированием блоков при `vfs.zfs.bclone_enabled`=1 (по умолчанию в FreeBSD 15.x):
+  копия не занимает нового места и времени, блоки общие, пока один из двух файлов их не
+  изменит; в остальных случаях (другой пул или файловая система, UFS, клонирование
+  выключено) mc копирует как раньше. Выключить: Options, Configuration, «Use COW file
+  cloning» или `file_cloning=false` в `~/.config/mc/ini`.
   zip, jar, 7z, rar и образы ISO открываются как
   каталог через [`files/ubsdtar`](misc/mc/files/ubsdtar) на `tar` базовой системы
   (libarchive), без Perl, 7-Zip и unrar; Perl, zip и GNU diff, если поставлены, дают своё
