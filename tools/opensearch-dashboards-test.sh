@@ -111,7 +111,8 @@ else
 fi
 x="$(cd /tmp && "$D/bin/opensearch-dashboards" --version 2>&1)"
 if [ "$x" = "$v" ]; then pass "bin/opensearch-dashboards --version: $x"; else fail "bin/opensearch-dashboards --version: $(printf '%s' "$x" | tail -n 2 | tr '\n' ' ' | cut -c1-200), the package is $v"; fi
-x="$(cd /tmp && "$D/bin/opensearch-dashboards-plugin" list 2>&1 | sed 's/@.*//' | sort | tr '\n' ' ' | sed 's/ $//')"
+# (list prints the id of each plugin, then an empty line)
+x="$(cd /tmp && "$D/bin/opensearch-dashboards-plugin" list 2>&1 | sed -e 's/@.*//' -e '/^$/d' | sort | tr '\n' ' ' | sed 's/ $//')"
 w="$(printf '%s\n' $IN | sort | tr '\n' ' ' | sed 's/ $//')"
 if [ "$x" = "$w" ]; then pass "bin/opensearch-dashboards-plugin list: the 13 plugins in"; else fail "bin/opensearch-dashboards-plugin list: $x"; fi
 x="$(ls "$D/plugins" | sort | tr '\n' ' ' | sed 's/ $//')"
