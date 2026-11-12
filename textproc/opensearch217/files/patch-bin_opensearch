@@ -1,14 +1,19 @@
 --- bin/opensearch.orig
 +++ bin/opensearch
-@@ -30,9 +30,38 @@
+@@ -30,9 +30,43 @@
    esac
  done
  
-+# azsupport/ports: JDK 17 warns of System::setSecurityManager, which OpenSearch
-+# calls at its start (4 lines on stderr); those lines go, the rest of stderr
-+# stays (aZ, 11.11.2026, as for elasticsearch6)
-+opensearch_jdk17_warnings() {
-+  grep --line-buffered -v -E '^WARNING: (A terminally deprecated method in java\.lang\.System has been called|System::setSecurityManager has been called by org\.opensearch\.|Please consider reporting this to the maintainers of org\.opensearch\.|System::setSecurityManager will be removed in a future release)' >&2
++# azsupport/ports: JDK 21 warns at each start of what OpenSearch 2.x sets
++# itself, on stderr: System::setSecurityManager, which it calls (4 lines), the
++# incubator module jdk.incubator.vector of the 20-: line of its jvm.options (1
++# line), and the COMPAT locale provider of its launcher (2 lines: the source of
++# the record, then the warning); those lines go, the rest of stderr stays (aZ,
++# 11.11.2026, as for elasticsearch6)
++opensearch_jdk_warnings() {
++  grep --line-buffered -v -E -e '^WARNING: (A terminally deprecated method in java\.lang\.System has been called|System::setSecurityManager has been called by org\.opensearch\.|Please consider reporting this to the maintainers of org\.opensearch\.|System::setSecurityManager will be removed in a future release)' \
++    -e '^WARNING: (Using incubator modules: jdk\.incubator\.vector|COMPAT locale provider will be removed in a future release)$' \
++    -e ' sun\.util\.locale\.provider\.LocaleProviderAdapter( <clinit>)?$' >&2
 +}
 +# azsupport/ports: the temporary directory. Without OPENSEARCH_TMPDIR a JVM
 +# (TempDirectory) made a new /tmp/opensearch-<number> at every start, which
@@ -40,7 +45,7 @@
  
  # get keystore password before setting java options to avoid
  # conflicting GC configurations for the keystore tools
-@@ -56,7 +85,7 @@
+@@ -56,7 +90,7 @@
  #   - second, JVM options are read from jvm.options and jvm.options.d/*.options
  #   - third, JVM options from OPENSEARCH_JAVA_OPTS are applied
  #   - fourth, ergonomic JVM options are applied
@@ -49,22 +54,22 @@
  
  # manual parsing to find out, if process should be detached
  if [[ $DAEMONIZE = false ]]; then
-@@ -70,7 +99,8 @@
+@@ -70,7 +104,8 @@
      -Dopensearch.bundled_jdk="$OPENSEARCH_BUNDLED_JDK" \
      -cp "$OPENSEARCH_CLASSPATH" \
      org.opensearch.bootstrap.OpenSearch \
 -    "$@" <<<"$KEYSTORE_PASSWORD"
 +    "$@" <<<"$KEYSTORE_PASSWORD" \
-+    2> >(opensearch_jdk17_warnings)
++    2> >(opensearch_jdk_warnings)
  else
    exec \
      "$JAVA" \
-@@ -83,7 +113,7 @@
+@@ -83,7 +118,7 @@
      -cp "$OPENSEARCH_CLASSPATH" \
      org.opensearch.bootstrap.OpenSearch \
      "$@" \
 -    <<<"$KEYSTORE_PASSWORD" &
-+    <<<"$KEYSTORE_PASSWORD" 2> >(opensearch_jdk17_warnings) &
++    <<<"$KEYSTORE_PASSWORD" 2> >(opensearch_jdk_warnings) &
    retval=$?
    pid=$!
    [ $retval -eq 0 ] || exit $retval
