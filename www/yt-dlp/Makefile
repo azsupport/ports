@@ -1,14 +1,17 @@
 # www/yt-dlp: the yt-dlp of azsupport/ports in the place of the official
-# www/yt-dlp: the official port at the release of yt-dlp ahead of the official
-# tree (it takes a new release days or weeks later, and the grabbers of KVS need
-# the extractors of the latest one), with ffprobe and ffmpeg of our
-# multimedia/ffmpeg (FFMPEG, on by default as in the official port). The rest is
-# the official port as it is: its patches (no self-update, no pandoc; the one of
-# the Makefile made again for this release, without fuzz), its dependencies
-# (official packages), pkg-plist and pkg-descr.
-# A new release: DISTVERSION and distinfo, with the size and SHA-256 of
-# yt-dlp.tar.gz from the workflow distinfo.yml (compared there with the
-# SHA2-256SUMS of the release).
+# www/yt-dlp: the official port at the latest release of yt-dlp on GitHub, ahead
+# of the official tree (it takes a new release days or weeks later, and the
+# grabbers of KVS need the extractors of the latest one), with ffprobe and ffmpeg
+# of our multimedia/ffmpeg (FFMPEG, on by default as in the official port). The
+# rest is the official port as it is: its patches (no self-update, no pandoc; one
+# that a release lets apply only with fuzz made again), its dependencies (official
+# packages; www/py-yt-dlp-ejs ours when a release pins a newer yt-dlp-ejs than the
+# official port has), pkg-plist and pkg-descr.
+# A new release (aZ, 12.11.2026: the releases of GitHub, not the official port):
+# DISTVERSION and distinfo by tools/ytdlp-update.sh, which the workflow
+# yt-dlp-update.yml runs every 6 hours (the SHA-256 of yt-dlp.tar.gz that of the
+# API of GitHub and of the SHA2-256SUMS of the release), with a commit to main and
+# a build of this port.
 
 PORTNAME=	yt-dlp
 DISTVERSION=	2026.10.26

@@ -86,7 +86,7 @@
 | `vips` | `graphics/vips` | libvips 8.18 для скриптов Lua в nginx, перекодирующих картинки на лету: JPEG (mozjpeg), PNG, WebP, HEIC (чтение), AVIF (чтение и запись), GIF, с ICC-профилями, EXIF и SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
 | `glib`, `libexif`, `cgif`, `libimagequant`, `highway` | `devel/glib20`, `graphics/libexif`, `graphics/cgif`, `graphics/libimagequant`, `devel/highway` | библиотеки `vips` (GLib — и `mc`, libimagequant — и libgd из az: LIQ, палитра `imagegif()` и `imagetruecolortopalette()` PHP 5.6–8.4; GPLv3 или новее): GLib 2.88 разделяемая, без introspection, NLS, документации и man-страниц, на libffi, libintl и libiconv из az и PCRE2 из `pcre2`; остальные — официальные порты как есть (libexif без NLS) |
 | `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (атом moov в начало MP4), возвращён для совместимости: официальный порт удалён 30.06.2022 |
-| `yt-dlp` | `www/yt-dlp` | yt-dlp релиза новее официального порта, с нашим `ffmpeg` |
+| `yt-dlp` | `www/yt-dlp` | yt-dlp последнего релиза GitHub, а не версии официального порта (aZ, 12.11.2026): [`yt-dlp-update.yml`](.github/workflows/yt-dlp-update.yml) смотрит раз в 6 часов, сам берёт новый релиз в порт (и его `yt-dlp-ejs` — нашим, когда официальный порт отстаёт), собирает и публикует, когда больше ничего не отличается от релиза ([yt-dlp из GitHub](#yt-dlp-из-github)); с нашим `ffmpeg` |
 | `node24`, `npm-node24`, `yarn-node24`, `corepack-node24` | `www/node24`, `www/npm-node24`, `www/yarn-node24`, `www/corepack-node24` | Node.js 24 (для yt-dlp и Kibana 6) с npm, Yarn 1 и corepack: `node` на brotli, c-ares, ICU, nghttp2, libuv, zstd и SQLite из az, OpenSSL (с хранилищем сертификатов базы) и zlib базы и библиотеках ниже; без DTrace; npm и Yarn — официальные порты как есть, corepack — наш (corepack-node24: 0.36 работает только на Node 22 и 24, у Node 18 — corepack-node18; один из двух) |
 | `node18`, `npm-node18`, `yarn-node18`, `corepack-node18` | `www/node18`, `www/npm-node18`, `www/yarn-node18`, `www/corepack-node18` | Node.js 18.20.8, последний 18.x (конец поддержки 30.04.2025), для старого проекта, снова в портах (официальный порт удалён 2025-09-03), с npm 10.9.10 и corepack 0.33.0 (последние для Node 18) и Yarn 1.22.19 (тот же, что `yarn-node24`): `node` на brotli, c-ares, ICU, nghttp2 и libuv из az, llhttp 9.4.3 из `www/llhttp`, OpenSSL и zlib базы; исправления уязвимостей после конца поддержки — как их несёт SUSE для своего nodejs18 18.20.8 (SLE 15 SP4 LTSS; с llhttp 9) и, перенесённые на 18, исправления из выпусков безопасности Node.js 22 и 24 за октябрь и ноябрь 2026 (dns, http.Agent, tls.checkServerIdentity, https.Agent, zlib, crypto в снимках запуска; исправления кода TLS и HTTP/2, в том числе серверного; промежуточные сертификаты eMudhra/emSign со скомпрометированными ключами отвергаются в любой цепочке), с undici 6.29.1 из Node.js 22.23.4 вместо 5.29.0 (список, а также что не взято и почему, — в `www/node18/Makefile`); один из `node18` и `node24`, вместе с их npm, yarn и corepack (`pkg install node18 npm-node18 yarn-node18` убирает те, что от node24; не вместе с `kibana6`, которому нужен node24) |
 | `libada`, `llhttp`, `nbytes`, `libnghttp3`, `libngtcp2`, `simdjson`, `uvwasi`, `hdr_histogram` | `devel/libada`, `www/llhttp`, `www/nbytes`, `www/libnghttp3`, `net/libngtcp2`, `devel/simdjson`, `devel/uvwasi`, `graphics/hdr_histogram` | библиотеки, которые Node.js встраивает, портами этого дерева (aZ, 11.11.2026): официальные порты как есть, `uvwasi` — наш, на libuv из az |
@@ -292,6 +292,14 @@
   умолчанию `/tmp/mysql.sock`, named со своей зоной — dig по UDP, TCP и по имени IDN,
   rndc, vips с JPEG, WebP, PNG и GIF, vsftpd-ext и vsftpd-ext-openssl (отказ в том, что
   закрывают исправления выше; curl получает файл по FTP и FTPS), библиотеки каждого).
+- **`www/yt-dlp`**: пакет `yt-dlp` вместо официального: официальный порт как есть, на
+  более новом релизе yt-dlp (граберам видеосайтов нужны экстракторы последнего), с нашим
+  `multimedia/ffmpeg`; его пакеты Python — официальные, на наших `python312` и
+  `py312-sqlite3`. Его релиз следует релизам GitHub, а не официальному порту (aZ,
+  12.11.2026): новый сам попадает в порт, собирается и публикуется ([yt-dlp из
+  GitHub](#yt-dlp-из-github)). Тесты после установки:
+  [`tools/ytdlp-test.sh`](tools/ytdlp-test.sh) (HLS-поток с локального сервера, который
+  наш ffmpeg собирает в MP4, как качают граберы).
 - **`lang/perl5.42`**: пакет `perl5` (`/usr/local/bin/perl`) вместо официального (aZ,
   11.11.2026: наши Perl и Python под именами пакетов FreeBSD, чтобы с ними работали пакеты
   `p5-*` из репозитория FreeBSD): официальный порт как есть — Perl 5.42.3, версия по
@@ -755,6 +763,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 | `configure_check` | проверка configure (`AZ_CONFIGURE_CHECK`, по умолчанию выключена): каждый собранный порт PHP конфигурируется ещё раз, нестрого, и сравнивается; с `force` — все порты PHP |
 | `plan` | только план (`AZ_PLAN`, по умолчанию выключен): `az/az` и нужные ему порты собираются, если их надо собирать, все остальные порты решаются — взять или собрать и почему (`results/plan.txt`, раздел отчёта), не собираясь; без проверок, никогда не публикуется |
 | `publish` | опубликовать репозиторий, когда всё собралось и все проверки прошли (по умолчанию выключено: репозиторий, который читают серверы, публикуется по слову aZ) |
+| `publish_only` | вместе с `publish`: публиковать, только когда репозиторий отличается от релиза лишь пакетами этих портов (`категория/порт` через пробел: прогоны [yt-dlp из GitHub](#yt-dlp-из-github)), иначе ничего; пусто — что бы ни отличалось |
 
 Он берёт репозиторий прошлого прогона (actions/cache, сохраняется и тогда, когда прогон
 упал, чтобы прогон, упавший на PHP, оставил `az` и библиотеки) и файлы релиза
@@ -789,6 +798,48 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 изменёнными при rebase, сверенной перед этим вручную. Работает на GitHub с токеном workflow,
 потому что из песочницы, где делаются ветки, ветку на GitHub удалить нельзя (aZ, 12.11.2026:
 слитые ветки удаляются без него).
+
+### yt-dlp из GitHub
+
+[`yt-dlp-update.yml`](.github/workflows/yt-dlp-update.yml), «yt-dlp at the latest release
+of GitHub»: раз в 6 часов на main и вручную —
+https://github.com/azsupport/ports/actions/workflows/yt-dlp-update.yml, кнопка **Run
+workflow**. yt-dlp следует релизам github.com/yt-dlp/yt-dlp, а не версии официального
+порта (aZ, 12.11.2026); [`tools/ytdlp-update.sh`](tools/ytdlp-update.sh):
+
+- последний релиз (не черновик и не пре-релиз) против `DISTVERSION` порта `www/yt-dlp`;
+- более новый: его `yt-dlp.tar.gz` с SHA-256, которую дают API GitHub и `SHA2-256SUMS`
+  релиза; патчи порта накладываются на него, как их накладывает фреймворк портов, без fuzz
+  (патч, который ложится только с fuzz, делается заново, как его делает `make makepatch`;
+  тот, что не ложится, останавливает обновление: коммита нет, отчёт показывает почему);
+  `DISTVERSION` и `distinfo`;
+- `yt-dlp-ejs`: yt-dlp берёт его скрипты только той версии, которую закрепил (major.minor
+  и их SHA3-512), поэтому закреплённая версия новее `www/py-yt-dlp-ejs` делает этот порт
+  нашим из [`tools/ytdlp-ejs/`](tools/ytdlp-ejs) (wheel релиза github.com/yt-dlp/ejs, его
+  SHA-256 — `EJS_WHEEL_HASH` yt-dlp) или обновляет наш; deno остаётся официальным пакетом
+  (предупреждение, если он старше самого старого, с которым работает yt-dlp);
+- порты проверяются `make -V` ([`tools/check-tree-ci.sh`](tools/check-tree-ci.sh), проверка
+  `build.yml`), один коммит aZ пушится в main токеном прогона;
+- сборка, когда в релизах нет этого yt-dlp: `build.yml` из main для `www/yt-dlp`, оба
+  уровня, `publish` с `publish_only`; не пока прогон `build.yml` из main в очереди или
+  идёт (запустит следующая проверка), не снова после того, как запущенный ею прогон
+  прошёл, и не после трёх упавших.
+
+`publish_only` ([`tools/publish-gate.sh`](tools/publish-gate.sh)): репозиторий прогона из
+main — это релиз с кэшем прошлого прогона, опубликованного или нет, поэтому в нём могут быть
+пакеты, которые aZ ещё не опубликовал. С `publish_only` релиз берёт его, только когда его
+пакеты отличаются от пакетов релиза (по имени и SHA-256) лишь пакетами этих портов; иначе
+ничего не публикуется, отчёт говорит об этом, а новый yt-dlp выходит со следующей
+публикацией aZ (его хранит кэш прогона).
+
+| Вход | |
+|---|---|
+| `dry_run` | обновление с его проверками, дифф его коммита и сборка, которую он запустил бы: ничего не пушится и не запускается (прогон другой ветки — всегда такой) |
+| `pretend` | тест, с `dry_run`: `www/yt-dlp` считается этой версии, чтобы последний релиз был обновлением |
+| `pretend_ejs` | тест, с `dry_run` и `pretend`: официальный `www/py-yt-dlp-ejs` считается этой версии, чтобы появился наш |
+
+Отчёт: сводка прогона и ветка `runs` azsupport/azsupport (`ports-yt-dlp-update/`), когда он
+что-то сделал, ждёт или упал. Своих секретов нет: пуш и сборка — токеном прогона.
 
 ### Библиотеки с GCC
 

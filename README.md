@@ -86,7 +86,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `vips` | `graphics/vips` | libvips 8.18 for the Lua scripts of nginx that convert images on the fly: JPEG (mozjpeg), PNG, WebP, HEIC (load), AVIF (load and save), GIF, with ICC profiles, EXIF and SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
 | `glib`, `libexif`, `cgif`, `libimagequant`, `highway` | `devel/glib20`, `graphics/libexif`, `graphics/cgif`, `graphics/libimagequant`, `devel/highway` | the libraries of `vips` (GLib of `mc` too, libimagequant of the libgd of az too: LIQ, the palette of `imagegif()` and `imagetruecolortopalette()` of PHP 5.6 to 8.4; GPLv3 or later): GLib 2.88 shared, without introspection, NLS, documents and manual pages, on libffi, libintl and libiconv of az and PCRE2 of `pcre2`; the others the official ports as they are (libexif without NLS) |
 | `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (the moov atom of an MP4 first), back for compatibility: the official port expired on 30.06.2022 |
-| `yt-dlp` | `www/yt-dlp` | yt-dlp of a release newer than the official port, with our `ffmpeg` |
+| `yt-dlp` | `www/yt-dlp` | yt-dlp at the latest release of GitHub, not at the version of the official port (aZ, 12.11.2026): [`yt-dlp-update.yml`](.github/workflows/yt-dlp-update.yml) looks every 6 hours, takes a new release into the port by itself (and its `yt-dlp-ejs`, ours when the official port is behind), builds it and publishes it when nothing else differs from the release ([yt-dlp from GitHub](#yt-dlp-from-github)); with our `ffmpeg` |
 | `node24`, `npm-node24`, `yarn-node24`, `corepack-node24` | `www/node24`, `www/npm-node24`, `www/yarn-node24`, `www/corepack-node24` | Node.js 24 (for yt-dlp and Kibana 6) with npm, Yarn 1 and corepack: `node` on brotli, c-ares, ICU, nghttp2, libuv, zstd and SQLite of az, the OpenSSL (with the CA store of the base system) and zlib of the base system and the libraries below; no DTrace; npm and Yarn the official ports as they are, corepack ours (corepack-node24: 0.36 runs on Node 22 and 24 only, Node 18 gets corepack-node18; one of the two) |
 | `node18`, `npm-node18`, `yarn-node18`, `corepack-node18` | `www/node18`, `www/npm-node18`, `www/yarn-node18`, `www/corepack-node18` | Node.js 18.20.8, the last 18.x (end of life since 30.04.2025), for a legacy project, back in the ports (the official port went on 2025-09-03), with npm 10.9.10 and corepack 0.33.0 (the last ones for Node 18) and Yarn 1.22.19 (that of `yarn-node24`): `node` on brotli, c-ares, ICU, nghttp2 and libuv of az, llhttp 9.4.3 of `www/llhttp` and the OpenSSL and zlib of the base system; the fixes of the vulnerabilities after the end of life as SUSE carries them for its nodejs18 18.20.8 (SLE 15 SP4 LTSS; with llhttp 9) and, backported, those of the Node.js 22 and 24 security releases of October and November 2026 (dns, http.Agent, tls.checkServerIdentity, https.Agent, zlib, crypto in startup snapshots; the fixes of the TLS and HTTP/2 code, for servers too; the eMudhra/emSign intermediates of compromised keys refused in every chain), with undici 6.29.1 of Node.js 22.23.4 in the place of 5.29.0 (the list, and what is left out and why, in `www/node18/Makefile`); one of `node18` and `node24`, with their npm, yarn and corepack (`pkg install node18 npm-node18 yarn-node18` takes those of node24 away; not with `kibana6`, which needs node24) |
 | `libada`, `llhttp`, `nbytes`, `libnghttp3`, `libngtcp2`, `simdjson`, `uvwasi`, `hdr_histogram` | `devel/libada`, `www/llhttp`, `www/nbytes`, `www/libnghttp3`, `net/libngtcp2`, `devel/simdjson`, `devel/uvwasi`, `graphics/hdr_histogram` | the libraries that Node.js bundles, as ports of this tree (aZ, 11.11.2026): the official ports as they are, `uvwasi` ours on the libuv of az |
@@ -304,10 +304,9 @@ Names and origins as the ports, files at the paths of the ports:
 - **`www/yt-dlp`**: the package `yt-dlp` in the place of the official one: the official
   port as it is, at a newer release of yt-dlp (the grabbers of the video sites need the
   extractors of the latest), depending on our `multimedia/ffmpeg`; its Python packages are
-  the official ones, on our `python312` and `py312-sqlite3`. A new release: `DISTVERSION`
-  and `distinfo` (the size and SHA-256 of `yt-dlp.tar.gz`, compared with the
-  `SHA2-256SUMS` of the release, by [`distinfo.yml`](.github/workflows/distinfo.yml) when
-  the sandbox cannot fetch it). Tests after the install:
+  the official ones, on our `python312` and `py312-sqlite3`. Its release follows those of
+  GitHub, not the official port (aZ, 12.11.2026): a new one goes into the port, is built
+  and is published by itself ([yt-dlp from GitHub](#yt-dlp-from-github)). Tests after the install:
   [`tools/ytdlp-test.sh`](tools/ytdlp-test.sh) (an HLS stream from a local server, fixed by
   our ffmpeg into MP4, as the grabbers download).
 - **`lang/perl5.42`**: the package `perl5` (`/usr/local/bin/perl`) in the place of the
@@ -782,6 +781,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | `configure_check` | the configure check (`AZ_CONFIGURE_CHECK`, off by default): each PHP port built configured once more, permissive, and compared; with `force` every PHP port |
 | `plan` | the plan only (`AZ_PLAN`, off by default): `az/az` and the ports it needs built when they are to be, every other port decided, kept or to be built and why (`results/plan.txt`, a section of the report), not built; no checks, never published |
 | `publish` | publish the repository when everything built and every check passed (off by default: the repository the servers read is published on aZ's word) |
+| `publish_only` | with `publish`: publish only when the repository differs from the release by packages of these ports alone (`category/port`, separated by spaces: the runs of [yt-dlp from GitHub](#yt-dlp-from-github)), else nothing; empty: whatever differs |
 
 It takes the repository of the last run (an actions/cache, saved also when a run
 fails, so that a run that fails in PHP keeps `az` and the libraries) and the files of
@@ -818,6 +818,50 @@ deletes the branches given (separated by spaces) whose every commit is in main b
 a rebase, compared by hand first. It runs on GitHub with the token of the workflow, because the
 sandbox the branches are made in cannot delete a branch of GitHub (aZ, 12.11.2026: the merged
 branches are deleted without him).
+
+### yt-dlp from GitHub
+
+[`yt-dlp-update.yml`](.github/workflows/yt-dlp-update.yml), "yt-dlp at the latest release
+of GitHub": every 6 hours on main, and by hand at
+https://github.com/azsupport/ports/actions/workflows/yt-dlp-update.yml, the button **Run
+workflow**. yt-dlp follows the releases of github.com/yt-dlp/yt-dlp, not the version of
+the official port (aZ, 12.11.2026); [`tools/ytdlp-update.sh`](tools/ytdlp-update.sh):
+
+- the latest release (not a draft, not a pre-release) against `DISTVERSION` of
+  `www/yt-dlp`;
+- a newer one: its `yt-dlp.tar.gz` with the SHA-256 the API of GitHub and the
+  `SHA2-256SUMS` of the release give; the patches of the port applied to it as the ports
+  framework applies them, without fuzz (one that applies only with fuzz is made again,
+  as `make makepatch` makes it; one that does not apply stops the update: no commit, the
+  report shows why); `DISTVERSION` and `distinfo`;
+- `yt-dlp-ejs`: yt-dlp takes its scripts only of the version it pins (the major.minor, and
+  their SHA3-512), so a pin newer than `www/py-yt-dlp-ejs` makes that port ours from
+  [`tools/ytdlp-ejs/`](tools/ytdlp-ejs) (the wheel of the release of github.com/yt-dlp/ejs,
+  whose SHA-256 is the `EJS_WHEEL_HASH` of yt-dlp), or updates ours; deno stays the
+  official package (a warning when it is older than the oldest one yt-dlp runs);
+- the ports checked with `make -V` ([`tools/check-tree-ci.sh`](tools/check-tree-ci.sh),
+  the check of `build.yml`), one commit of aZ pushed to main with the token of the run;
+- the build, when the releases do not have that yt-dlp: `build.yml` of main for
+  `www/yt-dlp`, both levels, `publish` with `publish_only`; not while a run of `build.yml`
+  of main is queued or running (the next check starts it), not again after one it started
+  succeeded, nor after three failed.
+
+`publish_only` ([`tools/publish-gate.sh`](tools/publish-gate.sh)): the repository of a run of
+main is the release with the cache of the last run, published or not, so it can carry
+packages aZ has not published. With `publish_only` the release takes it only when its
+packages differ from those of the release (by name and SHA-256) by packages of those ports
+alone; else nothing is published, the report says so, and the new yt-dlp goes out with the
+next publish of aZ (the cache of the run keeps it).
+
+| Input | |
+|---|---|
+| `dry_run` | the update with its checks, the diff of its commit and the build it would start: nothing pushed or started (a run of another branch is always one) |
+| `pretend` | a test, with `dry_run`: `www/yt-dlp` taken as at this version, so that the latest release is an update |
+| `pretend_ejs` | a test, with `dry_run` and `pretend`: the official `www/py-yt-dlp-ejs` taken as at this version, so that ours is made |
+
+The report: the summary of the run, and the branch `runs` of azsupport/azsupport
+(`ports-yt-dlp-update/`) when it did something, waits or failed. No secret of its own: the
+push and the build with the token of the run.
 
 ### The libraries with GCC
 
