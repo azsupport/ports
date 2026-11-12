@@ -1,5 +1,5 @@
-Description: imagesetinterpolation() and imagescale() with IMG_BICUBIC (GD_BICUBIC, GD_BICUBIC_FIXED) failed with libgd 2.3.3: its gdImageSetInterpolationMethod() lost their case (libgd issue #847); PHP gd of every version takes this libgd; and CVE-2026-9672, the LZW decoder of GIF (gd_gif_in.c, imagecreatefromgif() of PHP): the second row of its table left uninitialised (table[1][0] set in its place), the data after the end code read on, the decoder state uninitialised
-Origin: upstream https://github.com/libgd/libgd/commit/39abd7238cea2ba8baa4bcac1d6fc01c6cb8afab (in libgd master, no release yet), the hunk of src/gd_interpolation.c as Gentoo carries it (media-libs/gd files/gd-2.3.3-GD_BICUBIC.patch), -p0; CVE-2026-9672: the fix openSUSE carries (gd 2.3.3, gd-CVE-2026-9672.patch of 03.08.2026, bsc#1273101, https://github.com/bmwiedemann/openSUSE/blob/master/packages/g/gd/gd-CVE-2026-9672.patch), the code the libgd bundled in PHP has had since 5.6 (libgd master still lacks it)
+Description: imagesetinterpolation() and imagescale() with IMG_BICUBIC (GD_BICUBIC, GD_BICUBIC_FIXED) failed with libgd 2.3.3: its gdImageSetInterpolationMethod() lost their case (libgd issue #847); PHP gd of every version takes this libgd; and CVE-2026-9672, the LZW decoder of GIF (gd_gif_in.c, imagecreatefromgif() of PHP): the second row of its table left uninitialised (table[1][0] set in its place), the data after the end code read on, the decoder state uninitialised; and imagerotate() of a palette image (GIF, PNG8): by 180 degrees gdImageRotateInterpolated() destroyed the image of the caller instead of its truecolor copy and rotated it then (libgd #810: a use-after-free, and PHP frees that image again, a double free), by another angle with IMG_NEAREST_NEIGHBOUR it rotated the palette image, which has no truecolor pixels (libgd #929: a crash), and by 0 degrees it gave back a palette clone and leaked nothing only by chance (the truecolor copy is returned now, as upstream)
+Origin: upstream https://github.com/libgd/libgd/commit/39abd7238cea2ba8baa4bcac1d6fc01c6cb8afab (in libgd master, no release yet), the hunk of src/gd_interpolation.c as Gentoo carries it (media-libs/gd files/gd-2.3.3-GD_BICUBIC.patch), -p0; CVE-2026-9672: the fix openSUSE carries (gd 2.3.3, gd-CVE-2026-9672.patch of 03.08.2026, bsc#1273101, https://github.com/bmwiedemann/openSUSE/blob/master/packages/g/gd/gd-CVE-2026-9672.patch), the code the libgd bundled in PHP has had since 5.6 (libgd master still lacks it); #810 and #929: upstream https://github.com/libgd/libgd/commit/6cc1e39e9fddd15ae74adb1a09fcd5740f44923e (29.01.2022) and https://github.com/libgd/libgd/commit/a656f5cc5592757996e9e96b0821a0966bfaa3b3 (09.01.2025), in libgd master, no release yet, as Debian carries them on 2.3.3 (libgd2 2.3.3-16, debian/patches/0007-Fix-810-Wrong-image-freed-src_cloned-should-be-freed.patch and 0008-Fix-fix-for-320-929.patch), -p0
 
 --- src/gd_interpolation.c
 +++ src/gd_interpolation.c
@@ -44,3 +44,51 @@ Origin: upstream https://github.com/libgd/libgd/commit/39abd7238cea2ba8baa4bcac1
  
  	/* Initialize the Compression routines */
  	if(!ReadOK(fd, &c, 1)) {
+--- src/gd_interpolation.c
++++ src/gd_interpolation.c
+@@ -1847,15 +1847,8 @@ BGD_DECLARE(gdImagePtr) gdImageRotateInterpolated(const gdImagePtr src, const fl
+ 	/* 0 && 90 degrees multiple rotation, 0 rotation simply clones the return image and convert it
+ 	   to truecolor, as we must return truecolor image. */
+ 	switch (angle_rounded) {
+-		case    0: {
+-			gdImagePtr dst = gdImageClone(src);
+-
+-			if (dst == NULL) {
+-				return NULL;
+-			}
+-			if (src_cloned) gdImageDestroy(src_tc);
+-			return dst;
+-		}
++		case    0:
++			return src_cloned ? src_tc : gdImageClone(src);
+ 
+ 		case -27000:
+ 		case   9000:
+@@ -1864,7 +1857,7 @@ BGD_DECLARE(gdImagePtr) gdImageRotateInterpolated(const gdImagePtr src, const fl
+ 
+ 		case -18000:
+ 		case  18000:
+-			if (src_cloned) gdImageDestroy(src);
++			if (src_cloned) gdImageDestroy(src_tc);
+ 			return gdImageRotate180(src, 0);
+ 
+ 		case  -9000:
+@@ -1880,16 +1873,15 @@ BGD_DECLARE(gdImagePtr) gdImageRotateInterpolated(const gdImagePtr src, const fl
+ 
+ 	switch (src->interpolation_id) {
+ 		case GD_NEAREST_NEIGHBOUR: {
+-			gdImagePtr res = gdImageRotateNearestNeighbour(src, angle, bgcolor);
++			gdImagePtr res = gdImageRotateNearestNeighbour(src_tc, angle, bgcolor);
+ 			if (src_cloned) gdImageDestroy(src_tc);
+ 			return res;
+-			break;
+ 		}
+ 
+ 		case GD_BILINEAR_FIXED:
+ 		case GD_BICUBIC_FIXED:
+ 		default: {
+-			gdImagePtr res = gdImageRotateGeneric(src, angle, bgcolor);
++			gdImagePtr res = gdImageRotateGeneric(src_tc, angle, bgcolor);
+ 			if (src_cloned) gdImageDestroy(src_tc);
+ 			return res;
+ 		}

@@ -1,0 +1,14 @@
+Description: tidy took the attribute type of <ol> (the numbering: 1, a, A, i, I) for a proprietary one in HTML5 and XHTML5: tidy_parse_string() and tidy_repair_string() of PHP warned about it, and with drop-proprietary-attributes dropped it, though HTML5 allows it again (tidy-html5 issue #1012)
+Origin: upstream https://github.com/htacg/tidy-html5/commit/e411ad0d2582471fe0961900b2789ee8b5b9cc4c (05.01.2022, on the branch next, no release after 5.8.0), as Gentoo carries it (app-text/htmltidy files/htmltidy-5.8.0-ol_type.patch, bug 916074), -p0
+
+--- src/attrdict.c
++++ src/attrdict.c
+@@ -2321,7 +2321,7 @@ const AttrVersion TY_(W3CAttrsFor_OL)[] =
+   { TidyAttr_START,                 xxxx|HT32|H40T|H41T|X10T|H40F|H41F|X10F|xxxx|xxxx|xxxx|xxxx|xxxx|HT50|XH50 },
+   { TidyAttr_STYLE,                 xxxx|xxxx|H40T|H41T|X10T|H40F|H41F|X10F|H40S|H41S|X10S|XH11|xxxx|HT50|XH50 }, /* CORE override */
+   { TidyAttr_TITLE,                 xxxx|xxxx|H40T|H41T|X10T|H40F|H41F|X10F|H40S|H41S|X10S|XH11|XB10|HT50|XH50 }, /* CORE override */
+-  { TidyAttr_TYPE,                  xxxx|HT32|H40T|H41T|X10T|H40F|H41F|X10F|xxxx|xxxx|xxxx|xxxx|xxxx|xxxx|xxxx },
++  { TidyAttr_TYPE,                  xxxx|HT32|H40T|H41T|X10T|H40F|H41F|X10F|xxxx|xxxx|xxxx|xxxx|xxxx|HT50|XH50 },
+   { TidyAttr_XMLNS,                 xxxx|xxxx|xxxx|xxxx|xxxx|xxxx|xxxx|xxxx|xxxx|xxxx|xxxx|XH11|XB10|HT50|XH50 }, /* CORE override */
+   { TidyAttr_XML_LANG,              xxxx|xxxx|xxxx|xxxx|X10T|xxxx|xxxx|X10F|xxxx|xxxx|X10S|XH11|XB10|xxxx|XH50 }, /* CORE override */
+   INCLUDE_CORE_ATTRIBS
