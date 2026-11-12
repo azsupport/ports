@@ -15,7 +15,11 @@
 # x-pack-ml (its native programs are for Linux, macOS and Windows). JNA of
 # devel/jna, as the official port: lib/jna.jar a link to its jna.jar, the bundled
 # jna-4.5.1.jar out (aZ linked lib/jna.jar to it by hand after every install of
-# the old package); devel/jna brings the libraries libX11 and libXt. The paths of
+# the old package); devel/jna is ours (no X11 and JAWT, the libffi of az), and
+# JNA loads its native library from the file of that package,
+# lib/jna/libjnidispatch.so (aZ, 12.11.2026; -Djna.boot.library.path and
+# -Djna.nounpack of jvm.options in place of -Djna.nosys): nothing unpacked or listed
+# in ES_TMPDIR at a start. The paths of
 # jvm.options in
 # /var/log/elasticsearch, as the deb and rpm of Elastic have them: the fatal error
 # files of the JVM (the tarball has them relative to lib/elasticsearch, which the
@@ -61,8 +65,10 @@ WWW=		https://www.elastic.co/ \
 # License (as the official port, which named Apache 2.0 only)
 LICENSE=	APACHE20
 
+# JNA by the file of its native library, which jvm.options loads: a jna without
+# it (the official package) does not satisfy this, where jna>0 would
 RUN_DEPENDS=	bash>0:shells/bash \
-		jna>0:devel/jna
+		${LOCALBASE}/lib/jna/libjnidispatch.so:devel/jna
 
 USES=		cpe java shebangfix
 CPE_VENDOR=	elastic
@@ -150,6 +156,14 @@ post-patch:
 	@${RM} -r ${WRKSRC}/modules/x-pack-ml
 	# the JNA of devel/jna instead (do-install)
 	@${RM} ${WRKSRC}/lib/jna-*.jar
+	# and its native library from the file of devel/jna, that of the RUN_DEPENDS
+	# above (config/jvm.options: -Djna.boot.library.path=%%LOCALBASE%%/lib/jna of
+	# files/patch-config_jvm.options, -Djna.nounpack=true, no -Djna.nosys)
+	@${REINPLACE_CMD} -e 's|%%LOCALBASE%%|${LOCALBASE}|g' ${WRKSRC}/config/jvm.options
+	@${GREP} -q '^-Djna\.boot\.library\.path=${LOCALBASE}/lib/jna$$' ${WRKSRC}/config/jvm.options && \
+		${GREP} -q '^-Djna\.nounpack=true$$' ${WRKSRC}/config/jvm.options && \
+		! ${GREP} -v '^#' ${WRKSRC}/config/jvm.options | ${GREP} -q -e 'jna\.nosys' -e '%%' || \
+		{ ${ECHO_MSG} "config/jvm.options: not the JNA of files/patch-config_jvm.options: $$(${GREP} -v '^#' ${WRKSRC}/config/jvm.options | ${GREP} -i -e 'jna' -e '%%' | ${TR} '\n' ' ')"; ${FALSE}; }
 	# files/patch-config_jvm.options: the paths, and what it sets for OpenJDK 17
 	@! ${GREP} -q '^[0-9:-]*-XX:[+]*HeapDump' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-XX:ErrorFile=/var/log/elasticsearch/hs_err_pid%p\.log$$' ${WRKSRC}/config/jvm.options && \

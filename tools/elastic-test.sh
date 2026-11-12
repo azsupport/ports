@@ -5,6 +5,15 @@
 #   - its version 6.8.23 and the JVM it runs on (OpenJDK 17 of the ports, the default
 #     of its rc script: no elasticsearch_java_home in rc.conf);
 #   - lib/jna.jar a link to the jna.jar of devel/jna, which is a whole zip;
+#   - JNA loads its native library from the file of devel/jna (jvm.options:
+#     -Djna.boot.library.path=/usr/local/lib/jna, -Djna.nounpack=true, no
+#     -Djna.nosys; aZ, 12.11.2026): the running Elasticsearch (the pid of the
+#     pidfile of its rc script) maps /usr/local/lib/jna/libjnidispatch.so and the
+#     libffi of az (procstat -v), no jna* in its /tmp/elasticsearch, nothing of JNA
+#     failing in its log, and its native part on FreeBSD works through it: the
+#     system call filter, RLIMIT_NPROC of the process set to 0, which FreeBSD makes
+#     its least, 1 (procstat -l; memory lock, bootstrap.memory_lock, is not turned
+#     on here);
 #   - the start says nothing of System::setSecurityManager (the four lines of JDK 17
 #     are taken out), and its log has no JNA that failed (the JNA it bundles);
 #   - its tools run by hand as root, without ES_TMPDIR (elasticsearch-keystore,
@@ -17,8 +26,8 @@
 #     (no -XX:UseAVX, no heap dump, -XX:+ExitOnOutOfMemoryError, -Dlog4j2.formatMsgNoLookups);
 #     no warning of the JVM at the start; no GC log; nothing of Elasticsearch in
 #     /tmp and /var/tmp from its start to its stop but its temporary directory
-#     /tmp/elasticsearch (ES_TMPDIR of the rc script), where only the library
-#     that JNA unpacks and the named pipe of bash may be; the log files of Elastic
+#     /tmp/elasticsearch (ES_TMPDIR of the rc script), where only the named pipe
+#     of bash may be (nothing of JNA); the log files of Elastic
 #     alone in path.logs, none rolled, also after a rollover forced by a size of
 #     2 KB in a copy of log4j2.properties; nothing new in /var/log/elasticsearch;
 #     a wrong elasticsearch_heap refused; no [ERROR] in the log of the start
@@ -178,13 +187,45 @@ else
     else
         fail "the options of the JVM: missing:${m:- none}$(grep -E 'UseAVX|HeapDump|Xlog|GCLog|PrintGC' "$T/args.txt" | sed 's/^/, has /' | tr '\n' ' ')"
     fi
-    # its temporary directory while it runs: of elasticsearch, 0700, at most the library of JNA
+    # its temporary directory while it runs: of elasticsearch, 0700, at most the
+    # named pipe of bash (JNA unpacks nothing there, -Djna.nounpack)
     td="$(stat -f '%Su %Lp' "$tmpd" 2>/dev/null)"
-    o="$(find "$tmpd" -mindepth 1 ! -name 'jna*' ! -name 'sh-np.*' 2>/dev/null | head -n 5 | tr '\n' ' ')"
+    o="$(find "$tmpd" -mindepth 1 ! -name 'sh-np.*' 2>/dev/null | head -n 5 | tr '\n' ' ')"
     if [ "$td" = "elasticsearch 700" ] && [ -z "$o" ]; then
         pass "$tmpd: $td; in it while Elasticsearch runs: $(find "$tmpd" -mindepth 1 2>/dev/null | sed "s|^$tmpd/||" | tr '\n' ' ' | sed 's/ $//;s/^$/nothing/')"
     else
-        fail "$tmpd: ${td:-missing}; in it not of JNA and not the pipe of bash: ${o:-nothing}"
+        fail "$tmpd: ${td:-missing}; in it not the pipe of bash: ${o:-nothing}"
+    fi
+    # JNA from the file of devel/jna: the options of jvm.options in the JVM, the
+    # file and the libffi of az mapped in the process of the pidfile of the rc script
+    # (that of the API too), no jna* in its temporary directory
+    pid="$(cat /var/run/elasticsearch/elasticsearch.pid 2>/dev/null)"
+    get '/_nodes/_local/process?filter_path=**.process.id,**.process.mlockall' > "$T/process.json"
+    apid="$(sed -n 's/.*"id" *: *\([0-9]*\).*/\1/p' "$T/process.json")"
+    mla="$(sed -n 's/.*"mlockall" *: *\([a-z]*\).*/\1/p' "$T/process.json")"
+    procstat -v "${pid:-0}" > "$T/vm.txt" 2>&1
+    cp "$T/vm.txt" "$res/elasticsearch-procstat-v.txt"
+    jl="$(awk '$NF ~ /libjnidispatch/ { print $NF }' "$T/vm.txt" | sort -u | tr '\n' ' ')"
+    fl="$(awk '$NF ~ /\/libffi\.so/ { print $NF }' "$T/vm.txt" | sort -u | tr '\n' ' ')"
+    jt="$(find "$tmpd" -mindepth 1 -name 'jna*' 2>/dev/null | tr '\n' ' ')"
+    ja="$(grep '^-Djna\.' "$T/args.txt" | tr '\n' ' ')"
+    case "$fl" in "$P/az/lib/libffi.so"*) ffi=1 ;; *) ffi="" ;; esac
+    if [ -n "$pid" ] && [ "$pid" = "$apid" ] && [ "$ja" = "-Djna.boot.library.path=$P/lib/jna -Djna.nounpack=true " ] \
+        && [ "$jl" = "$P/lib/jna/libjnidispatch.so " ] && [ -n "$ffi" ] && [ "$fl" = "${fl%% *} " ] && [ -z "$jt" ]; then
+        pass "JNA: ${ja}in the JVM; the process $pid maps ${jl}and ${fl}(procstat -v: elasticsearch-procstat-v.txt), no jna* in $tmpd"
+    else
+        fail "JNA: ${ja:-no -Djna options} in the JVM; the process ${pid:-of no pidfile} (the API: ${apid:-no id}) maps ${jl:-no libjnidispatch} and ${fl:-no libffi}; jna* in $tmpd: ${jt:-none}"
+    fi
+    # the native part of Elasticsearch on FreeBSD, through JNA: its system call
+    # filter, setrlimit(RLIMIT_NPROC) to 0 (SystemCallFilter.bsdImpl), which the
+    # kernel raises to its least, 1 (kern_proc_setrlimit): no new process for the
+    # user elasticsearch, which has this one, so no fork; memory lock is not turned
+    # on here
+    nproc="$(procstat -l "${pid:-0}" 2>/dev/null | awk '$3 == "maxprocesses" { print $4, $5 }')"
+    if [ "$nproc" = "1 1" ]; then
+        pass "the system call filter of Elasticsearch through JNA: maxprocesses 1 1 of the process $pid (procstat -l: set to 0); mlockall ${mla:-not told} (bootstrap.memory_lock not set)"
+    else
+        fail "the system call filter: maxprocesses ${nproc:-not told} of the process ${pid:-of no pidfile}, not 1 1 (RLIMIT_NPROC set to 0)"
     fi
     h="$(get '/_cluster/health?wait_for_status=yellow&timeout=60s' | sed -n 's/.*"status" *: *"\([^"]*\)".*/\1/p')"
     case "$h" in green|yellow) pass "cluster health: $h" ;; *) fail "cluster health: ${h:-no answer}" ;; esac
@@ -213,10 +254,10 @@ if grep -E '\]\[ERROR\]|unsupported ciphers' "$T/logs/az-test.log" > "$T/err.txt
 else
     pass "the log of the start without [ERROR], no unsupported ciphers"
 fi
-if grep -E -i 'jna (not found|is not available)|unable to load jna|cannot load jna' "$T/logs/az-test.log" > "$T/jna.txt" 2>/dev/null; then
-    fail "JNA: $(head -n 1 "$T/jna.txt" | cut -c1-200)"
+if grep -E -i 'jna (not found|is not available)|unable to load jna|cannot load jna|native methods.* will be disabled|unable to link C library|syscall filter|system call filters failed' "$T/logs/az-test.log" > "$T/jna.txt" 2>/dev/null; then
+    fail "JNA: $(head -n 2 "$T/jna.txt" | cut -c1-200 | tr '\n' ' ')"
 else
-    pass "JNA: no failure in the log"
+    pass "JNA: nothing of JNA failing in the log (its library, the C library, the system call filter)"
 fi
 w="$(grep -c '\]\[WARN \]' "$T/logs/az-test.log" 2>/dev/null)"
 [ "${w:-0}" = 0 ] || note "the log has $w warnings (elasticsearch.log): $(grep '\]\[WARN \]' "$T/logs/az-test.log" | head -n 3 | cut -c1-160 | tr '\n' ' ')"
