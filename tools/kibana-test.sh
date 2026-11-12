@@ -112,7 +112,7 @@ for f in elasticsearch.yml jvm.options log4j2.properties role_mapping.yml roles.
 done
 sed -i '' -e "s|^path.data: .*|path.data: $T/data|" -e "s|^path.logs: .*|path.logs: $T/logs|" "$conf/elasticsearch.yml"
 { echo "http.port: 19200"; echo "transport.port: 19300"; echo "network.host: 127.0.0.1"; echo "cluster.name: az-test"; } >> "$conf/elasticsearch.yml"
-sed -i '' -e 's|^-Xms1g$|-Xms512m|' -e 's|^-Xmx1g$|-Xmx512m|' "$conf/jvm.options"
+sed -i '' -e 's|^-Xms31g$|-Xms512m|' -e 's|^-Xmx31g$|-Xmx512m|' "$conf/jvm.options"
 chown -R elasticsearch:elasticsearch "$conf" "$T/data" "$T/logs"
 # the heap of the test: elasticsearch_heap of the rc script (jvm.options before it)
 export elasticsearch_config="$conf" elasticsearch_heap="512m"

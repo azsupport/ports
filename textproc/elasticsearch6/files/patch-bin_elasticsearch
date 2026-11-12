@@ -1,6 +1,6 @@
 --- bin/elasticsearch.orig
 +++ bin/elasticsearch
-@@ -29,6 +29,17 @@
+@@ -29,6 +29,32 @@
  fi
  
  cd "$ES_HOME"
@@ -10,6 +10,21 @@
 +es_jdk17_warnings() {
 +  grep --line-buffered -v -E '^WARNING: (A terminally deprecated method in java\.lang\.System has been called|System::setSecurityManager has been called by org\.elasticsearch\.|Please consider reporting this to the maintainers of org\.elasticsearch\.|System::setSecurityManager will be removed in a future release)' >&2
 +}
++# The temporary directory. The rc script makes it anew at each start and gives
++# it to the user of Elasticsearch; started by hand, ES_TMPDIR is the same
++# /tmp/elasticsearch (bin/elasticsearch-env), which may not be there, or may be
++# that of the server: made here for the user who starts it, and no start in a
++# directory that is not this user's own (/tmp is writable by everyone).
++if [ ! -e "$ES_TMPDIR" ] && [ ! -L "$ES_TMPDIR" ]; then
++  if ! mkdir -m 0700 "$ES_TMPDIR"; then
++    echo "the temporary directory $ES_TMPDIR could not be made: set ES_TMPDIR to a directory of yours" >&2
++    exit 1
++  fi
++fi
++if [ -L "$ES_TMPDIR" ] || [ ! -d "$ES_TMPDIR" ] || [ ! -O "$ES_TMPDIR" ] || [ ! -w "$ES_TMPDIR" ]; then
++  echo "the temporary directory $ES_TMPDIR is not a directory of the user `id -un` (that of the server, if it runs: `ls -ld "$ES_TMPDIR" 2> /dev/null`): set ES_TMPDIR to a directory of yours" >&2
++  exit 1
++fi
 +# bash makes the named pipe of ">(...)" below in TMPDIR, /tmp without it
 +# (/tmp/sh-np.<random>, where /dev/fd is not mounted), and nothing removes it:
 +# in the temporary directory of Elasticsearch instead, which the rc script makes
@@ -18,7 +33,7 @@
  # manual parsing to find out, if process should be detached
  if ! echo $* | grep -E '(^-d |-d$| -d |--daemonize$|--daemonize )' > /dev/null; then
    exec \
-@@ -40,7 +51,8 @@
+@@ -40,7 +66,8 @@
      -Des.distribution.type="$ES_DISTRIBUTION_TYPE" \
      -cp "$ES_CLASSPATH" \
      org.elasticsearch.bootstrap.Elasticsearch \
@@ -28,7 +43,7 @@
  else
    exec \
      "$JAVA" \
-@@ -52,7 +64,7 @@
+@@ -52,7 +79,7 @@
      -cp "$ES_CLASSPATH" \
      org.elasticsearch.bootstrap.Elasticsearch \
      "$@" \

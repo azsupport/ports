@@ -24,10 +24,14 @@
 # (the tarball: up to 32 files of 64 MB; the official port put it in ES_TMPDIR),
 # nothing in /tmp: no /tmp/hsperfdata_elasticsearch (-XX:+PerfDisableSharedMem in
 # jvm.options, -XX:-UsePerfData for the small JVMs of bin/elasticsearch and
-# bin/elasticsearch-env), and the rc script sets ES_TMPDIR to the one
+# bin/elasticsearch-env and for the tools: elasticsearch-keystore,
+# elasticsearch-plugin and the others run by hand leave none either, aZ,
+# 12.11.2026), and the rc script sets ES_TMPDIR to the one
 # /tmp/elasticsearch (elasticsearch_tmpdir of rc.conf), made anew at each start,
-# where the scripts made a new /tmp/elasticsearch-<number> at every start (the
-# named pipe of bash for the filter of bin/elasticsearch is made there too); no
+# where every run of a script made a new /tmp/elasticsearch-<number> (the
+# named pipe of bash for the filter of bin/elasticsearch is made there too;
+# bin/elasticsearch-env has that directory as its default with no JVM to make
+# one, and bin/elasticsearch started by hand makes it for its user); no
 # archives of old logs: the log files of the tarball stay as they are, each rolled
 # at its size alone and the rolled file deleted at once
 # (files/log4j2-rollover.properties; the tarball: every day, compressed, kept).
@@ -37,7 +41,9 @@
 # on a CPU without AVX2), -XX:+ExitOnOutOfMemoryError (7.16), -XX:ReplayDataFile
 # (8.x); the G1 options of 6.8.23 for JDK 14 and later stay. The heap of a server
 # is elasticsearch_heap of rc.conf (-Xms and -Xmx in ES_JAVA_OPTS, after
-# jvm.options), so that jvm.options is one file for all.
+# jvm.options), so that jvm.options is one file for all; without it the heap is
+# the 31g of jvm.options (aZ, 12.11.2026; the tarball: 1g), below the cutoff of
+# compressed oops near 32 GB: for a server with 64 GB of RAM and more.
 
 PORTNAME=	elasticsearch
 PORTVERSION=	6.8.23
@@ -157,18 +163,41 @@ post-patch:
 		${GREP} -q '^9-:-XX:+ExitOnOutOfMemoryError$$' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^14-:-XX:G1ReservePercent=25$$' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-Dlog4j2\.formatMsgNoLookups=true$$' ${WRKSRC}/config/jvm.options && \
-		${GREP} -q '^-Xms1g$$' ${WRKSRC}/config/jvm.options && ${GREP} -q '^-Xmx1g$$' ${WRKSRC}/config/jvm.options || \
+		${GREP} -q '^-Xms31g$$' ${WRKSRC}/config/jvm.options && ${GREP} -q '^-Xmx31g$$' ${WRKSRC}/config/jvm.options || \
 		{ ${ECHO_MSG} "config/jvm.options: not the options of files/patch-config_jvm.options"; ${FALSE}; }
 	@${GREP} -q 'es_jdk17_warnings' ${WRKSRC}/bin/elasticsearch && \
+		${GREP} -q '^  if ! mkdir -m 0700 "\$$ES_TMPDIR"; then$$' ${WRKSRC}/bin/elasticsearch && \
 		${GREP} -q '^export TMPDIR="\$$ES_TMPDIR"$$' ${WRKSRC}/bin/elasticsearch
-	# the small JVMs of the scripts (the check of the Java version, the parser of
-	# jvm.options, the temporary directory) without /tmp/hsperfdata_<user>
+	# No JVM of the scripts leaves /tmp/hsperfdata_<user>: -XX:-UsePerfData for the
+	# small ones (the check of the Java version of bin/elasticsearch-env, the parser of
+	# jvm.options of bin/elasticsearch), for the tools (the ES_JAVA_OPTS of
+	# bin/elasticsearch-cli, which every tool but the next runs) and for
+	# bin/elasticsearch-sql-cli (java -jar); the server has -XX:+PerfDisableSharedMem
+	# in jvm.options. And no /tmp/elasticsearch-<number> of every run of a script:
+	# without ES_TMPDIR bin/elasticsearch-env started a JVM (TempDirectory) that
+	# made one; ES_TMPDIR is now the /tmp/elasticsearch of the rc script, which
+	# bin/elasticsearch alone uses and makes (files/patch-bin_elasticsearch): the
+	# tools do not pass it to their JVM, whose java.io.tmpdir stays /tmp (the
+	# download of elasticsearch-plugin install, which it removes itself).
 	@${REINPLACE_CMD} -e 's|"\$$JAVA" -cp "\$$ES_CLASSPATH" org\.elasticsearch\.tools\.|"$$JAVA" -XX:-UsePerfData -cp "$$ES_CLASSPATH" org.elasticsearch.tools.|' \
-		${WRKSRC}/bin/elasticsearch ${WRKSRC}/bin/elasticsearch-env
-	@[ "$$(${GREP} -c '"\$$JAVA" -XX:-UsePerfData -cp "\$$ES_CLASSPATH" org\.elasticsearch\.tools\.' ${WRKSRC}/bin/elasticsearch)" = 1 ] && \
-		[ "$$(${GREP} -c '"\$$JAVA" -XX:-UsePerfData -cp "\$$ES_CLASSPATH" org\.elasticsearch\.tools\.' ${WRKSRC}/bin/elasticsearch-env)" = 2 ] && \
-		! ${GREP} -q '"\$$JAVA" -cp ' ${WRKSRC}/bin/elasticsearch ${WRKSRC}/bin/elasticsearch-env || \
-		{ ${ECHO_MSG} "bin/elasticsearch, bin/elasticsearch-env: not the three small JVMs this port gives -XX:-UsePerfData"; ${FALSE}; }
+		-e 's|^  ES_TMPDIR=`"\$$JAVA" .*\.TempDirectory`$$|  ES_TMPDIR=/tmp/elasticsearch|' \
+		-e 's|^ES_JAVA_OPTS="-Xms4m -Xmx64m -XX:+UseSerialGC \$${ES_JAVA_OPTS}"$$|ES_JAVA_OPTS="-Xms4m -Xmx64m -XX:+UseSerialGC -XX:-UsePerfData $${ES_JAVA_OPTS}"|' \
+		-e 's|^  -jar "\$$CLI_JAR" \\$$|  -XX:-UsePerfData -jar "$$CLI_JAR" \\|' \
+		${WRKSRC}/bin/elasticsearch ${WRKSRC}/bin/elasticsearch-env \
+		${WRKSRC}/bin/elasticsearch-cli ${WRKSRC}/bin/elasticsearch-sql-cli
+	@cd ${WRKSRC}/bin && \
+		[ "$$(${GREP} -l '"\$$JAVA"' ${BINS:N*.jar} | ${TR} '\n' ' ')" = "elasticsearch elasticsearch-cli elasticsearch-env elasticsearch-sql-cli " ] && \
+		! ${GREP} -h '"\$$JAVA"' ${BINS:N*.jar} | ${GREP} -q -v -E '^(if \[ ! -x "\$$JAVA" \]; then|[A-Z_]*=`"\$$JAVA" -XX:-UsePerfData -cp .*`|"\$$JAVA" -XX:-UsePerfData -cp .*| *"\$$JAVA" \\)$$' && \
+		[ "$$(${GREP} -c '"\$$JAVA" -XX:-UsePerfData -cp "\$$ES_CLASSPATH" org\.elasticsearch\.tools\.' elasticsearch)" = 1 ] && \
+		[ "$$(${GREP} -c '"\$$JAVA" -XX:-UsePerfData -cp "\$$ES_CLASSPATH" org\.elasticsearch\.tools\.' elasticsearch-env)" = 1 ] && \
+		[ "$$(${GREP} -c '^ *"\$$JAVA" \\$$' elasticsearch)" = 2 ] && \
+		[ "$$(${GREP} -c '^ *"\$$JAVA" \\$$' elasticsearch-cli)" = 1 ] && \
+		[ "$$(${GREP} -c '^ *"\$$JAVA" \\$$' elasticsearch-sql-cli)" = 1 ] && \
+		${GREP} -q '^ES_JAVA_OPTS="-Xms4m -Xmx64m -XX:+UseSerialGC -XX:-UsePerfData \$${ES_JAVA_OPTS}"$$' elasticsearch-cli && \
+		${GREP} -q '^  -XX:-UsePerfData -jar "\$$CLI_JAR" \\$$' elasticsearch-sql-cli && \
+		${GREP} -q '^  ES_TMPDIR=/tmp/elasticsearch$$' elasticsearch-env && \
+		! ${GREP} -q 'TempDirectory' ${BINS:N*.jar} || \
+		{ ${ECHO_MSG} "bin: not the JVMs this port gives -XX:-UsePerfData (the two small ones, elasticsearch-cli, elasticsearch-sql-cli; the two of the server by jvm.options), or the TempDirectory of bin/elasticsearch-env is not replaced"; ${FALSE}; }
 	# config/log4j2.properties: that of the tarball, which has to be the one this was
 	# written for (its appenders and loggers), with files/log4j2-rollover.properties
 	# in place of its lines of rollover

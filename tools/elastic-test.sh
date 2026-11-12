@@ -7,6 +7,11 @@
 #   - lib/jna.jar a link to the jna.jar of devel/jna, which is a whole zip;
 #   - the start says nothing of System::setSecurityManager (the four lines of JDK 17
 #     are taken out), and its log has no JNA that failed (the JNA it bundles);
+#   - its tools run by hand as root, without ES_TMPDIR (elasticsearch-keystore,
+#     -plugin, -certutil, -shard, -croneval, -sql-cli, elasticsearch -V): each does
+#     its job and leaves nothing in /tmp (no hsperfdata_<user>, no
+#     elasticsearch-<number>) but the /tmp/elasticsearch that bin/elasticsearch
+#     makes for its user, and which it refuses when it is another user's;
 #   - the heap from elasticsearch_heap of rc.conf (512m here) over the -Xms and
 #     -Xmx of jvm.options; the options of jvm.options for OpenJDK 17 in the running JVM
 #     (no -XX:UseAVX, no heap dump, -XX:+ExitOnOutOfMemoryError, -Dlog4j2.formatMsgNoLookups);
@@ -70,9 +75,48 @@ for f in elasticsearch.yml jvm.options log4j2.properties role_mapping.yml roles.
 done
 sed -i '' -e "s|^path.data: .*|path.data: $T/data|" -e "s|^path.logs: .*|path.logs: $T/logs|" "$conf/elasticsearch.yml"
 { echo "http.port: 19200"; echo "transport.port: 19300"; echo "network.host: 127.0.0.1"; echo "cluster.name: az-test"; } >> "$conf/elasticsearch.yml"
+# the tools by hand, as root, before any start: what each leaves in /tmp
+B="$P/lib/elasticsearch/bin"
+rm -rf /tmp/hsperfdata_root /tmp/elasticsearch
+ls -A /tmp | sort > "$T/tools-before.txt"
+tool() { (cd / && env -u ES_TMPDIR -u ES_JAVA_OPTS JAVA_HOME="$P/openjdk17" ES_PATH_CONF="$conf" "$B/$@") > "$T/tool.out" 2>&1 < /dev/null; }
+said() { head -n 2 "$T/tool.out" | cut -c1-150 | tr '\n' ' '; }
+tool elasticsearch-keystore create; r=$?
+if [ "$r" = 0 ] && [ -s "$conf/elasticsearch.keystore" ]; then pass "elasticsearch-keystore create: $conf/elasticsearch.keystore"; else fail "elasticsearch-keystore create: exit $r, $(said)"; fi
+tool elasticsearch-keystore list; r=$?
+if [ "$r" = 0 ] && grep -q '^keystore\.seed$' "$T/tool.out"; then pass "elasticsearch-keystore list: keystore.seed"; else fail "elasticsearch-keystore list: exit $r, $(said)"; fi
+tool elasticsearch-plugin list; r=$?
+if [ "$r" = 0 ]; then pass "elasticsearch-plugin list: no plugin ($(wc -l < "$T/tool.out" | tr -d ' ') lines)"; else fail "elasticsearch-plugin list: exit $r, $(said)"; fi
+tool elasticsearch-certutil --help; r=$?
+if [ "$r" = 0 ] && grep -q -i 'certificate' "$T/tool.out"; then pass "elasticsearch-certutil --help"; else fail "elasticsearch-certutil --help: exit $r, $(said)"; fi
+tool elasticsearch-shard --help; r=$?
+if [ "$r" = 0 ] && grep -q -i 'shard' "$T/tool.out"; then pass "elasticsearch-shard --help"; else fail "elasticsearch-shard --help: exit $r, $(said)"; fi
+tool elasticsearch-croneval '0 0 12 * * ?' -c 1; r=$?
+if [ "$r" = 0 ] && grep -q 'Valid' "$T/tool.out"; then pass "elasticsearch-croneval: $(said)"; else fail "elasticsearch-croneval: exit $r, $(said)"; fi
+tool elasticsearch-sql-cli --help; r=$?
+if [ "$r" = 0 ] && [ -s "$T/tool.out" ]; then pass "elasticsearch-sql-cli --help"; else fail "elasticsearch-sql-cli --help: exit $r, $(said)"; fi
+n="$(ls -A /tmp | sort | comm -13 "$T/tools-before.txt" - | tr '\n' ' ')"
+if [ -z "$n" ]; then pass "the tools left nothing in /tmp"; else fail "the tools left in /tmp: $n"; fi
+# bin/elasticsearch by hand (its version, with a heap of its own: that of
+# jvm.options is 31g): makes /tmp/elasticsearch for its user, and does not start
+# in that of another user
+(cd / && env -u ES_TMPDIR JAVA_HOME="$P/openjdk17" ES_PATH_CONF="$conf" ES_JAVA_OPTS="-Xms64m -Xmx64m" "$B/elasticsearch" -V) > "$T/tool.out" 2>&1 < /dev/null; r=$?
+n="$(ls -A /tmp | sort | comm -13 "$T/tools-before.txt" - | tr '\n' ' ')"
+if [ "$r" = 0 ] && grep -q "Version: $(pkgv elasticsearch6)" "$T/tool.out" && [ "$n" = "elasticsearch " ] && [ "$(stat -f '%Su %Lp' /tmp/elasticsearch)" = "root 700" ]; then
+    pass "bin/elasticsearch -V by hand as root: $(said | cut -c1-60); new in /tmp: /tmp/elasticsearch alone, root 700"
+else
+    fail "bin/elasticsearch -V by hand: exit $r, $(said); new in /tmp: ${n:-nothing}; $(stat -f '%Su %Lp' /tmp/elasticsearch 2>&1)"
+fi
 chown -R elasticsearch:elasticsearch "$T"
+(cd / && su -m elasticsearch -c "env -u ES_TMPDIR JAVA_HOME='$P/openjdk17' ES_PATH_CONF='$conf' ES_JAVA_OPTS='-Xms64m -Xmx64m' '$B/elasticsearch' -V") > "$T/tool.out" 2>&1 < /dev/null; r=$?
+if [ "$r" != 0 ] && grep -q 'is not a directory of the user elasticsearch' "$T/tool.out"; then
+    pass "bin/elasticsearch by hand as elasticsearch with the /tmp/elasticsearch of root: refused"
+else
+    fail "bin/elasticsearch by hand as elasticsearch with the /tmp/elasticsearch of root: exit $r, $(said)"
+fi
 # the rc script, as rc.conf would set it up: its configuration directory is ours,
-# the heap of this server 512m (jvm.options stays that of the package, 1g)
+# the heap of this server 512m (jvm.options stays that of the package, 31g); it
+# makes /tmp/elasticsearch anew, which is that of root now
 export elasticsearch_config="$conf"
 export elasticsearch_heap="4x"
 if "$P/etc/rc.d/elasticsearch" onestart > "$T/badheap.out" 2>&1; then
@@ -119,7 +163,7 @@ else
     cp "$T/args.txt" "$res/elasticsearch-jvm-arguments.txt"
     hm="$(sed -n 's/.*"heap_max_in_bytes" *: *\([0-9]*\).*/\1/p' "$T/jvm.json")"
     if [ "$(grep '^-Xmx' "$T/args.txt" | tail -n 1)" = "-Xmx512m" ] && [ "$(grep '^-Xms' "$T/args.txt" | tail -n 1)" = "-Xms512m" ] && [ "${hm:-0}" -gt 400000000 ] && [ "${hm:-0}" -le 536870912 ]; then
-        pass "the heap of elasticsearch_heap: -Xms512m -Xmx512m after the 1g of jvm.options, heap_max_in_bytes $hm"
+        pass "the heap of elasticsearch_heap: -Xms512m -Xmx512m after the 31g of jvm.options, heap_max_in_bytes $hm"
     else
         fail "the heap: last $(grep '^-Xm[sx]' "$T/args.txt" | tail -n 2 | tr '\n' ' '), heap_max_in_bytes ${hm:-not told}, not the 512m of elasticsearch_heap"
     fi

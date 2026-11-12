@@ -10,7 +10,9 @@ You may need to set:
 sysctl security.bsd.unprivileged_mlock=1
 
 The heap of this server is set in /etc/rc.conf, as -Xmx takes it (-Xms and
--Xmx get the same size; without it the heap is the 1g of jvm.options):
+-Xmx get the same size). Without it the heap is the 31g of jvm.options,
+which is for a server with 64 GB of RAM and more: with less RAM set it, at
+most half of the RAM (the rest is the cache of the file system):
 
 elasticsearch_heap="4g"
 
