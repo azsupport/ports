@@ -1,0 +1,17 @@
+--- make/autoconf/libraries.m4.orig	2026-10-27 21:45:31 UTC
++++ make/autoconf/libraries.m4
+@@ -45,9 +45,12 @@
+   if test "x$OPENJDK_TARGET_OS" = xwindows || test "x$OPENJDK_TARGET_OS" = xmacosx; then
+     # No X11 support on windows or macosx
+     NEEDS_LIB_X11=false
++  elif test "x$ENABLE_HEADLESS_ONLY" = xtrue; then
++    # No X11 support needed when building headless only (libawt with HEADLESS,
++    # make/modules/java.desktop/lib/Awt2dLibraries.gmk)
++    NEEDS_LIB_X11=false
+   else
+-    # All other instances need X11, even if building headless only, libawt still
+-    # needs X11 headers.
++    # All other instances need X11
+     NEEDS_LIB_X11=true
+   fi
+ 
