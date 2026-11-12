@@ -31,7 +31,31 @@
  
  ## DNS cache policy
  # cache ttl in seconds for positive DNS lookups noting that this overrides the
-@@ -95,35 +108,58 @@
+@@ -72,8 +85,21 @@
+ # ensure UTF-8 encoding by default (e.g. filenames)
+ -Dfile.encoding=UTF-8
+ 
+-# use our provided JNA always versus the system one
+--Djna.nosys=true
++# azsupport/ports: the native library of JNA from the file of devel/jna, nothing
++# unpacked or listed in ES_TMPDIR (aZ, 12.11.2026). The tarball has
++# -Djna.nosys=true here ("use our provided JNA always versus the system one"):
++# with it JNA listed its temporary directory for old files at every start and
++# unpacked libjnidispatch.so of jna.jar into a new file there (~/.cache/JNA/temp
++# of the user, whose home is /nonexistent, so java.io.tmpdir: ES_TMPDIR).
++# jna.boot.library.path is tried first, whatever jna.nosys says
++# (Native.loadNativeDispatchLibrary of JNA 5.15); jna.nounpack: no temporary
++# directory at all, and no fallback to the jar. Without the file JNA does not
++# load: Elasticsearch logs "unable to load JNA native support library, native
++# methods will be disabled" and runs without the system call filter and mlockall,
++# and a node whose transport listens beyond the loopback does not start (its
++# bootstrap check of the filter); the port depends on the file, not on any jna.
++-Djna.boot.library.path=%%LOCALBASE%%/lib/jna
++-Djna.nounpack=true
+ 
+ # turn off a JDK optimization that throws away stack traces for common
+ # exceptions because stack traces are important for debugging
+@@ -95,35 +121,58 @@
  
  -Djava.io.tmpdir=${ES_TMPDIR}
  
