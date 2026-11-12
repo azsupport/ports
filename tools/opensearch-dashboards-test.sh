@@ -6,7 +6,8 @@
 # OpenSearch with the heap of opensearch_heap (512m) on its port 8200 with its
 # network.host of the sample (both loopback addresses), as on aZ's nodes, Dashboards
 # with the configuration of aZ's ko44 (server.host on 127.0.0.1 here,
-# opensearch.hosts http://localhost:8200, the settings of the security plugin
+# opensearch.hosts http://localhost:8200, or http://127.0.0.1:8200 where OpenSearch
+# does not answer on ::1, with a note, the settings of the security plugin
 # commented out) and node.options next to it:
 #   - the package: no ELF file, no native module, no node/ of the tarball; its node
 #     is that of www/node18; --version, the plugins (13 in, securityDashboards
@@ -19,14 +20,16 @@
 #   - /api/status green, its version, the statuses of the plugins in and none of
 #     those out, the heap of node.options; the process: node as www, FreeBSD ELF64,
 #     no file of the package mapped (no native module), listening on 127.0.0.1:5601;
-#   - the pages of the core and of each plugin in, the bundles served as the files
-#     (plain and with gzip), every .gz of the package the gzip of its file;
+#   - the pages of the core and of each plugin in, the bundle of each plugin in the
+#     page, the bundles served as the files (plain and with gzip), every .gz of the
+#     package the gzip of its file;
 #   - the server plugin behind each plugin in answers through Dashboards: alerting,
 #     anomaly detection, ml-commons, index management, notifications, observability and PPL,
 #     the query workbench (SQL), reporting (a CSV and an XLSX of a saved search, made
 #     by the server), security analytics (its rules; a rule's YAML with a
 #     !!js/function made into nothing), search relevance;
-#   - saved objects: an index pattern, a visualization and a dashboard made, exported
+#   - saved objects: an index pattern (with the fields of its index, as the page
+#     makes it), a visualization and a dashboard made, exported
 #     with their references, deleted, imported and read back (.kibana -> .kibana_1);
 #     an import with __proto__ refused;
 #   - the security fixes over HTTP: //host/ not redirected off-site, the bounds of
@@ -180,7 +183,15 @@ if [ -z "$up" ]; then
     stop_os; finish
 fi
 pass "OpenSearch $(curl -s -m 10 "$os/" | sed -n 's/.*"number" : "\([^"]*\)".*/\1/p') on port 8200 after $((i * 2)) s, plugins: $(curl -s -m 10 "$os/_cat/plugins?h=component" | sort | tr '\n' ' ' | cut -c1-300)"
-if curl -s -m 5 'http://[::1]:8200/' | grep -q '"number"'; then note "OpenSearch answers on [::1]:8200 too (localhost of Node.js 18 is ::1 first)"; else note "OpenSearch does not answer on [::1]:8200"; fi
+# Node.js 18 takes localhost as ::1 first and tries no other address: ko44's
+# http://localhost:8200 works when OpenSearch listens on ::1 too
+oshost=localhost
+if curl -s -m 5 'http://[::1]:8200/' | grep -q '"number"'; then
+    note "OpenSearch answers on [::1]:8200 too: opensearch.hosts http://localhost:8200 of ko44 (Node.js 18 takes localhost as ::1 first)"
+else
+    oshost=127.0.0.1
+    note "OpenSearch does not answer on [::1]:8200 here: opensearch.hosts http://127.0.0.1:8200 in the place of ko44's http://localhost:8200 (Node.js 18 tries ::1 alone for localhost)"
+fi
 curl -s -m 60 -o /dev/null "$os/_cluster/health?wait_for_status=yellow&timeout=60s"
 curl -s -m 30 -o /dev/null -H 'Content-Type: application/json' -X PUT "$os/az-test" -d '{"settings":{"number_of_shards":1,"number_of_replicas":0}}'
 for i in 1 2 3; do
@@ -191,7 +202,7 @@ done
 # --- the configuration of aZ's ko44, the refusals of the rc script ---------------------------
 conf="$T/conf/opensearch_dashboards.yml"
 cp "$E/opensearch_dashboards.yml.sample" "$conf" || fail "no $E/opensearch_dashboards.yml.sample"
-printf '%s\n' 'server.host: "127.0.0.1"' 'opensearch.hosts: ["http://localhost:8200"]' '#opensearch.hosts: ["http://localhost:9200"]' \
+printf '%s\n' 'server.host: "127.0.0.1"' "opensearch.hosts: [\"http://$oshost:8200\"]" '#opensearch.hosts: ["http://localhost:9200"]' \
     'opensearch.ssl.verificationMode: none' '#opensearch.username: "kibanaserver"' '#opensearch.password: "kibanaserver"' \
     '#opensearch.requestHeadersWhitelist: [ authorization,securitytenant ]' '#opensearch_security.multitenancy.enabled: true' \
     '#opensearch_security.multitenancy.tenants.preferred: ["Private", "Global"]' '#opensearch_security.readonly_mode.roles: ["kibana_read_only"]' \
@@ -271,6 +282,10 @@ for a in home dashboards data-explorer/discover visualize dev_tools management a
 done
 if [ -z "$pg" ]; then pass "the pages of the core and of the plugins in: 200 with the page of OpenSearch Dashboards"; else fail "pages:$pg"; fi
 rq bootstrap GET /bootstrap.js > /dev/null
+# (any /app/<id> is the same page; the bundle of each plugin makes the difference)
+m=""; for p in $IN; do grep -q "/bundles/plugin/$p/$p.plugin.js" "$T/a/bootstrap" || m="$m $p"; done
+o=""; for p in $OUT; do grep -q "/bundles/plugin/$p/" "$T/a/bootstrap" && o="$o $p"; done
+if [ -z "$m$o" ]; then pass "the page loads the bundle of each of the 13 plugins in, none of $OUT"; else fail "the bundles of the plugins in the page: missing$m; out but there:$o"; fi
 grep -o "/[0-9]*/bundles/[^\"' ]*\\.js" "$T/a/bootstrap" | sort -u > "$T/bundles.txt"
 n=0; d=0
 while read -r u; do
@@ -285,7 +300,8 @@ done < "$T/bundles.txt"
 if [ "$d" = 0 ] && [ "$n" -gt 20 ]; then pass "$n bundles of the page served as the files, plain and with gzip"; else fail "$d of $n bundles served differ from the files"; fi
 
 # --- the server plugins behind the plugins in -----------------------------------------------
-want "alerting: the monitors" alerting 200 '"ok":' GET '/api/alerting/monitors?from=0&size=10&search=&sortField=name&sortDirection=desc&state=all'
+# (no monitor yet: "ok":false with totalMonitors 0 for the missing index, an error has no totalMonitors)
+want "alerting: the monitors" alerting 200 '"totalMonitors":' GET '/api/alerting/monitors?from=0&size=10&search=&sortField=name&sortDirection=desc&state=all'
 want "anomaly detection: the detectors" ad 200 '"ok":true' GET /api/anomaly_detectors/detectors/_list
 want "ml-commons: the models" ml 200 '"total_models"' GET '/api/ml-commons/model?from=0&size=10'
 want "index management: the policies" ism 200 '"ok":true' GET '/api/ism/policies?from=0&size=20&search=&sortField=id&sortDirection=desc'
@@ -293,18 +309,30 @@ want "notifications: the channels" notif 200 'config_list' GET '/api/notificatio
 want "observability: the operational panels" obs 200 'panels' GET /api/observability/operational_panels/panels
 want "observability: PPL source=az-test" ppl 200 'doc 1 of azsupport' POST /api/ppl/search '{"query":"source=az-test | fields title","format":"jdbc"}'
 want "query workbench: SQL SELECT title FROM az-test" sql 200 'doc 2 of azsupport' POST /api/sql_console/sqlquery '{"query":"SELECT title FROM az-test"}'
-want "security analytics: the prepackaged rules" sarules 200 '"ok":true' POST '/api/securityAnalytics/rules/_search?prePackaged=true' '{"from":0,"size":1,"query":{"match_all":{}}}'
+# (the routes of securityAnalyticsDashboards are under /_plugins/_security_analytics of Dashboards)
+want "security analytics: the prepackaged rules" sarules 200 '"ok":true' POST '/_plugins/_security_analytics/rules/_search?prePackaged=true' '{"from":0,"size":1,"query":{"match_all":{}}}'
 printf '%s' '{"title":"azsupport test rule","category":"windows","description":"azsupport","detection":"selection:\n  EventID: 4688\ncondition: selection","status":"experimental","author":"azsupport","references":[],"tags":[],"level":"low","false_positives":[]}' > "$T/rule.json"
-want "security analytics: a rule made from its YAML" rule 200 '"ok":true' POST '/api/securityAnalytics/rules?category=windows' "@$T/rule.json"
+want "security analytics: a rule made from its YAML" rule 200 '"ok":true' POST '/_plugins/_security_analytics/rules?category=windows' "@$T/rule.json"
 rm -f /tmp/osd-yaml-probe
 printf '%s' '{"title":"azsupport probe rule","category":"windows","description":"azsupport","detection":"selection:\n  EventID: { toJSON: !!js/function '"'"'function () { process.mainModule.require(\"fs\").writeFileSync(\"/tmp/osd-yaml-probe\", \"ran\"); return 1; }'"'"' }\ncondition: selection","status":"experimental","author":"azsupport","references":[],"tags":[],"level":"low","false_positives":[]}' > "$T/probe.json"
-c="$(rq probe POST '/api/securityAnalytics/rules?category=windows' "@$T/probe.json")"
+c="$(rq probe POST '/_plugins/_security_analytics/rules?category=windows' "@$T/probe.json")"
 if [ ! -e /tmp/osd-yaml-probe ] && ! has probe '"ok":true'; then pass "security analytics: a rule with !!js/function refused ($c, ok false), its function never run"; else fail "security analytics: the !!js/function rule: $c $(ans probe), /tmp/osd-yaml-probe: $(cat /tmp/osd-yaml-probe 2>/dev/null)"; rm -f /tmp/osd-yaml-probe; fi
-want "search relevance: two queries compared" rel 200 'result1' POST /api/relevancy/search '{"query1":{"index":"az-test","size":1,"query":{"match_all":{}}},"query2":{"index":"az-test","size":1,"query":{"match":{"title":"doc"}}}}'
+c="$(rq rel POST /api/relevancy/search '{"query1":{"index":"az-test","pipeline":"","size":1,"query":{"match_all":{}}},"query2":{"index":"az-test","pipeline":"","size":1,"query":{"match":{"title":"doc"}}}}')"
+if [ "$c" = 200 ] && has rel '"result1":' && has rel '"result2":' && ! has rel 'errorMessage'; then pass "search relevance: two queries compared"; else fail "search relevance: two queries compared: $c $(ans rel)"; fi
 
 # --- saved objects: made, exported, deleted, imported, read back -----------------------------
 SS='{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}'
-want "an index pattern made" ip 200 '"title":"az-test*"' POST /api/saved_objects/index-pattern/az-ip '{"attributes":{"title":"az-test*","timeFieldName":"t"}}'
+# the index pattern with its fields, as the page makes it (reporting parses them for its date fields)
+c="$(rq fields GET '/api/index_patterns/_fields_for_wildcard?pattern=az-test*&meta_fields=_source&meta_fields=_id&meta_fields=_type&meta_fields=_index&meta_fields=_score')"
+if [ "$c" = 200 ] && "$node" -e 'const fs = require("fs"); const f = JSON.parse(fs.readFileSync(process.argv[1], "utf8")).fields;
+    if (!f.some((x) => x.name === "t" && x.type === "date")) process.exit(1);
+    fs.writeFileSync(process.argv[2], JSON.stringify({ attributes: { title: "az-test*", timeFieldName: "t", fields: JSON.stringify(f) } }));' "$T/a/fields" "$T/ip.json"; then
+    pass "the fields of az-test*: $(grep -o '"name":"[^"]*"' "$T/a/fields" | sed 's/"name":"\(.*\)"/\1/' | tr '\n' ' ')(t a date)"
+else
+    fail "the fields of az-test*: $c $(ans fields)"
+    printf '%s' '{"attributes":{"title":"az-test*","timeFieldName":"t"}}' > "$T/ip.json"
+fi
+want "an index pattern made" ip 200 '"title":"az-test*"' POST /api/saved_objects/index-pattern/az-ip "@$T/ip.json"
 want "a visualization made" vis 200 '"title":"az vis"' POST /api/saved_objects/visualization/az-vis \
     "{\"attributes\":{\"title\":\"az vis\",\"visState\":\"{\\\"title\\\":\\\"az vis\\\",\\\"type\\\":\\\"metric\\\",\\\"aggs\\\":[{\\\"id\\\":\\\"1\\\",\\\"enabled\\\":true,\\\"type\\\":\\\"count\\\",\\\"params\\\":{},\\\"schema\\\":\\\"metric\\\"}],\\\"params\\\":{}}\",\"uiStateJSON\":\"{}\",\"description\":\"\",\"version\":1,\"kibanaSavedObjectMeta\":{\"searchSourceJSON\":\"$SS\"}},\"references\":[{\"name\":\"kibanaSavedObjectMeta.searchSourceJSON.index\",\"type\":\"index-pattern\",\"id\":\"az-ip\"}]}"
 want "a dashboard made" dash 200 '"title":"az dashboard"' POST /api/saved_objects/dashboard/az-dash \
@@ -363,8 +391,11 @@ want "the console: GET _cluster/health" console 200 '"cluster_name" : "az-test"'
 TL='"time":{"from":"2026-11-12T00:00:00Z","to":"2026-11-13T00:00:00Z","interval":"1h","timezone":"UTC"}'
 want "Timeline: .es().label() with a regular expression" timeline 200 '"label":"x ' POST /api/timeline/run \
     "{\"sheet\":[\".es(index=az-test*, timefield=t).label(\\\"x \$1\\\", \\\"(.*)\\\")\"],$TL}"
-want "TSVB: a count and a math metric (tinymath)" tsvb 200 '"p1":{"id":"p1","series":[{' POST /api/metrics/vis/data \
-    '{"timerange":{"timezone":"UTC","min":"2026-11-12T00:00:00Z","max":"2026-11-13T00:00:00Z"},"filters":[],"panels":[{"id":"p1","type":"timeseries","series":[{"id":"s1","split_mode":"everything","metrics":[{"id":"m1","type":"count"},{"id":"m2","type":"math","variables":[{"id":"v1","name":"a","field":"m1"}],"script":"params.a * 2"}],"seperate_axis":0,"axis_position":"right","formatter":"number","chart_type":"line"}],"time_field":"t","index_pattern":"az-test*","interval":"1h","axis_position":"left","axis_formatter":"number"}]}'
+# (its answer: "p1":{"annotations":null,"id":"p1","series":[...]}; the value of the
+# series is that of its last metric, the math: 2 for each hour with one document)
+c="$(rq tsvb POST /api/metrics/vis/data \
+    '{"timerange":{"timezone":"UTC","min":"2026-11-12T00:00:00Z","max":"2026-11-13T00:00:00Z"},"filters":[],"panels":[{"id":"p1","type":"timeseries","series":[{"id":"s1","split_mode":"everything","metrics":[{"id":"m1","type":"count"},{"id":"m2","type":"math","variables":[{"id":"v1","name":"a","field":"m1"}],"script":"params.a * 2"}],"seperate_axis":0,"axis_position":"right","formatter":"number","chart_type":"line"}],"time_field":"t","index_pattern":"az-test*","interval":"1h","axis_position":"left","axis_formatter":"number"}]}')"
+if [ "$c" = 200 ] && has tsvb '"id":"p1","series":[{"id":"s1"' && grep -q ',2\]' "$T/a/tsvb"; then pass "TSVB: a count and a math metric (tinymath): 2 for each hour with a document"; else fail "TSVB: a count and a math metric: $c $(ans tsvb)"; fi
 c="$(rq sample POST /api/sample_data/flights '')"
 curl -s -m 30 -o /dev/null -X POST "$os/opensearch_dashboards_sample_data_flights/_refresh"
 n="$(curl -s -m 30 "$os/opensearch_dashboards_sample_data_flights/_count" | sed -n 's/.*"count":\([0-9]*\).*/\1/p')"
