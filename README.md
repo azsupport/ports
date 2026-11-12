@@ -80,7 +80,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi and env too), no SSL; APR and libmaxminddb of az |
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached without TLS, SASL and DTrace, libevent of az; the variant with TLS; one of the two |
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11: of the engines of the options InnoDB only, no GSSAPI; the socket `/tmp/mysql.sock` compiled in and in `my.cnf` |
-| `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext with its rc.d script and the fix of CVE-2021-3618 (ALPACA) of vsftpd 3.0.5; the variant with SSL; one of the two |
+| `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext with its rc.d script, the fix of CVE-2021-3618 (ALPACA) of vsftpd 3.0.5 and ours of CVE-2026-119567, CVE-2026-119568 and `deny_file`; the variant with SSL; one of the two |
 | `3proxy`, `3proxy-openssl` | `net/3proxy`, `net/3proxy-openssl` | 3proxy 0.9.9.3 of the LTS line, ahead of the official 0.9.5 for its security fixes, with the names and paths of the official port; PAM, PCRE2 of `pcre2`, no TLS; the variant with TLS; one of the two |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: the DNS server `named` with TCP Fast Open, no GSSAPI, DNSTAP, LMDB and statistics channels; dig, host, nslookup, delv, nsupdate and the DNSSEC tools, with IDN |
 | `vips` | `graphics/vips` | libvips 8.18 for the Lua scripts of nginx that convert images on the fly: JPEG (mozjpeg), PNG, WebP, HEIC (load), AVIF (load and save), GIF, with ICC profiles, EXIF and SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
@@ -244,7 +244,18 @@ Names and origins as the ports, files at the paths of the ports:
   the two. With the fix of CVE-2021-3618 (ALPACA) as vsftpd 3.0.5 has it
   ([`files/patch-CVE-2021-3618`](ftp/vsftpd-ext/files/patch-CVE-2021-3618)): an HTTP
   method or the 11th unknown command before the login closes the connection, a TLS
-  client whose ALPN does not offer `ftp` is refused, `ssl_sni_hostname`.
+  client whose ALPN does not offer `ftp` is refused, `ssl_sni_hostname`. And fixes of
+  ours, which upstream does not have (each file says what and why):
+  [`files/patch-CVE-2026-119567`](ftp/vsftpd-ext/files/patch-CVE-2026-119567):
+  `cmds_allowed` and `cmds_denied` take `XMKD`, `XRMD`, `XCWD`, `XCUP`, `XPWD` and
+  `P@SW` as `MKD`, `RMD`, `CWD`, `CDUP`, `PWD` and `PASV` (a denied `MKD` was done as
+  `XMKD`); [`files/patch-deny_file`](ftp/vsftpd-ext/files/patch-deny_file): `deny_file`
+  denies the paths through a denied directory too (with `{*.mp3,*.mov,.private}`,
+  `.private/secret` was not denied);
+  [`files/patch-CVE-2026-119568`](ftp/vsftpd-ext/files/patch-CVE-2026-119568): a data
+  connection over TLS resumes only a session of its own login (no stateless session
+  tickets: their key was the same for every login, and `require_ssl_reuse` took the
+  session of another one).
 - **`net/3proxy`** and **`net/3proxy-openssl`**: 3proxy 0.9.9.3, the LTS line of upstream
   (07.11.2026), for its security fixes: the official port has 0.9.5, which upstream no
   longer supports. With the two fixes of the 0.9 branch after it (a pcre rule without an
@@ -287,8 +298,9 @@ Names and origins as the ports, files at the paths of the ports:
 - These: tests after the install, [`tools/servers-test.sh`](tools/servers-test.sh) (git
   grep -P, Apache with the modules of the servers on a port of its own, memcached,
   MariaDB on its default socket `/tmp/mysql.sock`, named with a zone of its own asked by
-  dig over UDP and TCP and by an IDN name, rndc, vips with JPEG, WebP, PNG and GIF, the
-  libraries of each).
+  dig over UDP and TCP and by an IDN name, rndc, vips with JPEG, WebP, PNG and GIF,
+  vsftpd-ext and vsftpd-ext-openssl (what the fixes above close refused; curl gets a
+  file over FTP and FTPS), the libraries of each).
 - **`www/yt-dlp`**: the package `yt-dlp` in the place of the official one: the official
   port as it is, at a newer release of yt-dlp (the grabbers of the video sites need the
   extractors of the latest), depending on our `multimedia/ffmpeg`; its Python packages are

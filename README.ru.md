@@ -80,7 +80,7 @@
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 только с prefork и модулями серверов (и cgi, env), без SSL; APR и libmaxminddb из az |
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached без TLS, SASL и DTrace, libevent из az; вариант с TLS; ставится один из двух |
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11: из движков опций только InnoDB, без GSSAPI; сокет `/tmp/mysql.sock` вкомпилирован и прописан в `my.cnf` |
-| `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext со своим скриптом rc.d и исправлением CVE-2021-3618 (ALPACA) из vsftpd 3.0.5; вариант с SSL; ставится один из двух |
+| `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext со своим скриптом rc.d, исправлением CVE-2021-3618 (ALPACA) из vsftpd 3.0.5 и нашими — CVE-2026-119567, CVE-2026-119568 и `deny_file`; вариант с SSL; ставится один из двух |
 | `3proxy`, `3proxy-openssl` | `net/3proxy`, `net/3proxy-openssl` | 3proxy 0.9.9.3 LTS-линии, новее официальной 0.9.5 ради исправлений безопасности, с именами и путями официального порта; PAM, PCRE2 из `pcre2`, без TLS; вариант с TLS; ставится один из двух |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: DNS-сервер `named` с TCP Fast Open, без GSSAPI, DNSTAP, LMDB и каналов статистики; dig, host, nslookup, delv, nsupdate и утилиты DNSSEC, с IDN |
 | `vips` | `graphics/vips` | libvips 8.18 для скриптов Lua в nginx, перекодирующих картинки на лету: JPEG (mozjpeg), PNG, WebP, HEIC (чтение), AVIF (чтение и запись), GIF, с ICC-профилями, EXIF и SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
@@ -240,7 +240,18 @@
   исправлением CVE-2021-3618 (ALPACA), как в vsftpd 3.0.5
   ([`files/patch-CVE-2021-3618`](ftp/vsftpd-ext/files/patch-CVE-2021-3618)): HTTP-метод
   или 11-я неизвестная команда до входа закрывают соединение, TLS-клиент, чей ALPN не
-  предлагает `ftp`, получает отказ, `ssl_sni_hostname`.
+  предлагает `ftp`, получает отказ, `ssl_sni_hostname`. И наши исправления, которых нет
+  в апстриме (что и зачем — в каждом файле):
+  [`files/patch-CVE-2026-119567`](ftp/vsftpd-ext/files/patch-CVE-2026-119567):
+  `cmds_allowed` и `cmds_denied` считают `XMKD`, `XRMD`, `XCWD`, `XCUP`, `XPWD` и `P@SW`
+  командами `MKD`, `RMD`, `CWD`, `CDUP`, `PWD` и `PASV` (запрещённую `MKD` делали как
+  `XMKD`); [`files/patch-deny_file`](ftp/vsftpd-ext/files/patch-deny_file): `deny_file`
+  запрещает и пути через запрещённый каталог (с `{*.mp3,*.mov,.private}` путь
+  `.private/secret` не запрещался);
+  [`files/patch-CVE-2026-119568`](ftp/vsftpd-ext/files/patch-CVE-2026-119568):
+  TLS-соединение данных возобновляет только сессию своего входа (без stateless session
+  tickets: их ключ был общим для всех входов, и `require_ssl_reuse` принимал сессию
+  чужого).
 - **`net/3proxy`** и **`net/3proxy-openssl`**: 3proxy 0.9.9.3, LTS-линия апстрима
   (07.11.2026), ради исправлений безопасности: в официальном порту 0.9.5, которую апстрим
   больше не поддерживает. С двумя исправлениями ветки 0.9 после неё (pcre-правило без ACL,
@@ -279,7 +290,8 @@
 - У этих: тесты после установки — [`tools/servers-test.sh`](tools/servers-test.sh) (git
   grep -P, Apache с модулями серверов на своём порту, memcached, MariaDB на сокете по
   умолчанию `/tmp/mysql.sock`, named со своей зоной — dig по UDP, TCP и по имени IDN,
-  rndc, vips с JPEG, WebP, PNG и GIF, библиотеки каждого).
+  rndc, vips с JPEG, WebP, PNG и GIF, vsftpd-ext и vsftpd-ext-openssl (отказ в том, что
+  закрывают исправления выше; curl получает файл по FTP и FTPS), библиотеки каждого).
 - **`lang/perl5.42`**: пакет `perl5` (`/usr/local/bin/perl`) вместо официального (aZ,
   11.11.2026: наши Perl и Python под именами пакетов FreeBSD, чтобы с ними работали пакеты
   `p5-*` из репозитория FreeBSD): официальный порт как есть — Perl 5.42.3, версия по
