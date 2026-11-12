@@ -8,7 +8,16 @@
 # as mc reads it, copyout) and on a hard link in ISO 9660, and mc itself in a
 # terminal (script(1)): the panels drawn and F10 quits;
 # mcview shows a file inside that zip (ubsdtar://, through extfs and the mc.ext.ini of
-# the package).
+# the package). The patches of misc/mc/files, through mc in that terminal: Enter on
+# a tar entry with a name of 1504 bytes opens it (ext-cd-overflow), F5 with a Reget
+# copies the next file whole (copy-reget), a click on Quit with TERM=xterm quits
+# (mouse-sgr-ncurses), the subshell of tcsh enters a directory with a space, quotes,
+# $, ! and Cyrillic, keeps the prompt of ~/.tcshrc and its exit ends mc with status 0
+# (subshell-tcsh-prompt, subshell-eof), the prompt of bash in a directory named in
+# CP1251 (prompt-invalid-utf8; when bash is installed). Checked by hand only (no
+# server or shell for them here): ftp-reconnect, ftp-netrc-password (an FTP server
+# with an idle timeout and ~/.netrc), subshell-fd (dash, ksh, mksh), mouse-drag-crash
+# (a drag below a panel that is not full); parse-ls-short-name has no visible effect.
 #
 # Usage (FreeBSD, the package mc installed): sh tools/mc-test.sh
 # Results: mc-results/tests.txt (one line per check, the summary at the end); exit
@@ -189,5 +198,112 @@ if [ -f "$T/t.zip" ]; then
     else
         fail "mcview of the file in the zip: exit $e: $(tr '\n' ' ' < "$T/mcview.typescript.txt" | cut -c1-200)"
     fi
+fi
+
+# The patches of misc/mc/files (each its header), through mc in a terminal as above:
+# keys_run <typescript> <keys> <command>...: the keys (sh commands: sleeps and printfs)
+# into the terminal; keys_exit its exit status (a signal: that of mc, as script(1)
+# gives it), keys_secs its seconds, <typescript>.txt its strings
+keys_run() {
+    _t="$1" _k="$2"; shift 2
+    keys_exit="?" keys_secs=0
+    rm -f "$_t.rc"
+    (eval "$_k") | {
+        _s0=$(date +%s)
+        timeout 60 script -q "$_t" sh -c 'stty rows 30 cols 100; exec "$@"' sh "$@" > /dev/null 2>&1
+        echo "$? $(( $(date +%s) - _s0 ))" > "$_t.rc"
+    }
+    [ -f "$_t.rc" ] && read -r keys_exit keys_secs < "$_t.rc"
+    strings "$_t" 2>/dev/null > "$_t.txt"
+}
+seen() { tr '\n' ' ' < "$1.txt" | cut -c1-160; }
+down='\033OB' enter='\r' f10='\033[21~'
+# ext-cd-overflow.patch: Enter on a tar entry with a name of 1504 bytes, whose action
+# is "%cd %p/utar://": mc 4.8.33 copied it into a static buffer of 1 KB (SIGSEGV)
+mkdir -p "$T/ov"
+echo "inside the inner tar" > "$T/ov/inner.txt"
+long="$(printf '%01500d' 0 | tr 0 L).tar"
+if (cd "$T/ov" && tar -cf inner.tar inner.txt &&
+        printf '#mtree\n%s type=file mode=0644 uid=0 gid=0 time=0 contents=%s\n' "$long" "$T/ov/inner.tar" |
+        tar -cf outer.tar --format pax @-) 2> "$T/ov.err"; then
+    keys_run "$T/ov.typescript" "sleep 3; printf '$down'; sleep 1; printf '$enter'; sleep 2; printf '$f10'; sleep 2" \
+        "$mc" -u "$T/ov/outer.tar/utar://"
+    if [ "$keys_exit" = 0 ] && grep -q 'inner\.txt' "$T/ov.typescript.txt"; then
+        pass "Enter on a tar entry with a name of 1504 bytes (%cd %p/utar://): its inner tar opened (inner.txt)"
+    else
+        fail "Enter on a tar entry with a name of 1504 bytes: exit $keys_exit (11: SIGSEGV): $(seen "$T/ov.typescript")"
+    fi
+else
+    fail "a tar with an entry of 1504 bytes (tar @- of mtree): $(head -n 2 "$T/ov.err" | tr '\n' ' ')"
+fi
+# copy-reget.patch: a and b copied (F5) where the destination has half of a: "Reget"
+# for a, then b whole (mc 4.8.33 copied b from the offset of a)
+mkdir -p "$T/rg/src" "$T/rg/dst"
+printf '%01000d' 0 | tr 0 A > "$T/rg/src/a"
+printf '%01000d' 0 | tr 0 B > "$T/rg/src/b"
+printf '%0500d' 0 | tr 0 A > "$T/rg/dst/a"
+keys_run "$T/rg.typescript" "sleep 3; printf '$down'; sleep 0.5; printf '\033[2~'; sleep 0.5; printf '\033[2~'; sleep 0.5;
+        printf '\033[15~'; sleep 1.5; printf '$enter'; sleep 2; printf r; sleep 2; printf '$f10'; sleep 2" \
+    "$mc" -u "$T/rg/src" "$T/rg/dst"
+if cmp -s "$T/rg/src/a" "$T/rg/dst/a" && cmp -s "$T/rg/src/b" "$T/rg/dst/b"; then
+    pass "F5 of a and b, Reget of a (500 of 1000 bytes there): a and b whole"
+else
+    fail "F5 of a and b with Reget of a: exit $keys_exit, sizes a $(wc -c < "$T/rg/dst/a" | tr -d ' '), b $(wc -c < "$T/rg/dst/b" 2>/dev/null | tr -d ' ') (1000 each): $(seen "$T/rg.typescript")"
+fi
+# mouse-sgr-ncurses.patch: TERM=xterm (kmous=\E[< in terminfo since ncurses 6.1) and a
+# click (SGR mode, as mc turns it on) on "10Quit" of the button bar: mc quits at once
+km="$(infocmp -1 xterm 2>/dev/null | sed -n 's/^[[:space:]]*kmous=\(.*\),$/\1/p')"
+keys_run "$T/click.typescript" "sleep 3; printf '\033[<0;95;30M'; sleep 0.3; printf '\033[<0;95;30m'; sleep 6; printf '$f10'; sleep 2" \
+    "$mc" -u
+if [ "$keys_exit" = 0 ] && [ "$keys_secs" -le 6 ]; then
+    pass "TERM=xterm (kmous ${km:-?}): a click on Quit quit mc (${keys_secs}s)"
+else
+    fail "TERM=xterm (kmous ${km:-?}): a click on Quit did not quit mc: exit $keys_exit after ${keys_secs}s (F10 at 9s)"
+fi
+# The subshell of tcsh (/bin/csh, SHELL above): subshell-tcsh-prompt.patch (the prompt
+# of ~/.tcshrc stays), the cd of mc into a directory with a space, quotes, $, ! and
+# Cyrillic (Enter in the panel; pwd in Ctrl-O into a file), subshell-eof.patch (exit
+# in Ctrl-O ends mc with status 0; mc 4.8.33: "read (subshell_pty...)" and status 1)
+d="дир 'q' \$x !b"
+mkdir -p "$T/sh/$d"
+printf 'set prompt="mc-test-prompt> "\n' > "$HOME/.tcshrc"
+rm -f "$T/pwd.txt"
+keys_run "$T/sh.typescript" "sleep 3; printf '$down'; sleep 1; printf '$enter'; sleep 1.5; printf '\017'; sleep 2;
+        printf 'pwd > $T/pwd.txt\r'; sleep 1.5; printf 'exit\r'; sleep 3; printf '$f10'; sleep 2" \
+    sh -c 'cd "$1" && exec "$2"' sh "$T/sh" "$mc"
+pw="$(cat "$T/pwd.txt" 2>/dev/null)"
+if [ "$pw" = "$T/sh/$d" ]; then
+    pass "tcsh subshell: mc's cd into \"$d\" (pwd in Ctrl-O)"
+else
+    fail "tcsh subshell: pwd in Ctrl-O \"$pw\", not \"$T/sh/$d\": $(seen "$T/sh.typescript")"
+fi
+if grep -q 'mc-test-prompt>' "$T/sh.typescript.txt"; then
+    pass "tcsh subshell: the prompt of ~/.tcshrc (mc-test-prompt>) kept"
+else
+    fail "tcsh subshell: no prompt of ~/.tcshrc (mc-test-prompt>): $(grep -m 1 -o '[^ ]*@[^ ]*[#>]' "$T/sh.typescript.txt")"
+fi
+if [ "$keys_exit" = 0 ] && [ "$keys_secs" -le 11 ] && ! grep -q 'read (subshell_pty' "$T/sh.typescript.txt"; then
+    pass "tcsh subshell: exit in Ctrl-O ended mc with status 0 (${keys_secs}s)"
+else
+    fail "tcsh subshell: exit in Ctrl-O: status $keys_exit after ${keys_secs}s (F10 at 12s): $(grep -m 1 'read (subshell' "$T/sh.typescript.txt")"
+fi
+rm -f "$HOME/.tcshrc"
+# prompt-invalid-utf8.patch, with bash when it is installed (tcsh puts such bytes of
+# its prompt into UTF-8 itself): the prompt "<dir>/d\370> " (\370: "ш" in CP1251) is
+# "<dir>/d> " on mc's command line (mc 4.8.33 lost "> " and read past the end)
+bash="${MC_TEST_BASH:-/usr/local/bin/bash}"
+if [ -x "$bash" ]; then
+    cpd="$T/cp/d$(printf '\370')"
+    mkdir -p "$cpd"
+    printf "PS1='\\\\w> '\n" > "$HOME/.bashrc"
+    keys_run "$T/cp.typescript" "sleep 3; printf '$f10'; sleep 2" env SHELL="$bash" sh -c 'cd "$1" && exec "$2"' sh "$cpd" "$mc"
+    rm -f "$HOME/.bashrc"
+    if [ "$keys_exit" = 0 ] && grep -q "$T/cp/d> " "$T/cp.typescript.txt"; then
+        pass "bash subshell in a directory named in CP1251: the prompt on the command line \"$T/cp/d> \""
+    else
+        fail "bash subshell in a directory named in CP1251: exit $keys_exit, no \"$T/cp/d> \": $(grep -m 1 "$T/cp" "$T/cp.typescript.txt" | cut -c1-120)"
+    fi
+else
+    echo "skip  the prompt of bash with a byte that is not UTF-8: no $bash" >> "$out"
 fi
 finish
