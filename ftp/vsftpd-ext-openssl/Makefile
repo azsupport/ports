@@ -21,12 +21,15 @@ CONFLICTS_INSTALL=	vsftpd-ext
 # vsftpd-ext lacks (Debian 0050, 0070 and 0082): a symbolic link to a denied
 # directory or file, made other than by FTP, led past it; and Debian's 0080 (Red
 # Hat): a SIGCHLD of a process a PAM module had started and reaped (pam_exec) hung
-# the privileged process of the login in wait(2)
+# the privileged process of the login in wait(2); and openSUSE's: the client socket
+# was the stderr of a session, so what a library printed there (NSS, PAM, libwrap)
+# went to the FTP client
 EXTRA_PATCHES=	${.CURDIR}/files/patch-CVE-2021-3618 \
 		${.CURDIR}/files/patch-CVE-2026-119567 \
 		${.CURDIR}/files/patch-deny_file \
 		${.CURDIR}/files/patch-CVE-2026-119568 \
 		${.CURDIR}/files/patch-deny_file-realpath \
-		${.CURDIR}/files/patch-pam-exec-hang:-p1
+		${.CURDIR}/files/patch-pam-exec-hang:-p1 \
+		${.CURDIR}/files/patch-no-stderr-on-control-connection
 
 .include "${.CURDIR:H:H}/Mk/az-official.mk"
