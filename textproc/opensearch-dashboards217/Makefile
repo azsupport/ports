@@ -60,6 +60,13 @@
 # the security plugin), and the bumps of their own npm packages (of those the server
 # loads only lodash, 4.17.21 in the yarn.lock of those branches too).
 #
+# A fix of ours, still needed in the main branch of OpenSearch Dashboards: hapi 20
+# exposes the reconfigure() of @elastic/good as server.plugins.good (its expose()
+# takes the scope off the name of a plugin), but src/legacy/server/osd_server.js
+# asks server.plugins['@elastic/good']: at a SIGHUP (reload, newsyslog) it logged
+# "Cannot read properties of undefined (reading 'reconfigure')" and the logging of
+# the legacy server (the responses, the legacy plugins) never opened its file again.
+#
 # Security fixes after 2.17.1 that touch it, the server side (files/patch-*, each
 # with its source): CVE-2026-75897, POST /api/core/capabilities without a bound
 # (cf92fa6d, #12292, 3.8.0); //host/ paths redirected off-site (05be93b, #12193,
@@ -207,6 +214,11 @@ post-patch:
 .endfor
 	@[ "$$(cd ${WRKSRC}/plugins && ${LS} | ${XARGS})" = "${OSD_PLUGINS_IN:ts }" ] || \
 		{ ${ECHO_MSG} "plugins: $$(cd ${WRKSRC}/plugins && ${LS} | ${XARGS}), not ${OSD_PLUGINS_IN}"; ${FALSE}; }
+# reconfigure() of good at a SIGHUP (see the top)
+	${REINPLACE_CMD} -e "s|this\.server\.plugins\[[\"']@elastic/good[\"']]\.reconfigure(|this.server.plugins.good.reconfigure(|" \
+		${WRKSRC}/src/legacy/server/osd_server.js
+	@${GREP} -q 'this\.server\.plugins\.good\.reconfigure(' ${WRKSRC}/src/legacy/server/osd_server.js || \
+		{ ${ECHO_MSG} "src/legacy/server/osd_server.js: the reconfigure() of good not fixed"; ${FALSE}; }
 # 1b89a739: each file with the check of large numerals, its .gz and .br made again
 	@cd ${WRKSRC} && ${GREP} -rl -E 'Number\.MAX_SAFE_INTEGER[[:space:]]*\|\|' \
 		--include='*.js' node_modules/@osd src plugins > ${WRKDIR}/numerals.txt || ${TRUE}
