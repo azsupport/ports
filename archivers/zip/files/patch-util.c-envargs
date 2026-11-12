@@ -1,0 +1,19 @@
+The ZIP and ZIPOPT variables of the environment: each backslash was removed with
+strcpy() of a string onto itself shifted by one (overlapping strings: undefined
+behaviour; the string functions of the libc of FreeBSD 15 copy in blocks and may
+garble the arguments). memmove(), as RHEL 10 carries it (sast.patch of zip 3.0,
+RHEL-44659), with the length corrected: strlen(argstart + 1) + 1, the bytes from
+there to the terminating NUL (that of RHEL, strlen(argstart) + 1, read one byte past
+it). The same fix as unzip-6.0-sast.patch of archivers/unzip for its envargs.c.
+
+--- util.c.orig
++++ util.c
+@@ -862,7 +862,7 @@
+ 
+             /* remove escape characters */
+             while ((argstart = MBSCHR(argstart, '\\')) != NULL) {
+-                strcpy(argstart, argstart + 1);
++                memmove(argstart, argstart + 1, strlen(argstart + 1) + 1);
+                 if (*argstart)
+                     ++argstart;
+             }

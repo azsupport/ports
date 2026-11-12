@@ -1,0 +1,20 @@
+zipinfo and unzip -Z without arguments (or with -h) printed their help with four %c
+of the ICONV patch of the official port (files/extra-iconv-patch-unzip.c,
+ZipInfoUsageLine3 of UNIX) and one argument: printf() read past its arguments (bytes of
+the stack on the screen, or a crash). Ours (azsupport/ports, 12.11.2026), the string as
+Fedora has it in its own ICONV patch (unzip-6.0-alt-iconv-utf8.patch, 6.0-65,
+RHEL-59972). Tested on Linux: the help of unzip -Z as it should be (garbage before).
+
+--- a/unzip.c
++++ b/unzip.c
+@@ -336,8 +336,8 @@
+ #else /* UNIX */
+ static ZCONST char Far ZipInfoUsageLine3[] = "miscellaneous options:\n\
+   -h  print header line       -t  print totals for listed files or for all\n\
+-  -z  print zipfile comment  %c-T%c print file times in sortable decimal format\
+-\n %c-C%c be case-insensitive   %s\
++  -z  print zipfile comment   -T  print file times in sortable decimal format\
++\n  -C  be case-insensitive   %s\
+   -x  exclude filenames that follow from listing\n\
+   -O CHARSET  specify a character encoding for DOS, Windows and OS/2 archives\n\
+   -I CHARSET  specify a character encoding for UNIX and other archives\n";
