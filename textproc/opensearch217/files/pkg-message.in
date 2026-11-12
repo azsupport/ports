@@ -16,11 +16,15 @@ and every other plugins.security.* (and opendistro_security.*) line.
 Without the plugin, everyone who reaches the HTTP and transport ports
 can read and change every index: keep them behind the firewall.
 
-Not in this package (native code of Linux, or a plugin that needs one
-of them): opensearch-knn, opensearch-neural-search,
-opensearch-performance-analyzer, opensearch-ml, opensearch-skills,
-opensearch-flow-framework; and opensearch-security. An index that uses
-one of them (a knn_vector field, index.knn) does not open here.
+Not in this package: opensearch-security, opensearch-knn (its engines are
+native code of Linux), opensearch-neural-search (it needs opensearch-knn)
+and opensearch-performance-analyzer (Linux only); every other plugin of
+the bundle is. An index of opensearch-knn (index.knn, a knn_vector field)
+does not open on this node, an ingest or search pipeline with a processor
+of opensearch-neural-search does not run on it, and a cluster whose state
+holds opensearch-knn-blocked-models (after a model of k-NN was deleted)
+does not take it as a node. opensearch-ml runs its remote models
+(connectors) only: its local models need native code of Linux.
 
 With bootstrap.memory_lock: true in opensearch.yml OpenSearch locks its
 memory (the whole heap, at the start). The rc script runs it in the
