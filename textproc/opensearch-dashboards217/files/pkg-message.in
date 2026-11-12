@@ -7,8 +7,9 @@ this package and kibana6 (on node24) do not go on one server.
 
 There is no security plugin (%%OSD_PLUGINS_OUT%%) in this package: OpenSearch
 Dashboards talks to OpenSearch over plain http without credentials
-(opensearch.hosts, default http://localhost:9200; Node.js 18 takes the ::1 of
-localhost first, so OpenSearch has to listen on it too, as its default network.host
+(opensearch.hosts, default http://localhost:9200; Node.js 18 connects to the
+first address the system gives for localhost and tries no other, ::1 on a host
+with IPv6, so OpenSearch has to listen there too, as its default network.host
 does, or write 127.0.0.1). The rc script refuses to start with a setting of that
 plugin in %%ETCDIR%%/opensearch_dashboards.yml (%%OSD_CONFIG_OUT%%):
 OpenSearch Dashboards would stop at its start on it. Without the security plugin
@@ -18,10 +19,14 @@ proxy with authentication.
 The options of Node.js (--max-old-space-size and the like) go into
 %%ETCDIR%%/node.options, one per line. Its log is rolled at 10 MB without
 archives by newsyslog (%%PREFIX%%/etc/newsyslog.conf.d/opensearch_dashboards.conf);
-service opensearch-dashboards reload opens it again.
+service opensearch-dashboards reload opens it again. Its tools
+(bin/opensearch-dashboards-plugin and -keystore in %%WWWDIR%%) stop as root
+without --allow-root, as upstream.
 
-Stop the service before this package replaces the official one: the rc script
-keeps its pid file in /var/run/opensearch_dashboards/.
+Stop the service before this package replaces the official one: this rc script
+keeps its pid file in /var/run/opensearch_dashboards/, the official one in
+/var/run/opensearch_dashboards.pid (if that one still runs:
+kill `cat /var/run/opensearch_dashboards.pid`).
 EOM
 }
 ]

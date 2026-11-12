@@ -192,14 +192,15 @@ if [ -z "$up" ]; then
     stop_os; finish
 fi
 pass "OpenSearch $(curl -s -m 10 "$os/" | sed -n 's/.*"number" : "\([^"]*\)".*/\1/p') on port 8200 after $((i * 2)) s, plugins: $(curl -s -m 10 "$os/_cat/plugins?h=component" | sort | tr '\n' ' ' | cut -c1-300)"
-# Node.js 18 takes localhost as ::1 first and tries no other address: ko44's
-# http://localhost:8200 works when OpenSearch listens on ::1 too
+# Node.js 18 connects to the first address the system gives for localhost and tries
+# no other (::1 on a host with IPv6): ko44's http://localhost:8200 works when
+# OpenSearch listens on ::1 too
 oshost=localhost
 if curl -s -m 5 'http://[::1]:8200/' | grep -q '"number"'; then
-    note "OpenSearch answers on [::1]:8200 too: opensearch.hosts http://localhost:8200 of ko44 (Node.js 18 takes localhost as ::1 first)"
+    note "OpenSearch answers on [::1]:8200 too: opensearch.hosts http://localhost:8200 of ko44 (Node.js 18 takes the first address of localhost, ::1 on a host with IPv6)"
 else
     oshost=127.0.0.1
-    note "OpenSearch does not answer on [::1]:8200 here: opensearch.hosts http://127.0.0.1:8200 in the place of ko44's http://localhost:8200 (Node.js 18 tries ::1 alone for localhost)"
+    note "OpenSearch does not answer on [::1]:8200 here: opensearch.hosts http://127.0.0.1:8200 in the place of ko44's http://localhost:8200 (Node.js 18 takes the first address of localhost and tries no other)"
 fi
 curl -s -m 60 -o /dev/null "$os/_cluster/health?wait_for_status=yellow&timeout=60s"
 curl -s -m 30 -o /dev/null -H 'Content-Type: application/json' -X PUT "$os/az-test" -d '{"settings":{"number_of_shards":1,"number_of_replicas":0}}'
