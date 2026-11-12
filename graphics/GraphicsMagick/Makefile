@@ -32,6 +32,12 @@ LICENSE=	MIT
 BUILD_DEPENDS=	${AZ_STATIC}/lib/libheif.a:az/az \
 		${AZ_PREFIX}/lib/libheif.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az
+# the libraries of az in its hash (tools/build.sh) besides libheif: those its shared
+# libraries and gm link (their NEEDED), and their headers in the static tree
+AZ_HASH_LIBS=	freetype2 lcms2 libzip mozjpeg png webp
+# its static libraries are its own objects (PHP built on a server links them with the
+# archives of az): no code of az in its package
+AZ_STATIC_LIBS=	none
 
 USES=		gmake pkgconfig
 

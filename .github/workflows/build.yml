@@ -58,6 +58,12 @@ on:
         description: 'The configure check: each PHP port built configured once more, permissive, and compared (results/configure-check.txt); with force: every PHP port'
         type: boolean
         default: false
+      # AZ_PLAN of tools/build.sh: what the run would build, cheaply (az/az first, when it
+      # is to be built: the ports that need az are decided by the interfaces of the new az)
+      plan:
+        description: 'The plan only: az/az and the ports it needs built when they are to be, every other port decided (kept or to be built, and why: results/plan.txt), not built; no checks, never published'
+        type: boolean
+        default: false
       # off by default: the repository the servers read is published on aZ's word
       publish:
         description: 'Publish the repository (the release the servers read) when everything built and every check passed'
@@ -244,13 +250,14 @@ jobs:
           AZ_FORCE: ${{ inputs.force && '1' || '' }}
           AZ_JOBS: ${{ inputs.jobs || '4' }}
           AZ_CONFIGURE_CHECK: ${{ inputs.configure_check && '1' || '' }}
+          AZ_PLAN: ${{ inputs.plan && '1' || '' }}
           AZ_PKG_KEY: ${{ steps.key.outputs.b64 }}
         with:
           release: ${{ inputs.release }}
           # the runner has 16 GB: 12 GB for the VM (up to 4 builds at once, each with
           # make -j of the 4 vCPUs), about 4 GB left to the host
           mem: 12288
-          envs: 'AZ_CPUTYPE AZ_PORTS AZ_FORCE AZ_JOBS AZ_CONFIGURE_CHECK AZ_PKG_KEY'
+          envs: 'AZ_CPUTYPE AZ_PORTS AZ_FORCE AZ_JOBS AZ_CONFIGURE_CHECK AZ_PLAN AZ_PKG_KEY'
           prepare: |
             if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
             env ASSUME_ALWAYS_YES=yes pkg install -y git-lite
@@ -267,8 +274,11 @@ jobs:
             echo "$rc" > results/rc
             # the PHP of each version a package of which was built: installed from the
             # repository as a server installs it, and checked, when the repository has its
-            # catalog and the core of the version is there
+            # catalog and the core of the version is there (not in a plan: AZ_PLAN)
             : > results/checks.txt
+            if [ -n "${AZ_PLAN:-}" ]; then
+              echo "plan (AZ_PLAN): no checks and no tests (results/plan.txt)" >> results/checks.txt
+            else
             # the catalog the checks read: the signed one of repo/, else the unsigned one
             # of this run (work/repo-unsigned of build.sh: checks only, never published)
             crepo=repo
@@ -345,6 +355,7 @@ jobs:
             r=0
             sh tools/test-programs.sh --repo "$crepo" || r=$?
             if [ "$r" = 1 ]; then rc=1; fi
+            fi
             cat results/checks.txt
             echo "$rc" > results/rc
             echo "results/rc: $rc"
@@ -432,8 +443,8 @@ jobs:
 
       - name: Publish
         id: publish
-        # the servers read what main builds: a run of another branch never publishes
-        if: ${{ success() && inputs.publish && github.ref == 'refs/heads/main' }}
+        # the servers read what main builds: a run of another branch never publishes, nor a plan
+        if: ${{ success() && inputs.publish && !inputs.plan && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE: ${{ inputs.release }}
@@ -492,7 +503,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} configure_check=${{ inputs.configure_check }} publish=${{ inputs.publish }}
+          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} configure_check=${{ inputs.configure_check }} plan=${{ inputs.plan }} publish=${{ inputs.publish }}
           RUNS_STEPS: build=${{ steps.build.outcome }} outcome=${{ steps.outcome.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
           PART: ${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"

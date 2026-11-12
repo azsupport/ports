@@ -35,6 +35,9 @@ LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az
+# the libraries of az in its hash (tools/build.sh) besides libheif: those its shared
+# libraries and its programs link (their NEEDED)
+AZ_HASH_LIBS=	fontconfig freetype2 lcms2 mozjpeg png webp
 
 USES=		gmake perl5 pkgconfig
 USE_PERL5=	build

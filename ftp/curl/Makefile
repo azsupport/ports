@@ -26,10 +26,10 @@ WWW=		https://curl.se/ \
 LICENSE=	MIT
 LICENSE_FILE=	${WRKSRC}/COPYING
 
-# the libraries of az in its hash (tools/build.sh): those up to curl in deps.conf,
-# all it links (the bundled ones, curl and its patch), more than the file of its
-# dependency names; az at run time too (the libraries libcurl.so.4 links)
-AZ_HASH_LIBS=	curl
+# the libraries of az in its hash (tools/build.sh) besides nghttp2: those libcurl.so.4
+# links (their interfaces); the patch of curl of az/az is in its hash as its
+# EXTRA_PATCHES; az at run time too
+AZ_HASH_LIBS=	brotli libidn2 libpsl libssh2 zstd
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libnghttp2.so:az/az \
 		python3:lang/python3
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libnghttp2.so:az/az

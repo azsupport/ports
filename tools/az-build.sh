@@ -843,6 +843,7 @@ build_one() {
             fi
         ) >> "$log" 2>&1; then st_d=OK; fi
     fi
+    owned "$n" "${take_ver:-$(pmake "$port" -V PORTVERSION 2>/dev/null)}"
     rc=0
     [ "$prc" = 0 ] && [ "$st_s" != FAIL ] && [ "$st_d" != FAIL ] || rc=1
     ver="$(pmake "$port" -V PKGVERSION 2>/dev/null)"
@@ -925,6 +926,7 @@ build_bundle() {
             fi
         ) >> "$log" 2>&1; then st_d=OK; fi
     fi
+    owned "$n" "$(bundle_ver "$n")"
     rc=0
     [ "$prc" = 0 ] && [ "$st_s" != FAIL ] && [ "$st_d" != FAIL ] || rc=1
     ver="$(bundle_ver "$n")"
@@ -1114,6 +1116,182 @@ finish_so() {
     done
 }
 
+# The interface of each library (aZ, 12.11.2026), for the builder: a port that needs
+# az takes into its az_hash the interfaces of the libraries of az it uses and of those
+# these need (az-interface.sh of the builder), not the hash of all of az, so that a fix
+# inside a library (the same headers, .pc files and SONAMEs) builds again only az, as
+# FreeBSD and Debian do not build again the dependents of a shared library for such a
+# fix. Made from what the build installed, nothing guessed: the files of a library are
+# those whose status changed after the stamp of its build, in both trees (find -cnewer:
+# the time of the change of an inode, which no install keeps from the source, as CMake
+# and meson keep the time of the modification); a file a later library writes again is
+# that one's; the .pc files finish and finish_so move from libdata/pkgconfig and
+# curl-config.orig of finish with their files. AZ_PREFIX/share/az/interface/<name>.txt:
+#   library <name>
+#   version <version>       the release built (of the take line, the port or the bundle)
+#   options <SHA-256>       its build functions, b_ and s_ here and lib_ (curl: build_curl,
+#                           curl_features) of files/curl/build-libcurl.sh, without comments
+#   requires <name>         a library of az it needs: the NEEDED of its shared libraries,
+#                           the Requires and -l of its .pc files, the headers of another
+#                           that its headers include
+#   file <path> <SHA-256>   its headers, .pc files, *-config scripts, cmake and other files
+#   link <path> <target>    its symbolic links
+#   soname <path> <SONAME>  its shared libraries (their SONAME, not their code)
+#   archive <path> <SHA-256>  its static archives (their code counts only for a port that
+#                           links them into its package, AZ_STATIC_LIBS)
+# (paths relative to AZ_PREFIX), and common.txt: the files of no library (bin/pkg-config
+# of both trees). az-results/interface.txt: what each library has.
+ifd="$A/share/az/interface"
+# owned <name> <version>: the files the static and the shared build of a library
+# installed, "<name> <path>" into $work/owners.txt, and its version into
+# $work/ifver.txt (after its builds; prc, st_s and st_d are those of build_one or
+# build_bundle)
+owned() {
+    if [ "$prc" = 0 ] && [ "$st_s" != - ] && [ -f "$work/stamp-$1" ]; then
+        find "$P" -cnewer "$work/stamp-$1" ! -type d | sed -e "s#^$A/##" -e "s#^#$1 #" >> "$work/owners.txt"
+    fi
+    if [ "$prc" = 0 ] && [ "$st_d" != - ] && [ -f "$work/stamp-so-$1" ]; then
+        find "$A" \( -path "$P" -o -path "$A/LICENSES" -o -path "$A/share/doc" -o -path "$ifd" -o -path "$A/.az-build" \) \
+            -prune -o -cnewer "$work/stamp-so-$1" ! -type d -print | sed -e "s#^$A/##" -e "s#^#$1 #" >> "$work/owners.txt"
+    fi
+    echo "$1 ${2:-?}" >> "$work/ifver.txt"
+}
+# fn_text <file> <function>...: the lines of those shell functions of a file, without
+# their comment lines
+fn_text() {
+    _ff="$1"; shift
+    [ -f "$_ff" ] || return 0
+    awk -v names=" $* " '
+        !inf && /^[A-Za-z_][A-Za-z0-9_]*\(\) *\{/ {
+            fn = substr($0, 1, index($0, "(") - 1)
+            if (index(names, " " fn " ") == 0) next
+            print
+            t = $0; sub(/\{[ \t]+#.*$/, "{", t)
+            if (t !~ /\}[ \t]*$/) inf = 1
+            next
+        }
+        inf { if ($0 !~ /^[ \t]*#/) print; if ($0 ~ /^\}/) inf = 0 }' "$_ff"
+}
+# if_entry <owner> <path>: the manifest line of a file of AZ_PREFIX (a shared library
+# with its NEEDED into $il/needs)
+if_entry() {
+    _f="$A/$2"
+    if [ -L "$_f" ]; then
+        echo "$1 link $2 $(readlink "$_f")"
+        return 0
+    fi
+    case "$2" in
+        lib/*.so | lib/*.so.*)
+            if readelf -d "$_f" > "$il/dyn" 2> /dev/null; then
+                _sn="$(sed -n 's/.*[Ll]ibrary soname: \[\(.*\)\].*/\1/p' "$il/dyn")"
+                echo "$1 soname $2 ${_sn:--}"
+                echo "$1 ${_sn:--} $(sed -n 's/.*[Ss]hared library: \[\(.*\)\].*/\1/p' "$il/dyn" | tr '\n' ' ')" >> "$il/needs"
+                return 0
+            fi ;;
+        *.a) echo "$1 archive $2 $(sha256 -q "$_f")"; return 0 ;;
+    esac
+    echo "$1 file $2 $(sha256 -q "$_f")"
+}
+interfaces() {
+    il="$work/if"
+    rm -rf "$il" "$ifd" && mkdir -p "$il" "$ifd" || { echo "az-build: cannot make $ifd" >&2; return 1; }
+    : > "$il/needs"
+    # the owner of each path now (the last library that wrote it)
+    awk '{ p = $2
+           if (p ~ /^libdata\/pkgconfig\//) sub(/^libdata/, "lib", p)
+           else if (p ~ /^static\/libdata\/pkgconfig\//) sub(/^static\/libdata/, "static/lib", p)
+           o[p] = $1 }
+         END { for (p in o) { print p, o[p]; if (!((p ".orig") in o)) print p ".orig", o[p] } }' "$work/owners.txt" |
+        while read -r p o; do
+            if [ -e "$A/$p" ] || [ -L "$A/$p" ]; then echo "$p $o"; fi
+        done | LC_ALL=C sort -u > "$il/own"
+    while read -r p o; do if_entry "$o" "$p"; done < "$il/own" > "$il/entries"
+    # what each library needs: by the NEEDED of its shared libraries, its .pc files
+    # (Requires, Requires.private, -l of Libs and Libs.private: a .pc or a library of
+    # the same tree) and the #include lines of its headers (<x>: include/x of its tree,
+    # "x" also next to the header; a/b.h else a file .../a/b.h of the include/ of its
+    # tree, as libxml/tree.h of include/libxml2)
+    awk 'NR == FNR { if ($2 != "-") son[$2] = $1; next }
+         { for (i = 3; i <= NF; i++) if (($i in son) && son[$i] != $1) print $1, son[$i] }' "$il/needs" "$il/needs" > "$il/req"
+    awk '$1 ~ /\.pc$/ || $1 ~ /^(static\/)?include\// { print }' "$il/own" |
+        awk -v A="$A" 'NR == FNR { own[$1] = $2
+                if ($1 ~ /^(static\/)?include\/.*\/.*\//) { n = split($1, w, "/"); k = (w[1] == "static" ? "s" : "i") "|" w[n - 1] "/" w[n]; if (!(k in own2)) own2[k] = $1 }
+                next }
+            {
+                p = $1; o = $2; f = A "/" p; d = p; sub(/\/[^\/]*$/, "", d)
+                if (p ~ /\.pc$/) {
+                    ld = d; sub(/\/pkgconfig$/, "", ld)
+                    while ((getline l < f) > 0) {
+                        if (l ~ /^Requires(\.private)?:/) {
+                            sub(/^[^:]*:/, "", l); n = split(l, t, /[ ,\t]+/)
+                            for (i = 1; i <= n; i++) {
+                                if (t[i] == "" || t[i] ~ /^[<>=!]/ || t[i] ~ /^[0-9]/) continue
+                                q = d "/" t[i] ".pc"; if ((q in own) && own[q] != o) print o, own[q]
+                            }
+                        } else if (l ~ /^Libs(\.private)?:/) {
+                            n = split(l, t, /[ \t]+/)
+                            for (i = 1; i <= n; i++) if (t[i] ~ /^-l./) {
+                                q = ld "/lib" substr(t[i], 3) ".so"; r = ld "/lib" substr(t[i], 3) ".a"
+                                if ((q in own) && own[q] != o) print o, own[q]
+                                else if ((r in own) && own[r] != o) print o, own[r]
+                            }
+                        }
+                    }
+                    close(f); next
+                }
+                root = (p ~ /^static\//) ? "static/include" : "include"
+                while ((getline l < f) > 0) {
+                    if (l !~ /^[ \t]*#[ \t]*include[ \t]*[<"]/) continue
+                    sub(/^[ \t]*#[ \t]*include[ \t]*/, "", l)
+                    e = (substr(l, 1, 1) == "<") ? ">" : "\""; q = substr(l, 1, 1); l = substr(l, 2)
+                    k = index(l, e); if (k < 2) continue
+                    x = substr(l, 1, k - 1); c = ""
+                    if (q == "\"" && ((d "/" x) in own)) c = d "/" x
+                    else if ((root "/" x) in own) c = root "/" x
+                    else if (index(x, "/")) { n = split(x, w, "/"); kk = (root == "include" ? "i" : "s") "|" w[n - 1] "/" w[n]; if (kk in own2) c = own2[kk] }
+                    if (c != "" && own[c] != o) print o, own[c]
+                }
+                close(f)
+            }' "$il/own" - >> "$il/req"
+    # a manifest a library, in the order of deps.conf (the version: its last build)
+    for n in $libs_all; do
+        awk -v n="$n" '$2 == n' "$il/own" | grep -q . || continue
+        id="$(printf '%s' "$n" | tr - _)"
+        {
+            echo "library $n"
+            echo "version $(awk -v n="$n" '$1 == n { v = $2 } END { print (v == "" ? "?" : v) }' "$work/ifver.txt")"
+            if [ "$(port_of "$n")" = bundle ]; then
+                # shellcheck disable=SC2046
+                { fn_text "$tools/az-build.sh" "b_$id" "s_$id"
+                    fn_text "$files/curl/build-libcurl.sh" "lib_$id" $( [ "$n" = curl ] && echo build_curl curl_features ); } | sha256
+            else
+                fn_text "$tools/az-build.sh" "b_$id" "s_$id" | sha256
+            fi | sed 's/^/options /'
+            awk -v n="$n" '$1 == n { print "requires", $2 }' "$il/req" | LC_ALL=C sort -u
+            awk -v n="$n" '$1 == n { $1 = ""; sub(/^ /, ""); print }' "$il/entries" | LC_ALL=C sort -k 2,2
+        } > "$ifd/$n.txt"
+    done
+    # the files of no library
+    find "$A" \( -path "$A/LICENSES" -o -path "$A/share/doc" -o -path "$ifd" -o -path "$A/.az-build" \) -prune -o \
+        ! -type d -print | sed "s#^$A/##" | LC_ALL=C sort > "$il/all"
+    {
+        echo "library common"
+        awk 'NR == FNR { own[$1] = 1; next } !($1 in own)' "$il/own" "$il/all" |
+            while read -r p; do if_entry - "$p"; done | sed 's/^- //' | LC_ALL=C sort -k 2,2
+    } > "$ifd/common.txt"
+    {
+        echo "The interfaces of the libraries ($ifd): files, links, shared"
+        echo "libraries, archives, what each needs; the files of no library in common.txt"
+        for m in "$ifd"/*.txt; do
+            awk -v b="${m##*/}" '$1 == "library" { n = $2 } $1 == "version" { v = $2 } $1 == "requires" { r = r " " $2 }
+                $1 == "file" { f++ } $1 == "link" { l++ } $1 == "soname" { s = s " " $3 } $1 == "archive" { a++ }
+                END { printf "%-14s %-10s %4d files, %3d links, %2d archives; SONAME%s; requires%s\n", n, v, f, l, a,
+                      (s == "" ? " none" : s), (r == "" ? " none" : r) }' "$m"
+        done
+        echo "common: $(grep -c -v '^library ' "$ifd/common.txt") files: $(grep -v '^library ' "$ifd/common.txt" | awk '{ print $2 }' | tr '\n' ' ')"
+    } > "$res/interface.txt"
+}
+
 manifest() {
     {
         echo "az libraries for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
@@ -1226,6 +1404,15 @@ if [ $# -eq 0 ]; then
     rm -f "$res"/*.tail "$res/bins-bad.txt"
     : > "$res/summary.txt"; : > "$res/built.txt"
     printf 'flags:    %s\ncpu:      %s\n' "$CFLAGS" "${cpu_model:-?}" >> "$res/summary.txt"
+    : > "$work/owners.txt"; : > "$work/ifver.txt"
+else
+    # some libraries again: the files and versions of the others from their manifests
+    : > "$work/owners.txt"; : > "$work/ifver.txt"
+    for m in "$ifd"/*.txt; do
+        [ -f "$m" ] || continue
+        awk -v v="$work/ifver.txt" '$1 == "library" { n = $2 } $1 == "version" { print n, $2 >> v }
+            n != "common" && ($1 == "file" || $1 == "link" || $1 == "soname" || $1 == "archive") { print n, $2 }' "$m" >> "$work/owners.txt"
+    done
 fi
 # This CPU has to run code of the level (configure tests, the data tools of ICU):
 # where it cannot, configure decides wrong without a word and ICU stops.
@@ -1263,6 +1450,18 @@ if [ -n "$failed" ]; then
 fi
 finish
 finish_so
+# the interface of each library (see interfaces)
+if ! interfaces; then
+    printf '%-14s FAIL  %s\n' interfaces "no manifests of the libraries in $ifd" >> "$res/summary.txt"
+    rc=1
+else
+    nif=0
+    for n in $(awk '{ print $1 }' "$res/built.txt"); do
+        [ -s "$ifd/$n.txt" ] && grep -q -E '^(soname|archive) ' "$ifd/$n.txt" && continue
+        nif=$((nif + 1)); echo "$n: no shared library or archive in its manifest ($ifd/$n.txt)" >> "$res/shared-bad.txt"
+    done
+    [ "$nif" = 0 ] || printf '%-14s FAIL  %s\n' interfaces "$nif libraries without their files in $ifd (shared-bad.txt)" >> "$res/summary.txt"
+fi
 if [ -s "$res/shared-bad.txt" ]; then
     printf '%-14s FAIL  %s\n' "shared tree" "$(wc -l < "$res/shared-bad.txt" | tr -d ' ') findings (shared-bad.txt): $(head -n 3 "$res/shared-bad.txt" | tr '\n' ' ')" >> "$res/summary.txt"
     rc=1

@@ -85,11 +85,24 @@ trap 'rm -rf "$tmp"' EXIT
         echo "..."
         tail -n 15 "$l" | cut -c1-240
     done
-    # the libraries of az/az, a line each (tools/az-build.sh), when it was built
+    # the libraries of az/az, a line each (tools/az-build.sh), when it was built, with
+    # their interfaces (az-results/az_az/interface.txt)
     if [ -s "$res/az-results/az_az/summary.txt" ]; then
         echo
         echo "== az/az: the libraries (az-results/az_az/summary.txt)"
         cut -c1-200 "$res/az-results/az_az/summary.txt"
+    fi
+    if [ -s "$res/az-results/az_az/interface.txt" ]; then
+        echo
+        echo "== az/az: the interfaces of its libraries (az-results/az_az/interface.txt)"
+        cut -c1-240 "$res/az-results/az_az/interface.txt"
+    fi
+    # the interfaces of az in this run: what changed, the ABI check, the ports kept by
+    # interface (tools/build.sh, results/az-interface.txt)
+    if [ -s "$res/az-interface.txt" ]; then
+        echo
+        echo "== az: the interfaces of its libraries in the hashes of the ports (results/az-interface.txt)"
+        cut -c1-400 "$res/az-interface.txt"
     fi
 } > "$tmp/build.txt"
 echo "==================== build"
@@ -98,6 +111,22 @@ cat "$tmp/build.txt"
 result() { grep '^result:' "$1" 2>/dev/null | tail -n 1 | sed 's/^result: *//'; }
 r="$(result "$res/summary.txt")"
 case "$r" in OK) level=notice ;; *) level=error; rc=1 ;; esac
+# the plan of the run (AZ_PLAN of tools/build.sh, results/plan.txt): first, a section
+# and an annotation of its own
+if [ -s "$res/plan.txt" ]; then
+    echo "==================== the plan"
+    cat "$res/plan.txt"
+    head -n 60 "$res/plan.txt" | cut -c1-300 > "$tmp/plan.txt"
+    annot notice "$title: the plan ($(head -n 1 "$res/plan.txt" | sed 's/^The plan of the run (AZ_PLAN): //' | cut -c1-120))" "$tmp/plan.txt"
+    {
+        echo "### $title: the plan (AZ_PLAN: what the run would build)"
+        echo
+        echo '```'
+        cat "$res/plan.txt"
+        echo '```'
+        echo
+    } >> "$summary"
+fi
 annot "$level" "$title: build ($(printf '%s' "${r:-no result line}" | cut -c1-120))" "$tmp/build.txt"
 # each port that failed or was not built: an annotation of its own
 awk '$1 ~ /\// && ($2 == "FAIL" || ($2 == "SKIP" && / needs /)) { print }' "$res/summary.txt" | while read -r o w rest; do

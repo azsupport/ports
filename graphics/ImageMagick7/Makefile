@@ -40,6 +40,12 @@ LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 BUILD_DEPENDS=	${AZ_STATIC}/lib/libheif.a:az/az \
 		${AZ_PREFIX}/lib/libheif.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az
+# the libraries of az in its hash (tools/build.sh) besides libheif: those its shared
+# libraries and magick link (their NEEDED), and their headers in the static tree
+AZ_HASH_LIBS=	fontconfig freetype2 lcms2 mozjpeg png webp
+# its static libraries are its own objects (PHP built on a server links them with the
+# archives of az): no code of az in its package
+AZ_STATIC_LIBS=	none
 
 USES=		gmake perl5 pkgconfig
 USE_PERL5=	build
