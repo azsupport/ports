@@ -255,9 +255,9 @@ procstat -v "${pid:-0}" 2>/dev/null | awk '$NF ~ /^\// { print $NF }' | sort -u 
 x="$(grep -v -E "^($node|/lib/|/usr/lib/|/libexec/|$P/lib/|$P/az/lib/)" "$T/maps.txt" | head -n 5 | tr '\n' ' ')"
 if [ -z "$x" ] && [ -s "$T/maps.txt" ]; then pass "mapped: node and the libraries of the base system, of the ports and of az, nothing of the package ($(wc -l < "$T/maps.txt" | tr -d ' ') files)"; else fail "mapped files: ${x:-none}"; fi
 cp "$T/maps.txt" "$res/osd-maps.txt"
-x="$(sockstat -4 -6 -l -p "${pid:-0}" 2>/dev/null | awk 'NR > 1 { print $6 }' | sort -u | tr '\n' ' ')"
+x="$(sockstat -4 -6 -l 2>/dev/null | awk -v p="${pid:-0}" '$3 == p { print $6 }' | sort -u | tr '\n' ' ')"
 if [ "$x" = "127.0.0.1:5601 " ]; then pass "listens on 127.0.0.1:5601 only (server.host)"; else fail "listens on: $x"; fi
-note "its connections to OpenSearch: $(sockstat -4 -6 -c -p "${pid:-0}" 2>/dev/null | awk 'NR > 1 && $7 ~ /:8200$/ { print $7 }' | sort | uniq -c | tr '\n' ' ')"
+note "its connections to OpenSearch: $(sockstat -4 -6 -c 2>/dev/null | awk -v p="${pid:-0}" '$3 == p && $7 ~ /:8200$/ { print $7 }' | sort | uniq -c | tr '\n' ' ')"
 
 # --- the pages, the bundles -----------------------------------------------------------------
 pg=""
@@ -269,7 +269,7 @@ for a in home dashboards data-explorer/discover visualize dev_tools management a
 done
 if [ -z "$pg" ]; then pass "the pages of the core and of the plugins in: 200 with the page of OpenSearch Dashboards"; else fail "pages:$pg"; fi
 rq bootstrap GET /bootstrap.js > /dev/null
-grep -o '/[0-9]*/bundles/[^"]*\.js' "$T/a/bootstrap" | sort -u > "$T/bundles.txt"
+grep -o "/[0-9]*/bundles/[^\"' ]*\\.js" "$T/a/bootstrap" | sort -u > "$T/bundles.txt"
 n=0; d=0
 while read -r u; do
     f="$(find "$D/src" "$D/plugins" "$D/node_modules/@osd/ui-shared-deps" -path "*/target*/${u##*/}" -type f 2>/dev/null | head -n 1)"
