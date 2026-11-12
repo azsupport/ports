@@ -9,7 +9,8 @@
 # vips, qt-faststart) by servers-test.sh, Node.js (node24, npm-node24,
 # yarn-node24, corepack-node24) by node-test.sh, Python (python312, py312-sqlite3,
 # mpdecimal, python3; the official py312-* packages over it) by python-test.sh,
-# Elasticsearch 6 by elastic-test.sh, and Perl (perl5, under the name of FreeBSD's)
+# Elasticsearch 6 by elastic-test.sh, Kibana 6 (on our node24, with elasticsearch6)
+# by kibana-test.sh, and Perl (perl5, under the name of FreeBSD's)
 # by perl-test.sh, with the XS modules of FreeBSD's p5-* packages, which it installs
 # from the FreeBSD repository itself.
 #
@@ -221,6 +222,21 @@ if [ -n "$e_" ]; then
     cat "$res/test-programs-install-elastic.log" >> "$log"
     want="$want$e_"
 fi
+# Kibana 6 (aZ, 11.11.2026: the legacy sites, with Elasticsearch 6) as the server
+# packages: kibana6 with our node24 and elasticsearch6, which its test starts
+kibanas="kibana6"
+k_=""
+for p in $kibanas; do in_repo "$p" && k_="$k_ $p"; done
+if [ -n "$k_" ]; then
+    say "pkg install -f$k_"
+    # shellcheck disable=SC2086
+    CONSERVATIVE_UPGRADE=no pkg install -y -f $k_ > "$res/test-programs-install-kibana.log" 2>&1 || say "pkg install of Kibana says it failed (test-programs-install-kibana.log)"
+    # shellcheck disable=SC2086
+    again "$res/test-programs-install-kibana.log" $k_
+    cat "$res/test-programs-install-kibana.log" >> "$res/test-programs-install.log"
+    cat "$res/test-programs-install-kibana.log" >> "$log"
+    want="$want$k_"
+fi
 # Perl (aZ, 11.11.2026: under the name of FreeBSD's, so that its p5-* packages work
 # with it) as the server packages: perl5; perl-test.sh installs the official p5-*
 # packages with XS over it (as a server does) and takes them away again
@@ -260,7 +276,8 @@ done
 # 3. the tests: name, the packages it needs
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
         "graphicsmagick GraphicsMagick" "mc mc" ${p_:+"python$p_"} "ytdlp yt-dlp ffmpeg" "utils $utils" \
-        ${s_:+"servers$s_"} ${n_:+"node$n_"} ${e_:+"elastic$e_"} ${l_:+"perl$l_"}; do
+        ${s_:+"servers$s_"} ${n_:+"node$n_"} ${e_:+"elastic$e_"} \
+        ${k_:+"kibana$k_ elasticsearch6 node24"} ${l_:+"perl$l_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
