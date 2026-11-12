@@ -44,8 +44,11 @@ PATCHFILES=	7f936694dbc0dc0dbb07d98fa668776c4e4ca595.patch:-p1 \
 # only, 12.11.2026): SSL_ERROR_SYSCALL after SSL_read_ex() and SSL_write_ex() was
 # taken by their return value, so with OpenSSL 3.5 (that of the base system) a
 # connection reset under load came as an EOF of the protocol, not as OSError (the
-# HTTPS of yt-dlp goes through it); see the file
-EXTRA_PATCHES=	${.CURDIR}/files/00462-fix-pyssl_seterror-handling-ssl_error_syscall.patch:-p1
+# HTTPS of yt-dlp goes through it); and gh-134100 as Gentoo carries it (the
+# cherry-pick to 3.13 of 4e9005d): a use-after-free on an error path of a relative
+# import; see the files
+EXTRA_PATCHES=	${.CURDIR}/files/00462-fix-pyssl_seterror-handling-ssl_error_syscall.patch:-p1 \
+		${.CURDIR}/files/gh-134100.patch:-p1
 
 MAINTAINER=	github@azsupport.com
 COMMENT=	Interpreted object-oriented programming language (of azsupport/ports)
