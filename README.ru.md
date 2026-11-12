@@ -17,8 +17,8 @@
 
 - **Оверлей**: только наши порты, поверх официального дерева
   [freebsd-ports](https://github.com/freebsd/freebsd-ports) на закреплённом коммите
-  [`6e4a386577aa`](https://github.com/freebsd/freebsd-ports/tree/6e4a386577aaa191a68b11865fcb18e02f98e525)
-  (main от 10.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh), перед сборкой
+  [`9a69436ea72f`](https://github.com/freebsd/freebsd-ports/tree/9a69436ea72fbfab0e73e3f14d81ed3ef6322251)
+  (main от 12.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh), перед сборкой
   переводится на последний main: последние версии портов, aZ). Фреймворк
   портов берёт его как `OVERLAYS`: `bsd.port.mk` включает
   [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk), берёт `Mk/Uses/<имя>.mk` оверлея раньше
@@ -223,7 +223,7 @@
 - **`devel/git`**: git без Perl (send-email, svn, скрипты cvs), Python, Tcl/Tk, gettext,
   expat (`git http-push`), man-страниц, пользователя и скрипта rc.d git daemon; HTTPS через
   наш `curl`, PCRE2 (`git grep -P`) из `pcre2`, iconv из libc.
-- **`www/apache24`** и **`www/mod_maxminddb`**: Apache 2.4.70 только с prefork (модулем)
+- **`www/apache24`** и **`www/mod_maxminddb`**: Apache 2.4.71 только с prefork (модулем)
   и модулями серверов (и cgi, env; всё остальное выключено), без SSL, APR и APR-util из az
   (разделяемые: те же, что у mod_php), PCRE2 из `pcre2`; mod_maxminddb с libmaxminddb из az.
 - **`databases/memcached`** и **`databases/memcached-openssl`**: memcached без TLS, SASL,

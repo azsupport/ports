@@ -17,8 +17,8 @@ servers (amd64), so that nothing is built on the servers.
 
 - **An overlay**: only our ports, on top of the official tree
   [freebsd-ports](https://github.com/freebsd/freebsd-ports) at a pinned commit,
-  [`6e4a386577aa`](https://github.com/freebsd/freebsd-ports/tree/6e4a386577aaa191a68b11865fcb18e02f98e525)
-  (main of 10.11.2026; `ports_commit` in [`tools/build.sh`](tools/build.sh), moved to the
+  [`9a69436ea72f`](https://github.com/freebsd/freebsd-ports/tree/9a69436ea72fbfab0e73e3f14d81ed3ef6322251)
+  (main of 12.11.2026; `ports_commit` in [`tools/build.sh`](tools/build.sh), moved to the
   latest main before a build: the latest versions of the ports, aZ). The ports
   framework takes it as `OVERLAYS`: `bsd.port.mk` includes
   [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk), takes `Mk/Uses/<name>.mk` of the overlay
@@ -226,7 +226,7 @@ Names and origins as the ports, files at the paths of the ports:
 - **`devel/git`**: git without Perl (send-email, svn, the cvs scripts), Python, Tcl/Tk,
   gettext, expat (`git http-push`), the manual pages and the user and rc.d script of git
   daemon; HTTPS through our `curl`, PCRE2 (`git grep -P`) of `pcre2`, iconv of libc.
-- **`www/apache24`** and **`www/mod_maxminddb`**: Apache 2.4.70 with prefork only (a
+- **`www/apache24`** and **`www/mod_maxminddb`**: Apache 2.4.71 with prefork only (a
   module) and the modules of the servers (cgi and env too; everything else off), no SSL,
   APR and APR-util of az (shared: those of mod_php too), PCRE2 of `pcre2`;
   mod_maxminddb with libmaxminddb of az.
