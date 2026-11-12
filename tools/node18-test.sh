@@ -21,6 +21,19 @@
 #             reaches the server (CVE-2025-23167: llhttp 9), a header __proto__ and
 #             req.headersDistinct (CVE-2026-21710), dns.lookup() of a name with a
 #             NUL byte refused (CVE-2026-48930)
+#   upstream  fixes of the backports of Node.js 22 (www/node18/files/upstream) in
+#             work, each failing on 18.20.8 without them: dns.resolve*() and
+#             dns.reverse() refuse a name with a NUL byte (CVE-2026-105482); a free
+#             kept-alive socket of http.Agent with data that came before its
+#             request is destroyed, not reused (CVE-2026-105481);
+#             tls.checkServerIdentity() matches an IPv6 host against its IP-Address
+#             SAN and refuses hosts that are IPv4 addresses only in a non-canonical
+#             form (CVE-2026-106069, CVE-2026-106072); randomUUID() and randomInt()
+#             differ between two processes of one startup snapshot (CVE-2026-106074);
+#             https.Agent keys of different TLS policies differ (CVE-2026-123877);
+#             zlib params() then destroy() gives its callback the error
+#             (CVE-2026-123862); undici 6.29.1: fetch() of a gzip body, more than 5
+#             content-encodings refused
 #   wasi      node:wasi: a WebAssembly module made here writes to stdout (the uvwasi
 #             Node 18 bundles, on the libuv of az)
 #   url       an IDN host in Punycode (the ada Node 18 bundles)
@@ -255,6 +268,206 @@ srv.listen(0, '127.0.0.1', async () => {
 });
 EOF
 js fixes "$T/fixes.js"
+
+# the fixes of www/node18/files/upstream (Node.js 22.23.4 and 22.23.5), each against
+# what the vulnerable node does (these checks fail on 18.20.8 without them)
+cat > "$T/dns-nul.js" <<'EOF'
+'use strict';
+// CVE-2026-105482: the resolver methods refuse a name with a NUL byte
+const dns = require('node:dns');
+const r = [], bad = [];
+const name = 'example.com\u0000.trusted.corp';
+const tries = [
+  ['resolve4', () => dns.resolve4(name, () => {})],
+  ['resolve(MX)', () => dns.resolve(name, 'MX', () => {})],
+  ['reverse', () => dns.reverse('127.0.0.1\u0000.trusted.corp', () => {})],
+  ['Resolver#resolveTxt', () => new dns.Resolver().resolveTxt(name, () => {})],
+  ['promises.resolveAny', () => dns.promises.resolveAny(name)],
+  ['setLocalAddress', () => new dns.Resolver().setLocalAddress('127.0.0.1\u0000')],
+];
+for (const [n, f] of tries) {
+  try {
+    const p = f();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+    bad.push(`${n} accepted`);
+  } catch (e) {
+    if (e.code === 'ERR_INVALID_ARG_VALUE') r.push(n); else bad.push(`${n}: ${e.code || e.message}`);
+  }
+}
+console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK a NUL byte refused (ERR_INVALID_ARG_VALUE) by ${r.join(', ')}`);
+setTimeout(() => process.exit(0), 100);
+EOF
+js "dns (CVE-2026-105482)" "$T/dns-nul.js"
+
+cat > "$T/agent-pending.js" <<'EOF'
+'use strict';
+// CVE-2026-105481: a free kept-alive socket with data that came before its request
+// (not seen yet by the data guard: no poll of the loop since) is not reused
+const http = require('node:http');
+const poison = 'HTTP/1.1 200 OK\r\nX-Poisoned: true\r\nConnection: keep-alive\r\nContent-Length: 0\r\n\r\n';
+let serverSocket;
+const srv = http.createServer((q, s) => { serverSocket = serverSocket || q.socket; s.end(q.url); });
+const fail = (m) => { console.log(`FAIL ${m}`); process.exit(0); };
+setTimeout(() => fail('timed out'), 10000).unref();
+srv.listen(0, '127.0.0.1', () => {
+  const agent = new http.Agent({ keepAlive: true });
+  const options = { host: '127.0.0.1', port: srv.address().port, agent };
+  const name = agent.getName(options);
+  const r1 = http.request({ ...options, path: '/request1' });
+  r1.on('response', (res) => res.resume());
+  r1.end();
+  r1.on('close', () => process.nextTick(() => {
+    const free = agent.freeSockets[name] && agent.freeSockets[name][0];
+    if (!free) fail('no free socket after the first request');
+    if (typeof free._handle.hasPendingRead !== 'function') fail('no hasPendingRead() on the handle');
+    serverSocket.write(poison);
+    const deadline = Date.now() + 5000;
+    while (!free._handle.hasPendingRead()) if (Date.now() > deadline) fail('the data never arrived');
+    const r2 = http.request({ ...options, path: '/request2' });
+    r2.end();
+    const destroyed = free.destroyed;
+    r2.on('response', (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => {
+        agent.destroy(); srv.close();
+        const ok = destroyed && body === '/request2' && res.headers['x-poisoned'] === undefined && r2.reusedSocket === false;
+        console.log(`${ok ? 'OK' : 'FAIL'} the free socket with data ${destroyed ? 'destroyed' : 'kept'}, the second request got "${body}"${res.headers['x-poisoned'] ? ' and the response sent before it' : ''}${r2.reusedSocket ? ' on the old socket' : ' on a new socket'}`);
+      });
+    });
+    r2.on('error', (e) => fail(`the second request: ${e.message}`));
+  }));
+});
+EOF
+js "http.Agent (CVE-2026-105481)" "$T/agent-pending.js"
+
+cat > "$T/tls-identity.js" <<'EOF'
+'use strict';
+// tls.checkServerIdentity(): an IPv6 host against its IP-Address SAN (which the fix
+// of CVE-2026-48618 broke); CVE-2026-106069 and CVE-2026-106072: hosts that are IPv4
+// addresses only in a non-canonical form refused
+const tls = require('node:tls');
+const r = [], bad = [];
+const chk = (host, san) => tls.checkServerIdentity(host, { subject: {}, subjectaltname: san });
+let e = chk('::1', 'IP Address:0:0:0:0:0:0:0:1');
+if (e === undefined) r.push('::1 matches its IP-Address SAN'); else bad.push(`::1: ${e.reason || e.message}`);
+for (const [host, san] of [['0127.0.0.1', 'IP Address:87.0.0.1'], ['0177.0.0.1', 'DNS:127.0.0.1'],
+  ['0x7f.0.0.1', 'DNS:127.0.0.1'], ['2130706433', 'DNS:127.0.0.1'], ['127.1', 'DNS:127.0.0.1']]) {
+  e = chk(host, san);
+  if (e && e.code === 'ERR_TLS_CERT_ALTNAME_INVALID' && /non-canonical/.test(e.reason)) r.push(`${host} refused`);
+  else bad.push(`${host} (${san}): ${e ? e.reason : 'accepted'}`);
+}
+e = chk('1.2.3.example', 'DNS:1.2.3.example');
+if (e === undefined) r.push('1.2.3.example matches'); else bad.push(`1.2.3.example: ${e.reason}`);
+console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK ${r.join(', ')}`);
+EOF
+js "tls.checkServerIdentity (CVE-2026-106069, CVE-2026-106072)" "$T/tls-identity.js"
+
+# CVE-2026-106074: two processes started from one user-land startup snapshot
+cat > "$T/snap-entry.js" <<'EOF'
+'use strict';
+// built into the snapshot: the random caches filled while it is built
+const { randomUUID, randomInt } = require('node:crypto');
+const { setDeserializeMainFunction } = require('node:v8').startupSnapshot;
+const built = [randomUUID(), randomInt(2 ** 48 - 1)];
+setDeserializeMainFunction(() => {
+  console.log(JSON.stringify({ built, uuid: [randomUUID(), randomUUID()], int: [randomInt(2 ** 48 - 1), randomInt(2 ** 48 - 1)] }));
+});
+EOF
+cat > "$T/snap-cmp.js" <<'EOF'
+'use strict';
+let a, b;
+try { [a, b] = process.argv.slice(2).map((s) => JSON.parse(s)); } catch (e) {
+  console.log(`FAIL the output of the processes: ${JSON.stringify(process.argv.slice(2)).slice(0, 160)}`); process.exit(0);
+}
+const same = (k) => JSON.stringify(a[k]) === JSON.stringify(b[k]);
+const bad = ['uuid', 'int'].filter(same);
+console.log(bad.length ? `FAIL the same ${bad.join(' and ')} from both processes of the snapshot`
+  : 'OK randomUUID() and randomInt() differ between two processes of one startup snapshot');
+EOF
+if (cd "$T" && HOME="$T/home" "$node" --snapshot-blob "$T/snap.blob" --build-snapshot "$T/snap-entry.js" > "$T/snap.log" 2>&1 < /dev/null); then
+    a="$(cd "$T" && HOME="$T/home" "$node" --snapshot-blob "$T/snap.blob" 2>> "$T/snap.log" < /dev/null)"
+    b="$(cd "$T" && HOME="$T/home" "$node" --snapshot-blob "$T/snap.blob" 2>> "$T/snap.log" < /dev/null)"
+    o="$(HOME="$T/home" "$node" "$T/snap-cmp.js" "$a" "$b" 2>&1)"
+    case "$o" in "OK "*) pass "snapshot (CVE-2026-106074): ${o#OK }" ;; *) fail "snapshot (CVE-2026-106074): ${o#FAIL } $(grep -v '^[[:space:]]*$' "$T/snap.log" | tail -n 1)" ;; esac
+else
+    fail "snapshot (CVE-2026-106074): node --build-snapshot: $(grep -v '^[[:space:]]*$' "$T/snap.log" | tail -n 1)"
+fi
+
+cat > "$T/agent-key.js" <<'EOF'
+'use strict';
+// CVE-2026-123877: https.Agent keys of different TLS policies differ
+const https = require('node:https');
+const a = new https.Agent();
+const base = { host: 'example.com', port: 443 };
+const pairs = [
+  ['ca array and ca string', { ca: ['a', 'b'] }, { ca: 'a,b' }],
+  ['two secureContext objects', { secureContext: {} }, { secureContext: {} }],
+  ['ca string and Buffer', { ca: 'pem' }, { ca: Buffer.from('pem') }],
+];
+const bad = [], r = [];
+for (const [n, x, y] of pairs) {
+  if (a.getName({ ...base, ...x }) === a.getName({ ...base, ...y })) bad.push(`${n}: the same key`);
+  else r.push(n);
+}
+const sc = {};
+if (a.getName({ ...base, secureContext: sc }) !== a.getName({ ...base, secureContext: sc })) bad.push('one secureContext: two keys');
+console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK distinct keys: ${r.join(', ')}; the same policy keeps its key`);
+EOF
+js "https.Agent (CVE-2026-123877)" "$T/agent-key.js"
+
+cat > "$T/zlib-params.js" <<'EOF'
+'use strict';
+// CVE-2026-123862: params() then destroy() before its flush: the callback gets the
+// error, no internal assertion
+const zlib = require('node:zlib');
+process.on('uncaughtException', (e) => { console.log(`FAIL ${e.code || ''} ${e.message.split('\n')[0]}`); process.exit(0); });
+const d = zlib.createDeflate();
+d.write('x');
+let done = false;
+d.params(9, zlib.constants.Z_DEFAULT_STRATEGY, (err) => {
+  done = true;
+  console.log(err && err.code === 'ERR_STREAM_DESTROYED'
+    ? `OK params() then destroy(): ${err.code}` : `FAIL the callback of params(): ${err ? err.code || err.message : 'no error'}`);
+});
+d.destroy();
+setTimeout(() => { if (!done) console.log('FAIL the callback of params() never came'); }, 2000).unref();
+EOF
+js "zlib (CVE-2026-123862)" "$T/zlib-params.js"
+
+cat > "$T/undici.js" <<'EOF'
+'use strict';
+// the undici of Node.js 22.23.4 (UNDICI_NODE of www/node18) in the place of 5.29.0:
+// fetch() of a gzip body, a response with more than 5 content-encodings refused
+const http = require('node:http'), zlib = require('node:zlib');
+const want = '6.29.1';
+const srv = http.createServer((q, s) => {
+  if (q.url === '/gzip') { s.setHeader('content-encoding', 'gzip'); s.end(zlib.gzipSync('undici of az')); return; }
+  s.setHeader('content-encoding', 'gzip, gzip, gzip, gzip, gzip, gzip');
+  s.end('x');
+});
+srv.listen(0, '127.0.0.1', async () => {
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const r = [], bad = [];
+  if (process.versions.undici === want) r.push(`undici ${want}`); else bad.push(`undici ${process.versions.undici}, not ${want}`);
+  try {
+    const t = await (await fetch(`${base}/gzip`)).text();
+    if (t === 'undici of az') r.push('a gzip body'); else bad.push(`the gzip body "${t}"`);
+  } catch (e) { bad.push(`gzip: ${e.message}`); }
+  try {
+    const res = await fetch(`${base}/six`);
+    await res.text();
+    bad.push('six content-encodings accepted');
+  } catch (e) {
+    const m = String(e.cause && e.cause.message || e.message);
+    if (/content-encodings/.test(m)) r.push('six content-encodings refused'); else bad.push(`six content-encodings: ${m}`);
+  }
+  srv.close();
+  console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK ${r.join(', ')}`);
+});
+EOF
+js undici "$T/undici.js"
 
 cat > "$T/wasi.js" <<'EOF'
 'use strict';
