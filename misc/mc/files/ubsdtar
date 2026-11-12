@@ -59,17 +59,21 @@ ub_pat() {
 }
 
 # one file to stdout of tar; a hard link has no data of its own in tar and ISO 9660:
-# that of the file it links to
+# that of the file it links to. With a passphrase given: the data of an encrypted
+# entry (a zip of PKWARE or AES) needs one, and without it tar asks for it on the
+# terminal, under the screen of mc, which then waits for the helper; this one is
+# wrong, so tar fails at once and mc says so (an empty one tar does not take; the
+# idea of the dummy password of Debian's uzip, #772080)
 ub_copyout() {
     ub_opts "$1"
     p="$(ub_pat "$2")"
     # shellcheck disable=SC2086
-    "$TAR" $opts -xOf "$1" -- "$p" > "$3" || return
+    "$TAR" $opts --passphrase ubsdtar -xOf "$1" -- "$p" > "$3" || return
     [ -s "$3" ] && return
     # shellcheck disable=SC2086
     to="$(LC_TIME=C "$TAR" $opts -tvf "$1" -- "$p" | awk -v target=1 "$ub_awk" | sed -n 1p)"
     # shellcheck disable=SC2086
-    [ -z "$to" ] || "$TAR" $opts -xOf "$1" -- "$(ub_pat "$to")" > "$3"
+    [ -z "$to" ] || "$TAR" $opts --passphrase ubsdtar -xOf "$1" -- "$(ub_pat "$to")" > "$3"
 }
 
 # what tar cannot do: the helper of mc for the format, when there is one
