@@ -1,20 +1,16 @@
 [
 { type: install
   message: <<EOM
-OpenSearch Dashboards 2.17.1 runs here on the Node.js 18 of the package node18
-(the Node.js line of 2.17.1); node18 and node24 cannot be installed together, so
-this package and kibana6 (on node24) do not go on one server.
+OpenSearch Dashboards 2.17.1 runs here on the Node.js 24 of the package node24,
+not on the Node.js 18 it was made for (at its end of life since 30.04.2025).
 
 There is no security plugin (%%OSD_PLUGINS_OUT%%) in this package: OpenSearch
 Dashboards talks to OpenSearch over plain http without credentials
-(opensearch.hosts, default http://localhost:9200; Node.js 18 connects to the
-first address the system gives for localhost and tries no other, ::1 on a host
-with IPv6, so OpenSearch has to listen there too, as its default network.host
-does, or write 127.0.0.1). The rc script refuses to start with a setting of that
-plugin in %%ETCDIR%%/opensearch_dashboards.yml (%%OSD_CONFIG_OUT%%):
-OpenSearch Dashboards would stop at its start on it. Without the security plugin
-everyone who reaches its port can do everything: keep it behind a firewall or a
-proxy with authentication.
+(opensearch.hosts, default http://localhost:9200). The rc script refuses to start
+with a setting of that plugin in %%ETCDIR%%/opensearch_dashboards.yml
+(%%OSD_CONFIG_OUT%%): OpenSearch Dashboards would stop at its start on it. Without
+the security plugin everyone who reaches its port can do everything: keep it
+behind a firewall or a proxy with authentication.
 
 The options of Node.js (--max-old-space-size and the like) go into
 %%ETCDIR%%/node.options, one per line. Its log is rolled at 10 MB without

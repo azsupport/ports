@@ -5,15 +5,19 @@
 # textproc/opensearch-dashboards of the branch 2025Q1 (the bundle with the plugins,
 # Node.js 18, the rc script, pkg-deinstall, pkg-descr), with what follows.
 #
-# Node.js: 2.17.1 is made for Node.js 18 (.nvmrc 18.19.0, engines ">=14.20.1 <19"):
-# the node of our www/node18 (18.20.8 with its security fixes), named by its program
-# (no USES=nodejs: the official Mk/Uses/nodejs.mk of the pin knows 22, 24 and 26
-# only); bin/use_node of the tarball takes it (files/patch-bin_use__node: its
-# CONFIG_DIR typo fixed too, so node.options of the configuration is read). The
-# tarball's node/ (Node.js 18.19.0 and 14.21.3 for Linux) is not in the package: they
-# are its only ELF files. Its node_modules have no native module (no *.node; the
-# @node-rs/xxhash of webpack, which a production start does not load, without its
-# platform packages; WebAssembly only): nothing is built, the package is JavaScript.
+# Node.js: 2.17.1 is made for Node.js 18 (.nvmrc 18.19.0, engines ">=14.20.1 <19"),
+# which is at its end of life since 30.04.2025: it runs here on the node of our
+# www/node24 (aZ, 12.11.2026: the Node.js this tree keeps up; www/node18 stays, for
+# a legacy project of his own), named by its program (no USES=nodejs: the official
+# Mk/Uses/nodejs.mk of the pin knows 22, 24 and 26 only); bin/use_node of the tarball
+# takes it (files/patch-bin_use__node: its CONFIG_DIR typo fixed too, so node.options
+# of the configuration is read). Its version check needs no change:
+# src/setup_node_env/node_version_validator.js takes the first comparator of
+# engines.node only (">=14.20.1"), so Node.js 24 passes it. The tarball's node/
+# (Node.js 18.19.0 and 14.21.3 for Linux) is not in the package: they are its only
+# ELF files. Its node_modules have no native module (no *.node; the @node-rs/xxhash
+# of webpack, which a production start does not load, without its platform
+# packages; WebAssembly only): nothing is built, the package is JavaScript.
 #
 # The plugins: the bundle's 14 (the official port's choice), all whose server plugin
 # textproc/opensearch217 has (aZ, 12.11.2026: out of it only the security plugin and
@@ -116,8 +120,8 @@ LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE.txt
 
 # node to build too: the checks of the package, the brotli of the bundles fixed
-BUILD_DEPENDS=	node:www/node18
-RUN_DEPENDS=	node:www/node18
+BUILD_DEPENDS=	node:www/node24
+RUN_DEPENDS=	node:www/node24
 
 USE_RC_SUBR=	${PORTNAME}
 
@@ -240,7 +244,7 @@ do-install:
 	${INSTALL} -lrs ${STAGEDIR}${ETCDIR} ${STAGEDIR}${WWWDIR}/config
 
 # the package: no ELF file, no native module, no backup of a patch, the node of
-# www/node18, the version, the packages of OSD_NPM
+# www/node24, the version, the packages of OSD_NPM
 post-install:
 	@if ${FIND} ${STAGEDIR}${WWWDIR} -type f -exec ${FILE} {} + | ${GREP} -E ': .*(ELF|Mach-O|PE32)'; then \
 		${ECHO_MSG} "binaries in the package"; ${FALSE}; fi

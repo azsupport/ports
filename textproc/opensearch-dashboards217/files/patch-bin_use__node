@@ -16,9 +16,9 @@
    # Set these variables outside, as catchalls, to show meaningful errors if needed
 -  NODE="$OSD_HOME/node/bin/node"
 -  NODE_ERROR_MSG="bundled with OpenSearch Dashboards"
-+  # azsupport/ports: the Node.js of the package node18, not the one of the tarball
++  # azsupport/ports: the Node.js of the package node24, not the one of the tarball
 +  NODE="%%LOCALBASE%%/bin/node"
-+  NODE_ERROR_MSG="of the package node18"
++  NODE_ERROR_MSG="of the package node24"
    # A bin folder at the root is only present in release builds that have a bundled Node.js binary
    if [ -d "${OSD_HOME}/bin" ]; then
      NODE_ERROR_SHOW=true
