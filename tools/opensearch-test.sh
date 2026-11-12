@@ -39,8 +39,11 @@
 #     codec zstd of opensearch-custom-codecs (zstd-jni on FreeBSD); HTTP with
 #     Accept-Encoding gzip and zstd (2.17.1 hung on zstd on Linux: upstream #17408
 #     of 2.19.1) and request bodies with Content-Encoding gzip and zstd (#23324 of
-#     2.19.7), each answered within 15 s (what they leave in /tmp/opensearch: a
-#     note);
+#     2.19.7: 2.17.1 closes the connection), each answered or closed within 15 s
+#     with OpenSearch still up (what they leave in /tmp/opensearch: a note); the
+#     builtin log types of opensearch-security-analytics there (its loader of
+#     2.17.1 logs an [ERROR] at the start, upstream security-analytics#1312: a
+#     note, not a failure);
 #   - nothing of OpenSearch in /tmp and /var/tmp from its start to its stop but its
 #     temporary directory /tmp/opensearch (OPENSEARCH_TMPDIR of the rc script),
 #     where only the named pipe of bash may be (nothing of JNA); no GC log; the log
@@ -55,8 +58,11 @@
 #     which makes the bootstrap checks errors, path.data /var/db/opensearch and
 #     path.logs /var/log/opensearch, which the rc script makes; discovery.seed_hosts
 #     and cluster.initial_master_nodes of this node alone in place of its IPs and
-#     ko38): health, the role of the node, the deprecation warnings it logs (a note
-#     each), no [ERROR], stopped.
+#     ko38; its directory owned by opensearch, as the ETCDIR of the package, where
+#     OpenSearch makes its keystore): health, the role of the node, the deprecation
+#     warnings it logs (a note each; the settings deprecated those expected:
+#     cluster.initial_master_nodes, cluster.remote.connect, node.data, node.ingest,
+#     node.master, reindex.remote.whitelist), no [ERROR], stopped.
 #
 # Usage (FreeBSD, as root, the packages installed): sh tools/opensearch-test.sh
 # Results: opensearch-results/tests.txt (one line per check, the summary at the end),
@@ -354,8 +360,15 @@ else
     printf '{ "query": { "match": { "title": "azsupport" } } }' | gzip > "$T/q.gz"
     w="$(hc -H 'Content-Type: application/json' -H 'Content-Encoding: gzip' --data-binary @"$T/q.gz" "$os/az-test/_search")"
     if [ "${w%% *}" = 200 ] && grep -q '"total":{"value":1' "$T/hc.body"; then pass "a request body in gzip: 200 in ${w#* } s, the document found"; else fail "a request body in gzip: ${w:-no answer in 15 s}, $(cut -c1-160 "$T/hc.body" 2>/dev/null)"; fi
+    # 2.17.1 closes the connection without an answer (upstream answers it since
+    # 2.19.7, #23324): no hang and no harm to the node is what is checked here
     w="$(printf 'not zstd at all' | hc -H 'Content-Type: application/json' -H 'Content-Encoding: zstd' --data-binary @- "$os/az-test/_search")"
-    if [ -n "$w" ] && [ "${w%% *}" != 000 ] && [ "${w%% *}" != 200 ] && get / | grep -q '"number"'; then pass "a request body in zstd that is not: ${w%% *} in ${w#* } s, OpenSearch still answers"; else fail "a request body in zstd that is not: ${w:-no answer in 15 s} (upstream #23324 of 2.19.7)"; fi
+    t_="${w#* }"; t_="${t_%%.*}"
+    if [ -n "$w" ] && [ "${w%% *}" != 200 ] && [ "${t_:-99}" -lt 15 ] && get / | grep -q '"number"'; then
+        pass "a request body in zstd that is not: $([ "${w%% *}" = 000 ] && echo 'the connection closed without an answer' || echo "${w%% *}") in ${w#* } s, OpenSearch still answers"
+    else
+        fail "a request body in zstd that is not: ${w:-no answer in 15 s}; OpenSearch answers after it: $(get / | grep -c '"number"')"
+    fi
     note "$tmpd after the requests of HTTP compression: $(find "$tmpd" -mindepth 1 2>/dev/null | sed "s|^$tmpd/||" | tr '\n' ' ' | sed 's/ $//;s/^$/nothing/')"
     # opensearch-custom-codecs: an index with its codec zstd (zstd-jni of the
     # server, its library for FreeBSD)
@@ -369,6 +382,20 @@ else
             fail "the index with the codec zstd: its codec is ${c:-not told}" ;;
         *) fail "the index with the codec zstd: $(cut -c1-200 "$T/z.out"); the document: $(cut -c1-120 "$T/zd.out"); the search: $(printf '%s' "$s" | cut -c1-160)" ;; esac
     note "$tmpd after the index with the codec zstd: $(find "$tmpd" -mindepth 1 2>/dev/null | sed "s|^$tmpd/||" | tr '\n' ' ' | sed 's/ $//;s/^$/nothing/')"
+    # opensearch-security-analytics: its builtin log types, which its loader of
+    # 2.17.1 may fail to read at the start (upstream security-analytics#1312, the
+    # [ERROR] "Failed loading builtin log types from disk!", on Linux and macOS too)
+    lt=""; i=0
+    while [ "$i" -lt 12 ]; do
+        lt="$(send POST /_plugins/_security_analytics/logtype/_search '{ "size": 0, "query": { "match_all": {} } }' | sed -n 's/.*"total" *: *{ *"value" *: *\([0-9]*\).*/\1/p')"
+        [ "${lt:-0}" -gt 0 ] && break
+        sleep 5; i=$((i + 1))
+    done
+    if [ "${lt:-0}" -gt 0 ]; then
+        pass "opensearch-security-analytics: its log types there ($lt, _plugins/_security_analytics/logtype/_search)"
+    else
+        fail "opensearch-security-analytics: no log types in 60 s ($(send POST /_plugins/_security_analytics/logtype/_search '{ "size": 0, "query": { "match_all": {} } }' | cut -c1-160))"
+    fi
 fi
 cp "$T/start.out" "$res/opensearch-start.out"
 if grep -q 'setSecurityManager' "$T/start.out"; then
@@ -382,7 +409,12 @@ else
     pass "the start without a warning of the JVM ($(wc -l < "$T/start.out" | tr -d ' ') lines: opensearch-start.out)"
 fi
 cp "$T/logs/az-test.log" "$res/opensearch.log" 2>/dev/null
-if grep -E '\]\[ERROR\]' "$T/logs/az-test.log" > "$T/err.txt" 2>/dev/null; then
+# the [ERROR] of the loader of log types of opensearch-security-analytics 2.17.1
+# (above) is the plugin's, a note
+if grep -q 'Failed loading builtin log types from disk' "$T/logs/az-test.log" 2>/dev/null; then
+    note "opensearch-security-analytics 2.17.1 logged its [ERROR] \"Failed loading builtin log types from disk!\" (FileSystemNotFoundException of an unused Paths.get, upstream security-analytics#1312; gone in 2.18)"
+fi
+if grep -E '\]\[ERROR\]' "$T/logs/az-test.log" | grep -v 'Failed loading builtin log types from disk' > "$T/err.txt" 2>/dev/null; then
     fail "the log of the start has $(wc -l < "$T/err.txt" | tr -d ' ') lines of [ERROR]: $(head -n 2 "$T/err.txt" | sed -e 's/^[^]]*\]//' | cut -c1-300 | tr '\n' ' ')"
 else
     pass "the log of the start without [ERROR]"
@@ -470,6 +502,9 @@ plugins.security.disabled: true
 cluster.initial_master_nodes: ["ko44"]
 reindex.remote.whitelist: "localhost:*"
 EOF
+# owned by opensearch, as the ETCDIR of the package: OpenSearch makes its keystore
+# there at its first start
+chown -R opensearch:opensearch "$k"
 ko="http://127.0.0.1:8200"
 export opensearch_config="$k"
 "$rc" onestart > "$T/ko44-sec.out" 2>&1; r=$?
@@ -496,17 +531,20 @@ if [ "$r" = 0 ] && up "$ko" 180; then
         fail "ko44: /var/db/opensearch $d1, /var/log/opensearch $d2: $(ls /var/log/opensearch 2>/dev/null | tr '\n' ' ')"
     fi
 else
-    fail "ko44 without that line: exit $r, $(tail -n 3 "$T/ko44-start.out" | cut -c1-200 | tr '\n' ' '); its log: $(grep -E '\]\[(ERROR|WARN ?)\]' /var/log/opensearch/ko44.log 2>/dev/null | tail -n 3 | sed -e 's/^[^]]*\]//' | cut -c1-300 | tr '\n' ' ')"
+    fail "ko44 without that line: exit $r, $(grep -v -E '^[[:space:]]+at |^[[:space:]]*\.\.\. [0-9]+ more' "$T/ko44-start.out" | grep -E 'Exception|Error|error|failed|unknown|illegal|check' | head -n 3 | cut -c1-220 | tr '\n' ' '); its log: $(grep -E '\]\[(ERROR|WARN ?)\]' /var/log/opensearch/ko44.log 2>/dev/null | tail -n 2 | sed -e 's/^[^]]*\]//' | cut -c1-220 | tr '\n' ' ')"
 fi
 cp /var/log/opensearch/ko44.log "$res/ko44.log" 2>/dev/null
 cp /var/log/opensearch/ko44_deprecation.log "$res/ko44_deprecation.log" 2>/dev/null
-# its deprecation warnings: a note each (the log of deprecation)
-if [ -s /var/log/opensearch/ko44_deprecation.log ]; then
-    sed -n 's/^\[[^]]*\]\[DEPRECATION\]\[[^]]*\] *\[[^]]*\] *//p' /var/log/opensearch/ko44_deprecation.log | sort -u | while read -r w; do
-        note "ko44 deprecation: $(printf '%s' "$w" | cut -c1-300)"
-    done
+# its deprecation warnings (the log of deprecation): the settings of his file
+# that 2.17 deprecates, and nothing else; a note each
+dw="$(sed -n 's/^\[[^]]*\]\[DEPRECATION\]\[[^]]*\] *\[[^]]*\] *//p' /var/log/opensearch/ko44_deprecation.log 2>/dev/null | sort -u)"
+printf '%s\n' "$dw" | grep -v '^$' | while read -r w; do note "ko44 deprecation: $(printf '%s' "$w" | cut -c1-300)"; done
+dk="$(printf '%s\n' "$dw" | sed -n 's/^\[\([a-z_.]*\)\] setting was deprecated .*/\1/p' | sort -u | tr '\n' ' ')"
+do_="$(printf '%s\n' "$dw" | grep -v -e '^$' -e '^\[[a-z_.]*\] setting was deprecated ' | cut -c1-90 | tr '\n' '|')"
+if [ "$dk" = "cluster.initial_master_nodes cluster.remote.connect node.data node.ingest node.master reindex.remote.whitelist " ] && [ -z "$do_" ]; then
+    pass "ko44: deprecated, as expected: $dk"
 else
-    note "ko44: no deprecation log (/var/log/opensearch/ko44_deprecation.log)"
+    fail "ko44: the deprecated settings: ${dk:-none}; other deprecations: ${do_:-none}"
 fi
 if grep -E '\]\[ERROR\]' /var/log/opensearch/ko44.log > "$T/ko44-err.txt" 2>/dev/null; then
     fail "ko44: its log has $(wc -l < "$T/ko44-err.txt" | tr -d ' ') lines of [ERROR]: $(head -n 2 "$T/ko44-err.txt" | sed -e 's/^[^]]*\]//' | cut -c1-300 | tr '\n' ' ')"
