@@ -1,38 +1,63 @@
-# java/openjdk21 of azsupport/ports: OpenJDK 21 headless (aZ, 12.11.2026: the
-# JDK of OpenSearch 2.19 now and of OpenSearch 3.x later, one JDK for both: 2.x
-# does not run on JDK 24 and later, where the Security Manager is disabled for
-# good, and 3.x needs 21 at least). Made as java/openjdk17 of this tree, with its
-# decisions (its Makefile says why): the package name, version and directory
-# (/usr/local/openjdk21) of the official port, its version (the variables of
-# AZ_OFFICIAL_VARS), distinfo (the source of battleblow/jdk21u and the bootstrap
-# JDK of LOCAL/openjdk) and patches but the two of fontconfig (AZ_PATCHES_OUT)
-# taken from the official port of the pinned tree as they are, so that a new
-# version of it comes by the pin by itself; --enable-headless-only (libawt_headless,
-# no libawt_xawt and libsplashscreen, giflib and libpng bundled and unused) and no
-# headers of X11 (JDK-8376684, openjdk/jdk 1069ccebcc32, 04.02.2026, backported);
-# no sound (no ALSA and libjsound on FreeBSD, as on AIX and OpenBSD); libjpeg
-# (mozjpeg), FreeType and Little CMS of az by their .pc files with the run path
-# /usr/local/az/lib after the $ORIGIN of the JDK in the three libraries that link
-# them; zlib of the base system; HarfBuzz bundled; fontconfig (of az) and CUPS
-# only to build (fontconfig not linked: OpenJDK loads it with dlopen(3) by its
-# name, the official one when it is installed); no fonts, no javavmwrapper (no
-# /usr/local/bin/java: OpenSearch takes JAVA_HOME), no DTrace; the same checks
-# after configure and after the install; the package needs az only. What is not
-# as in java/openjdk17:
-# - 21u needs the headers of X11 for a headless build in configure as well:
-#   make/autoconf/libraries.m4 has NEEDS_LIB_X11 true but on Windows and macOS
-#   (17u has it false for --enable-headless-only already), so it is false for a
-#   headless build here, the part of JDK-8376684 17 did not need
-#   (files/patch-make_autoconf_libraries.m4-headless; the check after configure
-#   wants X_CFLAGS empty too); the other patches of files/ are those of 17 made
-#   anew for the lines of 21u;
-# - no --disable-hotspot-gtest: 21 has no such option (gtest is built only with
-#   --with-gtest since JDK 15; in 17 the option is deprecated and does nothing),
-#   as the official port of 21;
-# - what the official port of 21 has that of 17 has not: the warnings of clang it
-#   turns off (--with-extra-cflags, --with-extra-cxxflags) and the two files of
-#   bsd_ppc it renames in pre-configure; nor MAKE_JOBS_NUMBER_LIMIT for FreeBSD
-#   before 15 (our builds are on 15.1).
+# java/openjdk21 of azsupport/ports: OpenJDK 21 headless, the one JDK of this
+# tree (aZ, 11.11.2026: so that a server with Elasticsearch gets nothing of a
+# desktop: the official package pulls about 50 packages of one, X11, fonts,
+# ALSA, HarfBuzz with GLib and Python, giflib, PNG, javavmwrapper; 12.11.2026:
+# the JDK of textproc/elasticsearch6 and of OpenSearch 2.17 and 2.19 now and of
+# OpenSearch 3.x later, one JDK for them all: Elasticsearch 6 and OpenSearch 2.x
+# do not run on JDK 24 and later, where the Security Manager is disabled for
+# good, and 3.x needs 21 at least). The package name, version and directory
+# (/usr/local/openjdk21) of the official port. Taken from the official port of
+# the pinned tree as they are, so that a new version of it comes by the pin by
+# itself: its version (the variables of AZ_OFFICIAL_VARS, read in its Makefile),
+# its distinfo (the source of battleblow/jdk21u and the bootstrap JDK of
+# LOCAL/openjdk) and its patches but two (AZ_PATCHES_OUT). The rest is its
+# Makefile with these changes:
+# - --enable-headless-only: libawt_headless and no libawt_xawt; no
+#   libsplashscreen, the only user of giflib and libpng
+#   (make/modules/java.desktop/lib/Awt2dLibraries.gmk), so these two are bundled
+#   and unused. No X11 either: 21u still wants its headers for a headless build,
+#   in configure (make/autoconf/libraries.m4: NEEDS_LIB_X11 true but on Windows
+#   and macOS) and to compile (rect.h of libawt includes X11/Xlib.h), so the
+#   change of OpenJDK that builds without them is backported (JDK-8376684,
+#   openjdk/jdk 1069ccebcc32, 04.02.2026: NEEDS_LIB_X11 false for a headless
+#   build, libawt with -DHEADLESS, rect.h without X11 then, libawt_headless
+#   without the files of X11 and OpenGL, which it does not use;
+#   files/patch-make_autoconf_libraries.m4-headless,
+#   files/patch-make_modules_java.desktop_lib_Awt2dLibraries.gmk-headless,
+#   files/patch-src_java.desktop_unix_native_common_awt_utility_rect.h; the check
+#   after configure wants X_CFLAGS empty too);
+# - no sound: FreeBSD without ALSA and libjsound, as AIX and OpenBSD
+#   (files/patch-make_autoconf_libraries.m4-alsa,
+#   files/patch-make_modules_java.desktop_Lib.gmk); javax.sound finds no native
+#   library (com.sun.media.sound.Platform: no devices, no message);
+# - libjpeg (mozjpeg), FreeType and Little CMS of az, by their .pc files with the
+#   run path /usr/local/az/lib, which lands after the $ORIGIN of the JDK in the
+#   three libraries that link them (libjavajpeg, libfontmanager, liblcms) and in
+#   no other file; zlib of the base system; HarfBuzz bundled (no port of ours has
+#   it);
+# - fontconfig: its headers (those of az) to build, as libraries.m4 wants them
+#   headless too; not linked: the two patches of the official port that link
+#   libfontmanager with it (the hinting of FreeType from the settings of
+#   fontconfig) are left out. OpenJDK loads libfontconfig.so.1 with dlopen(3) by
+#   its name when it needs the fonts of the system; the rtld of FreeBSD looks for
+#   it in LD_LIBRARY_PATH, the run path of bin/java (the lib of the JDK), the
+#   ldconfig hints and /lib and /usr/lib, not in /usr/local/az/lib (no hints, and
+#   the run path of the library that calls dlopen does not count). So with our
+#   packages only Java has no fontconfig and no fonts of the system (text with
+#   the logical fonts fails: tools/java-test.sh says how; Elasticsearch and
+#   OpenSearch need none); with the official fontconfig and fonts installed it
+#   takes those;
+# - no fonts (xorg-fonts-truetype) and no javavmwrapper (no @javavm: no
+#   /usr/local/bin/java; Elasticsearch and OpenSearch take JAVA_HOME); CUPS: its
+#   headers to build, as the official port, nothing at run time (libawt loads
+#   libcups with dlopen to print);
+# - without DTrace (aZ: every build here; configure enables it when it finds
+#   dtrace(1));
+# - checked after configure (headless, no ALSA and X11, the libraries of az with
+#   their run path, no DTrace) and after the install: no ELF links a library of
+#   X11, ALSA, giflib, libpng, HarfBuzz or fontconfig; libjpeg, libfreetype and
+#   liblcms2 are those of az by the run path; no libjsound, libawt_xawt and
+#   libsplashscreen, libawt_headless there; the package needs az only.
 # The flags of make.conf are not those of the JDK (its configure ignores CFLAGS):
 # its own, and its JIT compiles for the CPU it runs on.
 

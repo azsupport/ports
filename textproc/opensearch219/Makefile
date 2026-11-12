@@ -42,8 +42,8 @@
 # apply to the bundle of 2.19.7 as they are (jvm.options, log4j2.properties,
 # opensearch.yml and the scripts of bin are the same files as in 2.17.1), and
 # its rc script and its rollover of the logs are the same. On OpenJDK 21,
-# java/openjdk21 of ours (headless, as java/openjdk17; aZ, 12.11.2026: one JDK
-# for opensearch217, opensearch219 and 3.x, which needs 21 at least), the JDK
+# java/openjdk21 of ours (headless; aZ, 12.11.2026: one JDK for opensearch217,
+# opensearch219, 3.x, which needs 21 at least, and elasticsearch6), the JDK
 # of the bundle (Temurin 21.0.12.1) and of the official port: OpenSearch 2.19
 # runs on 11, 17 and 21, and not on 24 and later (JEP 486: those JDKs refuse the
 # Security Manager that OpenSearch 2.x installs at its start,
