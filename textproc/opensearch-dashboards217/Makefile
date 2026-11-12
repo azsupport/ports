@@ -194,14 +194,14 @@ post-patch:
 	${PRINTF} '%s\n' '' \
 		'# azsupport/ports: this package has no security plugin (securityDashboards):' \
 		'# OpenSearch Dashboards talks to OpenSearch over plain http without credentials' \
-		'# (opensearch.hosts). The rc script refuses to start with a setting of a plugin' \
-		'# the package does not have (opensearch_security.* and the others it names):' \
-		'# OpenSearch Dashboards would stop at its start on them.' \
+		'# (opensearch.hosts). The rc script refuses to start with a setting of that' \
+		'# plugin (opensearch_security.*): OpenSearch Dashboards would stop at its start' \
+		'# on it.' \
 		>> ${WRKSRC}/config/opensearch_dashboards.yml
 .for p in ${OSD_PLUGINS_OUT:C/:.*//}
 	${RM} -r ${WRKSRC}/plugins/${p}
 .endfor
-	@[ "$$(cd ${WRKSRC}/plugins && ${LS} | ${XARGS})" = "${OSD_PLUGINS_IN}" ] || \
+	@[ "$$(cd ${WRKSRC}/plugins && ${LS} | ${XARGS})" = "${OSD_PLUGINS_IN:ts }" ] || \
 		{ ${ECHO_MSG} "plugins: $$(cd ${WRKSRC}/plugins && ${LS} | ${XARGS}), not ${OSD_PLUGINS_IN}"; ${FALSE}; }
 # 1b89a739: each file with the check of large numerals, its .gz and .br made again
 	@cd ${WRKSRC} && ${GREP} -rl -E 'Number\.MAX_SAFE_INTEGER[[:space:]]*\|\|' \
@@ -246,7 +246,9 @@ post-install:
 		${ECHO_MSG} "binaries in the package"; ${FALSE}; fi
 	@if ${FIND} ${STAGEDIR}${WWWDIR} \( -name '*.node' -o -name '*.orig' -o -name '*.rej' -o -path '*/node/bin/*' \) | \
 		${GREP} .; then ${ECHO_MSG} "these files must not be in the package"; ${FALSE}; fi
-	@[ "$$(cd /tmp && ${SETENV} HOME=${WRKDIR} ${STAGEDIR}${WWWDIR}/bin/opensearch-dashboards --version 2>&1)" = "${DISTVERSION}" ] || \
+# (its configuration: that of the work tree, as the package has the samples only;
+# bin/opensearch-dashboards reads it to set up APM before it parses its arguments)
+	@[ "$$(cd /tmp && ${SETENV} HOME=${WRKDIR} OSD_PATH_CONF=${WRKSRC}/config ${STAGEDIR}${WWWDIR}/bin/opensearch-dashboards --version 2>&1)" = "${DISTVERSION}" ] || \
 		{ ${ECHO_MSG} "bin/opensearch-dashboards --version does not say ${DISTVERSION}"; ${FALSE}; }
 .for n in ${OSD_NPM}
 	@[ "$$(${LOCALBASE}/bin/node -p 'require(process.argv[1]).version' ${STAGEDIR}${WWWDIR}/${n:C/^[^:]*://}/package.json)" = \
