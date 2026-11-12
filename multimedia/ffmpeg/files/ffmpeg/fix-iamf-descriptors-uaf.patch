@@ -1,0 +1,34 @@
+FFmpeg master d522eb22c275 (2026-10-03), not in release/9.0 after 9.0.2:
+https://github.com/FFmpeg/FFmpeg/commit/d522eb22c275f0564a2ea48c44b19460ed1c5f3e
+
+IAMF (immersive audio, also in mp4: the mov demuxer reads its descriptors):
+when reading the descriptors failed, the context kept elements that had been
+freed and the demuxer used them: heap use after free from a crafted upload.
+
+--- a/libavformat/iamf_parse.c
++++ b/libavformat/iamf_parse.c
+@@ -1268,8 +1268,8 @@ int ff_iamf_parse_obu_header(const uint8_t *buf, int buf_size,
+     return size;
+ }
+ 
+-int ff_iamfdec_read_descriptors(IAMFContext *c, AVIOContext *pb,
+-                                int max_size, void *log_ctx)
++static int read_descriptors(IAMFContext *c, AVIOContext *pb,
++                            int max_size, void *log_ctx)
+ {
+     uint8_t header[MAX_IAMF_OBU_HEADER_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
+     int ret;
+@@ -1329,3 +1329,13 @@ int ff_iamfdec_read_descriptors(IAMFContext *c, AVIOContext *pb,
+ 
+     return 0;
+ }
++
++int ff_iamfdec_read_descriptors(IAMFContext *c, AVIOContext *pb,
++                                int max_size, void *log_ctx)
++{
++    int ret = read_descriptors(c, pb, max_size, log_ctx);
++
++    if (ret < 0)
++        ff_iamf_uninit_context(c);
++    return ret;
++}

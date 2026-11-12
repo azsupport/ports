@@ -1,0 +1,23 @@
+FFmpeg release/9.0 after 9.0.2, commit 9695f0c831d4, from master 1de217ad4b98,
+only its part in libavformat/mux.c (the other changes a comment of avformat.h,
+which the patch of the port for Chromium changes too):
+https://github.com/FFmpeg/FFmpeg/commit/9695f0c831d46444b6e5d92e3a20f94b30a2c1dc
+
+Muxing: an error of writing at the end of the file (a full disk) was lost when
+the write_trailer of the muxer returned a positive value, as that of mp4 and
+mov does with fragments (-movflags frag_keyframe and the like): ffmpeg ended
+with 0 and left a cut file.
+
+--- a/libavformat/mux.c
++++ b/libavformat/mux.c
+@@ -1268,8 +1268,8 @@ int av_write_trailer(AVFormatContext *s)
+ 
+     if (s->pb)
+        avio_flush(s->pb);
+-    if (ret == 0)
+-       ret = s->pb ? s->pb->error : 0;
++    if (ret >= 0 && s->pb && s->pb->error < 0)
++       ret = s->pb->error;
+     for (unsigned i = 0; i < s->nb_streams; i++) {
+         av_freep(&s->streams[i]->priv_data);
+         av_freep(&ffstream(s->streams[i])->index_entries);

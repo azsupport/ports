@@ -1,0 +1,45 @@
+FFmpeg master 1436f560753a (2026-10-10), not in release/9.0 after 9.0.2:
+https://github.com/FFmpeg/FFmpeg/commit/1436f560753a15757d59f3b425a3ab1a1bb0ed6b
+
+AAC USAC: SBR data that could not be parsed left SBR on with a half-set state
+and the synthesis wrote past its buffers: a heap write overflow from a crafted
+upload. SBR is now turned off when its data cannot be parsed.
+
+--- a/libavcodec/aacsbr_template.c
++++ b/libavcodec/aacsbr_template.c
+@@ -1210,12 +1210,11 @@ int ff_aac_sbr_config_usac(AACDecContext *ac, ChannelElement *che,
+     return 0;
+ }
+ 
+-int ff_aac_sbr_decode_usac_data(AACDecContext *ac, ChannelElement *che,
+-                                AACUsacElemConfig *ue, GetBitContext *gb,
+-                                int sbr_ch, int indep_flag)
++static int read_usac_sbr_data(AACDecContext *ac, SpectralBandReplication *sbr,
++                              AACUsacElemConfig *ue, GetBitContext *gb,
++                              int sbr_ch, int indep_flag)
+ {
+     int ret;
+-    SpectralBandReplication *sbr = get_sbr(che);
+     int info_present = 1;
+     int header_present = 1;
+ 
+@@ -1356,6 +1355,19 @@ int ff_aac_sbr_decode_usac_data(AACDecContext *ac, ChannelElement *che,
+ 
+     return 0;
+ }
++
++int ff_aac_sbr_decode_usac_data(AACDecContext *ac, ChannelElement *che,
++                                AACUsacElemConfig *ue, GetBitContext *gb,
++                                int sbr_ch, int indep_flag)
++{
++    SpectralBandReplication *sbr = get_sbr(che);
++    int ret = read_usac_sbr_data(ac, sbr, ue, gb, sbr_ch, indep_flag);
++
++    if (ret < 0)
++        sbr_turnoff(sbr);
++
++    return ret;
++}
+ #endif
+ 
+ /**

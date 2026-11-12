@@ -1,0 +1,36 @@
+FFmpeg master 969c7eb09198 (2026-08-31), not in release/9.0 after 9.0.2;
+CVE-2026-107678:
+https://github.com/FFmpeg/FFmpeg/commit/969c7eb091989a664cb7bf66a1f02051cc46cb52
+
+libavutil: av_encryption_init_info_free() freed the list of init infos
+recursively, one stack frame per entry; the mov demuxer makes an entry of every
+pssh box, so an mp4 with tens of thousands of small pssh boxes exhausted the
+stack: ffmpeg and ffprobe crash. Now a loop. The quadratic time of such a file
+(master 71403a21cd03 and d1434518, which add a function to libavutil) is not
+taken: a few seconds of CPU, bounded by the size of the upload.
+
+--- a/libavutil/encryption_info.c
++++ b/libavutil/encryption_info.c
+@@ -218,16 +218,19 @@ AVEncryptionInitInfo *av_encryption_init_info_alloc(
+ 
+ void av_encryption_init_info_free(AVEncryptionInitInfo *info)
+ {
+-    uint32_t i;
+-    if (info) {
++    while (info) {
++        AVEncryptionInitInfo *next = info->next;
++        uint32_t i;
++
+         for (i = 0; i < info->num_key_ids; i++) {
+             av_free(info->key_ids[i]);
+         }
+-        av_encryption_init_info_free(info->next);
+         av_free(info->system_id);
+         av_free(info->key_ids);
+         av_free(info->data);
+         av_free(info);
++
++        info = next;
+     }
+ }
+ 

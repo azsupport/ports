@@ -1,0 +1,19 @@
+FFmpeg master 847acdff187e (2026-09-19), not in release/9.0 after 9.0.2:
+https://github.com/FFmpeg/FFmpeg/commit/847acdff187e6f2f1b725644ac9eabdea7aed9f2
+
+HEVC: when the SPS of the base layer changed, the SPS of the other layers was
+not checked against it again (they are now dropped and set up anew): out of
+array access from a crafted upload.
+
+--- a/libavcodec/hevc/hevcdec.c
++++ b/libavcodec/hevc/hevcdec.c
+@@ -3451,6 +3451,9 @@ static int hevc_frame_start(HEVCContext *s, HEVCLayerContext *l,
+                        "Base/non-base layer SPS have unsupported parameter combination\n");
+                 return AVERROR(ENOSYS);
+             }
++        } else {
++            for (int i = 1; i < FF_ARRAY_ELEMS(s->layers); i++)
++                set_sps(s, &s->layers[i], NULL);
+         }
+ 
+         ff_hevc_clear_refs(l);

@@ -1,0 +1,31 @@
+FFmpeg master 0e8c7403780e (2026-09-24), not in release/9.0 after 9.0.2:
+https://github.com/FFmpeg/FFmpeg/commit/0e8c7403780e3276c149ea79b9c1e03bedb21a25
+
+HEVC (multilayer: MV-HEVC of the iPhone, alpha): a slice of a layer that is not
+in the VPS of its SPS indexed arrays with -1: out of array read from a crafted
+upload. fix-hevc-2 to -4 apply after this one.
+
+--- a/libavcodec/hevc/hevcdec.c
++++ b/libavcodec/hevc/hevcdec.c
+@@ -793,8 +793,8 @@ static int hls_slice_header(SliceHeader *sh, const HEVCContext *s, GetBitContext
+     const HEVCPPS *pps;
+     const HEVCSPS *sps;
+     const HEVCVPS *vps;
+-    unsigned pps_id, layer_idx;
+-    int i, ret;
++    unsigned pps_id;
++    int i, ret, layer_idx;
+ 
+     // Coded parameters
+     sh->first_slice_in_pic_flag = get_bits1(gb);
+@@ -818,6 +818,10 @@ static int hls_slice_header(SliceHeader *sh, const HEVCContext *s, GetBitContext
+     sps = pps->sps;
+     vps = sps->vps;
+     layer_idx = vps->layer_idx[s->nuh_layer_id];
++    if (layer_idx < 0) {
++        av_log(s->avctx, AV_LOG_ERROR, "Layer %d is not in the VPS\n", s->nuh_layer_id);
++        return AVERROR_INVALIDDATA;
++    }
+ 
+     if (s->nal_unit_type == HEVC_NAL_CRA_NUT && s->last_eos == 1)
+         sh->no_output_of_prior_pics_flag = 1;

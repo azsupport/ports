@@ -1,0 +1,28 @@
+FFmpeg master 30455d58d268 (2026-10-12), not in release/9.0 after 9.0.2:
+https://github.com/FFmpeg/FFmpeg/commit/30455d58d268e2dfb02274ac6b2b9ee05880b7d9
+
+AAC: the decoder kept the pointer to the output frame after decoding; a packet
+with new extradata in its side data (the mov demuxer gives one when the sample
+description changes) reconfigured the output with the frame of the previous
+call, which the caller had freed: heap use after free.
+
+--- a/libavcodec/aac/aacdec.c
++++ b/libavcodec/aac/aacdec.c
+@@ -2612,6 +2612,7 @@ static int aac_decode_frame(AVCodecContext *avctx, AVFrame *frame,
+     default:
+         err = aac_decode_frame_int(avctx, frame, got_frame_ptr, &gb, avpkt);
+     }
++    ac->frame = NULL;
+     if (err < 0)
+         return err;
+ 
+--- a/libavcodec/aac/aacdec_latm.h
++++ b/libavcodec/aac/aacdec_latm.h
+@@ -308,6 +308,7 @@ static int latm_decode_frame(AVCodecContext *avctx, AVFrame *out,
+     default:
+         err = aac_decode_frame_int(avctx, out, got_frame_ptr, &gb, avpkt);
+     }
++    latmctx->aac_ctx.frame = NULL;
+     if (err < 0)
+         return err;
+ 

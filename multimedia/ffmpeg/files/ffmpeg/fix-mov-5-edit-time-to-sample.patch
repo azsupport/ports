@@ -1,0 +1,29 @@
+FFmpeg master 9181f3a92495 (2026-10-10), not in release/9.0 after 9.0.2:
+https://github.com/FFmpeg/FFmpeg/commit/9181f3a92495e93c4bf0a1bcab00992ed59397d1
+
+mov: rebuilding the index walked the time-to-sample table from the first sample
+for every edit of a track with composition offsets; an 800 kB file with 50000
+edits over 200000 samples took 58 s to open (ffprobe, ffmpeg -i of an upload).
+The position is now computed directly.
+
+--- a/libavformat/mov.c
++++ b/libavformat/mov.c
+@@ -4277,17 +4277,8 @@ static int find_prev_closest_index(AVStream *st,
+         av_assert0(tts_index);
+         av_assert0(tts_sample);
+         // Find out the ctts_index for the found frame.
+-        *tts_index = 0;
++        *tts_index = FFMIN(*index, tts_count);
+         *tts_sample = 0;
+-        for (int64_t index_tts_count = 0; index_tts_count < *index; index_tts_count++) {
+-            if (*tts_index < tts_count) {
+-                (*tts_sample)++;
+-                if (tts_data[*tts_index].count == *tts_sample) {
+-                    (*tts_index)++;
+-                    *tts_sample = 0;
+-                }
+-            }
+-        }
+ 
+         while (*index >= 0 && (*tts_index) >= 0 && (*tts_index) < tts_count) {
+             // Find a "key frame" with PTS <= timestamp_pts (So that we can decode B-frames correctly).
