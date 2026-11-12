@@ -22,6 +22,9 @@
 # 43022784709).
 
 AZ_OFFICIAL=	lang/perl5.42
+# the fix of CVE-2026-15534 (the superlinear cache of regexec.c), which 5.42.3 lacks:
+# two upstream commits of blead, as Ubuntu carries them
+EXTRA_PATCHES=	${.CURDIR}/files/patch-CVE-2026-15534
 
 _AZ_PERL5_DEFAULT!=	sed -n 's/^PERL5_DEFAULT?=[[:space:]]*//p' ${PORTSDIR:U/usr/ports}/Mk/bsd.default-versions.mk 2> /dev/null || :
 .if !empty(_AZ_PERL5_DEFAULT)
