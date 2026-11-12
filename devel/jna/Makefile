@@ -13,8 +13,12 @@
 # - the libffi of az, shared (DYNAMIC_LIBFFI: the property dynlink.native of
 #   build.xml), with the pkg-config of az and its directory as the run path, not
 #   the static copy JNA bundles (so no texinfo, autoreconf and libtool);
-# - built with our java/openjdk17 (JAVA_VERSION 17) and the Ant of our
-#   devel/apache-ant, which runs on it: one JDK in the build;
+# - built with our java/openjdk21 (JAVA_VERSION 21; aZ, 12.11.2026: 17 is left
+#   to textproc/elasticsearch6 and textproc/opensearch217) and the Ant of our
+#   devel/apache-ant, which runs on it: one JDK in the build; JNA compiles for
+#   Java 8 (javac.release 8 of its common.xml, javac --release 8, which JDK 21
+#   still has), so jna.jar runs on 17 as on 21 (checked after the install: its
+#   class files are of version 52);
 # - the CFLAGS of make.conf (-march of the level, -fstack-protector-strong) for
 #   its C code, before the -O2 of JNA (cflags_extra.native of build.xml);
 # - libjnidispatch.so also as a file, lib/jna/libjnidispatch.so, the same as in
@@ -68,7 +72,7 @@ RUN_DEPENDS=	${AZ_PREFIX}/lib/libffi.so:az/az
 USES=		gmake java:ant pkgconfig
 USE_GITHUB=	yes
 GH_ACCOUNT=	java-native-access
-JAVA_VERSION=	17
+JAVA_VERSION=	21
 MAKE_ARGS=	-DCC="${CC}" \
 		-DLD="${LD}" \
 		-Ddynlink.native=true \
@@ -112,8 +116,11 @@ do-install-DOCS-on:
 		${STAGEDIR}${DOCSDIR}
 
 # the libjnidispatch.so of the two jars and lib/jna: built here, the libffi of az
-# by the run path, nothing of X11 (or of JAWT)
+# by the run path, nothing of X11 (or of JAWT); the classes of jna.jar for Java 8
+# (class file version 52: for every JDK from 8, 17 and 21 among them)
 post-install:
+	@v="$$(${TAR} -xOf ${STAGEDIR}${JAVAJARDIR}/jna.jar com/sun/jna/Native.class | od -An -j 7 -N 1 -t u1 | ${TR} -d ' ')"; \
+	[ "$$v" = 52 ] || { ${ECHO_MSG} "jna.jar: com/sun/jna/Native.class is of class file version $${v:-none}, not 52 (Java 8)"; exit 1; }
 	@[ -z "${LIB_DEPENDS}${RUN_DEPENDS:N*\:az/az}" ] || \
 		{ ${ECHO_MSG} "the package needs more than az: ${LIB_DEPENDS} ${RUN_DEPENDS:N*\:az/az}"; ${FALSE}; }
 	@d=${WRKDIR}/az-jars && ${RM} -r $$d && ${MKDIR} $$d/jna.jar $$d/jna-platform.jar && \
