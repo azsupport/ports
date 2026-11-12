@@ -296,11 +296,22 @@ check_bins() {
     for l in mcedit mcview mcdiff; do
         [ -L "$stage$F/bin/$l" ] || echo "mc: no link bin/$l" >> "$res/bins-bad.txt"
     done
-    "$f" --version > "$res/version.txt" 2>&1
+    # mc wants TERM even for --version: without it, only "The TERM environment variable
+    # is unset!" and exit status 1 (the chroot of tools/build.sh has no TERM: the first
+    # build there, 11.11.2026)
+    TERM=dumb "$f" --version > "$res/version.txt" 2>&1
+    vrc=$?
+    miss=""
     for w in "Built with GLib" "Built with libssh2" "With builtin editor" "With subshell support as default" \
             "With multiple codepages support" sftpfs; do
-        grep -q "$w" "$res/version.txt" || echo "mc --version: no \"$w\"" >> "$res/bins-bad.txt"
+        grep -q "$w" "$res/version.txt" || miss="$miss, \"$w\""
     done
+    if [ "$vrc" != 0 ] || [ -n "$miss" ]; then
+        {
+            echo "mc --version: exit status $vrc${miss:+, no ${miss#, }}; its output (TERM=dumb):"
+            sed -n '1,15s/^/    /p' "$res/version.txt"
+        } >> "$res/bins-bad.txt"
+    fi
     for w in "X11 events" "internationalization"; do
         grep -q "$w" "$res/version.txt" && echo "mc --version: \"$w\", which is off in mc.conf" >> "$res/bins-bad.txt"
     done
