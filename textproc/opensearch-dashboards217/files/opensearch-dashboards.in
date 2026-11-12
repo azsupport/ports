@@ -1,0 +1,94 @@
+#!/bin/sh
+
+# PROVIDE: opensearch_dashboards
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: shutdown
+#
+# opensearch_dashboards_enable (bool):	Set to YES to start OpenSearch Dashboards.
+#			Default: NO
+# opensearch_dashboards_config (path):	The configuration.
+#			Default: %%ETCDIR%%/opensearch_dashboards.yml
+# opensearch_dashboards_user, opensearch_dashboards_group:	Default: www
+# opensearch_dashboards_log (path):	Its log. Default: /var/log/opensearch_dashboards.log
+# opensearch_dashboards_args (str):	More settings, which win over the configuration.
+# opensearch_dashboards_env (str):	More environment of the process (NAME=value ...).
+# opensearch_dashboards_syslog_output_enable (bool):	Its standard output and error to
+#			syslog (daemon(8) -T, -s, -l: opensearch_dashboards_syslog_output_tag,
+#			_priority, _facility). Default: NO
+#
+# The options of Node.js (--max-old-space-size and the like) are those of
+# node.options next to the configuration, one per line, as bin/opensearch-dashboards
+# takes them.
+#
+# azsupport/ports: the package has no security plugin (securityDashboards) and not
+# these plugins either: %%OSD_PLUGINS_OUT%%. A configuration with a setting of one
+# of them is refused at the start (OpenSearch Dashboards would stop at its start with
+# "Unknown configuration key(s)"): %%OSD_CONFIG_OUT%%.
+
+. /etc/rc.subr
+
+name=opensearch_dashboards
+rcvar=opensearch_dashboards_enable
+
+load_rc_config $name
+
+: ${opensearch_dashboards_enable:="NO"}
+: ${opensearch_dashboards_config:="%%ETCDIR%%/opensearch_dashboards.yml"}
+: ${opensearch_dashboards_user:="www"}
+: ${opensearch_dashboards_group:="www"}
+: ${opensearch_dashboards_log:="/var/log/opensearch_dashboards.log"}
+: ${opensearch_dashboards_syslog_output_enable:="NO"}
+
+if checkyesno opensearch_dashboards_syslog_output_enable; then
+	if [ -n "${opensearch_dashboards_syslog_output_tag}" ]; then
+		opensearch_dashboards_syslog_output_flags="-T ${opensearch_dashboards_syslog_output_tag}"
+	else
+		opensearch_dashboards_syslog_output_flags="-T ${name}"
+	fi
+	if [ -n "${opensearch_dashboards_syslog_output_priority}" ]; then
+		opensearch_dashboards_syslog_output_flags="${opensearch_dashboards_syslog_output_flags} -s ${opensearch_dashboards_syslog_output_priority}"
+	fi
+	if [ -n "${opensearch_dashboards_syslog_output_facility}" ]; then
+		opensearch_dashboards_syslog_output_flags="${opensearch_dashboards_syslog_output_flags} -l ${opensearch_dashboards_syslog_output_facility}"
+	fi
+fi
+
+required_files="${opensearch_dashboards_config}"
+pidfile="/var/run/${name}/${name}.pid"
+start_precmd="opensearch_dashboards_precmd"
+# reload: SIGHUP, OpenSearch Dashboards opens its log file again (after newsyslog)
+extra_commands="reload"
+procname="%%LOCALBASE%%/bin/node"
+command="/usr/sbin/daemon"
+# --no-warnings --max-http-header-size=65536 as bin/opensearch-dashboards has them
+command_args="-f ${opensearch_dashboards_syslog_output_flags} -p ${pidfile} /usr/bin/env NODE_ENV=production ${opensearch_dashboards_env} ${procname} --no-warnings --max-http-header-size=65536 %%WWWDIR%%/src/cli/dist serve --config ${opensearch_dashboards_config} --log-file ${opensearch_dashboards_log} ${opensearch_dashboards_args}"
+
+opensearch_dashboards_precmd()
+{
+	local _re _set _options
+
+	_re="$(echo %%OSD_CONFIG_OUT%% | tr ' ' '|')"
+	_set="$(grep -n -E "^[[:space:]]*(${_re})[.:]" "${opensearch_dashboards_config}")"
+	if [ -n "${_set}" ]; then
+		echo "${name}: ${opensearch_dashboards_config} has settings of plugins this package does not have (the security plugin: opensearch_security.*; the others: %%OSD_CONFIG_OUT%%), with which OpenSearch Dashboards stops at its start; comment them out:" >&2
+		echo "${_set}" >&2
+		return 1
+	fi
+
+	if [ ! -d $(dirname ${pidfile}) ]; then
+		install -d -o ${opensearch_dashboards_user} -g ${opensearch_dashboards_group} $(dirname ${pidfile})
+	fi
+
+	if [ ! -f ${opensearch_dashboards_log} ]; then
+		install -o ${opensearch_dashboards_user} -g ${opensearch_dashboards_group} -m 640 /dev/null ${opensearch_dashboards_log}
+	fi
+
+	_options="$(dirname ${opensearch_dashboards_config})/node.options"
+	if [ -f "${_options}" ]; then
+		NODE_OPTIONS="$(grep -v -E '^[[:space:]]*(#|$)' "${_options}" | xargs) ${NODE_OPTIONS}"
+		export NODE_OPTIONS
+	fi
+}
+
+run_rc_command "$1"

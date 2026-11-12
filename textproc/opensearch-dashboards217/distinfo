@@ -1,0 +1,9 @@
+TIMESTAMP = 1794492032
+SHA256 (opensearch-dashboards-2.17.1-linux-x64.tar.gz) = c66d39cc9b283f6dc2ebd043cb096ffe523cc95221ae73c555270411ac2f4146
+SIZE (opensearch-dashboards-2.17.1-linux-x64.tar.gz) = 329739658
+SHA256 (opensearch-2.13.0.tgz) = a0f4834e527a700d7622e6edcb8e499fafc5d30b8a4dd3a3d7594dfa7df3b18f
+SIZE (opensearch-2.13.0.tgz) = 183651
+SHA256 (json11-2.0.0.tgz) = 998d9ed52378a9bc1993af03d2e606763cf202d92fd619e11b5a0fedf5984aa6
+SIZE (json11-2.0.0.tgz) = 113201
+SHA256 (js-yaml-3.15.2.tgz) = 7f005cf0b8ee639b4557e0e321dc067c1f2aa0a442d096e03f2ab53353738794
+SIZE (js-yaml-3.15.2.tgz) = 73285
