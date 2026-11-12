@@ -29,7 +29,8 @@ WWW=		https://ffmpeg.org/ \
 LICENSE=	GPLv2+
 
 # the libraries of az in its hash (tools/build.sh): x264, dav1d, SVT-AV1 and libwebp
-# (and those before them in deps.conf), more than the files of its dependency names
+# (their interfaces and those of the libraries they need), more than the files of its
+# dependency names
 AZ_HASH_LIBS=	x264 dav1d svtav1 webp
 # += : the nonfree variant (nonfree/ffmpeg/Makefile.in) has its own before it
 BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libx264.so:az/az \

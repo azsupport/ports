@@ -11,7 +11,14 @@
 #     of the other ports name a port by its directory);
 #   - a dependency names an origin that is neither a port of this tree nor one of
 #     the official tree (<origin>/Makefile; a @flavor is left out);
-#   - two ports have the same PKGNAME.
+#   - two ports have the same PKGNAME;
+#   - the static tree of az (aZ, 12.11.2026): a port whose dependencies name a file of
+#     it (${AZ_STATIC}/...:az/az) without AZ_STATIC_LIBS (the libraries of az whose
+#     archives it links into its package, whose content its az_hash takes, or "none":
+#     it builds against that tree and its package has no code of az), one with
+#     AZ_STATIC_LIBS that names no such file, or a name there that is no library of
+#     az/az/files/deps.conf (tools/build.sh builds every other port without the
+#     archives of az in its chroot).
 #
 # Usage: sh tools/check-tree.sh <official tree>
 #   <official tree>: a checkout of freebsd-ports at the pinned commit (Mk/ and the
@@ -70,14 +77,15 @@ for mk in "$top"/*/*/Makefile; do
     [ -f "$mk" ] || continue
     d="${mk%/Makefile}"; o="${d#"$top"/}"
     case "$o" in Mk/* | Templates/* | Keywords/* | tools/* | .github/* | work/* | packages/* | distfiles/*) continue ;; esac
-    if ! "$MAKE" -C "$d" "$@" -V PKGNAME -V PKGORIGIN -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V IGNORE \
-        > "$tmp/out" 2> "$tmp/err" < /dev/null; then
+    if ! "$MAKE" -C "$d" "$@" -V PKGNAME -V PKGORIGIN -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS \
+        -V AZ_STATIC -V AZ_STATIC_LIBS -V IGNORE > "$tmp/out" 2> "$tmp/err" < /dev/null; then
         say "FAIL $o: make: $(grep -v '^[[:space:]]*$' "$tmp/err" | tail -n 3 | tr '\n' ' ' | sed 's/ *$//')"
         nfail=$((nfail + 1)); continue
     fi
     pn="$(sed -n 1p "$tmp/out")"; po="$(sed -n 2p "$tmp/out")"
     bd="$(sed -n 3p "$tmp/out")"; ld="$(sed -n 4p "$tmp/out")"; rd="$(sed -n 5p "$tmp/out")"
-    ign="$(sed -n '6,$p' "$tmp/out" | tr '\n' ' ' | sed 's/ *$//')"
+    ast="$(sed -n 6p "$tmp/out")"; asl="$(sed -n 7p "$tmp/out")"
+    ign="$(sed -n '8,$p' "$tmp/out" | tr '\n' ' ' | sed 's/ *$//')"
     why=""
     [ -n "$pn" ] || why="$why no PKGNAME;"
     [ "$po" = "$o" ] || why="$why PKGORIGIN is ${po:-empty}, not $o;"
@@ -94,6 +102,20 @@ for mk in "$top"/*/*/Makefile; do
         done
     done
     [ -n "$unknown" ] && why="$why origins neither of this tree nor of the official one:$unknown"
+    # the static tree of az: AZ_STATIC_LIBS when a dependency names a file of it, only then
+    if [ -n "$ast" ]; then
+        sfiles="$(for dep in $bd $ld $rd; do case "$dep" in "$ast"/*:az/az|"$ast"/*:az/az:*|"$ast"/*:az/az@*) echo "${dep%%:*}" ;; esac; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
+        if [ -n "$sfiles" ] && [ -z "$asl" ]; then
+            why="$why it names the static tree of az ($sfiles) without AZ_STATIC_LIBS (the libraries of az whose archives its package takes, or none);"
+        elif [ -z "$sfiles" ] && [ -n "$asl" ]; then
+            why="$why AZ_STATIC_LIBS ($asl) without a dependency on a file of the static tree of az ($ast);"
+        fi
+        for l in $asl; do
+            [ "$l" = none ] && continue
+            awk -v n="$l" '$1 == "lib" && $2 == n { f = 1 } END { exit !f }' "$top/az/az/files/deps.conf" ||
+                why="$why AZ_STATIC_LIBS names $l, no library of az/az/files/deps.conf;"
+        done
+    fi
     # stderr of a make that worked: warnings of the framework, shown with the port
     warn="$(grep -v '^[[:space:]]*$' "$tmp/err" | head -n 2 | tr '\n' ' ' | sed 's/ *$//')"
     if [ -n "$why" ]; then

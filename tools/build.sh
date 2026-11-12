@@ -33,7 +33,13 @@
 #                    another in the order of the queue, as before AZ_JOBS
 #   AZ_DRYRUN        1: the queue, the hashes and the waves of the run (what the
 #                    repository has with the same az_hash left out), nothing installed
-#                    or built, no repository
+#                    or built, no repository (the ports that need az: decided after az
+#                    is built, when it is to be built: AZ_PLAN)
+#   AZ_PLAN          1: the plan of the run: az/az and the ports it needs built when
+#                    they are to be (the hashes of the ports that need az are made with
+#                    the interfaces of the new az), every other port only decided:
+#                    kept from the repository or to be built, and why (results/plan.txt,
+#                    the summary); the repository gets what was built
 #   AZ_CONFIGURE_CHECK  1: the configure check of the PHP ports the run configures
 #                    (tools/configure-check.sh; results/configure-check.txt)
 #   AZ_CFLAGS, AZ_GCC_SO, AZ_GCC_BIN, MAKE_CONF  given to the builds (the scripts of
@@ -51,11 +57,15 @@
 #   its MASTERDIR and the other files of this tree its Makefile reads, Mk/bsd.overlay.mk
 #   and the other makefiles of Mk/ of this tree it reads: Mk/Uses/php.mk for the PHP
 #   ports, not for az/az; the files of tools/ its makefiles name outside their
-#   comments, and those these name: tools/az-build.sh of az/az), of the official commit, the level and tools/make.conf.in,
-#   and of the hash of each port of this tree it needs (so a change of az/az builds
-#   again what needs it; of az/az the hash of the last of the libraries of az the port
-#   links, tools/az-lib-hashes.sh, so a library added to az builds again only the
-#   ports that link it): that hash leaves out the files the port lists in its
+#   comments, and those these name: tools/az-build.sh of az/az; the files of this tree
+#   its EXTRA_PATCHES name), of the official commit, the level and tools/make.conf.in,
+#   and of the hash of each port of this tree it needs (so a change of a port builds
+#   again what needs it), but of az/az the interface hashes of the libraries of az the
+#   port uses and of those they need (aZ, 12.11.2026: the manifests of the package of
+#   az, tools/az-interface.sh; the content hash of the libraries of AZ_STATIC_LIBS), so
+#   a fix inside a library builds again only az and a change of its interface the
+#   ports that use it; the hashes of the ports that need az are made once az/az is
+#   done (built or kept): that hash leaves out the files the port lists in its
 #   AZ_HASH_NOT_FOR_DEPENDENTS (run time only: lang/php74's php.ini block, profile
 #   script, rc.d script, pkg-message), which count in its own az_hash only, not in
 #   that of its slaves either; it goes to make as AZ_HASH (the annotation az_hash of the package,
@@ -64,6 +74,16 @@
 #   the base of every az_hash: the official commit, the level, tools/make.conf.in and
 #   the way the builder builds ("builder chroot": each port in a chroot of its own,
 #   11.11.2026: every port built once that way);
+# - after az/az is built in a run, the ABI check of the packages of the repository that
+#   need az (tools/az-abi-check.sh: each SONAME of az they need is in the new az, each
+#   symbol they bind from it is defined there): one that fails is built again (one not
+#   in the queue goes from the repository); a package that links a library of az its
+#   az_hash does not take (its SONAMEs, shlibs_required) fails the run (AZ_HASH_LIBS of
+#   its Makefile is short); results/az-interface.txt: the interfaces that changed, the
+#   ABI check, the ports kept by interface while az was built again;
+# - a port that names no file of the static tree of az in its dependencies builds
+#   without its archives (they go from its chroot): only a port that says AZ_STATIC_LIBS
+#   (tools/check-tree.sh) can link them;
 # - the build tools of AZ_TOOLS_OFFICIAL (below: Python, Perl, meson) come from the
 #   official packages of FreeBSD also when this tree has the origin (aZ, 11.11.2026:
 #   our python312 and perl5.42 link libraries of az, which needs them to build): for a
@@ -122,14 +142,16 @@
 #
 # Results: results/ of the tree: summary.txt (a line per port, "result: OK" or
 # "result: FAIL (...)" at the end, a line "chroots:" of their times), queue.txt,
-# hashes.txt, az-lib-hashes.txt, waves.txt (AZ_JOBS above 1, AZ_DRYRUN), progress.log
+# hashes.txt, az-interface.txt and abi-check.txt (az), plan.txt (AZ_PLAN), waves.txt
+# (AZ_JOBS above 1, AZ_DRYRUN), progress.log
 # (the screen lines as they come), logs/<category>_<port>.log, logs/chroots.log (the
 # catalogs and the official packages fetched at the start), pkg-repo.log; with AZ_CONFIGURE_CHECK=1
 # configure-check.txt (each port with differences, the checks with their diagnostic,
 # then the others) and configure-check/ (a file per port, the two config.log files of
 # a port with differences).
-# Exit status: 0 every port of the queue built or kept and the repository signed (or
-# unsigned without a key), or a dry run; 1 otherwise, 2 a wrong call.
+# Exit status: 0 every port of the queue built or kept (AZ_PLAN: or to be built) and the
+# repository signed (or unsigned without a key), or a dry run; 1 otherwise, 2 a wrong
+# call.
 
 set -u
 
@@ -195,6 +217,7 @@ case "$jobs" in
     ''|*[!0-9]*|0*) die "AZ_JOBS=$jobs: not a number of 1 or more" ;;
 esac
 case "${AZ_DRYRUN:-}" in ''|0) dryrun=0 ;; *) dryrun=1 ;; esac
+case "${AZ_PLAN:-}" in ''|0) plan=0 ;; *) plan=1 ;; esac
 case "${AZ_CONFIGURE_CHECK:-}" in ''|0) ccheck=0 ;; *) ccheck=1 ;; esac
 # one port after another as before AZ_JOBS: AZ_JOBS=1 (not a dry run)
 serial=0
@@ -502,11 +525,14 @@ tool_official() {
 # port_info <origin>: what make -V says of a port of this tree into $q/info/<key>
 # (lines: 1 PKGNAME, 2 IGNORE, 3-9 FETCH_ EXTRACT_ PATCH_ BUILD_ LIB_ RUN_ PKG_DEPENDS,
 # 10 NEED_ROOT, 11 MASTERDIR, 12 FILESDIR, 13 PATCHDIR, 14 PKGDIR, 15 DISTINFO_FILE,
-# 16 .MAKE.MAKEFILES, 17 AZ_HASH_NOT_FOR_DEPENDENTS, 18 AZ_HASH_LIBS, 19 FLAVOR); our
+# 16 .MAKE.MAKEFILES, 17 AZ_HASH_NOT_FOR_DEPENDENTS, 18 AZ_HASH_LIBS, 19 FLAVOR,
+# 20 AZ_STATIC_LIBS, 21 EXTRA_PATCHES, 22 AZ_PREFIX, 23 AZ_STATIC); our
 # dependencies into $q/deps/<key> (all kinds) and
 # $q/rdeps/<key> (LIB_ and RUN_DEPENDS: what pkg add of its package needs), the
 # official ones into $q/odeps/<key> and $q/orun/<key>; the origins of this tree it gets
-# official (tool_official) are among the official ones, and in $q/info/<key>.tools
+# official (tool_official) are among the official ones, and in $q/info/<key>.tools;
+# $q/info/<key>.static when a dependency names a file of the static tree of az
+# (AZ_STATIC: the port builds against it)
 port_info() {
     _k="$(key "$1")"
     [ -f "$q/info/$_k" ] && return 0
@@ -514,9 +540,14 @@ port_info() {
     if ! make -C "$top/$1" AZ_STAMP="$az_stamp" -V PKGNAME -V IGNORE -V FETCH_DEPENDS -V EXTRACT_DEPENDS \
             -V PATCH_DEPENDS -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS -V NEED_ROOT \
             -V MASTERDIR -V FILESDIR -V PATCHDIR -V PKGDIR -V DISTINFO_FILE -V .MAKE.MAKEFILES \
-            -V AZ_HASH_NOT_FOR_DEPENDENTS -V AZ_HASH_LIBS -V FLAVOR > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
+            -V AZ_HASH_NOT_FOR_DEPENDENTS -V AZ_HASH_LIBS -V FLAVOR -V AZ_STATIC_LIBS -V EXTRA_PATCHES \
+            -V AZ_PREFIX -V AZ_STATIC > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
         echo "make -V failed: $(grep . "$q/info/$_k.err" | head -n 1)" > "$q/info/$_k.bad"
         return 1
+    fi
+    _st="$(sed -n 23p "$q/info/$_k")"
+    if [ -n "$_st" ] && sed -n '3,9p' "$q/info/$_k" | tr -s ' \t' '\n\n' | grep -q -e "^$_st/[^:]*:az/az\$" -e "^$_st/[^:]*:az/az[:@]"; then
+        : > "$q/info/$_k.static"
     fi
     sed -n '3,9p' "$q/info/$_k" | dep_origins > "$q/info/$_k.all"
     sed -n '7,8p' "$q/info/$_k" | dep_origins > "$q/info/$_k.run"
@@ -540,7 +571,8 @@ port_info() {
 
 # port_files <origin>: the files of this tree a port is built from, "f <path relative
 # to the tree> <sha256>" a line each: those of its directory, of its MASTERDIR,
-# FILESDIR, PATCHDIR, PKGDIR and DISTINFO_FILE, and the makefiles of this tree it reads
+# FILESDIR, PATCHDIR, PKGDIR and DISTINFO_FILE, the files of this tree its EXTRA_PATCHES
+# name, and the makefiles of this tree it reads
 # (.MAKE.MAKEFILES: Mk/bsd.overlay.mk, which every port reads, taken also when make
 # does not say; Mk/Uses/php.mk only by the ports that read it); and the files of
 # tools/ that the lines of those makefiles name outside their comments
@@ -584,6 +616,11 @@ port_files() {
         [ -f "$topr/Mk/bsd.overlay.mk" ] && echo "$topr/Mk/bsd.overlay.mk"
         for _p in $(sed -n '11,16p' "$q/info/$_k"); do
             if [ -d "$_p" ]; then files_in "$_p"; elif [ -f "$_p" ]; then echo "$_p"; fi
+        done
+        # EXTRA_PATCHES (<file>[:-p<n>]) of this tree: ftp/curl applies the patch of curl of az/az
+        for _p in $(sed -n 21p "$q/info/$_k"); do
+            _p="${_p%%:*}"
+            [ -f "$_p" ] && echo "$_p"
         done
     } 2> /dev/null | while read -r _f; do realpath "$_f" 2> /dev/null; done | LC_ALL=C sort -u |
         while read -r _f; do tree_file "$_f" && echo "$_f"; done > "$q/files-$_k"
@@ -733,6 +770,14 @@ ch_deps() {
         fi
         cat "$cs/pkg.out" >> "$log"
     done
+    # the archives of the static tree of az only for a port that names a file of that
+    # tree in its dependencies (and so says AZ_STATIC_LIBS, tools/check-tree.sh): no
+    # other can link them into its package, which its az_hash would not know
+    _st="$(sed -n 23p "$q/info/$k")"
+    if [ -n "$_st" ] && [ ! -f "$q/info/$k.static" ] && grep -qxF az/az "$q/dl/$k.ours" && [ -d "$c$_st/lib" ]; then
+        rm -f "$c$_st"/lib/*.a
+        echo "== the archives of $_st/lib away from the chroot: $1 names no file of the static tree of az in its dependencies (AZ_STATIC_LIBS)" >> "$log"
+    fi
     # the hints of the run-time linker with the libraries of the packages
     chroot "$c" /usr/sbin/service ldconfig start > /dev/null 2>&1 || :
     return 0
@@ -843,15 +888,35 @@ while read -r l; do say "$l"; done < "$res/stages.txt"
 # dependents fold in, nor in the az_hash of its slaves (their MASTERDIR is its
 # directory: the modules php74-*). Without the variable both hashes are the same.
 #
-# az/az: a port that links libraries of az folds in, instead of the hash of az, that
-# of the last of them in the order of az/az/files/deps.conf (tools/az-lib-hashes.sh:
-# the common part of az, its own lines and the libraries before it), so that a
-# library added to az (at the end of the "lib" lines) or changed builds again only az
-# and the ports that link it (aZ, 10.11.2026). Its libraries: those of the files of
-# az its dependencies name (${AZ_PREFIX}/lib/libxml2.so:az/az: libxml2; az_lib_of)
-# and those its AZ_HASH_LIBS names (the names of deps.conf: a program that links
-# more of the static tree than its dependencies name, ftp/curl: curl). A file of az
-# that is of no library, with no AZ_HASH_LIBS: the hash of all of az, as before.
+# az/az (aZ, 12.11.2026: no build again of what needs az for a fix inside a library of
+# it, as FreeBSD and Debian do not build again the dependents of a shared library for
+# one): az/az itself is built again when anything of it changes; a port that needs it
+# folds in, instead of its hash, the interface hash of each library of az it uses and
+# of those these need (their closure), and the hash of the files of az of no library
+# (common.txt: bin/pkg-config). The interface of a library comes out of the build of
+# az: the manifest tools/az-build.sh writes into the package
+# (AZ_PREFIX/share/az/interface/<library>.txt: its headers, .pc files, *-config
+# scripts and other files with their SHA-256, the SONAMEs of its shared libraries, the
+# names of its archives, its version, the hash of its build functions, the libraries
+# of az it requires by the NEEDED of its shared libraries, its .pc files and the
+# #include lines of its headers), read by tools/az-interface.sh. So a fix inside the
+# code of a library (the same headers, .pc files, SONAMEs, version and options) builds
+# again az alone; a new version, a changed header or .pc, a new SONAME or a changed
+# option builds again the ports that use that library. The libraries a port uses: those
+# of the files of az its dependencies name (${AZ_PREFIX}/lib/libxml2.so:az/az: the
+# library whose manifest has that path) and those its AZ_HASH_LIBS names (the names of
+# deps.conf: a program that links more than its dependencies name, ftp/curl,
+# multimedia/ffmpeg, ImageMagick); a port that links the archives of a library into its
+# package names it in AZ_STATIC_LIBS ("none": it builds against the static tree, its
+# package has no code of az): the content hash of that library (its archives too) and
+# of its closure. A file of az a dependency names that no manifest has, or a name of
+# those variables that is no library of az: the hash of all of az, as before (said in
+# results/hashes.txt). The manifests are those of the package of az of the run: of the
+# repository when az/az is kept (its package has the same az_hash and manifests), at
+# once; of its new package when it is built, so the hashes of the ports that need it
+# (and of those that need these) are made after az/az is built (az_resolve; az is the
+# first stage), and no port that needs it is ready before. A package of az of the
+# repository without manifests (built before 12.11.2026) is built again.
 #
 # The base of every hash: the official commit, the level, tools/make.conf.in and the
 # way the builder builds ("builder chroot": each port in a chroot of its own, with
@@ -860,64 +925,112 @@ while read -r l; do say "$l"; done < "$res/stages.txt"
 # (AZ_TOOLS_OFFICIAL) are not among its dependencies of this tree: their hash is not
 # in its own.
 base_hash="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; echo "builder chroot"; cat "$top/tools/make.conf.in"; } | hin)"
-mkdir -p "$q/dhash"
+mkdir -p "$q/dhash" "$q/azcov" "$q/uncov" "$q/abifail"
 : > "$res/hashes.txt"
-: > "$q/azlib.txt"
-# az_lib_of <file of az>: the library of deps.conf it is of (the file name without
-# lib, .so* and .a; the names that are not those of the library listed), or nothing
-az_lib_of() {
-    _b="${1##*/}"
-    case "$_b" in *.a) _b="${_b%.a}" ;; *.so | *.so.*) _b="${_b%%.so*}" ;; *) return 0 ;; esac
-    _b="${_b#lib}"
-    case "$_b" in
-        icui18n | icuuc | icudata | icuio | icutu) _b=icu ;;
-        intl) _b=gettext ;;
-        brotlienc | brotlidec | brotlicommon) _b=brotli ;;
-        onig) _b=oniguruma ;;
-        png16) _b=png ;;
-        jpeg | turbojpeg) _b=mozjpeg ;;
-        freetype) _b=freetype2 ;;
-        exslt) _b=libxslt ;;
-        memcachedutil | hashkit) _b=libmemcached ;;
-        history) _b=readline ;;
-        charset) _b=libiconv ;;
-        sharpyuv | webpdemux | webpmux | webpdecoder) _b=webp ;;
-        event | event_core | event_extra | event_pthreads | event_openssl) _b=libevent ;;
-        cares) _b=c-ares ;;
-        apr-1 | aprutil-1) _b=apr ;;
-        urcu | urcu-*) _b=liburcu ;;
-        SvtAv1Enc) _b=svtav1 ;;
-    esac
-    for _n in "lib$_b" "$_b"; do
-        awk -v n="$_n" '$1 == n { f = 1 } END { exit !f }' "$q/azlib.txt" && { echo "$_n"; return 0; }
-    done
-    return 0
+: > "$q/deferred"
+# the manifests of az: $q/azif (the files), azif.hashes (tools/az-interface.sh hashes),
+# azif.paths, azif.sonames; none until they are read (az_load)
+: > "$q/azif.hashes"; : > "$q/azif.paths"; : > "$q/azif.sonames"
+# az_load <package of az>: its manifests read; 1 when it has none
+az_load() {
+    rm -rf "$q/azif"
+    sh "$top/tools/az-interface.sh" extract "$1" "$q/azif" "$(sed -n 22p "$q/info/az_az" 2>/dev/null)" 2> "$q/azif.err" &&
+        sh "$top/tools/az-interface.sh" hashes "$q/azif" > "$q/azif.hashes" 2>> "$q/azif.err" &&
+        sh "$top/tools/az-interface.sh" paths "$q/azif" > "$q/azif.paths" 2>> "$q/azif.err" &&
+        sh "$top/tools/az-interface.sh" sonames "$q/azif" > "$q/azif.sonames" 2>> "$q/azif.err" &&
+        [ -s "$q/azif.hashes" ] && awk '{ print $1 }' "$q/azif.sonames" > "$q/azif.sonames.names" && return 0
+    : > "$q/azif.hashes"; : > "$q/azif.paths"; : > "$q/azif.sonames"
+    return 1
 }
-# az_dep <key>: the line of az/az for the hash of a port that needs it: "dep az/az
-# library <last> <hash>" with the hash of the last of its libraries, or "dep az/az
-# <hash of az>" when one of its files of az is of no library (and no AZ_HASH_LIBS)
+# az_dep <key>: the lines of az/az for the hash of a port that needs it: "dep az/az
+# common <hash>", "dep az/az interface <library> <hash>" for each library of the
+# closure of those it uses, "dep az/az static <library> <hash>" (the content hash) for
+# the closure of its AZ_STATIC_LIBS; "dep az/az <hash of az>" when a file of az its
+# dependencies name is in no manifest or a name is no library of az. The libraries its
+# hash covers into $q/azlibs-<key>, what it says into $q/azdep-<key>
 az_dep() {
     _libs="$(sed -n 18p "$q/info/$1")"
-    _all=""
+    _st="$(sed -n 20p "$q/info/$1")"
+    [ "$_st" = none ] && _st=""
+    _pre="$(sed -n 22p "$q/info/$1")"
+    _bad=""
     for _e in $(sed -n '3,9p' "$q/info/$1"); do
         case "$_e" in *:az/az | *:az/az:* | *:az/az@*) ;; *) continue ;; esac
-        _l="$(az_lib_of "${_e%%:*}")"
-        if [ -n "$_l" ]; then _libs="$_libs $_l"; else _all="$_all ${_e%%:*}"; fi
+        _p="${_e%%:*}"
+        _l="$(awk -v p="${_p#"$_pre"/}" '$1 == p { print $2; exit }' "$q/azif.paths")"
+        # a file of no library (bin/pkg-config): common, in the hash of every port that needs az
+        [ "$_l" = common ] && continue
+        if [ -n "$_l" ]; then _libs="$_libs $_l"; else _bad="$_bad $_p"; fi
     done
-    if [ ! -s "$q/azlib.txt" ] || { [ -n "$_all" ] && [ -z "$(sed -n 18p "$q/info/$1")" ]; }; then
-        echo "dep az/az $(cat "$q/dhash/$(key az/az)" 2>/dev/null || echo none)"
-        echo "all of az: ${_all# }" > "$q/azdep-$1"
-        return
+    for _l in $_libs $_st; do
+        awk -v n="$_l" '$1 == n && n != "common" { f = 1 } END { exit !f }' "$q/azif.hashes" || _bad="$_bad $_l"
+    done
+    if [ -n "$_bad" ] || [ ! -s "$q/azif.hashes" ]; then
+        echo "dep az/az $(cat "$q/dhash/az_az" 2>/dev/null || echo none)"
+        awk '$1 != "common" { print $1 }' "$q/azif.hashes" > "$q/azlibs-$1"
+        if [ -s "$q/azif.hashes" ]; then
+            echo "all of az: no library of az for$_bad" > "$q/azdep-$1"
+        else
+            echo "all of az: no manifests of its libraries" > "$q/azdep-$1"
+        fi
+        return 0
     fi
-    _last="$(for _l in $_libs; do awk -v n="$_l" '$1 == n { print $2, $1 }' "$q/azlib.txt"; done | sort -n | tail -n 1 | awk '{ print $2 }')"
-    if [ -z "$_last" ]; then
-        echo "dep az/az $(cat "$q/dhash/$(key az/az)" 2>/dev/null || echo none)"
-        echo "all of az: no library of deps.conf in ${_libs# }" > "$q/azdep-$1"
-        return
-    fi
-    echo "dep az/az library $_last $(awk -v n="$_last" '$1 == n { print $3 }' "$q/azlib.txt")"
-    echo "the libraries of az up to $_last (of$(printf ' %s' $_libs | tr ' ' '\n' | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//'))" > "$q/azdep-$1"
+    awk -v libs="$_libs" -v st="$_st" -v out="$q/azlibs-$1" -v note="$q/azdep-$1" '
+        { ih[$1] = $2; ch[$1] = $3; cl[$1] = $4 }
+        function close_of(list, w,   n, i, m, j, L, C) {
+            n = split(list, L, " ")
+            for (i = 1; i <= n; i++) { m = split(cl[L[i]], C, ","); for (j = 1; j <= m; j++) w[C[j]] = 1 }
+        }
+        function sorted(w, s,   n, x, i, j, t) {
+            n = 0; for (x in w) s[++n] = x
+            for (i = 1; i <= n; i++) for (j = i + 1; j <= n; j++) if (s[j] < s[i]) { t = s[i]; s[i] = s[j]; s[j] = t }
+            return n
+        }
+        END {
+            close_of(libs, want); close_of(st, swant)
+            print "dep az/az common " ih["common"]
+            n = sorted(want, a); l = ""
+            for (i = 1; i <= n; i++) { print "dep az/az interface " a[i] " " ih[a[i]]; print a[i] > out; l = l " " a[i] }
+            m = sorted(swant, b); sl = ""
+            for (i = 1; i <= m; i++) { print "dep az/az static " b[i] " " ch[b[i]]; print b[i] > out; sl = sl " " b[i] }
+            printf "the interfaces of %d libraries of az:%s%s\n", n, l, (m ? "; the archives of" sl : "") > note
+        }' "$q/azif.hashes"
 }
+# hash_port <origin>: the two hashes of a port (its files in $q/pf-<key> and
+# $q/nfd-<key>), its line of results/hashes.txt; the libraries of az its hash covers,
+# its own and those of the ports of this tree it needs, into $q/azcov/<key>
+hash_port() {
+    h_o="$1"; h_k="$(key "$1")"
+    for h_d in $(LC_ALL=C sort -u "$q/deps/$h_k"); do
+        if [ "$h_d" = az/az ]; then az_dep "$h_k"; continue; fi
+        echo "dep $h_d $(cat "$q/dhash/$(key "$h_d")" 2>/dev/null || echo none)"
+    done > "$q/dl-$h_k"
+    {
+        cat "$q/azlibs-$h_k" 2> /dev/null
+        for h_d in $(cat "$q/deps/$h_k"); do cat "$q/azcov/$(key "$h_d")" 2> /dev/null; done
+    } | LC_ALL=C sort -u > "$q/azcov/$h_k"
+    {
+        echo "base $base_hash"
+        awk -v d="$h_o/" 'FILENAME == ARGV[1] { x[$1] = 1; next }
+            ($2 in x) && substr($2, 1, length(d)) != d { next } { print }' "$q/nfd-$h_k" "$q/pf-$h_k"
+        cat "$q/dl-$h_k"
+    } > "$q/hash/$h_k.in"
+    {
+        echo "base $base_hash"
+        awk 'FILENAME == ARGV[1] { x[$1] = 1; next } !($2 in x) { print }' "$q/nfd-$h_k" "$q/pf-$h_k"
+        cat "$q/dl-$h_k"
+    } > "$q/dhash/$h_k.in"
+    hin < "$q/hash/$h_k.in" > "$q/hash/$h_k"
+    hin < "$q/dhash/$h_k.in" > "$q/dhash/$h_k"
+    h_n=""
+    [ -f "$q/azdep-$h_k" ] && h_n=" ($(cat "$q/azdep-$h_k"))"
+    if [ -s "$q/info/$h_k.tools" ]; then
+        h_n="$h_n (the official packages of $(LC_ALL=C sort -u "$q/info/$h_k.tools" | tr '\n' ' ' | sed 's/ $//') to build it: AZ_TOOLS_OFFICIAL, not in its hash)"
+    fi
+    echo "$h_o $(cat "$q/hash/$h_k")$h_n" >> "$res/hashes.txt"
+}
+# the files of each port, its hash when it needs no az; those that need az (or a port
+# that needs it) wait for its manifests ($q/deferred, in the order of the queue)
 for o in $(cat "$q/queue.txt"); do
     k="$(key "$o")"
     [ -f "$q/info/$k.bad" ] && continue
@@ -926,44 +1039,15 @@ for o in $(cat "$q/queue.txt"); do
     for f in $(sed -n 17p "$q/info/$k"); do
         f="$(realpath "$f" 2> /dev/null)" && tree_file "$f" && echo "${f#"$topr"/}"
     done | LC_ALL=C sort -u > "$q/nfd-$k"
-    for d in $(LC_ALL=C sort -u "$q/deps/$k"); do
-        if [ "$d" = az/az ]; then az_dep "$k"; continue; fi
-        echo "dep $d $(cat "$q/dhash/$(key "$d")" 2>/dev/null || echo none)"
-    done > "$q/dl-$k"
-    {
-        echo "base $base_hash"
-        awk -v d="$o/" 'FILENAME == ARGV[1] { x[$1] = 1; next }
-            ($2 in x) && substr($2, 1, length(d)) != d { next } { print }' "$q/nfd-$k" "$q/pf-$k"
-        cat "$q/dl-$k"
-    } > "$q/hash/$k.in"
-    {
-        echo "base $base_hash"
-        awk 'FILENAME == ARGV[1] { x[$1] = 1; next } !($2 in x) { print }' "$q/nfd-$k" "$q/pf-$k"
-        cat "$q/dl-$k"
-    } > "$q/dhash/$k.in"
-    hin < "$q/hash/$k.in" > "$q/hash/$k"
-    hin < "$q/dhash/$k.in" > "$q/dhash/$k"
     nfd="$(awk -v d="$o/" 'substr($0, 1, length(d)) == d' "$q/nfd-$k" | tr '\n' ' ')"
     [ -n "$nfd" ] && say "$o: AZ_HASH_NOT_FOR_DEPENDENTS, not in the hash of the ports that need it: $nfd"
-    azn=""
-    [ -f "$q/azdep-$k" ] && azn=" ($(cat "$q/azdep-$k"))"
-    if [ -s "$q/info/$k.tools" ]; then
-        tl="$(LC_ALL=C sort -u "$q/info/$k.tools" | tr '\n' ' ' | sed 's/ $//')"
-        azn="$azn (the official packages of $tl to build it: AZ_TOOLS_OFFICIAL, not in its hash)"
-        say "$o: the official packages of $tl to build it, not ours (AZ_TOOLS_OFFICIAL)"
-    fi
-    echo "$o $(cat "$q/hash/$k")$azn" >> "$res/hashes.txt"
-    # az: the hash of each of its libraries for the ports that link them
-    if [ "$o" = az/az ]; then
-        if sh "$top/tools/az-lib-hashes.sh" "$top" "$q/pf-$k" > "$q/azlib.all" 2> "$q/azlib.err"; then
-            sed 1d "$q/azlib.all" > "$q/azlib.txt"
-            say "az/az: the hashes of its $(wc -l < "$q/azlib.txt" | tr -d ' ') libraries for the ports that link them (tools/az-lib-hashes.sh)"
-            cp "$q/azlib.all" "$res/az-lib-hashes.txt"
-        else
-            say "az/az: tools/az-lib-hashes.sh failed ($(head -n 1 "$q/azlib.err")): the ports that need az fold in the hash of all of az"
-            : > "$q/azlib.txt"
-        fi
-    fi
+    [ -s "$q/info/$k.tools" ] &&
+        say "$o: the official packages of $(LC_ALL=C sort -u "$q/info/$k.tools" | tr '\n' ' ' | sed 's/ $//') to build it, not ours (AZ_TOOLS_OFFICIAL)"
+    wait_az=0
+    for d in $(cat "$q/deps/$k"); do
+        if [ "$d" = az/az ] || grep -qxF "$d" "$q/deferred"; then wait_az=1; break; fi
+    done
+    if [ "$wait_az" = 1 ]; then echo "$o" >> "$q/deferred"; else hash_port "$o"; fi
 done
 
 # the packages of the repository before: name origin az_hash file, one per origin: of
@@ -995,6 +1079,116 @@ for og in $(awk '{ print $2 }' "$q/repo-all" | LC_ALL=C sort -u); do
     echo "$bn $og ${h:--} $best" >> "$q/repo-had"
 done
 
+# the az of the repository (the one the packages kept were built or checked with):
+# its manifests in $q/azold, for what changed (az_report)
+azold=""
+azhad="$(awk '$2 == "az/az" { print $4; exit }' "$q/repo-had")"
+if [ -n "$azhad" ] && sh "$top/tools/az-interface.sh" extract "$repo/$azhad" "$q/azold" "$(sed -n 22p "$q/info/az_az" 2>/dev/null)" 2> /dev/null; then
+    azold="$repo/$azhad"
+fi
+# az/az kept: the hashes of the ports that need it with the manifests of its package;
+# built in this run: after its build (az_resolve, with the ABI check). A package
+# without them (built before 12.11.2026) is built again ($q/nomani-az_az)
+azstate=none
+azbuilt=0
+if grep -qxF az/az "$q/queue.txt" && [ ! -f "$q/info/az_az.bad" ]; then
+    azstate=waiting
+    hh="$(awk '$2 == "az/az" { print $3; exit }' "$q/repo-had")"
+    if [ "$force" = 0 ] && [ -n "$hh" ] && [ "$hh" = "$(cat "$q/hash/az_az" 2>/dev/null)" ]; then
+        if [ -n "$azold" ] && az_load "$repo/$azhad"; then
+            say "az/az: kept from the repository ($azhad): the interfaces of its $(grep -c -v '^common ' "$q/azif.hashes") libraries for the ports that need it"
+        else
+            : > "$q/nomani-az_az"
+            say "az/az: $azhad of the repository has no manifests of the interfaces of its libraries: built again"
+        fi
+    fi
+fi
+# az_resolve: once az/az is done (built, kept, or failed), the manifests of its package,
+# the ABI check of the packages kept from the repository that need it (when it was
+# built in this run), then the hashes of the ports that wait for it; their official
+# packages fetched (a run that builds them)
+az_resolve() {
+    [ "$azstate" = waiting ] || return 0
+    [ -n "$(st az/az)" ] || return 0
+    azstate=resolved
+    _af="$(cat "$q/file/az_az" 2>/dev/null)"
+    case "$(st az/az)" in
+        ok|repo) ;;
+        *) say "az/az did not build: the ports that need it are not built either"; return 0 ;;
+    esac
+    if [ -z "$_af" ] || [ ! -f "$_af" ]; then
+        # a dry run that would build az: its new interfaces are not known
+        say "az/az: no package of this run: the az_hash of the $(wc -l < "$q/deferred" | tr -d ' ') ports that need it is made after its build"
+        return 0
+    fi
+    if [ ! -s "$q/azif.hashes" ] && ! az_load "$_af"; then
+        say "warning: $_af has no manifests of the interfaces of its libraries ($(head -n 1 "$q/azif.err")): the ports that need az take the hash of all of az"
+    fi
+    [ "$(st az/az)" = ok ] && azbuilt=1
+    [ "$azbuilt" = 1 ] && az_abi "$_af"
+    for _ro in $(cat "$q/deferred"); do hash_port "$_ro"; done
+    say "the az_hash of the $(wc -l < "$q/deferred" | tr -d ' ') ports that need az: made with the interfaces of $(grep -c -v '^common ' "$q/azif.hashes") libraries (results/hashes.txt)"
+    if [ "$dryrun" = 0 ] && [ "$plan" = 0 ]; then
+        # shellcheck disable=SC2046
+        prefetch $(cat "$q/deferred")
+    fi
+    return 0
+}
+# az_abi <new package of az>: the packages of the repository (but az) checked against
+# it (tools/az-abi-check.sh: each SONAME of az they need is there, each symbol they bind
+# from az is defined there); one that fails is built again in this run when it is in
+# the queue ($q/abifail/<key>, its why), and goes from the repository at the end when it
+# is not built (results/abi-check.txt). No az in the repository before: nothing to
+# compare with, so every package kept that needs az is built again
+az_abi() {
+    awk '$2 != "az/az" { print $2, $4 }' "$q/repo-had" > "$q/abi-pkgs"
+    if [ -z "$azhad" ] || [ ! -f "$repo/$azhad" ]; then
+        echo "no az in the repository before this run: the packages kept that need az are built again" > "$res/abi-check.txt"
+        while read -r _ao _af; do
+            pkg query -F "$repo/$_af" '%B' 2> /dev/null | grep -qxF -f "$q/azif.sonames.names" 2> /dev/null || continue
+            echo "no az in the repository before this run to compare with" > "$q/abifail/$(key "$_ao")"
+        done < "$q/abi-pkgs"
+        say "the ABI check: no az in the repository before this run: $(ls "$q/abifail" | wc -l | tr -d ' ') packages kept that need az are built again"
+        return 0
+    fi
+    _t0="$(date +%s)"
+    # shellcheck disable=SC2046
+    AZ_PREFIX="$(sed -n 22p "$q/info/az_az")" sh "$top/tools/az-abi-check.sh" "$repo/$azhad" "$1" "$work/abi" \
+        $(awk -v r="$repo" '{ print r "/" $2 }' "$q/abi-pkgs") > "$res/abi-check.txt" 2>&1
+    _arc=$?
+    _nf=0
+    while read -r _w _p _why; do
+        [ "$_w" = fail ] || continue
+        _ao="$(awk -v f="${_p##*/}" '$2 == f { print $1; exit }' "$q/abi-pkgs")"
+        [ -n "$_ao" ] || continue
+        echo "$_why" > "$q/abifail/$(key "$_ao")"
+        _nf=$((_nf + 1))
+    done < "$res/abi-check.txt"
+    _nc="$(grep -c -E '^(ok|fail) ' "$res/abi-check.txt")"
+    if [ "$_arc" = 2 ]; then
+        say "warning: the ABI check could not compare the two builds of az ($(tail -n 1 "$res/abi-check.txt")): the packages kept that need az are built again"
+        while read -r _ao _af; do
+            pkg query -F "$repo/$_af" '%B' 2> /dev/null | grep -qxF -f "$q/azif.sonames.names" 2> /dev/null || continue
+            echo "the ABI check could not compare the two builds of az" > "$q/abifail/$(key "$_ao")"
+        done < "$q/abi-pkgs"
+    else
+        say "the ABI check: $_nc packages of the repository that need az against the new az in $(( $(date +%s) - _t0 ))s, $_nf failed (results/abi-check.txt; $(head -n 1 "$res/abi-check.txt" | cut -c1-160))"
+    fi
+}
+# az_cover_check <origin> <package>: the libraries of az the package needs (the
+# SONAMEs pkg recorded, shlibs_required) that its az_hash does not cover
+# ($q/azcov/<key>): said (the text for the line of the summary), into $q/uncov/<key>;
+# the run fails on them (AZ_HASH_LIBS of the port is short)
+az_cover_check() {
+    [ -s "$q/azif.sonames" ] || return 0
+    _ck="$(key "$1")"
+    _m="$(pkg query -F "$2" '%B' 2> /dev/null | awk 'NR == FNR { s[$1] = $2; next } ($1 in s) { print s[$1] }' "$q/azif.sonames" - |
+        LC_ALL=C sort -u | while read -r _cl; do grep -qxF "$_cl" "$q/azcov/$_ck" 2> /dev/null || echo "$_cl"; done | tr '\n' ' ' | sed 's/ $//')"
+    [ -n "$_m" ] || return 0
+    echo "$1: its package links $_m of az, which its az_hash does not take: AZ_HASH_LIBS of its Makefile" > "$q/uncov/$_ck"
+    printf '; warning: links %s of az, not in its az_hash (AZ_HASH_LIBS)' "$_m"
+}
+
 overlay_rev="$(git -C "$top" log -1 --format='%h %s' 2>/dev/null)"
 {
     echo "ports:    freebsd-ports $ports_head${AZ_PORTSDIR:+ (AZ_PORTSDIR $ports)}"
@@ -1009,12 +1203,13 @@ overlay_rev="$(git -C "$top" log -1 --format='%h %s' 2>/dev/null)"
         r && /^ *url *:/ { u = $0; sub(/^ *url *: *"?/, "", u); sub(/"?,? *$/, "", u) }
         r && /^ *enabled *: *(yes|true)/ && n != "" { printf "%s%s %s", s, n, u; s = ", " }')"
     echo "repo:     $repo ($(npkg "$repo") packages before the run)"
-    echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')$( [ "$serial" = 0 ] && echo ", AZ_JOBS=$jobs")$( [ "$dryrun" = 1 ] && echo ', AZ_DRYRUN')$( [ "$ccheck" = 1 ] && echo ', AZ_CONFIGURE_CHECK')"
+    echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')$( [ "$serial" = 0 ] && echo ", AZ_JOBS=$jobs")$( [ "$dryrun" = 1 ] && echo ', AZ_DRYRUN')$( [ "$plan" = 1 ] && echo ', AZ_PLAN: az/az and the ports it needs built, the others only decided')$( [ "$ccheck" = 1 ] && echo ', AZ_CONFIGURE_CHECK')"
 } > "$sum"
 
 # --- the builds ------------------------------------------------------------------------
 # a line of the summary and the state of a port: ok (built), repo (in the repository
-# already), fail, skip (needs a port that failed); with AZ_JOBS above 1 the line goes
+# already), fail, skip (needs a port that failed), plan (AZ_PLAN: to be built, not
+# built); with AZ_JOBS above 1 the line goes
 # into $q/sum/<key> first and the summary takes the lines in the order of the queue
 record() {
     _o="$1"; _s="$2"; shift 2
@@ -1022,6 +1217,7 @@ record() {
     case "$_s" in
         ok) _w=OK ;;
         fail) _w=FAIL ;;
+        plan) _w=PLAN ;;
         *) _w=SKIP ;;
     esac
     if [ "$serial" = 1 ]; then
@@ -1033,9 +1229,12 @@ record() {
 }
 
 # pre_port <origin>: what is to be done with a port, before its dependencies: 1 when
-# that is said already (the line of the summary: it failed, is skipped, or its
-# package with the same az_hash is in the repository), 0 when it is to be built
-# (k, log, pn, ign, h, hs, had set; asked again it says nothing more)
+# that is said already (the line of the summary: it failed, is skipped, its package
+# with the same az_hash is in the repository, or AZ_PLAN: it is to be built, not
+# built), 0 when it is to be built (k, log, pn, ign, h, hs, had set; asked again it
+# says nothing more). A package with the same az_hash that failed the ABI check against
+# the az built in this run ($q/abifail/<key>) is built again; one kept has its
+# libraries of az checked against its hash (az_cover_check)
 pre_port() {
     k="$(key "$1")"
     log="$res/logs/$k.log"
@@ -1045,6 +1244,12 @@ pre_port() {
     hs="$(printf '%s' "$h" | cut -c1-12)"
     had="$(awk -v o="$1" '$2 == o { print $3, $4; exit }' "$q/repo-had")"
     [ -f "$q/tobuild-$k" ] && return 0
+    # az/az done: the hashes of the ports that need it first (once; never in a job)
+    if [ "$azstate" = waiting ]; then
+        az_resolve
+        h="$(cat "$q/hash/$k" 2>/dev/null)"
+        hs="$(printf '%s' "$h" | cut -c1-12)"
+    fi
     : > "$log"
     if [ -f "$q/info/$k.bad" ]; then record "$1" fail "$(cat "$q/info/$k.bad")"; return 1; fi
     # the ports of this tree it needs: failed, or skipped for that
@@ -1054,16 +1259,36 @@ pre_port() {
     done
     if [ -n "$bad" ]; then record "$1" skip "$pn: needs$bad, which failed or was skipped"; return 1; fi
     if [ -n "$ign" ]; then record "$1" fail "$pn: the port says IGNORE: $ign"; return 1; fi
+    # no az_hash: it needs az, and az is not built in this dry run (its interfaces decide)
+    if [ -z "$h" ]; then
+        if [ "$dryrun" = 1 ]; then
+            record "$1" ok "$pn: dry run: its az_hash is made after az/az is built (the interfaces of the new az; AZ_PLAN builds az and decides)"
+        else
+            record "$1" fail "$pn: no az_hash (it needs az/az, and the interfaces of az are not there)"
+        fi
+        return 1
+    fi
+    abi="$(cat "$q/abifail/$k" 2>/dev/null)"
     # its package in the repository: the same az_hash, another one, none
-    if [ -n "$had" ] && [ "${had%% *}" = "$h" ] && [ "$force" = 0 ]; then
+    if [ -n "$had" ] && [ "${had%% *}" = "$h" ] && [ "$force" = 0 ] && [ -z "$abi" ] && [ ! -f "$q/nomani-$k" ]; then
         echo "$repo/${had#* }" > "$q/file/$k"
-        record "$1" repo "${had#* }: in the repository already with the same az_hash $hs"
+        ki=""
+        [ "$azbuilt" = 1 ] && [ -s "$q/azcov/$k" ] && ki="; kept by the interfaces of az, which this run built again" && echo "$1" >> "$q/kept-if"
+        record "$1" repo "${had#* }: in the repository already with the same az_hash $hs$ki$(az_cover_check "$1" "$repo/${had#* }")"
         return 1
     fi
     if [ "$force" = 1 ]; then why="--force"
+    elif [ -n "$abi" ]; then why="${had#* } fails the ABI check against the new az: $abi"
+    elif [ -f "$q/nomani-$k" ]; then why="${had#* } in the repository has no manifests of the interfaces of its libraries"
     elif [ -z "$had" ]; then why="no package of $1 in the repository"
     elif [ "${had%% *}" = - ]; then why="${had#* } in the repository has no az_hash"
     else why="az_hash $hs, not $(printf '%s' "${had%% *}" | cut -c1-12) of ${had#* } in the repository"
+    fi
+    # AZ_PLAN: only az/az and the ports it needs are built; the libraries of az the
+    # package of the repository links checked against the new hash (the same build)
+    if [ "$plan" = 1 ] && ! grep -qxF "$1" "$q/azpre"; then
+        record "$1" plan "$pn: to be built, az_hash $hs ($why)$( [ -n "$had" ] && az_cover_check "$1" "$repo/${had#* }")"
+        return 1
     fi
     say "$1: $pn ($why)"
     : > "$q/tobuild-$k"
@@ -1114,33 +1339,56 @@ ch_init() {
     else
         say "warning: pkg update in a chroot failed (results/logs/chroots.log): the catalogs of the machine as they are"
     fi
-    # the official packages of the ports the run may build (no package with the same
-    # az_hash in the repository, or --force; make -V worked, no IGNORE)
+    # the official packages of the ports the run may build (those whose az_hash is made:
+    # the ports that need az when az is built in this run come after its build)
+    # shellcheck disable=SC2046
+    pf_fetch $(cat "$q/queue.txt")
+    ch_down "$c" || die "the chroot $c could not be torn down"
+    rm -rf "$q/ch/_setup" "$work/pk/_setup"
+}
+# pf_fetch <origin>...: the official packages of those of the ports the run may build
+# (no package with the same az_hash in the repository, or --force, or the ABI check
+# failed; make -V worked, no IGNORE, its az_hash made; AZ_PLAN: az/az and the ports it
+# needs) fetched into the cache of pkg in the chroot $c (results/logs/chroots.log)
+pf_fetch() {
+    _cl="$res/logs/chroots.log"
     : > "$q/prefetch"
     _np=0
-    for _o in $(cat "$q/queue.txt"); do
+    for _o in "$@"; do
         _k="$(key "$_o")"
         [ -f "$q/info/$_k.bad" ] && continue
         [ -n "$(sed -n 2p "$q/info/$_k")" ] && continue
+        [ -s "$q/hash/$_k" ] || continue
+        if [ "$plan" = 1 ] && ! grep -qxF "$_o" "$q/azpre"; then continue; fi
         _hh="$(awk -v o="$_o" '$2 == o { print $3; exit }' "$q/repo-had")"
-        [ "$force" = 0 ] && [ "$_hh" = "$(cat "$q/hash/$_k")" ] && continue
+        [ "$force" = 0 ] && [ "$_hh" = "$(cat "$q/hash/$_k")" ] && [ ! -f "$q/abifail/$_k" ] && [ ! -f "$q/nomani-$_k" ] && continue
         dep_lists "$_o"
         _np=$((_np + 1))
         for _p in $(cat "$q/dl/$_k.off"); do echo "$_p"; done >> "$q/prefetch"
     done
     _want="$(grep . "$q/prefetch" | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//')"
-    if [ -n "$_want" ]; then
-        _t0="$(date +%s)"
-        echo "== pkg fetch -d of the official packages of the $_np ports the run may build: $_want" >> "$_cl"
-        # shellcheck disable=SC2086
-        if pkg -c "$c" fetch -y -d -U $_want >> "$_cl" 2>&1; then
-            say "the official packages of the $_np ports the run may build ($(echo $_want | wc -w | tr -d ' ') and their dependencies): in the cache of pkg in $(( $(date +%s) - _t0 ))s"
-        else
-            say "warning: pkg fetch of the official packages of the run failed (results/logs/chroots.log: $(grep -i -E 'error|fail|no packages' "$_cl" | tail -n 1 | cut -c1-160)): each chroot fetches its own"
-        fi
+    [ -n "$_want" ] || return 0
+    _t0="$(date +%s)"
+    echo "== pkg fetch -d of the official packages of the $_np ports the run may build: $_want" >> "$_cl"
+    # shellcheck disable=SC2086
+    if pkg -c "$c" fetch -y -d -U $_want >> "$_cl" 2>&1; then
+        say "the official packages of the $_np ports the run may build ($(echo $_want | wc -w | tr -d ' ') and their dependencies): in the cache of pkg in $(( $(date +%s) - _t0 ))s"
+    else
+        say "warning: pkg fetch of the official packages of the run failed (results/logs/chroots.log: $(grep -i -E 'error|fail|no packages' "$_cl" | tail -n 1 | cut -c1-160)): each chroot fetches its own"
     fi
-    ch_down "$c" || die "the chroot $c could not be torn down"
-    rm -rf "$q/ch/_setup" "$work/pk/_setup"
+}
+# prefetch <origin>...: pf_fetch in a chroot of its own (the ports that need az, after
+# the build of az: their hashes are made then)
+prefetch() {
+    [ $# -gt 0 ] || return 0
+    c="$chd/_pf"; cs="$q/ch/_pf"
+    if ! ch_up _pf; then
+        say "warning: no chroot to fetch the official packages of the ports that need az ($why): each chroot fetches its own"
+    else
+        pf_fetch "$@"
+    fi
+    ch_down "$c" || say "warning: the chroot $c could not be torn down"
+    rm -rf "$q/ch/_pf" "$work/pk/_pf"
 }
 
 # job_port <origin>: a port built in a chroot of its own, after pre_port said it is to be
@@ -1331,6 +1579,7 @@ make_port() {
     note=""
     [ "$(pkg_hash "$f")" = "$h" ] ||
         note="; warning: no annotation az_hash $hs in the package (PKG_NOTES of Mk/bsd.overlay.mk): the next run builds it again"
+    note="$note$(az_cover_check "$1" "$f")"
     case "$pn" in
         *_"$az_stamp"|*_"$az_stamp",*) ;;
         *) note="$note; warning: the version has not the revision $az_stamp (PORTREVISION= \${AZ_STAMP}): no upgrade for pkg" ;;
@@ -1339,11 +1588,26 @@ make_port() {
     return 0
 }
 
+# AZ_PLAN: az/az and the ports of this tree it needs, the ports it builds
+: > "$q/azpre"
+if [ "$plan" = 1 ] && grep -qxF az/az "$q/queue.txt"; then
+    echo az/az > "$q/azpre"
+    cp "$q/azpre" "$q/azpre.new"
+    while [ -s "$q/azpre.new" ]; do
+        for o in $(cat "$q/azpre.new"); do cat "$q/deps/$(key "$o")"; done | LC_ALL=C sort -u | grep -vxF -f "$q/azpre" > "$q/azpre.next" || :
+        cat "$q/azpre.next" >> "$q/azpre"
+        mv "$q/azpre.next" "$q/azpre.new"
+    done
+    say "AZ_PLAN: built when they are to be: $(tr '\n' ' ' < "$q/azpre" | sed 's/ $//'); the other ports only decided"
+fi
+: > "$q/kept-if"
 # the chroots share what ch_init makes (not for a dry run)
 [ "$dryrun" = 1 ] || ch_init
 if [ "$serial" = 1 ]; then
-    # one port after another, in the order of the queue, each in its chroot
+    # one port after another, in the order of the queue, each in its chroot (the ports
+    # that need az have their az_hash once az/az is done: az_resolve)
     for o in $(cat "$q/queue.txt"); do
+        az_resolve
         pre_port "$o" || continue
         dep_lists "$o"
         say "$o: make package (logs/$k.log)"
@@ -1366,6 +1630,8 @@ else
     cp "$q/stage-1.txt" "$q/stage.txt"
     [ "$nst" = 1 ] || say "stage 1 of $nst: $(wc -l < "$q/stage.txt" | tr -d ' ') ports"
     while :; do
+        # az/az done: the hashes of the ports that need it (none of them is ready before)
+        az_resolve
         # the ports that are ready, those that need no build said at once (the next
         # ones may be ready then)
         : > "$q/cand"
@@ -1523,6 +1789,69 @@ if [ "$ccheck" = 1 ] && [ "$dryrun" = 0 ]; then
     say "the configure check: $ndiff PHP ports with differences, $nsame the same, $nnot not compared, $nnone not configured (results/configure-check.txt)"
 fi
 
+# results/az-interface.txt: az/az in this run, the interfaces of its libraries, those
+# that changed against the az of the repository before, the ABI check, the ports that
+# take interfaces of az (and those kept by them while az was built again), and the
+# packages that link libraries of az their az_hash does not take (the run fails)
+if [ -s "$q/azif.hashes" ]; then
+    {
+        case "$(st az/az)" in
+            ok) echo "az/az: built in this run ($(basename "$(cat "$q/file/az_az" 2>/dev/null)"))" ;;
+            repo) echo "az/az: kept from the repository ($azhad)" ;;
+            *) echo "az/az: $(st az/az)" ;;
+        esac
+        echo "the interfaces of its libraries (tools/az-interface.sh: the interface hash, the closure):"
+        awk '{ printf "  %-14s %s %s\n", $1, substr($2, 1, 12), $4 }' "$q/azif.hashes"
+        if [ "$azbuilt" = 1 ]; then
+            if [ -n "$azold" ]; then
+                sh "$top/tools/az-interface.sh" diff "$q/azold" "$q/azif" > "$q/azdiff" 2>&1
+                if [ -s "$q/azdiff" ]; then
+                    echo "the interfaces that changed against the az of the repository before this run ($azhad):"
+                    sed 's/^/  /' "$q/azdiff"
+                else
+                    echo "against the az of the repository before this run ($azhad): no interface changed"
+                fi
+            elif [ -n "$azhad" ]; then
+                echo "the az of the repository before this run ($azhad) has no manifests: no interfaces to compare"
+            else
+                echo "no az in the repository before this run"
+            fi
+            echo "the ABI check of the packages of the repository that need az (tools/az-abi-check.sh, results/abi-check.txt):"
+            sed -n '1p' "$res/abi-check.txt" 2> /dev/null | sed 's/^/  /'
+            echo "  $(grep -c '^ok ' "$res/abi-check.txt" 2> /dev/null) passed, $(grep -c '^fail ' "$res/abi-check.txt" 2> /dev/null) failed"
+            grep '^fail ' "$res/abi-check.txt" 2> /dev/null | sed 's/^/  /'
+        fi
+        ntake=0
+        for o in $(cat "$q/queue.txt"); do [ -s "$q/azcov/$(key "$o")" ] && ntake=$((ntake + 1)); done
+        echo "ports of the queue whose az_hash takes interfaces of az: $ntake; kept by them while az was built again in this run: $(grep -c . "$q/kept-if")"
+        [ -s "$q/kept-if" ] && tr '\n' ' ' < "$q/kept-if" | fold -s -w 100 | sed 's/^/  /; s/ *$//'
+        if [ -n "$(ls "$q/uncov")" ]; then
+            echo "packages that link libraries of az their az_hash does not take (AZ_HASH_LIBS of their Makefiles):"
+            cat "$q"/uncov/* | sed 's/^/  /'
+        fi
+    } > "$res/az-interface.txt"
+    nki="$(grep -c . "$q/kept-if")"
+    if [ "$azbuilt" = 1 ]; then
+        if [ -z "$azold" ]; then azw="the interfaces not compared (the az of the repository before has no manifests)"
+        elif [ -s "$q/azdiff" ]; then azw="interfaces changed: $(cut -d: -f1 "$q/azdiff" | tr '\n' ' ' | sed 's/ $//')"
+        else azw="no interface changed"
+        fi
+        echo "az:       built again; $azw; $nki ports kept by interface; ABI check: $(grep -c '^fail ' "$res/abi-check.txt" 2> /dev/null) of $(grep -c -E '^(ok|fail) ' "$res/abi-check.txt" 2> /dev/null) packages failed (results/az-interface.txt)" >> "$sum"
+    fi
+fi
+# AZ_PLAN: results/plan.txt, the ports to be built (and why) and the counts
+if [ "$plan" = 1 ]; then
+    npl="$(awk '$2 == "PLAN"' "$sum" | grep -c .)"
+    nkp="$(for o in $(cat "$q/queue.txt"); do [ "$(st "$o")" = repo ] && echo "$o"; done | grep -c .)"
+    nbu="$(for o in $(cat "$q/queue.txt"); do [ "$(st "$o")" = ok ] && echo "$o"; done | grep -c .)"
+    {
+        echo "The plan of the run (AZ_PLAN): $npl ports to be built, $nkp kept from the repository, $nbu built in this run (az/az and the ports it needs, when they were to be built)"
+        awk '$2 == "PLAN" || ($1 ~ /\// && $2 == "OK") { print }' "$sum"
+    } > "$res/plan.txt"
+    echo "plan:     $npl to be built, $nkp kept from the repository, $nbu built (results/plan.txt)" >> "$sum"
+    say "the plan (AZ_PLAN): $npl ports to be built, $nkp kept, $nbu built (results/plan.txt)"
+fi
+
 if [ "$dryrun" = 1 ]; then
     echo "dry run: the waves in results/waves.txt, nothing built, no repository" >> "$sum"
     say "dry run (AZ_DRYRUN): $wave waves (results/waves.txt), nothing built"
@@ -1540,6 +1869,10 @@ while read -r n og hh f; do
         rm -f "$repo/$f"
     elif ! ours "$og"; then
         say "the repository: $f away (this tree has no port $og any more)"
+        rm -f "$repo/$f"
+    elif [ -f "$q/abifail/$(key "$og")" ]; then
+        # broken with the new az, and not built again in this run: the next run builds it
+        say "the repository: $f away: it fails the ABI check against the new az ($(cat "$q/abifail/$(key "$og")"))"
         rm -f "$repo/$f"
     fi
 done < "$q/repo-had"
@@ -1593,17 +1926,20 @@ ls "$repo" > "$res/repo-files.txt"
 echo "repository: $nrepo packages; $(tail -n 1 "$res/pkg-repo.log" 2>/dev/null)" >> "$sum"
 
 # --- the result ------------------------------------------------------------------------
-nok=0; nkept=0; failed=""; skipped=""
+nok=0; nkept=0; nplan=0; failed=""; skipped=""
 for o in $(cat "$q/queue.txt"); do
     case "$(st "$o")" in
         ok) nok=$((nok + 1)) ;;
         repo) nkept=$((nkept + 1)) ;;
+        plan) nplan=$((nplan + 1)) ;;
         fail) failed="$failed $o" ;;
         *) skipped="$skipped $o" ;;
     esac
 done
-echo "built:    $nok, kept from the repository: $nkept${failed:+, failed:$failed}${skipped:+, not built:$skipped}" >> "$sum"
-if [ -z "$failed" ] && [ -z "$skipped" ] && [ "$repo_ok" = 1 ]; then
+# the packages that link libraries of az their az_hash does not take (az_cover_check)
+uncov="$(cd "$q/uncov" && ls | sed 's/_/\//' | tr '\n' ' ' | sed 's/ $//')"
+echo "built:    $nok, kept from the repository: $nkept$( [ "$plan" = 1 ] && echo ", to be built (AZ_PLAN): $nplan")${failed:+, failed:$failed}${skipped:+, not built:$skipped}" >> "$sum"
+if [ -z "$failed" ] && [ -z "$skipped" ] && [ "$repo_ok" = 1 ] && [ -z "$uncov" ]; then
     echo "result:   OK" >> "$sum"
     say "OK: $nok built, $nkept kept from the repository ($repo)"
     exit 0
@@ -1612,6 +1948,7 @@ r=""
 [ -n "$failed" ] && r="failed:$failed"
 [ -n "$skipped" ] && r="${r:+$r; }not built:$skipped"
 [ "$repo_ok" = 1 ] || r="${r:+$r; }pkg repo failed"
+[ -n "$uncov" ] && r="${r:+$r; }libraries of az not in the az_hash (AZ_HASH_LIBS, results/az-interface.txt): $uncov"
 echo "result:   FAIL ($r)" >> "$sum"
 say "FAIL ($r)"
 exit 1

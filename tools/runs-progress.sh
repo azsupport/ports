@@ -58,14 +58,15 @@ while [ "$(date +%s)" -lt "$end" ]; do
                 < /dev/null > "$w/vm" 2> "$w/err"; then
                 total="$(sed -n 1p "$w/vm" | tr -d ' ')"
                 sed '1,/^====$/d' "$w/vm" > "$w/log"
-                # the result lines of tools/build.sh: "[build HH:MM:SS] <origin>: OK|FAIL|SKIP ..."
-                grep -E '^\[build [0-9:]+\] [^ ]+: (OK|FAIL|SKIP) ' "$w/log" > "$w/done" || :
+                # the result lines of tools/build.sh: "[build HH:MM:SS] <origin>: OK|FAIL|SKIP|PLAN ..."
+                grep -E '^\[build [0-9:]+\] [^ ]+: (OK|FAIL|SKIP|PLAN) ' "$w/log" > "$w/done" || :
                 nd="$(wc -l < "$w/done" | tr -d ' ')"
                 nok="$(grep -c ': OK ' "$w/done")"
                 nfail="$(grep -c ': FAIL ' "$w/done")"
                 nkept="$(grep -c 'in the repository already' "$w/done")"
-                nskip=$(( nd - nok - nfail - nkept ))
-                echo "- ports: $nd of ${total:-?} done: built $nok, kept from the repository $nkept, failed $nfail, not built $nskip"
+                nplan="$(grep -c ': PLAN ' "$w/done")"
+                nskip=$(( nd - nok - nfail - nkept - nplan ))
+                echo "- ports: $nd of ${total:-?} done: built $nok, kept from the repository $nkept, failed $nfail, not built $nskip$( [ "$nplan" = 0 ] || echo ", to be built (the plan) $nplan")"
                 st="$(grep -E '^\[build [0-9:]+\] stage [0-9]+ of [0-9]+:' "$w/log" | tail -n 1 | sed 's/^\[build [0-9:]*\] //')"
                 [ -z "$st" ] || echo "- now: $st (results/stages.txt)"
                 # building now: started ("<origin>: make package (logs/...)", whatever
@@ -74,7 +75,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
                 grep -E '^\[build [0-9:]+\] [^ ]+: make package \(logs/' "$w/log" | awk '{ sub(":$", "", $3); print $3, substr($2, 1, 5) }' > "$w/run" || :
                 now=""; nowo=""
                 while read -r po pt; do
-                    grep -qE "^\[build [0-9:]+\] $po: (OK|FAIL|SKIP) " "$w/done" || { now="$now $po (since $pt)"; nowo="$nowo $po"; }
+                    grep -qE "^\[build [0-9:]+\] $po: (OK|FAIL|SKIP|PLAN) " "$w/done" || { now="$now $po (since $pt)"; nowo="$nowo $po"; }
                 done < "$w/run"
                 echo "- building now:${now:- -}"
                 if [ "$nfail" != 0 ]; then
