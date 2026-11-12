@@ -1,0 +1,51 @@
+Origin (azsupport/ports): CPython gh-134100, the cherry-pick of 4e9005d to 3.13 (GH-134172), as Gentoo carries it on 3.12.16 (gentoo/cpython gentoo-3.12.16, 2472cf49aa31ff9413f637f761036dc4db78aed5); upstream 3.12 has no fix. PyImport_ImportModuleLevelObject() formatted its error message from a name it had released already when the parent module of a relative import was not in sys.modules (a use-after-free on an error path).
+
+diff --git a/Lib/test/test_importlib/import_/test_relative_imports.py b/Lib/test/test_importlib/import_/test_relative_imports.py
+index 99c24f1..f6585e0 100644
+--- a/Lib/test/test_importlib/import_/test_relative_imports.py
++++ b/Lib/test/test_importlib/import_/test_relative_imports.py
+@@ -223,6 +223,21 @@ class RelativeImports:
+             self.__import__('sys', {'__package__': '', '__spec__': None},
+                             level=1)
+ 
++    def test_malicious_relative_import(self):
++        # https://github.com/python/cpython/issues/134100
++        # Test to make sure UAF bug with error msg doesn't come back to life
++        import sys
++        loooong = "".ljust(0x23000, "b")
++        name = f"a.{loooong}.c"
++
++        with util.uncache(name):
++            sys.modules[name] = {}
++            with self.assertRaisesRegex(
++                KeyError,
++                r"'a\.b+' not in sys\.modules as expected"
++            ):
++                __import__(f"{loooong}.c", {"__package__": "a"}, level=1)
++
+ 
+ (Frozen_RelativeImports,
+  Source_RelativeImports
+diff --git a/Python/import.c b/Python/import.c
+index ac741cb..fb38f03 100644
+--- a/Python/import.c
++++ b/Python/import.c
+@@ -2920,15 +2920,17 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *globals,
+                 }
+ 
+                 final_mod = import_get_module(tstate, to_return);
+-                Py_DECREF(to_return);
+                 if (final_mod == NULL) {
+                     if (!_PyErr_Occurred(tstate)) {
+                         _PyErr_Format(tstate, PyExc_KeyError,
+                                       "%R not in sys.modules as expected",
+                                       to_return);
+                     }
++                    Py_DECREF(to_return);
+                     goto error;
+                 }
++
++                Py_DECREF(to_return);
+             }
+         }
+         else {
