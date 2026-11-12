@@ -351,17 +351,22 @@ if [ -x "$bash" ]; then
     cpd="$T/cp/d$(printf '\370')"
     mkdir -p "$cpd"
     printf "PS1='\\\\w> '\n" > "$HOME/.bashrc"
-    keys_run "$T/cp.typescript" "sleep 3; printf '$f10'; sleep 2" env SHELL="$bash" sh -c 'cd "$1" && exec "$2"' sh "$cpd" "$mc"
+    # the end by exit in Ctrl-O, as for tcsh; F10 while mc still takes the subshell for
+    # busy asks "The shell is still active. Quit anyway?" (run 43210253159: no answer,
+    # exit 124): F10 and y only when mc is still there after the exit
+    keys_run "$T/cp.typescript" "sleep 4; printf '\017'; sleep 2; printf 'exit\r'; sleep 4; printf '$f10'; sleep 1;
+        printf y; sleep 2" \
+        env SHELL="$bash" sh -c 'cd "$1" && exec "$2"' sh "$cpd" "$mc"
     rm -f "$HOME/.bashrc"
     if [ "$keys_exit" = 0 ] && grep -q "$T/cp/d> " "$T/cp.typescript.txt"; then
         pass "bash subshell in a directory named in CP1251: the prompt on the command line \"$T/cp/d> \""
     else
-        fail "bash subshell in a directory named in CP1251: exit $keys_exit, no \"$T/cp/d> \": $(grep -m 1 "$T/cp" "$T/cp.typescript.txt" | cut -c1-120)"
+        fail "bash subshell in a directory named in CP1251: exit $keys_exit after ${keys_secs}s, no \"$T/cp/d> \": $(tr '\n' ' ' < "$T/cp.typescript.txt" | tail -c 200)"
     fi
 else
     echo "skip  the prompt of bash with a byte that is not UTF-8: no $bash" >> "$out"
 fi
-# copy-clone-1.patch: F5 of a file of 40 MB inside a ZFS pool (on a file of 256 MB, an
+# copy-clone-1.patch: F5 of a file of 16 MB inside a ZFS pool (on a file of 256 MB, an
 # md device; kldload zfs) clones its blocks (copy_file_range with COPY_FILE_RANGE_CLONE):
 # bcloneused of the pool grows by the copy, cmp finds it identical; with
 # file_cloning=false in ~/.config/mc/ini bcloneused stays, the copy identical; a copy to
@@ -369,11 +374,19 @@ fi
 # that is not aligned to the blocks (copy-clone-2-reget). Pool and md device go after.
 # clone_copy <name> <to dir> [<key>]: F5 of zp/s/src.bin into the dir (the other panel),
 # the key (r: Reget) into the dialog "File exists", F10 when the copy is whole (a copy
-# without cloning takes some seconds on the md device: up to 45 s)
+# without cloning takes some seconds on the md device: up to 45 s; the sizes it saw in
+# <name>.sizes)
 clone_copy() {
     keys_run "$T/$1.typescript" "sleep 3; printf '$down'; sleep 0.5; printf '\033[15~'; sleep 1.5; printf '$enter';
-        sleep 2; ${3:+printf $3;} i=0; while [ \$i -lt 45 ] && [ \"\$(stat -f %z '$2/src.bin' 2> /dev/null)\" != 41943040 ];
-        do sleep 1; i=\$((i + 1)); done; sleep 2; printf '$f10'; sleep 2" "$mc" -u "$T/zp/s" "$2"
+        sleep 2; ${3:+printf $3;} i=0; while [ \$i -lt 45 ] && [ \"\$(stat -f %z '$2/src.bin' 2> /dev/null)\" != $csize ];
+        do sleep 1; i=\$((i + 1)); echo \"\$i \$(stat -f %z '$2/src.bin' 2> /dev/null)\" >> '$T/$1.sizes'; done;
+        sleep 2; printf '$f10'; sleep 2" "$mc" -u "$T/zp/s" "$2"
+}
+# zfs_why <name> <file>: what the pool, the file system of the image and the copy say
+zfs_why() {
+    echo "size $(stat -f %z "$2" 2> /dev/null), seen $(tail -n 1 "$T/$1.sizes" 2> /dev/null);" \
+        "pool $(zpool list -Hp -o size,alloc,free,health "$pool" 2> /dev/null | tr '\t' ' ');" \
+        "$(df -k "$T" | awk 'NR == 2 { print "free on " $6 ": " $4 " KB" }'); screen: $(tr '\n' ' ' < "$T/$1.typescript.txt" | tail -c 160)"
 }
 # ini_cloning <true|false>: file_cloning in the ini of mc (written at its exits above)
 ini_cloning() {
@@ -386,37 +399,37 @@ ini_cloning() {
     fi
 }
 bclone() { zpool get -Hp -o value bcloneused "$pool" 2> /dev/null; }
-pool="mctest$$" md="" ctmp="/tmp/mc-test-clone.$$"
+pool="mctest$$" md="" ctmp="/tmp/mc-test-clone.$$" csize=16777216
 if ! kldload -n zfs 2> "$T/zfs.err"; then
     fail "file cloning: kldload zfs: $(head -n 1 "$T/zfs.err")"
 elif ! truncate -s 256m "$T/zpool.img" || ! md="$(mdconfig -a -t vnode -f "$T/zpool.img" 2> "$T/zfs.err")"; then
     fail "file cloning: no md device on $T/zpool.img: $(head -n 1 "$T/zfs.err")"
-elif ! zpool create -f -O mountpoint="$T/zp" -O atime=off "$pool" "/dev/$md" 2> "$T/zfs.err"; then
+elif ! zpool create -f -o failmode=continue -O mountpoint="$T/zp" -O atime=off "$pool" "/dev/$md" 2> "$T/zfs.err"; then
     fail "file cloning: zpool create on /dev/$md: $(head -n 1 "$T/zfs.err")"
 else
     be="$(sysctl -n vfs.zfs.bclone_enabled 2> /dev/null)"
     mkdir -p "$T/zp/s" "$T/zp/c1" "$T/zp/c2" "$ctmp"
-    dd if=/dev/random of="$T/zp/s/src.bin" bs=1m count=40 2> /dev/null
+    dd if=/dev/random of="$T/zp/s/src.bin" bs=1m count=16 2> /dev/null
     zpool sync "$pool"
     ini_cloning true
     b0="$(bclone)"
     clone_copy cl1 "$T/zp/c1"
     zpool sync "$pool"
     b1="$(bclone)"
-    if [ "$keys_exit" = 0 ] && cmp -s "$T/zp/s/src.bin" "$T/zp/c1/src.bin" && [ $(( b1 - b0 )) -ge 40000000 ]; then
-        pass "file cloning on ZFS (vfs.zfs.bclone_enabled=$be): F5 cloned 40 MB, bcloneused +$(( b1 - b0 )), the copy identical"
+    if [ "$keys_exit" = 0 ] && cmp -s "$T/zp/s/src.bin" "$T/zp/c1/src.bin" && [ $(( b1 - b0 )) -ge "$csize" ]; then
+        pass "file cloning on ZFS (vfs.zfs.bclone_enabled=$be): F5 cloned 16 MB, bcloneused +$(( b1 - b0 )), the copy identical"
     else
-        fail "file cloning on ZFS (vfs.zfs.bclone_enabled=$be): exit $keys_exit, bcloneused $b0 -> $b1, cmp: $(cmp "$T/zp/s/src.bin" "$T/zp/c1/src.bin" 2>&1 | head -n 1)"
+        fail "file cloning on ZFS (vfs.zfs.bclone_enabled=$be): exit $keys_exit, bcloneused $b0 -> $b1, cmp: $(cmp "$T/zp/s/src.bin" "$T/zp/c1/src.bin" 2>&1 | head -n 1); $(zfs_why cl1 "$T/zp/c1/src.bin")"
     fi
-    # copy-clone-2-reget.patch: a Reget onto a part of 20 MB and 1000 bytes (not aligned to
+    # copy-clone-2-reget.patch: a Reget onto a part of 8 MB and 1000 bytes (not aligned to
     # the blocks: the clone of the rest fails, mc appends instead, with O_WRONLY now)
     mkdir -p "$T/zp/c3"
-    head -c 20972520 "$T/zp/s/src.bin" > "$T/zp/c3/src.bin"
+    head -c 8389608 "$T/zp/s/src.bin" > "$T/zp/c3/src.bin"
     clone_copy cl-rg "$T/zp/c3" r
     if [ "$keys_exit" = 0 ] && cmp -s "$T/zp/s/src.bin" "$T/zp/c3/src.bin"; then
-        pass "file cloning on: Reget onto 20 MB and 1000 bytes of the 40 MB, the copy identical"
+        pass "file cloning on: Reget onto 8 MB and 1000 bytes of the 16 MB, the copy identical"
     else
-        fail "file cloning on, Reget onto a part that is not aligned: exit $keys_exit, size $(wc -c < "$T/zp/c3/src.bin" | tr -d ' '), cmp: $(cmp "$T/zp/s/src.bin" "$T/zp/c3/src.bin" 2>&1 | head -n 1): $(grep -m 1 -i -E 'cannot|bad file' "$T/cl-rg.typescript.txt")"
+        fail "file cloning on, Reget onto a part that is not aligned: exit $keys_exit, cmp: $(cmp "$T/zp/s/src.bin" "$T/zp/c3/src.bin" 2>&1 | head -n 1): $(grep -m 1 -i -E 'cannot|bad file' "$T/cl-rg.typescript.txt"); $(zfs_why cl-rg "$T/zp/c3/src.bin")"
     fi
     zpool sync "$pool"
     b1="$(bclone)"
@@ -425,16 +438,16 @@ else
     zpool sync "$pool"
     b2="$(bclone)"
     if [ "$keys_exit" = 0 ] && cmp -s "$T/zp/s/src.bin" "$T/zp/c2/src.bin" && [ $(( b2 - b1 )) -lt 1000000 ]; then
-        pass "file_cloning=false: F5 copied 40 MB without cloning (bcloneused +$(( b2 - b1 ))), the copy identical"
+        pass "file_cloning=false: F5 copied 16 MB without cloning (bcloneused +$(( b2 - b1 ))), the copy identical"
     else
-        fail "file_cloning=false: exit $keys_exit, bcloneused $b1 -> $b2, cmp: $(cmp "$T/zp/s/src.bin" "$T/zp/c2/src.bin" 2>&1 | head -n 1)"
+        fail "file_cloning=false: exit $keys_exit, bcloneused $b1 -> $b2, cmp: $(cmp "$T/zp/s/src.bin" "$T/zp/c2/src.bin" 2>&1 | head -n 1); $(zfs_why cl2 "$T/zp/c2/src.bin")"
     fi
     ini_cloning true
     clone_copy cl3 "$ctmp"
     if [ "$keys_exit" = 0 ] && cmp -s "$T/zp/s/src.bin" "$ctmp/src.bin" && ! grep -q -i 'cannot' "$T/cl3.typescript.txt"; then
-        pass "file cloning on: F5 from the pool to $ctmp (another file system) copied 40 MB, identical, no error"
+        pass "file cloning on: F5 from the pool to $ctmp (another file system) copied 16 MB, identical, no error"
     else
-        fail "file cloning on, F5 to another file system: exit $keys_exit, cmp: $(cmp "$T/zp/s/src.bin" "$ctmp/src.bin" 2>&1 | head -n 1): $(grep -m 1 -i 'cannot' "$T/cl3.typescript.txt")"
+        fail "file cloning on, F5 to another file system: exit $keys_exit, cmp: $(cmp "$T/zp/s/src.bin" "$ctmp/src.bin" 2>&1 | head -n 1): $(grep -m 1 -i 'cannot' "$T/cl3.typescript.txt"); $(zfs_why cl3 "$ctmp/src.bin")"
     fi
 fi
 zpool destroy -f "$pool" 2> /dev/null
