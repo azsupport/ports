@@ -14,7 +14,11 @@
 # (mouse-sgr-ncurses), the subshell of tcsh enters a directory with a space, quotes,
 # $, ! and Cyrillic, keeps the prompt of ~/.tcshrc and its exit ends mc with status 0
 # (subshell-tcsh-prompt, subshell-eof), the prompt of bash in a directory named in
-# CP1251 (prompt-invalid-utf8; when bash is installed). Checked by hand only (no
+# CP1251 (prompt-invalid-utf8; when bash is installed), the history of tcsh after five
+# cd of a panel, a command at mc's command line, the user menu and a command in Ctrl-O
+# (subshell-tcsh-quiet: only the typed commands in "history" and ~/.history, the
+# directories in the Dir Hist of mc's history file), num_history_items_recorded=1000 in
+# a new ~/.config/mc/ini (history-items-1000). Checked by hand only (no
 # server or shell for them here): ftp-reconnect, ftp-netrc-password (an FTP server
 # with an idle timeout and ~/.netrc), subshell-fd (dash, ksh, mksh), mouse-drag-crash
 # (a drag below a panel that is not full); parse-ls-short-name has no visible effect.
@@ -260,16 +264,35 @@ if [ "$keys_exit" = 0 ] && [ "$keys_secs" -le 6 ]; then
 else
     fail "TERM=xterm (kmous ${km:-?}): a click on Quit did not quit mc: exit $keys_exit after ${keys_secs}s (F10 at 9s)"
 fi
-# The subshell of tcsh (/bin/csh, SHELL above): subshell-tcsh-prompt.patch (the prompt
-# of ~/.tcshrc stays), the cd of mc into a directory with a space, quotes, $, ! and
-# Cyrillic (Enter in the panel; pwd in Ctrl-O into a file), subshell-eof.patch (exit
-# in Ctrl-O ends mc with status 0; mc 4.8.33: "read (subshell_pty...)" and status 1)
+# The subshell of tcsh (/bin/csh, SHELL above), with history, savehist (merge), histdup
+# (erase) and noclobber in ~/.tcshrc and an old event in ~/.history: five cd of the
+# left panel (Enter; into a directory with a space, quotes, $, ! and Cyrillic, into d2
+# and back), a command at the command line of mc, the user menu (F2, its entry m),
+# then in Ctrl-O a command, history and pwd into files, exit.
+# subshell-tcsh-quiet.patch: the history of tcsh, in memory and in ~/.history after
+# the exit, has the old event and the three typed commands and none of mc's lines (its
+# init, the cd, the command of the user menu; mc 4.8.33: all of them), and the "Dir
+# Hist" of the panel in mc's history file has the directories; subshell-tcsh-prompt
+# (the prompt of ~/.tcshrc stays), subshell-eof (exit in Ctrl-O ends mc with status 0;
+# mc 4.8.33: "read (subshell_pty...)" and status 1), the cd (pwd in Ctrl-O)
 d="дир 'q' \$x !b"
-mkdir -p "$T/sh/$d"
-printf 'set prompt="mc-test-prompt> "\n' > "$HOME/.tcshrc"
-rm -f "$T/pwd.txt"
-keys_run "$T/sh.typescript" "sleep 3; printf '$down'; sleep 1; printf '$enter'; sleep 1.5; printf '\017'; sleep 2;
-        printf 'pwd > $T/pwd.txt\r'; sleep 1.5; printf 'exit\r'; sleep 3; printf '$f10'; sleep 2" \
+mkdir -p "$T/sh/$d" "$T/sh/d2" "$HOME/.config/mc"
+cat > "$HOME/.tcshrc" << 'EOF'
+set prompt="mc-test-prompt> "
+set history = 100
+set savehist = (100 merge)
+set histdup = erase
+set noclobber
+EOF
+printf '#+1700000001\necho mc-test-old\n' > "$HOME/.history"
+printf 'm       mc-test menu entry\n\techo menu-ran > %s/menu.txt\n' "$T" > "$HOME/.config/mc/menu"
+rm -f "$T/pwd.txt" "$T/hist.txt" "$T/menu.txt"
+keys_run "$T/sh.typescript" "sleep 3; printf '$down'; sleep 0.5; printf '$down'; sleep 0.5; printf '$enter'; sleep 1.5;
+        printf '$enter'; sleep 1.5; printf '\033OA'; sleep 0.5; printf '$enter'; sleep 1.5; printf '$enter'; sleep 1.5;
+        printf '$down'; sleep 0.5; printf '$enter'; sleep 1.5; printf 'echo mc-test-cmdline\r'; sleep 2;
+        printf '\033OQ'; sleep 1.5; printf m; sleep 2; printf '\017'; sleep 2; printf 'echo mc-test-typed\r'; sleep 1;
+        printf 'history >! $T/hist.txt\r'; sleep 1.5; printf 'pwd >! $T/pwd.txt\r'; sleep 1.5; printf 'exit\r'; sleep 4;
+        printf '$f10'; sleep 2" \
     sh -c 'cd "$1" && exec "$2"' sh "$T/sh" "$mc"
 pw="$(cat "$T/pwd.txt" 2>/dev/null)"
 if [ "$pw" = "$T/sh/$d" ]; then
@@ -282,12 +305,42 @@ if grep -q 'mc-test-prompt>' "$T/sh.typescript.txt"; then
 else
     fail "tcsh subshell: no prompt of ~/.tcshrc (mc-test-prompt>): $(grep -m 1 -o '[^ ]*@[^ ]*[#>]' "$T/sh.typescript.txt")"
 fi
-if [ "$keys_exit" = 0 ] && [ "$keys_secs" -le 11 ] && ! grep -q 'read (subshell_pty' "$T/sh.typescript.txt"; then
+if [ "$keys_exit" = 0 ] && [ "$keys_secs" -le 26 ] && ! grep -q 'read (subshell_pty' "$T/sh.typescript.txt"; then
     pass "tcsh subshell: exit in Ctrl-O ended mc with status 0 (${keys_secs}s)"
 else
-    fail "tcsh subshell: exit in Ctrl-O: status $keys_exit after ${keys_secs}s (F10 at 12s): $(grep -m 1 'read (subshell' "$T/sh.typescript.txt")"
+    fail "tcsh subshell: exit in Ctrl-O: status $keys_exit after ${keys_secs}s (exit at 24s, F10 at 28s): $(grep -m 1 'read (subshell' "$T/sh.typescript.txt")"
 fi
-rm -f "$HOME/.tcshrc"
+if [ "$(cat "$T/menu.txt" 2>/dev/null)" = menu-ran ]; then
+    pass "the user menu (F2, m) ran its command"
+else
+    fail "the user menu (F2, m) did not run its command (no $T/menu.txt)"
+fi
+# hist_check <what> <file>: the old event and the typed commands there, none of mc's lines
+hist_check() {
+    _miss="" _mc=""
+    for _w in "echo mc-test-old" "echo mc-test-cmdline" "echo mc-test-typed"; do
+        grep -q -F -- "$_w" "$2" 2> /dev/null || _miss="$_miss; $_w"
+    done
+    _mc="$(grep -E "printf '%b'|alias precmd|bindkey|history -c|mcusr|mc\.cmd\.|(^|[[:space:]])cd[[:space:]]" "$2" 2> /dev/null |
+        head -n 3 | tr '\n' ' ' | cut -c1-200)"
+    if [ ! -s "$2" ]; then
+        fail "tcsh subshell: no $1 ($2)"
+    elif [ -z "$_miss" ] && [ -z "$_mc" ]; then
+        pass "tcsh subshell: $1 has the old event and the 3 typed commands, none of mc's lines ($(grep -c -v '^#+' "$2" | tr -d ' ') lines)"
+    else
+        fail "tcsh subshell: $1:${_miss:+ lacks${_miss#;};}${_mc:+ has mc's lines: $_mc}"
+    fi
+}
+hist_check "history in Ctrl-O" "$T/hist.txt"
+hist_check "~/.history after the exit" "$HOME/.history"
+mch="$HOME/.local/share/mc/history"
+dh="$(awk '/^\[/ { s = ($0 == "[Dir Hist New Left Panel]"); next } s && /=/ { sub(/^[^=]*=/, ""); print }' "$mch" 2> /dev/null)"
+if printf '%s\n' "$dh" | grep -q -x -F "$T/sh/d2" && printf '%s\n' "$dh" | grep -q -x -F "$T/sh/$d"; then
+    pass "the Dir Hist of the left panel in mc's history: $T/sh/d2, $T/sh/$d ($(printf '%s\n' "$dh" | grep -c .) entries)"
+else
+    fail "the Dir Hist of the left panel in $mch: $(printf '%s' "$dh" | tr '\n' ' ' | cut -c1-200)"
+fi
+rm -f "$HOME/.tcshrc" "$HOME/.history" "$HOME/.config/mc/menu"
 # prompt-invalid-utf8.patch, with bash when it is installed (tcsh puts such bytes of
 # its prompt into UTF-8 itself): the prompt "<dir>/d\370> " (\370: "ш" in CP1251) is
 # "<dir>/d> " on mc's command line (mc 4.8.33 lost "> " and read past the end)
@@ -305,5 +358,11 @@ if [ -x "$bash" ]; then
     fi
 else
     echo "skip  the prompt of bash with a byte that is not UTF-8: no $bash" >> "$out"
+fi
+# history-items-1000.patch: the ini of mc, written at its exits above into a new HOME
+if grep -q -x 'num_history_items_recorded=1000' "$HOME/.config/mc/ini" 2> /dev/null; then
+    pass "a new ~/.config/mc/ini has num_history_items_recorded=1000"
+else
+    fail "~/.config/mc/ini: $(grep num_history_items_recorded "$HOME/.config/mc/ini" 2> /dev/null || echo "no $HOME/.config/mc/ini")"
 fi
 finish
