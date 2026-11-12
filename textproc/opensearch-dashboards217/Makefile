@@ -15,24 +15,22 @@
 # @node-rs/xxhash of webpack, which a production start does not load, without its
 # platform packages; WebAssembly only): nothing is built, the package is JavaScript.
 #
-# The plugins: the bundle's 14 (the official port's choice), but those whose server
-# plugin textproc/opensearch217 does not have (aZ, 12.11.2026: out of it the security
-# plugin and what cannot run on FreeBSD), each with its configPath, the prefix of its
-# settings, which the rc script refuses:
-#  - securityDashboards: no opensearch-security (aZ: connections without SSL and
-#    without a password);
-#  - mlCommonsDashboards: no opensearch-ml (its ONNX Runtime, tokenizers and PyTorch
-#    are native code for Linux);
-#  - assistantDashboards: its agents are those of opensearch-ml, skills and
-#    flow-framework, none of them in opensearch217.
-# In, each with what it needs of the server: alertingDashboards (alerting),
-# anomalyDetectionDashboards (anomaly-detection), customImportMapDashboards
-# (geospatial), indexManagementDashboards (index-management, job-scheduler),
-# notificationsDashboards (notifications), observabilityDashboards (observability,
-# sql), queryWorkbenchDashboards (sql), reportsDashboards (reports-scheduler; no
-# Chromium in 2.17.1: CSV and XLSX of saved searches made by the server, PDF and PNG
-# by the browser with html2canvas and jsPDF), securityAnalyticsDashboards
-# (security-analytics), ganttChartDashboards and searchRelevanceDashboards (none).
+# The plugins: the bundle's 14 (the official port's choice), all whose server plugin
+# textproc/opensearch217 has (aZ, 12.11.2026: out of it only the security plugin and
+# what cannot run on FreeBSD, k-NN, neural-search and performance-analyzer, none of
+# which has a plugin in this bundle); so out only securityDashboards (no
+# opensearch-security: connections without SSL and without a password), with the
+# prefix of its settings, opensearch_security, which the rc script refuses. In, each
+# with what it needs of the server: alertingDashboards (alerting),
+# anomalyDetectionDashboards (anomaly-detection), assistantDashboards (ml, skills;
+# assistant.chat.enabled is false by default), customImportMapDashboards (geospatial),
+# indexManagementDashboards (index-management, job-scheduler), mlCommonsDashboards
+# (ml), notificationsDashboards (notifications), observabilityDashboards
+# (observability, sql), queryWorkbenchDashboards (sql), reportsDashboards
+# (reports-scheduler; no Chromium in 2.17.1: CSV and XLSX of saved searches made by
+# the server, PDF and PNG by the browser with html2canvas and jsPDF),
+# securityAnalyticsDashboards (security-analytics), ganttChartDashboards and
+# searchRelevanceDashboards (none).
 # The sample configuration is that of the min tarball: the bundle appends the
 # settings of the security plugin (https, kibanaserver, opensearch_security.*) to it.
 #
@@ -89,7 +87,8 @@
 # stringifies on the server), ip-address (data sources; Timeline's graphite with its
 # default allowlist), joi 14, ajv, uuid, cookie (the APM agent, off), aws-sdk and
 # bn.js (data sources), @babel/runtime, json-2-csv of reporting (preventCsvInjection
-# not set); those of the browser (dompurify, prismjs, jsPDF, canvg and the others) are
+# not set), the jsdom, dompurify, ws and form-data of the assistant (its chat, off
+# by default, with an agent of ml-commons); those of the browser (dompurify, prismjs, jsPDF, canvg and the others) are
 # compiled into the bundles.
 
 PORTNAME=	opensearch-dashboards
@@ -144,12 +143,11 @@ JSON11_VERSION=	2.0.0
 JSYAML_VERSION=	3.15.2
 
 # <plugin>:<the prefix of its settings> of the plugins left out (see the top)
-OSD_PLUGINS_OUT=	securityDashboards:opensearch_security \
-			mlCommonsDashboards:ml_commons_dashboards \
-			assistantDashboards:assistant
+OSD_PLUGINS_OUT=	securityDashboards:opensearch_security
 OSD_PLUGINS_IN=		alertingDashboards anomalyDetectionDashboards \
-			customImportMapDashboards ganttChartDashboards \
-			indexManagementDashboards notificationsDashboards \
+			assistantDashboards customImportMapDashboards \
+			ganttChartDashboards indexManagementDashboards \
+			mlCommonsDashboards notificationsDashboards \
 			observabilityDashboards queryWorkbenchDashboards \
 			reportsDashboards searchRelevanceDashboards \
 			securityAnalyticsDashboards
