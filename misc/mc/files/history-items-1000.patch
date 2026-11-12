@@ -1,0 +1,21 @@
+Description: the default of num_history_items_recorded, the one limit of every history list of mc (the command line, the directories of each panel, the input fields), is 1000 instead of 60
+Origin: azsupport/ports (aZ, 12.11.2026: 1000 lines by default are enough)
+Why: 60 entries of the command line and of the directories of a panel are few for a
+ server. An existing ~/.config/mc/ini keeps its value: with auto_save_setup (on by
+ default) mc writes num_history_items_recorded=60 into it at its exit, so on a server
+ that already has one it is changed there (or the line removed).
+
+--- lib/mcconfig/history.c.orig
++++ lib/mcconfig/history.c
+@@ -47,8 +47,9 @@
+ 
+ /*** global variables ****************************************************************************/
+ 
+-/* how much history items are used */
+-int num_history_items_recorded = 60;
++/* how much history items are used (the default of num_history_items_recorded in the ini:
++ * 1000 in the mc of azsupport/ports, 60 in mc) */
++int num_history_items_recorded = 1000;
+ 
+ /*** file scope macro definitions ****************************************************************/
+ 
