@@ -16,6 +16,8 @@
 #                compiled in, /tmp/mysql.sock (that of my.cnf.sample too); InnoDB
 #                the default engine, REGEXP (PCRE2), the compression provider
 #                provider_lz4 (lz4 of az) installed and active
+#   vsftpd-ext   on 127.0.0.1:12121: an HTTP method before the login closes the
+#                connection, and so does the 11th unknown command (CVE-2021-3618)
 #   bind-tools   dig with libidn2 (IDN)
 #   bind920      named -V with TCP Fast Open; named-checkconf of named.conf.sample; named
 #                on 127.0.0.1:15353 with a zone of its own: dig over UDP and TCP and
@@ -211,6 +213,24 @@ if have vsftpd-ext; then
     case "$r" in *"version 3"*) pass "vsftpd-ext: $r" ;;
         *) fail "vsftpd-ext: no \"version 3\" in what vsftpd -v 0>&1 says: $r" ;; esac
     chk vsftpd "$P/libexec/vsftpd"
+    # CVE-2021-3618 (files/patch-CVE-2021-3618 of the port): before the login an HTTP
+    # method closes the connection, and so does the 11th unknown command
+    mkdir -p "$T/ftproot"
+    printf '%s\n' listen=YES listen_address=127.0.0.1 listen_port=12121 background=NO \
+        anonymous_enable=YES "anon_root=$T/ftproot" local_enable=NO \
+        "secure_chroot_dir=$P/share/vsftpd/empty" > "$T/vsftpd.conf"
+    "$P/libexec/vsftpd" "$T/vsftpd.conf" > "$T/vsftpd.log" 2>&1 &
+    vsf=$!
+    sleep 1
+    r="$(printf 'GET / HTTP/1.1\r\n' | nc -w 5 127.0.0.1 12121 2>&1 | tr -d '\r' | tr '\n' ' ')"
+    case "$r" in *"500 HTTP protocol commands not allowed."*) pass "vsftpd-ext: an HTTP method before the login: $r" ;;
+        *) fail "vsftpd-ext: an HTTP method before the login: $r $(head -n 2 "$T/vsftpd.log" | tr '\n' ' ')" ;; esac
+    r="$( (i=0; while [ "$i" -lt 11 ]; do printf 'XYZ\r\n'; sleep 0.2; i=$((i + 1)); done) |
+        nc -w 5 127.0.0.1 12121 2>&1 | tr -d '\r' | tr '\n' ' ')"
+    case "$r" in *"530 Please login with USER and PASS. 500 Too many errors."*)
+            pass "vsftpd-ext: the 11th unknown command before the login: 500 Too many errors." ;;
+        *) fail "vsftpd-ext: 11 unknown commands before the login: $r" ;; esac
+    kill "$vsf" 2>/dev/null
 else skip vsftpd-ext; fi
 
 # bind-tools
