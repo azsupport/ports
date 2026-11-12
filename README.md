@@ -301,7 +301,8 @@ Names and origins as the ports, files at the paths of the ports:
 - **`lang/perl5.42`**: the package `perl5` (`/usr/local/bin/perl`) in the place of the
   official one (aZ, 11.11.2026: our Perl and Python under the package names of FreeBSD,
   so that the `p5-*` packages of the FreeBSD repository work with them): the official
-  port as it is, Perl 5.42.3, the default version of the pinned tree, with its options
+  port as it is, Perl 5.42.3, the default version of the pinned tree (with the fix of
+  CVE-2026-15534 of blead, which 5.42.3 lacks: `files/patch-CVE-2026-15534`), with its options
   (threads, MULTIPLICITY, 64-bit integers, the shared `libperl`; no GDBM) and the `-O3`
   of the builds, without DTrace (`OPTIONS_UNSET` of every build here): the probes of
   DTrace are compiled into the core of Perl only (`mydtrace.h`: `USE_DTRACE` and
