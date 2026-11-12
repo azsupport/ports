@@ -36,7 +36,8 @@
 # 3. Each test (with the packages it needs; a test whose package is not in the
 #    repository is skipped, with the reason): its results in
 #    results/<test>-results/, a line in results/checks.txt ("test <name>: OK",
-#    "FAIL (...)" or "SKIP (...)").
+#    "FAIL (...)" or "SKIP (...)"), with the up to 3 lines of what it found that
+#    a test writes into results/<test>-results/summary.txt.
 # Exit status: 0 no test failed, 1 a test failed or ours did not install, 2 a wrong
 # call or no catalog in the repository.
 
@@ -368,12 +369,16 @@ for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "ima
     fi
     say "$t-test.sh"
     r=0
+    rm -f "$res/$t-results/summary.txt"
     (cd "$res" && AZ_RESULTS="$res/$t-results" sh "$top/tools/$t-test.sh") > "$res/$t-test.log" 2>&1 || r=$?
     tail -n 3 "$res/$t-test.log" | sed 's/^/    | /'
+    # what the test found, in its line: up to 3 lines of its summary.txt
+    sm=""
+    [ -s "$res/$t-results/summary.txt" ] && sm="; $(awk 'NF { printf "%s%s", (n++ ? " | " : ""), substr($0, 1, 300) } n == 3 { exit }' "$res/$t-results/summary.txt")"
     if [ "$r" = 0 ]; then
-        line "$t: OK ($t-results/tests.txt)"
+        line "$t: OK ($t-results/tests.txt$sm)"
     else
-        line "$t: FAIL ($t-results/tests.txt, exit $r: $(grep -m 1 '^FAIL' "$res/$t-results/tests.txt" 2>/dev/null | cut -c1-160))"
+        line "$t: FAIL ($t-results/tests.txt, exit $r: $(grep -m 1 '^FAIL' "$res/$t-results/tests.txt" 2>/dev/null | cut -c1-160)$sm)"
         rc=1
     fi
 done

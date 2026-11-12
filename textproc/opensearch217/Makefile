@@ -6,12 +6,16 @@
 # 2025Q1 of freebsd-ports: the bundle of OpenSearch with its plugins, the same
 # file and distinfo, and the rc script, patches and pkg-message that
 # textproc/opensearch216 of the pinned tree still has); this port starts from it.
-# On OpenJDK 17 of the ports (OpenSearch 2.17 runs on 11, 17 and 21): USES=java
-# with JAVA_VERSION 17 gives the rc script ${LOCALBASE}/openjdk17, and
+# On OpenJDK 21, java/openjdk21 of ours (headless, as java/openjdk17; aZ,
+# 12.11.2026: the JDK of textproc/opensearch219 and of 3.x, one JDK for both
+# ports), the JDK of the bundle (Temurin 21.0.4, jdk/release): OpenSearch 2.17
+# runs on 11, 17 and 21, and not on 24 and later (JEP 486: those JDKs refuse the
+# Security Manager that OpenSearch 2.x installs at its start). USES=java with
+# JAVA_VERSION 21 gives the rc script ${LOCALBASE}/openjdk21, and
 # bin/opensearch-env takes it when JAVA_HOME is not set (it looked for
-# /usr/local/bin/java on FreeBSD, the javavmwrapper our openjdk17 does not
-# have), so the tools run by hand without JAVA_HOME; the JDK of the bundle is
-# not installed. JNA of devel/jna, as the official port: lib/jna.jar a link to
+# /usr/local/bin/java on FreeBSD, the javavmwrapper our JDKs do not have), so
+# the tools run by hand without JAVA_HOME; the JDK of the bundle is not
+# installed. JNA of devel/jna, as the official port: lib/jna.jar a link to
 # its jna.jar, the bundled jna-5.13.0.jar out; devel/jna is ours (no X11 and
 # JAWT, the libffi of az), and JNA loads its native library from the file of
 # that package, lib/jna/libjnidispatch.so (aZ, 12.11.2026, as for
@@ -78,9 +82,14 @@
 # tarball stay as they are, each rolled at its size alone and the rolled file
 # deleted at once (files/log4j2-rollover.properties; the tarball: the server
 # logs every day, compressed, kept up to 2 GB). The fatal error files of the
-# JVM in /var/log/opensearch, as the deb and rpm of OpenSearch. The four lines
-# of the warning of JDK 17 about System::setSecurityManager are taken out of
-# the stderr of bin/opensearch, nothing else (as for elasticsearch6). The heap
+# JVM in /var/log/opensearch, as the deb and rpm of OpenSearch. The warnings
+# JDK 21 prints at each start for what OpenSearch 2.17 sets itself are taken out
+# of the stderr of bin/opensearch, nothing else (as for elasticsearch6): the
+# four lines about System::setSecurityManager (it calls it), the one of the
+# incubator module jdk.incubator.vector (--add-modules of the 20-: line of its
+# jvm.options, for the vectors of Lucene) and the two of the COMPAT locale
+# provider (-Djava.locale.providers=SPI,COMPAT of its launcher, for its dates).
+# The heap
 # of a server is opensearch_heap of rc.conf (-Xms and -Xmx in
 # OPENSEARCH_JAVA_OPTS, after jvm.options), so that jvm.options is one file for
 # all; without it the heap is the 31g of jvm.options (aZ, 12.11.2026, as for
@@ -113,7 +122,7 @@ CONFLICTS_INSTALL=	opensearch opensearch[0-9][0-9] opensearch[0-9][0-9][0-9]
 
 NO_ARCH=	yes
 NO_BUILD=	yes
-JAVA_VERSION=	17
+JAVA_VERSION=	21
 USE_RC_SUBR=	${PORTNAME}
 SHEBANG_FILES=	bin/opensearch bin/opensearch-cli \
 		bin/opensearch-env bin/opensearch-env-from-file \
@@ -231,7 +240,9 @@ post-patch:
 		${GREP} -q '^-Djna\.nounpack=true$$' ${WRKSRC}/config/jvm.options && \
 		! ${GREP} -v '^#' ${WRKSRC}/config/jvm.options | ${GREP} -q -e 'jna\.nosys' -e '%%' || \
 		{ ${ECHO_MSG} "config/jvm.options: not the JNA of files/patch-config_jvm.options: $$(${GREP} -v '^#' ${WRKSRC}/config/jvm.options | ${GREP} -i -e 'jna' -e '%%' | ${TR} '\n' ' ')"; ${FALSE}; }
-	# files/patch-config_jvm.options: the paths, and what it sets for OpenJDK 17
+	# files/patch-config_jvm.options: the paths, and what it sets; the two lines
+	# for JDK 18 and later and 20 and later, which JDK 21 takes and whose
+	# warnings bin/opensearch takes out, and no other line of a version past 17
 	@! ${GREP} -q '^[0-9:-]*-XX:[+]*HeapDump' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-XX:+ExitOnOutOfMemoryError$$' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-XX:ErrorFile=/var/log/opensearch/hs_err_pid%p\.log$$' ${WRKSRC}/config/jvm.options && \
@@ -241,7 +252,10 @@ post-patch:
 		! ${GREP} -v '^#' ${WRKSRC}/config/jvm.options | ${GREP} -E -q '(=|:)(logs/|data$$)' && \
 		${GREP} -q '^11-:-XX:+UseG1GC$$' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-Djava\.io\.tmpdir=\$${OPENSEARCH_TMPDIR}$$' ${WRKSRC}/config/jvm.options && \
-		${GREP} -q '^-Xms31g$$' ${WRKSRC}/config/jvm.options && ${GREP} -q '^-Xmx31g$$' ${WRKSRC}/config/jvm.options || \
+		${GREP} -q '^-Xms31g$$' ${WRKSRC}/config/jvm.options && ${GREP} -q '^-Xmx31g$$' ${WRKSRC}/config/jvm.options && \
+		${GREP} -q '^18-:-Djava\.security\.manager=allow$$' ${WRKSRC}/config/jvm.options && \
+		${GREP} -q '^20-:--add-modules=jdk\.incubator\.vector$$' ${WRKSRC}/config/jvm.options && \
+		[ "$$(${GREP} -c -E '^(1[89]|2[0-9])-?:' ${WRKSRC}/config/jvm.options)" = 2 ] || \
 		{ ${ECHO_MSG} "config/jvm.options: not the options of files/patch-config_jvm.options"; ${FALSE}; }
 	# config/opensearch.yml: the paths of the official port
 	@${GREP} -q '^path\.data: /var/db/opensearch$$' ${WRKSRC}/config/opensearch.yml && \
@@ -255,7 +269,7 @@ post-patch:
 	# bin/opensearch-cli, which every tool runs, the check of the keystore of each
 	# start too); the server has -XX:+PerfDisableSharedMem in jvm.options. The
 	# java of FreeBSD for bin/opensearch-env without JAVA_HOME: that of this port's
-	# JDK (it named /usr/local/bin/java, of javavmwrapper, which our openjdk17
+	# JDK (it named /usr/local/bin/java, of javavmwrapper, which our openjdk21
 	# does not install). And no /tmp/opensearch-<number> of every start: the
 	# TempDirectory of bin/opensearch is replaced (files/patch-bin_opensearch); the
 	# tools do not use OPENSEARCH_TMPDIR, their java.io.tmpdir stays /tmp (the
@@ -276,7 +290,7 @@ post-patch:
 		${GREP} -q '^    JAVA="${JAVA_HOME}/bin/java"$$' opensearch-env && \
 		${GREP} -q '^  OPENSEARCH_TMPDIR=/tmp/opensearch$$' opensearch && \
 		${GREP} -q '^export TMPDIR="\$$OPENSEARCH_TMPDIR"$$' opensearch && \
-		[ "$$(${GREP} -c 'opensearch_jdk17_warnings' opensearch)" = 3 ] && \
+		[ "$$(${GREP} -c 'opensearch_jdk_warnings' opensearch)" = 3 ] && \
 		! ${GREP} -q -e 'launchers\.TempDirectory' -e '/usr/local/bin/java' ${BINS} || \
 		{ ${ECHO_MSG} "bin: not the JVMs this port gives -XX:-UsePerfData, the java of opensearch-env, or the TempDirectory of bin/opensearch is not replaced: $$(${GREP} -h -e '"\$$JAVA"' -e 'TempDirectory' -e 'bin/java' ${BINS} | ${TR} '\n' '|')"; ${FALSE}; }
 	# config/log4j2.properties: that of the tarball, which has to be the one this was
@@ -321,7 +335,7 @@ do-install:
 
 post-install:
 	# JNA: a link to the jna.jar of devel/jna, no other JNA; the plugins and the
-	# netty of the bundle; the rc script on the OpenJDK 17 of the dependency (its
+	# netty of the bundle; the rc script on the OpenJDK 21 of the dependency (its
 	# file of the work directory: install-rc-script puts it into the stage
 	# directory after post-install)
 	@[ "$$(readlink ${STAGEDIR}${PREFIX}/lib/opensearch/lib/jna.jar)" = "${JAVAJARDIR}/jna.jar" ] && \
@@ -331,9 +345,9 @@ post-install:
 		[ -z "$$(cd ${STAGEDIR}${PREFIX}/lib/opensearch/plugins/opensearch-ml && ls ${ML_NATIVE_JARS} 2>/dev/null)" ] && \
 		[ "$$(cd ${STAGEDIR}${PREFIX}/lib/opensearch && ${FIND} . -name 'netty-*.jar' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "$$(for j in ${NETTY_JARS:O}; do printf './modules/transport-netty4/%s-${NETTY_BUNDLED}.jar ' $$j; done)${NETTY_ML:O:S|^|./plugins/opensearch-ml/|} " ] || \
 		{ ${ECHO_MSG} "lib/opensearch: not the plugins of the port or the netty of the bundle"; ${FALSE}; }
-	@[ "${JAVA_HOME}" = "${LOCALBASE}/openjdk17" ] && \
-		${GREP} -q 'opensearch_java_home="${LOCALBASE}/openjdk17"' ${WRKDIR}/opensearch || \
-		{ ${ECHO_MSG} "rc.d/opensearch: opensearch_java_home is not ${LOCALBASE}/openjdk17 (JAVA_HOME ${JAVA_HOME})"; ${FALSE}; }
+	@[ "${JAVA_HOME}" = "${LOCALBASE}/openjdk21" ] && \
+		${GREP} -q 'opensearch_java_home="${LOCALBASE}/openjdk21"' ${WRKDIR}/opensearch || \
+		{ ${ECHO_MSG} "rc.d/opensearch: opensearch_java_home is not ${LOCALBASE}/openjdk21 (JAVA_HOME ${JAVA_HOME})"; ${FALSE}; }
 	@${GREP} -q 'export OPENSEARCH_JAVA_OPTS="-Xms$${opensearch_heap} -Xmx$${opensearch_heap}"' ${WRKDIR}/opensearch && \
 		${GREP} -q '^export OPENSEARCH_TMPDIR="$${opensearch_tmpdir}"$$' ${WRKDIR}/opensearch && \
 		${GREP} -q 'opensearch_security_settings "$${_yml}"' ${WRKDIR}/opensearch && \

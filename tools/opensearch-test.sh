@@ -23,8 +23,8 @@
 #   - the rc script refuses a start with a setting of the security plugin in
 #     opensearch.yml (plugins.security.disabled: true, as aZ's nodes have, and the
 #     nested form plugins: / security:), names the lines, and starts nothing;
-#   - the start: its version 2.17.1 and the JVM it runs on (OpenJDK 17 of the
-#     ports, the default of its rc script); the heap from opensearch_heap of rc.conf
+#   - the start: its version 2.17.1 and the JVM it runs on (OpenJDK 21 of ours,
+#     the default of its rc script); the heap from opensearch_heap of rc.conf
 #     (512m here) over the -Xms and -Xmx of jvm.options, a wrong opensearch_heap
 #     refused; the options of jvm.options in the running JVM (no heap dump,
 #     -XX:+ExitOnOutOfMemoryError, no GC log, -XX:+PerfDisableSharedMem); JNA from
@@ -35,8 +35,11 @@
 #     (RLIMIT_NPROC of the process set to 0, which FreeBSD makes its least, 1) and
 #     the memory lock that aZ's servers have on (bootstrap.memory_lock: true):
 #     mlockall true; the plugins it loaded (_cat/plugins) those of the port; the
-#     start says nothing of System::setSecurityManager (the four lines of JDK 17 are
-#     taken out) and no warning of the JVM; no [ERROR] in its log;
+#     start says nothing of System::setSecurityManager (the four lines of JDK 21
+#     are taken out), nor of the incubator module jdk.incubator.vector or the
+#     COMPAT locale provider (taken out too), and no warning of the JVM; Lucene
+#     on JDK 21 (its lines in the log: MMapDirectory on MemorySegment, the vector
+#     API once it uses vectors); no [ERROR] in its log;
 #   - the health of the cluster, a document indexed and found; opensearch-ml
 #     without native code: a connector of a remote model made (its credential
 #     encrypted by the master key of the plugin), read and found; an index with the
@@ -84,6 +87,9 @@ mkdir -p "$res"
 rm -rf "$T"; mkdir -p "$T"
 out="$res/tests.txt"
 : > "$out"
+# what it found that the line of tools/test-programs.sh shows (up to 3 lines)
+sum="$res/summary.txt"
+: > "$sum"
 ok=0; bad=0
 pass() { echo "ok    $*" >> "$out"; ok=$((ok + 1)); }
 fail() { echo "FAIL  $*" >> "$out"; bad=$((bad + 1)); }
@@ -109,10 +115,10 @@ if ! pkg info -e opensearch217; then
 fi
 v217="$(pkgv opensearch217)"
 # the package: its JDK, JNA, plugins, netty and paths
-if grep -q '^: ${opensearch_java_home="/usr/local/openjdk17"}' "$rc"; then
-    pass "rc.d/opensearch: opensearch_java_home /usr/local/openjdk17 by default"
+if grep -q '^: ${opensearch_java_home="/usr/local/openjdk21"}' "$rc"; then
+    pass "rc.d/opensearch: opensearch_java_home /usr/local/openjdk21 by default"
 else
-    fail "rc.d/opensearch: opensearch_java_home is not /usr/local/openjdk17 by default: $(grep -m 1 'opensearch_java_home=' "$rc")"
+    fail "rc.d/opensearch: opensearch_java_home is not /usr/local/openjdk21 by default: $(grep -m 1 'opensearch_java_home=' "$rc")"
 fi
 j="$P/lib/opensearch/lib/jna.jar"
 l="$(readlink "$j")"
@@ -221,7 +227,7 @@ else
     fail "bin/opensearch -V by hand: exit $r, $(said); new in /tmp: ${n:-nothing}; $(stat -f '%Su %Lp' /tmp/opensearch 2>&1)"
 fi
 chown -R opensearch:opensearch "$T"
-(cd / && su -m opensearch -c "env -u OPENSEARCH_TMPDIR JAVA_HOME='$P/openjdk17' OPENSEARCH_PATH_CONF='$conf' OPENSEARCH_JAVA_OPTS='-Xms64m -Xmx64m' '$B/opensearch' -V") > "$T/tool.out" 2>&1 < /dev/null; r=$?
+(cd / && su -m opensearch -c "env -u OPENSEARCH_TMPDIR JAVA_HOME='$P/openjdk21' OPENSEARCH_PATH_CONF='$conf' OPENSEARCH_JAVA_OPTS='-Xms64m -Xmx64m' '$B/opensearch' -V") > "$T/tool.out" 2>&1 < /dev/null; r=$?
 if [ "$r" != 0 ] && grep -q 'is not a directory of the user opensearch' "$T/tool.out"; then
     pass "bin/opensearch by hand as opensearch with the /tmp/opensearch of root: refused"
 else
@@ -288,7 +294,8 @@ else
     v="$(printf '%s' "$a" | sed -n 's/.*"number" *: *"\([^"]*\)".*/\1/p' | head -n 1)"
     if [ "$v" = "$v217" ]; then pass "version $v"; else fail "version $v, the package is $v217"; fi
     j="$(get '/_nodes/_local/jvm?filter_path=**.jvm.version' | sed -n 's/.*"version" *: *"\([^"]*\)".*/\1/p' | head -n 1)"
-    case "$j" in 17.*) pass "the JVM: $j" ;; *) fail "the JVM: ${j:-not told}, not 17" ;; esac
+    case "$j" in 21.*) pass "the JVM: $j" ;; *) fail "the JVM: ${j:-not told}, not 21" ;; esac
+    echo "opensearch $v on the JVM ${j:-not told}" >> "$sum"
     # the options of the running JVM, one per line, in their order
     get '/_nodes/_local/jvm?filter_path=**.jvm.input_arguments,**.jvm.mem.heap_max_in_bytes' > "$T/jvm.json"
     sed -e 's/.*"input_arguments" *: *\[//' -e 's/\].*//' "$T/jvm.json" | tr ',' '\n' | sed -e 's/^"//' -e 's/"$//' > "$T/args.txt"
@@ -413,6 +420,19 @@ else
             fail "the index with the codec zstd: its codec is ${c:-not told}" ;;
         *) fail "the index with the codec zstd: $(cut -c1-200 "$T/z.out"); the document: $(cut -c1-120 "$T/zd.out"); the search: $(printf '%s' "$s" | cut -c1-160)" ;; esac
     note "$tmpd after the index with the codec zstd: $(find "$tmpd" -mindepth 1 2>/dev/null | sed "s|^$tmpd/||" | tr '\n' ' ' | sed 's/ $//;s/^$/nothing/')"
+    # Lucene on JDK 21, by the lines it logs (the log of the start, or its
+    # stderr): MMapDirectory on MemorySegment, which every index opens; the vector
+    # API of jdk.incubator.vector (the 20-: line of jvm.options), which Lucene
+    # takes up at its first use of vectors, and no word of it being unusable
+    lm="$(cat "$T/logs/az-test.log" "$T/start.out" 2>/dev/null | grep -o 'Using MemorySegmentIndexInput[^;"]*' | head -n 1)"
+    lv="$(cat "$T/logs/az-test.log" "$T/start.out" 2>/dev/null | grep -o 'Java vector incubator API enabled[^"]*' | head -n 1)"
+    lw="$(cat "$T/logs/az-test.log" "$T/start.out" 2>/dev/null | grep -i -E 'incubator module is not readable|vector.*(can.t be enabled|disabled)|MMapDirectory.*(not|unavailable|cannot)' | head -n 1 | cut -c1-200)"
+    if [ -n "$lm" ] && [ -z "$lw" ]; then
+        pass "Lucene on JDK 21: \"$lm\"; the vector API: ${lv:-no line yet (no vectors used)}"
+    else
+        fail "Lucene on JDK 21: MMapDirectory: ${lm:-no line of MemorySegmentIndexInput}; ${lw:-the vector API: ${lv:-no line}} ($(grep -h -i -E 'vectoriz|MemorySegment|MMapDirectory|incubator' "$T/logs/az-test.log" "$T/start.out" 2>/dev/null | head -n 2 | sed -e 's/^[^]]*\]//' | cut -c1-200 | tr '\n' ' '))"
+    fi
+    echo "Lucene: ${lm:-no MemorySegmentIndexInput}; ${lv:-no line of the vector API}" >> "$sum"
     # opensearch-security-analytics: its builtin log types, which its loader of
     # 2.17.1 may fail to read at the start (upstream security-analytics#1312, the
     # [ERROR] "Failed loading builtin log types from disk!", on Linux and macOS too)
@@ -430,9 +450,16 @@ else
 fi
 cp "$T/start.out" "$res/opensearch-start.out"
 if grep -q 'setSecurityManager' "$T/start.out"; then
-    fail "the start printed the warning of JDK 17 about setSecurityManager: $(grep -m 1 'setSecurityManager' "$T/start.out")"
+    fail "the start printed the warning of JDK 21 about setSecurityManager: $(grep -m 1 'setSecurityManager' "$T/start.out")"
 else
-    pass "the start without the warning of JDK 17 about setSecurityManager"
+    pass "the start without the warning of JDK 21 about setSecurityManager"
+fi
+# the line of the incubator module of jvm.options, and the two of the COMPAT
+# locale provider of the launcher, taken out too
+if grep -E 'jdk\.incubator\.vector|COMPAT locale provider|LocaleProviderAdapter' "$T/start.out" > "$T/jdk21.txt"; then
+    fail "the start printed the warnings of JDK 21 of the bundle's options: $(head -n 2 "$T/jdk21.txt" | cut -c1-160 | tr '\n' ' ')"
+else
+    pass "the start without the warnings of JDK 21 about jdk.incubator.vector and the COMPAT locale provider"
 fi
 if grep -i -E 'warning|deprecated|unrecognized|ignoring option' "$T/start.out" > "$T/warn.txt"; then
     fail "the start printed $(wc -l < "$T/warn.txt" | tr -d ' ') warnings: $(head -n 2 "$T/warn.txt" | cut -c1-200 | tr '\n' ' ')"
