@@ -1,0 +1,24 @@
+libvips 8.18 branch after 8.18.7, commit f3dfa3db0584 (libvips pull request
+5274):
+https://github.com/libvips/libvips/commit/f3dfa3db05846d31af8e4d7f246e1a23e79cd0f6
+
+pngload: PNG images with invalid zlib Compression Method Flags, as libpng 1.6.0
+to 1.6.2 wrote them, did not load; libpng reads them with
+PNG_MAXIMUM_INFLATE_WINDOW on, as upstream sets it now.
+
+--- libvips/foreign/vipspng.c.orig
++++ libvips/foreign/vipspng.c
+@@ -318,6 +318,13 @@ read_new(VipsSource *source, VipsImage *out,
+ 			PNG_CRC_QUIET_USE, PNG_CRC_QUIET_USE);
+ 	}
+ 
++#ifdef PNG_MAXIMUM_INFLATE_WINDOW
++	/* Handle images containing invalid Compression Method Flags (CMF)
++	 * generated with libpng versions 1.6.0 to 1.6.2 inclusive.
++	 */
++	png_set_option(read->pPng, PNG_MAXIMUM_INFLATE_WINDOW, PNG_OPTION_ON);
++#endif /* PNG_MAXIMUM_INFLATE_WINDOW */
++
+ 	/* libpng has a default soft limit of 1m pixels per axis.
+ 	 */
+ 	png_set_user_limits(read->pPng, VIPS_MAX_COORD, VIPS_MAX_COORD);

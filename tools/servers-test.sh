@@ -23,7 +23,8 @@
 #                on 127.0.0.1:15353 with a zone of its own: dig over UDP and TCP and
 #                of an IDN name (libidn2 of dig), rndc status and stop
 #   vips         the formats of aZ in vips --vips-config; JPEG, a WebP thumbnail,
-#                PNG, GIF and AVIF made and read back; its libraries those of az and
+#                PNG, GIF and AVIF made and read back; an animated WebP and GIF of 3
+#                pages read whole; its libraries those of az and
 #                of our glib, libexif, cgif, libimagequant and highway
 #   qt-faststart an MP4 of our ffmpeg (moov after mdat): moov first after it
 #
@@ -339,6 +340,22 @@ if have vips; then
         done
         case "$("$P/bin/vipsheader" "$v/t.webp" 2>&1)" in *" 64x48 "*) pass "vipsthumbnail: 128x96 to 64x48" ;;
             *) fail "vipsthumbnail: $("$P/bin/vipsheader" "$v/t.webp" 2>&1)" ;; esac
+        # an animated WebP and GIF of 3 pages read whole (n=-1), through the checks of the
+        # total height (graphics/vips/files/patch-webpload-height, patch-gifload-height);
+        # three different pages (the encoders merge equal ones into one frame)
+        if "$P/bin/vips" colourspace "$v/n.png" "$v/c1.png" srgb >> "$T/vips.log" 2>&1 &&
+                "$P/bin/vips" invert "$v/c1.png" "$v/c2.png" >> "$T/vips.log" 2>&1 &&
+                "$P/bin/vips" flip "$v/c1.png" "$v/c3.png" horizontal >> "$T/vips.log" 2>&1 &&
+                "$P/bin/vips" arrayjoin "$v/c1.png $v/c2.png $v/c3.png" "$v/s.png" --across 1 >> "$T/vips.log" 2>&1 &&
+                "$P/bin/vips" copy "$v/s.png" "$v/a.webp[page-height=96]" >> "$T/vips.log" 2>&1 &&
+                "$P/bin/vips" copy "$v/s.png" "$v/a.gif[page-height=96]" >> "$T/vips.log" 2>&1; then
+            for f in a.webp a.gif; do
+                h="$("$P/bin/vipsheader" -f height "$v/${f}[n=-1]" 2>&1) $("$P/bin/vipsheader" -f n-pages "$v/$f" 2>&1)"
+                if [ "$h" = "288 3" ]; then pass "vips: $f of 3 pages, n=-1: height 288"; else fail "vips: $f of 3 pages, n=-1: $h"; fi
+            done
+        else
+            fail "vips: an animated WebP and GIF: $(tail -n 3 "$T/vips.log" | tr '\n' ' ')"
+        fi
     else
         fail "vips: $(tail -n 3 "$T/vips.log" | tr '\n' ' ')"
     fi

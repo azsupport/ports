@@ -268,7 +268,11 @@
   libimagequant и highway из их портов этого дерева; zlib базы. Для картинок из веба —
   `VIPS_BLOCK_UNTRUSTED=1` в окружении nginx (`env VIPS_BLOCK_UNTRUSTED=1;` в основном
   контексте nginx.conf; об этом говорит и сообщение пакета): libvips не
-  берёт недоверенные загрузчики.
+  берёт недоверенные загрузчики. С исправлениями ветки 8.18 после 8.18.7, до выхода
+  8.18.8 ([`files/patch-*`](graphics/vips/files), в каждом — его коммит): полная высота
+  анимированных GIF, WebP и HEIF (переполнение int в неверный размер), входной профиль
+  `icc_import` (использование после освобождения), коды LZW через подблоки GIF, PNG из
+  libpng 1.6.0–1.6.2, фото HEIC больше чем из 256 элементов.
 - **`multimedia/qt-faststart`**: `bin/qt-faststart` из `tools/qt-faststart.c` FFmpeg 9.0.2
   (public domain): официальный порт удалён 30.06.2022 (то же делает ffmpeg `-movflags
   +faststart`); оставлен для совместимости, пока нужен (aZ, 10.11.2026).
