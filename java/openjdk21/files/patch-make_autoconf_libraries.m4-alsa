@@ -1,0 +1,14 @@
+--- make/autoconf/libraries.m4.orig	2026-10-27 21:45:31 UTC
++++ make/autoconf/libraries.m4
+@@ -74,8 +74,9 @@
+     NEEDS_LIB_FREETYPE=true
+   fi
+ 
+-  # Check if alsa is needed
+-  if test "x$OPENJDK_TARGET_OS" = xlinux -o "x$OPENJDK_TARGET_OS_ENV" = xbsd.freebsd -o "x$OPENJDK_TARGET_OS_ENV" = xbsd.netbsd; then
++  # Check if alsa is needed (not on FreeBSD: no libjsound there, as on AIX and
++  # OpenBSD, make/modules/java.desktop/Lib.gmk)
++  if test "x$OPENJDK_TARGET_OS" = xlinux -o "x$OPENJDK_TARGET_OS_ENV" = xbsd.netbsd; then
+     NEEDS_LIB_ALSA=true
+   else
+     NEEDS_LIB_ALSA=false
