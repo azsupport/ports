@@ -34,6 +34,26 @@
 #             zlib params() then destroy() gives its callback the error
 #             (CVE-2026-123862); undici 6.29.1: fetch() of a gzip body, more than 5
 #             content-encodings refused
+#   tls, http2  the fixes of the TLS and HTTP/2 code (Node.js 22.23.4, 22.23.5,
+#             24.22.3), each failing on 18.20.8 without it, with certificates made
+#             here by the openssl of the base system: a chain through a blocked
+#             intermediate fails with CERT_REVOKED, with the ca of the connection
+#             and with the default CA store, the base system's with the root of the
+#             test by NODE_EXTRA_CA_CERTS (tls-spki-blocklist.patch; node with
+#             --expose-internals for its test hooks); an SNI context with a ca only
+#             verifies the client certificates of its host (CVE-2026-123867); a
+#             session resumed only for its server name, none without a session id
+#             context and with client certificates, a HelloRetryRequest and a
+#             renegotiation keeping the SNI context (CVE-2026-123872); an HTTP/2
+#             session ended by nghttp2 after a GOAWAY of the peer ends with an error
+#             (CVE-2026-123865); the DATA of a reset stream in a pending socket write
+#             is what it wrote (CVE-2026-123866; node with --expose-gc); undrained
+#             streams bounded by maxSessionMemory (CVE-2026-123868); ALTSVC frames
+#             over 1 KiB (CVE-2026-123828; plain 18.20.8 aborts with glibc, with the
+#             jemalloc of FreeBSD the one byte past the buffer may go unseen). No
+#             check for CVE-2026-123863, CVE-2026-123864, CVE-2026-123874 and
+#             CVE-2026-123875: races or paths their upstream tests do not reach on
+#             18.20.8 either
 #   wasi      node:wasi: a WebAssembly module made here writes to stdout (the uvwasi
 #             Node 18 bundles, on the libuv of az)
 #   url       an IDN host in Punycode (the ada Node 18 bundles)
@@ -77,13 +97,17 @@ libs_of() {
     [ -z "$libs_bad" ] || { libs_bad="not of the base system, az or our ports:$libs_bad"; return 1; }
     libs_out="${_all# }"
 }
-# js <name> <file of JavaScript>: node runs it; it prints "OK ..." or "FAIL ..."
+# js <name> <file of JavaScript> [options of node]: node runs it, with the variables
+# of $jsenv in its environment when set; it prints "OK ..." or "FAIL ..."
+jsenv=""
 js() {
-    _o="$(cd "$T" && HOME="$T/home" "$P/bin/node" "$2" 2> "$T/js.err" < /dev/null)"
+    _n="$1"; _f="$2"; shift 2
+    # shellcheck disable=SC2086
+    _o="$(cd "$T" && env HOME="$T/home" $jsenv "$P/bin/node" "$@" "$_f" 2> "$T/js.err" < /dev/null)"
     case "$_o" in
-        "OK "*) pass "$1: ${_o#OK }" ;;
-        "FAIL "*) fail "$1: ${_o#FAIL }" ;;
-        *) fail "$1: $(printf '%s\n' "$_o" "$(cat "$T/js.err")" | sed -n '/[^[:space:]]/{p;q;}')" ;;
+        "OK "*) pass "$_n: ${_o#OK }" ;;
+        "FAIL "*) fail "$_n: ${_o#FAIL }" ;;
+        *) fail "$_n: $(printf '%s\n' "$_o" "$(cat "$T/js.err")" | sed -n '/[^[:space:]]/{p;q;}')" ;;
     esac
 }
 pkgv() { pkg query '%v' "$1" 2>/dev/null | sed 's/[_,].*//'; }
@@ -468,6 +492,446 @@ srv.listen(0, '127.0.0.1', async () => {
 });
 EOF
 js undici "$T/undici.js"
+
+# the fixes of the TLS and HTTP/2 code: the certificates of their checks, made by the
+# openssl of the base system (P-256): a root and an intermediate CA with the chain of a
+# server for localhost, two CAs with a client certificate each, a server certificate
+tlsc=ok
+(
+    cd "$T" || exit 1
+    ec() { openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out "$1.key"; }
+    ca() { ec "$1" && openssl req -new -x509 -key "$1.key" -subj "/CN=$1" -days 2 -out "$1.pem" \
+        -addext basicConstraints=critical,CA:TRUE -addext keyUsage=critical,keyCertSign,cRLSign; }
+    sign() { ec "$1" && openssl req -new -key "$1.key" -subj "/CN=$1" -out "$1.csr" &&
+        openssl x509 -req -in "$1.csr" -CA "$2.pem" -CAkey "$2.key" -CAcreateserial -days 2 -extfile "$3" -out "$1.pem"; }
+    printf 'basicConstraints=critical,CA:TRUE,pathlen:0\nkeyUsage=critical,keyCertSign,cRLSign\n' > int.ext
+    printf 'basicConstraints=CA:FALSE\nsubjectAltName=DNS:localhost\nextendedKeyUsage=serverAuth\n' > srv.ext
+    printf 'basicConstraints=CA:FALSE\nextendedKeyUsage=clientAuth\n' > cli.ext
+    ca az-root && sign az-intermediate az-root int.ext && sign localhost az-intermediate srv.ext &&
+        cat localhost.pem az-intermediate.pem > chain.pem &&
+        ca az-ca1 && ca az-ca2 && sign client1 az-ca1 cli.ext && sign client2 az-ca2 cli.ext &&
+        ec server && openssl req -new -x509 -key server.key -subj /CN=localhost -days 2 -out server.pem \
+            -addext subjectAltName=DNS:localhost
+) > "$T/tls-certs.log" 2>&1 || tlsc=""
+
+cat > "$T/spki.js" <<'EOF'
+'use strict';
+// tls-spki-blocklist.patch: a chain through a blocked intermediate fails with
+// CERT_REVOKED, with the ca of the connection and with the default CA store (that of
+// the base system, which NODE_EXTRA_CA_CERTS gives the root of the test); node runs
+// with --expose-internals for the hooks of the test
+const tls = require('node:tls'), fs = require('node:fs'), crypto = require('node:crypto');
+let hooks;
+try {
+  hooks = require('internal/test/binding').internalBinding('crypto');
+} catch (e) {
+  console.log(`FAIL internalBinding: ${e.message}`); process.exit(0);
+}
+if (typeof hooks.addBlockedSPKIForTesting !== 'function') {
+  console.log('FAIL no addBlockedSPKIForTesting() in the crypto binding'); process.exit(0);
+}
+const root = fs.readFileSync('az-root.pem');
+const spki = crypto.createHash('sha256').update(new crypto.X509Certificate(fs.readFileSync('az-intermediate.pem'))
+  .publicKey.export({ type: 'spki', format: 'der' })).digest();
+const server = tls.createServer({ key: fs.readFileSync('localhost.key'), cert: fs.readFileSync('chain.pem') },
+  (s) => { s.on('error', () => {}); s.end('ok'); });
+server.on('tlsClientError', () => {});
+const connect = (opts) => new Promise((resolve) => {
+  const c = tls.connect({ host: '127.0.0.1', port: server.address().port, servername: 'localhost', ...opts }, () => {
+    resolve(c.authorized ? 'authorized' : `unauthorized ${c.authorizationError}`);
+    c.destroy();
+  });
+  c.on('error', (e) => resolve(`error ${e.code}`));
+});
+server.listen(0, '127.0.0.1', async () => {
+  const r = [], bad = [];
+  const want = async (name, opts, w) => {
+    const g = await connect(opts);
+    (g === w ? r : bad).push(`${name}: ${g}`);
+  };
+  await want('the ca of the connection', { ca: root }, 'authorized');
+  await want('the default CA store', {}, 'authorized');
+  hooks.addBlockedSPKIForTesting(spki);
+  await want('blocked, the ca of the connection', { ca: root }, 'error CERT_REVOKED');
+  await want('blocked, the default CA store', {}, 'error CERT_REVOKED');
+  await want('blocked, rejectUnauthorized false', { ca: root, rejectUnauthorized: false }, 'unauthorized CERT_REVOKED');
+  hooks.clearBlockedSPKIsForTesting();
+  await want('cleared', { ca: root }, 'authorized');
+  server.close();
+  console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK ${r.join('; ')}`);
+});
+EOF
+cat > "$T/sni-ca.js" <<'EOF'
+'use strict';
+// CVE-2026-123867: an SNI context with a ca and no certificate verifies the client
+// certificates of its host against that ca, not against the ca of the server
+const tls = require('node:tls'), fs = require('node:fs');
+const rd = (f) => fs.readFileSync(f);
+const server = tls.createServer({
+  key: rd('server.key'), cert: rd('server.pem'), ca: rd('az-ca1.pem'), requestCert: true, rejectUnauthorized: true,
+}, (s) => { s.on('error', () => {}); s.end(s.getPeerCertificate().subject.CN); });
+server.on('tlsClientError', () => {});
+server.addContext('protected.example', { ca: rd('az-ca2.pem') });
+const connect = (client, version) => new Promise((resolve) => {
+  const c = tls.connect({
+    host: '127.0.0.1', port: server.address().port, servername: 'protected.example',
+    key: rd(`${client}.key`), cert: rd(`${client}.pem`), rejectUnauthorized: false, minVersion: version, maxVersion: version,
+  });
+  let d = '';
+  c.setEncoding('utf8');
+  c.on('data', (x) => { d += x; });
+  c.on('error', () => {});
+  c.on('close', () => resolve(d));
+});
+server.listen(0, '127.0.0.1', async () => {
+  const r = [], bad = [];
+  for (const v of ['TLSv1.2', 'TLSv1.3']) {
+    const a = await connect('client1', v), b = await connect('client2', v);
+    if (a === '' && b === 'client2') r.push(`${v}: client1 (the ca of the server) refused, client2 (the ca of the context) accepted`);
+    else bad.push(`${v}: client1 (the ca of the server) "${a}", client2 (the ca of the context) "${b}"`);
+  }
+  server.close();
+  console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK ${r.join('; ')}`);
+});
+EOF
+cat > "$T/tls-resume.js" <<'EOF'
+'use strict';
+// CVE-2026-123872: a session is resumed only for the server name it was made for, and a
+// TLSSocket with no session id context that verifies client certificates resumes none
+const tls = require('node:tls'), net = require('node:net'), fs = require('node:fs');
+const key = fs.readFileSync('server.key'), cert = fs.readFileSync('server.pem');
+const fail = (m) => { console.log(`FAIL ${m}`); process.exit(0); };
+setTimeout(() => fail('timed out'), 30000).unref();
+// the first raw session the client gets, once the connection is closed
+const connect = (port, options) => new Promise((resolve) => {
+  let session;
+  const s = tls.connect({ host: '127.0.0.1', port, rejectUnauthorized: false, ...options });
+  const { onnewsession } = s._handle;
+  s._handle.onnewsession = function(id, raw) { session ??= raw; return onnewsession.call(this, id, raw); };
+  s.on('session', () => {});
+  s.on('error', () => {});
+  s.on('close', () => resolve(session));
+  s.resume();
+});
+const listen = (server) => new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+(async () => {
+  const r = [], bad = [];
+  const seen = [];
+  const named = tls.createServer({ key, cert }, (s) => {
+    seen.push(`${s.servername || '-'} ${s.isSessionReused() ? 'resumed' : 'full'}`);
+    setImmediate(() => s.end());
+  });
+  const port = await listen(named);
+  for (const maxVersion of ['TLSv1.2', 'TLSv1.3']) {
+    seen.length = 0;
+    const a = await connect(port, { servername: 'a.example', maxVersion });
+    await connect(port, { servername: 'a.example', maxVersion, session: a });
+    await connect(port, { servername: 'b.example', maxVersion, session: a });
+    const want = ['a.example full', 'a.example resumed', 'b.example full'];
+    if (JSON.stringify(seen) === JSON.stringify(want)) r.push(`${maxVersion}: a session of a.example resumed for a.example, not for b.example`);
+    else bad.push(`${maxVersion}: ${seen.join(', ')} (not ${want.join(', ')})`);
+  }
+  named.close();
+  // no session id context: a TLSSocket on a net server
+  const reused = [];
+  const ctx = tls.createSecureContext({ key, cert });
+  const plain = (requestCert) => net.createServer((socket) => {
+    const t = new tls.TLSSocket(socket, { isServer: true, secureContext: ctx, requestCert });
+    t.on('error', () => {});
+    t.on('secure', () => { reused.push(t.isSessionReused()); setImmediate(() => t.end()); });
+  });
+  const open = plain(false), verifying = plain(true);
+  const po = await listen(open), pv = await listen(verifying);
+  for (const maxVersion of ['TLSv1.2', 'TLSv1.3']) {
+    reused.length = 0;
+    const s = await connect(po, { maxVersion });
+    await connect(po, { maxVersion, session: s });
+    await connect(pv, { maxVersion, session: s });
+    if (JSON.stringify(reused) === '[false,true,false]') r.push(`${maxVersion}: no session id context and client certificates: a full handshake`);
+    else bad.push(`${maxVersion}: no session id context, resumed ${JSON.stringify(reused)} (not [false,true,false])`);
+  }
+  open.close(); verifying.close();
+  console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK ${r.join('; ')}`);
+  process.exit(0);
+})();
+EOF
+cat > "$T/tls-reneg.js" <<'EOF'
+'use strict';
+// CVE-2026-123872: the second ClientHello of a TLS 1.3 HelloRetryRequest and a TLS 1.2
+// renegotiation keep the SNI context chosen for the connection (here one with a ca and
+// no certificate, which keeps the certificate of the server)
+const tls = require('node:tls'), fs = require('node:fs');
+const fail = (m) => { console.log(`FAIL ${m}`); process.exit(0); };
+setTimeout(() => fail('timed out'), 30000).unref();
+const names = [];
+const server = tls.createServer({
+  key: fs.readFileSync('server.key'), cert: fs.readFileSync('server.pem'), ecdhCurve: 'P-521',
+}, (s) => { names.push(s.servername); s.on('error', () => {}); s.resume(); });
+server.on('tlsClientError', () => {});
+server.addContext('certless.example', { ca: fs.readFileSync('az-ca1.pem') });
+const connect = (maxVersion) => new Promise((resolve, reject) => {
+  const s = tls.connect({ host: '127.0.0.1', port: server.address().port, servername: 'certless.example',
+    rejectUnauthorized: false, maxVersion, ecdhCurve: 'P-256:P-521' }, () => resolve(s));
+  s.on('error', reject);
+});
+server.listen(0, '127.0.0.1', async () => {
+  try {
+    const retried = await connect('TLSv1.3');
+    retried.end();
+    const reneg = await connect('TLSv1.2');
+    await new Promise((resolve, reject) => reneg.renegotiate({}, (e) => (e ? reject(e) : resolve())));
+    reneg.end();
+  } catch (e) {
+    fail(`${e.code || ''} ${e.message.split('\n')[0]}`);
+  }
+  server.close();
+  const ok = names.length === 2 && names.every((n) => n === 'certless.example');
+  console.log(ok ? 'OK a HelloRetryRequest (TLS 1.3) and a renegotiation (TLS 1.2) for certless.example, a context with a ca only'
+    : `FAIL the server saw ${JSON.stringify(names)}`);
+  process.exit(0);
+});
+EOF
+if [ -n "$tlsc" ]; then
+    jsenv="NODE_EXTRA_CA_CERTS=$T/az-root.pem"
+    js "tls: the SPKI blocklist (nodejs/node 4342503)" "$T/spki.js" --expose-internals --no-warnings
+    jsenv=""
+    js "tls: the ca of an SNI context (CVE-2026-123867)" "$T/sni-ca.js"
+    js "tls: resumption (CVE-2026-123872)" "$T/tls-resume.js"
+    js "tls: HelloRetryRequest and renegotiation (CVE-2026-123872)" "$T/tls-reneg.js"
+else
+    fail "tls: the certificates of the checks of the TLS fixes: $(grep -v '^[[:space:]]*$' "$T/tls-certs.log" | tail -n 1)"
+fi
+
+cat > "$T/h2-abandoned.js" <<'EOF'
+'use strict';
+// CVE-2026-123865: after GOAWAY(NO_ERROR) from the peer, a protocol error that makes
+// nghttp2 end the session internally (an oversized DATA frame) on an open stream:
+// the session ends with the error, the stream closes
+const http2 = require('node:http2'), net = require('node:net');
+const got = [];
+const fail = (m) => { console.log(`FAIL ${m}`); process.exit(0); };
+const t = setTimeout(() => fail(`the session did not end (seen: ${got.join(', ') || 'nothing'})`), 5000);
+const server = http2.createServer();
+server.on('stream', (stream) => {
+  stream.on('error', (e) => got.push(`stream error ${e.code}`));
+  stream.on('close', () => got.push('stream close'));
+});
+server.on('session', (session) => {
+  session.on('goaway', () => got.push('goaway'));
+  session.on('error', (e) => got.push(`session error ${e.code}`));
+  session.on('close', () => {
+    got.push('session close');
+    clearTimeout(t);
+    server.close();
+    const ok = got.includes('session error ERR_HTTP2_ERROR') && got.includes('stream close');
+    console.log(`${ok ? 'OK' : 'FAIL'} ${got.join(', ')}`);
+  });
+});
+server.listen(0, '127.0.0.1', () => {
+  const conn = net.connect({ port: server.address().port, host: '127.0.0.1', allowHalfOpen: true });
+  conn.on('error', () => {});
+  conn.write('PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n');
+  const settings = Buffer.alloc(9); settings[3] = 0x04; conn.write(settings);
+  let inbuf = Buffer.alloc(0), state = 'h', len;
+  conn.on('data', (chunk) => {
+    inbuf = Buffer.concat([inbuf, chunk]);
+    if (state === 'h') { if (inbuf.length < 9) return; len = inbuf.readUIntBE(0, 3); inbuf = inbuf.slice(9); state = 's'; }
+    if (state === 's') {
+      if (inbuf.length < len) return;
+      state = 'done';
+      const ack = Buffer.alloc(9); ack[3] = 0x04; ack[4] = 0x01; conn.write(ack);
+      const block = Buffer.from([0x82, 0x86, 0x84, 0x41, 0x09, ...Buffer.from('localhost')]);
+      const headers = Buffer.alloc(9); headers.writeUIntBE(block.length, 0, 3); headers[3] = 0x01; headers[4] = 0x04; headers.writeUInt32BE(1, 5);
+      conn.write(Buffer.concat([headers, block]));
+      const goaway = Buffer.alloc(17); goaway.writeUIntBE(8, 0, 3); goaway[3] = 0x07; conn.write(goaway);
+      const big = Buffer.alloc(9); big.writeUIntBE(16385, 0, 3); big[3] = 0x00; big.writeUInt32BE(1, 5); conn.write(big);
+    }
+  });
+  conn.on('end', () => conn.end());
+});
+EOF
+js "http2: a session ended by nghttp2 after a GOAWAY of the peer (CVE-2026-123865)" "$T/h2-abandoned.js"
+
+cat > "$T/h2-retain.js" <<'EOF'
+'use strict';
+// CVE-2026-123866: the slices of a destroyed HTTP/2 stream left in a pending socket
+// write keep their memory: the DATA the client gets is what the stream wrote, not
+// buffers allocated after its write was cancelled (node runs with --expose-gc)
+const http2 = require('node:http2'), net = require('node:net');
+const fail = (m) => { console.log(`FAIL ${m}`); process.exit(0); };
+setTimeout(() => fail('timed out'), 30000).unref();
+const FIRST_WINDOW = 3000000, SECOND_INCREMENT = 20000000, LARGE = 30000000;
+const FIRST_BUF = 80 * 1024, SECOND_BUF = 20 * 1024, SMALL = FIRST_BUF + SECOND_BUF, EXPECTED = 65535;
+const frame = (type, flags, id, payload = Buffer.alloc(0)) => {
+  const h = Buffer.alloc(9);
+  h.writeUIntBE(payload.length, 0, 3); h[3] = type; h[4] = flags; h.writeUInt32BE(id, 5);
+  return Buffer.concat([h, payload]);
+};
+const windowUpdate = (id, inc) => { const p = Buffer.alloc(4); p.writeUInt32BE(inc); return frame(8, 0, id, p); };
+const request = (path, id, priority = false) => {
+  const authority = Buffer.from('127.0.0.1');
+  let payload = Buffer.concat([Buffer.from([0x82, 0x86, 0x01, authority.length]), authority,
+    Buffer.from([0x04, path.length]), Buffer.from(path)]);
+  let flags = 1 | 4;
+  if (priority) {
+    const pr = Buffer.alloc(5); pr.writeUInt32BE(0x80000001); pr[4] = 15;
+    payload = Buffer.concat([pr, payload]); flags |= 0x20;
+  }
+  return frame(1, flags, id, payload);
+};
+const replacement = [];
+let resumeClient;
+const server = http2.createServer({ maxSessionMemory: 64 });
+server.on('stream', (stream, headers) => {
+  stream.on('error', () => {});
+  stream.respond();
+  if (headers[':path'] === '/A') { stream.end(Buffer.alloc(LARGE, 0x41)); return; }
+  stream.on('close', () => setImmediate(() => {
+    globalThis.gc();
+    replacement.push(...Array.from({ length: 32 }, () => Buffer.alloc(FIRST_BUF, 0x56)));
+    resumeClient();
+  }));
+  stream.setTimeout(1500, () => stream.destroy());
+  stream.cork();
+  stream.write(Buffer.alloc(FIRST_BUF, 0x53));
+  stream.end(Buffer.alloc(SECOND_BUF, 0x53));
+});
+server.listen(0, '127.0.0.1', () => {
+  const socket = net.connect(server.address().port, '127.0.0.1');
+  socket.on('error', () => {});
+  let received = Buffer.alloc(0), s1 = 0, second = false, paused = false, done = false;
+  const s3 = [];
+  resumeClient = () => socket.resume();
+  const onS1 = () => {
+    if (!second) {
+      if (s1 < FIRST_WINDOW) return;
+      second = true;
+      socket.write(Buffer.concat([request('/S', 3, true), windowUpdate(0, SECOND_INCREMENT + SMALL),
+        windowUpdate(1, SECOND_INCREMENT)]));
+      return;
+    }
+    if (paused || s1 <= FIRST_WINDOW) return;
+    paused = true;
+    socket.pause();
+  };
+  socket.on('connect', () => socket.write(Buffer.concat([Buffer.from('PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'),
+    frame(4, 0, 0), request('/A', 1), windowUpdate(0, FIRST_WINDOW - 65535), windowUpdate(1, FIRST_WINDOW - 65535)])));
+  socket.on('data', (chunk) => {
+    if (done) return;
+    received = Buffer.concat([received, chunk]);
+    let off = 0;
+    while (off + 9 <= received.length) {
+      const len = received.readUIntBE(off, 3);
+      if (off + 9 + len > received.length) break;
+      const type = received[off + 3], id = received.readUInt32BE(off + 5) & 0x7fffffff;
+      if (type === 0 && id === 3) s3.push(received.subarray(off + 9, off + 9 + len));
+      else if (type === 0 && id === 1) { s1 += len; onS1(); }
+      off += 9 + len;
+    }
+    received = received.subarray(off);
+    const payload = Buffer.concat(s3);
+    if (payload.length < EXPECTED) return;
+    done = true;
+    socket.destroy(); server.close();
+    const ok = payload.length === EXPECTED && payload.equals(Buffer.alloc(EXPECTED, 0x53));
+    console.log(ok ? `OK the ${EXPECTED} bytes of DATA of the reset stream are those it wrote`
+      : `FAIL the DATA of the reset stream came from other memory (${payload.indexOf(0x56) >= 0 ? 'the buffers made after the reset' : 'not what it wrote'})`);
+    process.exit(0);
+  });
+});
+EOF
+js "http2: the DATA of a reset stream in a pending write (CVE-2026-123866)" "$T/h2-retain.js" --expose-gc
+
+cat > "$T/h2-memory.js" <<'EOF'
+'use strict';
+// CVE-2026-123868: 1-byte DATA frames on HTTP/2 streams the application does not read
+// count against maxSessionMemory (1 MB here): the session stops reading instead of
+// buffering every frame (4 streams of 65535 frames, each within the window of its
+// stream: 262140 chunks buffered without the fix)
+const http2 = require('node:http2'), net = require('node:net');
+const kStreams = 4, kFrames = 65535;
+const streams = new Set();
+let peak = 0, probe = null;
+const frame = (type, flags, id, payload) => {
+  const h = Buffer.alloc(9);
+  h.writeUIntBE(payload.length, 0, 3); h[3] = type; h[4] = flags; h.writeUInt32BE(id, 5);
+  return Buffer.concat([h, payload]);
+};
+const server = http2.createServer({ maxSessionMemory: 1 });
+server.on('session', (s) => s.on('error', () => {}));
+server.on('stream', (stream) => {
+  stream.on('error', () => {});
+  streams.add(stream);
+  probe ??= setInterval(() => {
+    let total = 0;
+    for (const s of streams) total += s.readableLength;
+    peak = Math.max(peak, total);
+  }, 10);
+});
+server.listen(0, '127.0.0.1', () => {
+  const sock = net.connect(server.address().port, '127.0.0.1');
+  sock.on('error', () => {});
+  sock.on('connect', () => {
+    sock.write(Buffer.from('PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'));
+    sock.write(frame(4, 0, 0, Buffer.alloc(0)));
+  });
+  let acked = false;
+  sock.on('data', (chunk) => {
+    if (acked || chunk.length < 9 || chunk[3] !== 4) return;
+    acked = true;
+    sock.write(Buffer.from([0, 0, 0, 4, 1, 0, 0, 0, 0]));
+    const hpack = Buffer.from([0x83, 0x86, 0x84, 0x01, 0x01, 0x61]);
+    const one = Buffer.alloc(1, 0x61);
+    for (let s = 0; s < kStreams; s++) {
+      const id = 1 + 2 * s;
+      const parts = [frame(1, 4, id, hpack)];
+      for (let i = 0; i < kFrames; i++) parts.push(frame(0, 0, id, one));
+      sock.write(Buffer.concat(parts));
+    }
+  });
+  setTimeout(() => {
+    clearInterval(probe);
+    sock.destroy();
+    server.close();
+    console.log(peak > 0 && peak < kFrames
+      ? `OK at most ${peak} chunks buffered by the undrained streams (maxSessionMemory 1 MB)`
+      : `FAIL ${peak} chunks buffered by the undrained streams, not bounded by maxSessionMemory (1 MB)`);
+    process.exit(0);
+  }, 4000);
+});
+EOF
+js "http2: undrained streams and maxSessionMemory (CVE-2026-123868)" "$T/h2-memory.js"
+
+cat > "$T/h2-altsvc.js" <<'EOF'
+'use strict';
+// CVE-2026-123828: ALTSVC frames with an origin and a value over 1 KiB (the buffers of
+// Http2Session::AltSvc() on the heap): sent and received whole
+const http2 = require('node:http2');
+const fail = (m) => { console.log(`FAIL ${m}`); process.exit(0); };
+setTimeout(() => fail('timed out'), 10000).unref();
+const longOrigin = `https://${'a'.repeat(1040)}`;
+const longAlt = `h2=":${'8'.repeat(1042)}"`;
+const server = http2.createServer();
+server.on('session', (session) => {
+  session.altsvc('h2=":8001"', longOrigin);
+  session.altsvc(longAlt, 'https://example.org:8112');
+});
+server.listen(0, '127.0.0.1', () => {
+  const client = http2.connect(`http://127.0.0.1:${server.address().port}`);
+  client.on('error', (e) => fail(e.message));
+  const got = [];
+  client.on('altsvc', (alt, origin, stream) => {
+    got.push([alt, origin, stream]);
+    if (got.length < 2) return;
+    client.close(); server.close();
+    const ok = got.some(([a, o, s]) => a === 'h2=":8001"' && o === longOrigin && s === 0) &&
+      got.some(([a, o, s]) => a === longAlt && o === 'https://example.org:8112' && s === 0);
+    console.log(ok ? `OK an origin of ${longOrigin.length} bytes and a value of ${longAlt.length} bytes received whole`
+      : `FAIL ${got.map(([a, o]) => `${a.length}/${o.length}`).join(' ')}`);
+  });
+});
+EOF
+js "http2: ALTSVC over 1 KiB (CVE-2026-123828)" "$T/h2-altsvc.js"
 
 cat > "$T/wasi.js" <<'EOF'
 'use strict';
