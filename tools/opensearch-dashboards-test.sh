@@ -373,8 +373,10 @@ done
 # --- the security fixes over HTTP -------------------------------------------------------------
 c="$(curl -s -m 10 -o /dev/null -w '%{http_code} %{redirect_url}' "$k//example.com/")"
 case "$c" in 404*) pass "//example.com/: 404, not redirected off-site (#12193)" ;; *) fail "//example.com/: $c" ;; esac
-c="$(curl -s -m 10 -o /dev/null -w '%{http_code} %{redirect_url}' "$k/app/home/")"
-case "$c" in 30[12]*"/app/home") pass "/app/home/: still redirected to /app/home" ;; *) fail "/app/home/: $c" ;; esac
+# (a path of no route with a / at its end: the redirect of src/legacy/server/http that
+# #12193 fixes; /app/<id>/ is a route of its own, 200)
+c="$(curl -s -m 10 -o /dev/null -w '%{http_code} %{redirect_url}' "$k/az-redirect/")"
+case "$c" in 30[12]*"/az-redirect") pass "/az-redirect/: still redirected to /az-redirect" ;; *) fail "/az-redirect/: $c" ;; esac
 "$node" -e 'console.log(JSON.stringify({ applications: Array.from({ length: 1001 }, (_, i) => "a" + i) }))' > "$T/caps1001.json"
 "$node" -e 'console.log(JSON.stringify({ applications: ["x".repeat(257)] }))' > "$T/caps257.json"
 "$node" -e 'console.log(JSON.stringify({ applications: Array.from({ length: 1000 }, (_, i) => "app" + i) }))' > "$T/caps1000.json"
@@ -438,7 +440,13 @@ install -o www -g www -m 640 /dev/null "$T/osd.log"
 sleep 2
 rq status GET /api/status > /dev/null
 sleep 1
-if [ "$r" = 0 ] && [ -s "$T/osd.log" ]; then pass "rc.d/opensearch-dashboards onereload: the new log file is written"; else fail "rc.d/opensearch-dashboards onereload: exit $r, $(tail -n 1 "$T/reload.out"), the new log: $(wc -c < "$T/osd.log" | tr -d ' ') bytes"; fi
+# (the response of that request is written by the logging of the legacy server, which
+# opens its file again only with the reconfigure() of good fixed)
+if [ "$r" = 0 ] && grep -q '"type":"response".*/api/status' "$T/osd.log"; then
+    pass "rc.d/opensearch-dashboards onereload: the new log file is written, the responses too"
+else
+    fail "rc.d/opensearch-dashboards onereload: exit $r, $(tail -n 1 "$T/reload.out"), the new log: $(wc -c < "$T/osd.log" | tr -d ' ') bytes, $(grep -c '"type":"response"' "$T/osd.log") responses"
+fi
 cat "$T/osd.log" >> "$T/osd.log.0"; mv "$T/osd.log.0" "$T/osd.log"
 cp "$T/osd.log" "$T/osd-before-rotation.log"
 printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$T/osd.log" www:www 640 0 1 '*' B "$pidfile" 1 > "$T/newsyslog.conf"
@@ -447,8 +455,8 @@ sleep 2
 rq status GET /api/status > /dev/null
 sleep 1
 x="$(ls "$T" | grep '^osd\.log\.' | tr '\n' ' ')"
-if [ "$r" = 0 ] && [ -z "$x" ] && [ -s "$T/osd.log" ] && [ "$(wc -c < "$T/osd.log")" -lt "$(wc -c < "$T/osd-before-rotation.log")" ]; then
-    pass "newsyslog -F with count 0: the log rolled, no archive kept, the new file written after its SIGHUP"
+if [ "$r" = 0 ] && [ -z "$x" ] && grep -q '"type":"response".*/api/status' "$T/osd.log" && [ "$(wc -c < "$T/osd.log")" -lt "$(wc -c < "$T/osd-before-rotation.log")" ]; then
+    pass "newsyslog -F with count 0: the log rolled, no archive kept, the new file written after its SIGHUP, the responses too"
 else
     fail "newsyslog: exit $r, archives: ${x:-none}, the log $(wc -c < "$T/osd.log" | tr -d ' ') bytes; $(head -n 1 "$T/newsyslog.out")"
 fi
