@@ -327,9 +327,11 @@ Names and origins as the ports, files at the paths of the ports:
   needs the fonts of the system, and the rtld of FreeBSD looks for it in
   `LD_LIBRARY_PATH`, the run path of `bin/java`, the ldconfig hints and `/lib`,
   `/usr/lib`, never in `/usr/local/az/lib`: with our packages only Java has no fonts
-  of the system (text throws "Fontconfig head is null", with a font file too;
-  Elasticsearch draws none), with the official `fontconfig` and fonts installed
-  (`pkg install dejavu`) it takes those. `jna`: JNA of the official port the same way,
+  at all (every use of a font throws `java.lang.InternalError` of
+  `sun.font.FontManagerFactory`, a font file too; Elasticsearch draws no text), with
+  the official `fontconfig` and fonts installed (`pkg install dejavu`) it takes those
+  (in [`tools/java-test.sh`](tools/java-test.sh): the families of DejaVu, text
+  drawn). `jna`: JNA of the official port the same way,
   without JAWT (`-DNO_JAWT` on FreeBSD, as JNA builds for Android and macOS) and X11,
   its `libjnidispatch.so` on the shared libffi of az instead of the static copy it
   bundles, and installed as a file too, `lib/jna/libjnidispatch.so` (aZ, 11.11.2026:

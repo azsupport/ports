@@ -305,9 +305,11 @@
   линкуется: OpenJDK загружает `libfontconfig.so.1` через dlopen по имени, когда ему
   нужны шрифты системы, а rtld FreeBSD ищет её в `LD_LIBRARY_PATH`, пути поиска
   `bin/java`, подсказках ldconfig и в `/lib`, `/usr/lib`, но не в `/usr/local/az/lib`:
-  с одними нашими пакетами у Java нет шрифтов системы (текст бросает «Fontconfig head
-  is null», и с файлом шрифта тоже; Elasticsearch текст не рисует), с установленными
-  официальными `fontconfig` и шрифтами (`pkg install dejavu`) берёт их. `jna`: JNA
+  с одними нашими пакетами у Java нет шрифтов совсем (любое обращение к шрифту
+  бросает `java.lang.InternalError` из `sun.font.FontManagerFactory`, и с файлом шрифта
+  тоже; Elasticsearch текст не рисует), с установленными официальными `fontconfig` и
+  шрифтами (`pkg install dejavu`) берёт их (в [`tools/java-test.sh`](tools/java-test.sh):
+  семейства DejaVu, текст нарисован). `jna`: JNA
   официального порта так же, без JAWT (`-DNO_JAWT` на FreeBSD, как JNA собирается для
   Android и macOS) и X11, его `libjnidispatch.so` — на разделяемой libffi из az вместо
   встроенной статической копии и ставится ещё и файлом `lib/jna/libjnidispatch.so` (aZ,
