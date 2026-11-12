@@ -192,7 +192,8 @@ post-patch:
 	# made one; ES_TMPDIR is now the /tmp/elasticsearch of the rc script, which
 	# bin/elasticsearch alone uses and makes (files/patch-bin_elasticsearch): the
 	# tools do not pass it to their JVM, whose java.io.tmpdir stays /tmp (the
-	# download of elasticsearch-plugin install, which it removes itself).
+	# copy of the zip of elasticsearch-plugin install, which it removes itself at
+	# its end: InstallPluginCommand.close; tools/elastic-test.sh installs one).
 	@${REINPLACE_CMD} -e 's|"\$$JAVA" -cp "\$$ES_CLASSPATH" org\.elasticsearch\.tools\.|"$$JAVA" -XX:-UsePerfData -cp "$$ES_CLASSPATH" org.elasticsearch.tools.|' \
 		-e 's|^  ES_TMPDIR=`"\$$JAVA" .*\.TempDirectory`$$|  ES_TMPDIR=/tmp/elasticsearch|' \
 		-e 's|^ES_JAVA_OPTS="-Xms4m -Xmx64m -XX:+UseSerialGC \$${ES_JAVA_OPTS}"$$|ES_JAVA_OPTS="-Xms4m -Xmx64m -XX:+UseSerialGC -XX:-UsePerfData $${ES_JAVA_OPTS}"|' \

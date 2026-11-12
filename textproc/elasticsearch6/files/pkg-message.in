@@ -4,10 +4,15 @@
 Please see %%ETCDIR%% for sample versions of
 elasticsearch.yml and logging.yml.
 
-ElasticSearch requires memory locking of large amounts of RAM.
-You may need to set:
+With bootstrap.memory_lock: true in elasticsearch.yml Elasticsearch locks
+its memory (the whole heap, at the start). The rc script runs it in the
+login class root, whose memorylocked is unlimited; the two sysctls it
+needs are the defaults of FreeBSD:
 
 sysctl security.bsd.unprivileged_mlock=1
+sysctl vm.max_user_wired
+
+(pages of 4 KB; above 8400000 for a heap of 31g).
 
 The heap of this server is set in /etc/rc.conf, as -Xmx takes it (-Xms and
 -Xmx get the same size). Without it the heap is the 31g of jvm.options,
