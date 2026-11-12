@@ -120,7 +120,7 @@ if [ "$x" = "$w" ] && [ -z "$o" ]; then pass "plugins: $(echo $IN | wc -w | tr -
 (cd /tmp && "$D/bin/opensearch-dashboards-keystore" --help > "$T/ks.out" 2>&1) && pass "bin/opensearch-dashboards-keystore --help" || fail "bin/opensearch-dashboards-keystore --help: $(head -n 2 "$T/ks.out" | tr '\n' ' ')"
 if [ "$(cd "$D/config" 2>/dev/null && pwd -P)" = "$E" ]; then pass "www/opensearch-dashboards/config -> etc/opensearch-dashboards"; else fail "www/opensearch-dashboards/config: $(readlink "$D/config")"; fi
 if grep -q "opensearch_dashboards_config:=\"$E/opensearch_dashboards.yml\"" "$rc"; then pass "the rc script's configuration: $E/opensearch_dashboards.yml"; else fail "the rc script's default configuration is not $E/opensearch_dashboards.yml"; fi
-s="$(grep -v -E '^[[:space:]]*(#|$)' "$E/opensearch_dashboards.yml.sample" | head -n 3 | tr '\n' ' ')"
+s="$(grep -v -E '^[[:space:]]*(#|$)' "$E/opensearch_dashboards.yml.sample" | grep -v -x -e '---' | head -n 3 | tr '\n' ' ')"
 if [ -z "$s" ] && ! grep -q -E 'kibanaserver|https://localhost' "$E/opensearch_dashboards.yml.sample"; then pass "opensearch_dashboards.yml.sample: no setting, no block of the security plugin"; else fail "opensearch_dashboards.yml.sample: $s"; fi
 ns="$P/etc/newsyslog.conf.d/opensearch_dashboards.conf"
 if [ -f "$ns" ] && newsyslog -n -f "$ns" > "$T/ns.out" 2>&1 && grep -q -E '^/var/log/opensearch_dashboards.log[[:space:]]+www:www[[:space:]]+640[[:space:]]+0[[:space:]]' "$ns"; then
@@ -139,8 +139,10 @@ done
 grep -q 'internals.boundaryParamRegex' "$D/node_modules/@hapi/content/lib/index.js" || { fail "@hapi/content: not the parser of 6.0.3"; m=1; }
 grep -q 'path.startsWith(confineDir + Path.sep)' "$D/node_modules/@hapi/inert/lib/file.js" || { fail "@hapi/inert: not the confinement of 7.1.1"; m=1; }
 [ "$m" = 0 ] && pass "the security fixes in their files (capabilities, redirects, import, @hapi/content, @hapi/inert)"
-t="$(grep -rl -e '\([A-Za-z_$][A-Za-z0-9_$]*\)[[:space:]]*<[[:space:]]*Number\.MAX_SAFE_INTEGER[[:space:]]*||[[:space:]]*\1[[:space:]]*>' --include='*.js' "$D/node_modules/@osd" "$D/src" "$D/plugins" 2>/dev/null | head -n 3 | tr '\n' ' ')"
-if [ -z "$t" ] && grep -q 'val < Number.MIN_SAFE_INTEGER' "$D/node_modules/@osd/std/target/json.js"; then pass "1b89a739: no check of large numerals with the typo left (@osd/std and the bundles)"; else fail "1b89a739: the typo in $t"; fi
+t="$(grep -rl -E 'Number\.MAX_SAFE_INTEGER[[:space:]]*\|\|' --include='*.js' "$D/node_modules/@osd" "$D/src" "$D/plugins" 2>/dev/null | while read -r f; do
+    sed -n -e '/\([A-Za-z_$][A-Za-z0-9_$]*\)[[:space:]]*<[[:space:]]*Number\.MAX_SAFE_INTEGER[[:space:]]*||[[:space:]]*\1[[:space:]]*>/p' "$f" | grep -q . && echo "$f"
+done | head -n 3 | tr '\n' ' ')"
+if [ -z "$t" ] && grep -rq -E '<[[:space:]]*Number\.MIN_SAFE_INTEGER[[:space:]]*\|\|' --include='*.js' "$D/node_modules/@osd/std"; then pass "1b89a739: no check of large numerals with the typo left (@osd/std and the bundles)"; else fail "1b89a739: the typo in $t"; fi
 g=0; c=0
 for f in $(find "$D" -name '*.js.gz'); do
     c=$((c + 1))
