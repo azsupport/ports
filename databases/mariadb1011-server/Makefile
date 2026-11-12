@@ -17,7 +17,10 @@
 # socket /tmp/mysql.sock (MARIADB_SOCKET) compiled into the server and the client
 # library and in the sample configurations (aZ: /tmp is a memory disk on his
 # servers, tmpmfs), instead of /var/run/mysql/mysql.sock of the official one; the
-# PID file stays in /var/run/mysql.
+# PID file stays in /var/run/mysql. With the fix of the regression CONC-821 of the
+# Connector/C that 10.11.19 bundles (files/patch-libmariadb_libmariadb_mariadb__stmt.c,
+# upstream ead038d as Debian carries it, 12.11.2026): strings of length 0 for the
+# programs that bind the result buffers again after a fetch (Perl, Python, Qt).
 
 PORTNAME?=	mariadb
 PORTVERSION=	10.11.19
