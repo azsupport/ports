@@ -810,6 +810,15 @@ The secrets (https://github.com/azsupport/ports/settings/secrets/actions, the bu
 | `PKG_SIGNING_KEY` | the RSA private key (PEM) of `keys/az.pub`: it goes into the VM as a file only, is used by `pkg repo` and removed |
 | `RUNS_TOKEN` | a fine-grained token with Contents read and write on azsupport/azsupport, for the reports |
 
+### The merged branches
+
+[`delete-branches.yml`](.github/workflows/delete-branches.yml), "Delete merged branches":
+deletes the branches given (separated by spaces) whose every commit is in main by its patch
+(`git cherry`); `force` skips that check, for a branch whose commits went into main changed by
+a rebase, compared by hand first. It runs on GitHub with the token of the workflow, because the
+sandbox the branches are made in cannot delete a branch of GitHub (aZ, 12.11.2026: the merged
+branches are deleted without him).
+
 ### The libraries with GCC
 
 [`lib-bench.yml`](.github/workflows/lib-bench.yml), "Libraries of az with the base clang and
