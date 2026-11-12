@@ -9,7 +9,8 @@
 # vips, qt-faststart) by servers-test.sh, Node.js (node24, npm-node24,
 # yarn-node24, corepack-node24) by node-test.sh, Python (python312, py312-sqlite3,
 # mpdecimal, python3; the official py312-* packages over it) by python-test.sh,
-# OpenJDK 17 and JNA (openjdk17, headless, and jna without X11) by java-test.sh,
+# OpenJDK 17 and 21, JNA and Ant (openjdk17 and openjdk21, headless, side by side,
+# jna without X11, apache-ant on openjdk21) by java-test.sh,
 # Elasticsearch 6 by elastic-test.sh, Kibana 6 (on our node24, with elasticsearch6)
 # by kibana-test.sh, OpenSearch 2.17 (opensearch217) by opensearch-test.sh, Node.js
 # 18 (node18, npm-node18, yarn-node18, corepack-node18) by
@@ -223,9 +224,11 @@ if in_repo node18; then
 else
     say "node18: not in the repository, its tests are skipped"
 fi
-# OpenJDK 17 and JNA (aZ, 11.11.2026: ours, headless and without X11, those of
-# Elasticsearch 6) as the server packages, before Elasticsearch
-javas="openjdk17 jna"
+# OpenJDK 17 and 21, JNA and Ant (aZ, 11.11.2026: ours, headless and without X11,
+# those of Elasticsearch 6; 12.11.2026: OpenJDK 21, that of OpenSearch 2.19 and 3.x,
+# the same way, side by side with 17; JNA and Ant built and run on 21) as the server
+# packages, before Elasticsearch
+javas="openjdk17 openjdk21 jna apache-ant"
 j_=""
 for p in $javas; do in_repo "$p" && j_="$j_ $p"; done
 if [ -n "$j_" ]; then
