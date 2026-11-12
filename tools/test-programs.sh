@@ -12,7 +12,10 @@
 # OpenJDK 17 and 21, JNA and Ant (openjdk17 and openjdk21, headless, side by side,
 # jna without X11, apache-ant on openjdk21) by java-test.sh,
 # Elasticsearch 6 by elastic-test.sh, Kibana 6 (on our node24, with elasticsearch6)
-# by kibana-test.sh, OpenSearch 2.17 (opensearch217) by opensearch-test.sh, Node.js
+# by kibana-test.sh, OpenSearch 2.17 (opensearch217) by opensearch-test.sh, the way
+# of aZ's nodes from opensearch217 to opensearch219 by opensearch-upgrade-test.sh
+# (pkg install opensearch219, which takes opensearch217 away: the same files), then
+# OpenSearch 2.19 (opensearch219) by opensearch-test.sh, Node.js
 # 18 (node18, npm-node18, yarn-node18, corepack-node18) by
 # node18-test.sh after the tests on node24, installed in the place of node24 (one of
 # the two: pkg takes node24 and its npm, yarn and corepack away), and Perl (perl5,
@@ -287,6 +290,14 @@ if [ -n "$os_" ]; then
     cat "$res/test-programs-install-opensearch.log" >> "$log"
     want="$want$os_"
 fi
+# OpenSearch 2.19 (aZ, 12.11.2026: the bridge of his cluster of 2.17.1 to 3.x):
+# opensearch219, one of opensearch217 and opensearch219 (the same files), so
+# installed only for its tests, after those of opensearch217, in its place (3.
+# below): opensearch-upgrade-test.sh installs it over opensearch217 as aZ will
+os219_=""
+if in_repo opensearch219; then os219_=" opensearch219"; else say "opensearch219: not in the repository, its tests are skipped"; fi
+osu_=""
+[ -n "$os_" ] && [ -n "$os219_" ] && osu_=" opensearch217"
 # Perl (aZ, 11.11.2026: under the name of FreeBSD's, so that its p5-* packages work
 # with it) as the server packages: perl5; perl-test.sh installs the official p5-*
 # packages with XS over it (as a server does) and takes them away again
@@ -327,7 +338,8 @@ done
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
         "graphicsmagick GraphicsMagick" "mc mc" ${p_:+"python$p_"} "ytdlp yt-dlp ffmpeg" "utils $utils" \
         ${s_:+"servers$s_"} ${n_:+"node$n_"} ${j_:+"java$j_"} ${e_:+"elastic$e_"} \
-        ${k_:+"kibana$k_ elasticsearch6 node24"} ${os_:+"opensearch$os_"} ${n18_:+"node18$n18_"} ${l_:+"perl$l_"}; do
+        ${k_:+"kibana$k_ elasticsearch6 node24"} ${os_:+"opensearch$os_"} ${osu_:+"opensearch-upgrade$osu_"} \
+        ${os219_:+"opensearch219$os219_"} ${n18_:+"node18$n18_"} ${l_:+"perl$l_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
@@ -352,8 +364,23 @@ for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "ima
         cat "$res/test-programs-install-node18.log" >> "$res/test-programs-install.log"
         cat "$res/test-programs-install-node18.log" >> "$log"
     fi
+    if [ "$t" = opensearch219 ] && ! inst opensearch219; then
+        # opensearch219 in the place of opensearch217, when the test of the
+        # upgrade did not put it there: pkg install, which takes opensearch217
+        # away (their files)
+        say "pkg install -f opensearch219 (in the place of opensearch217)"
+        CONSERVATIVE_UPGRADE=no pkg install -y -f opensearch219 > "$res/test-programs-install-opensearch219.log" 2>&1 || say "pkg install of OpenSearch 2.19 says it failed (test-programs-install-opensearch219.log)"
+        again "$res/test-programs-install-opensearch219.log" opensearch219
+        cat "$res/test-programs-install-opensearch219.log" >> "$res/test-programs-install.log"
+        cat "$res/test-programs-install-opensearch219.log" >> "$log"
+    fi
     miss=""
     for p in "$@"; do inst "$p" || miss="$miss $p"; done
+    if [ -n "$miss" ] && [ "$t" = opensearch219 ]; then
+        line "$t: FAIL (not installed from the repository in the place of opensearch217:$miss)"
+        rc=1
+        continue
+    fi
     if [ -n "$miss" ] && [ "$t" = node18 ]; then
         line "$t: FAIL (not installed from the repository in the place of node24:$miss; test-programs-install-node18.log: $(grep -v '^\[' "$res/test-programs-install-node18.log" | tail -n 2 | tr '\n' ' ' | cut -c1-160))"
         rc=1
@@ -363,14 +390,18 @@ for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "ima
         line "$t: SKIP (not installed from the repository:$miss)"
         continue
     fi
-    if [ ! -f "$top/tools/$t-test.sh" ]; then
-        line "$t: SKIP (no tools/$t-test.sh)"
+    # the script: <test>-test.sh, but opensearch219, which opensearch-test.sh
+    # tests as it tests opensearch217
+    ts="$t"
+    [ "$t" = opensearch219 ] && ts=opensearch
+    if [ ! -f "$top/tools/$ts-test.sh" ]; then
+        line "$t: SKIP (no tools/$ts-test.sh)"
         continue
     fi
-    say "$t-test.sh"
+    say "$ts-test.sh ($t)"
     r=0
     rm -f "$res/$t-results/summary.txt"
-    (cd "$res" && AZ_RESULTS="$res/$t-results" sh "$top/tools/$t-test.sh") > "$res/$t-test.log" 2>&1 || r=$?
+    (cd "$res" && AZ_RESULTS="$res/$t-results" sh "$top/tools/$ts-test.sh") > "$res/$t-test.log" 2>&1 || r=$?
     tail -n 3 "$res/$t-test.log" | sed 's/^/    | /'
     # what the test found, in its line: up to 3 lines of its summary.txt
     sm=""

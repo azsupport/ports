@@ -1,0 +1,75 @@
+--- bin/opensearch.orig
++++ bin/opensearch
+@@ -30,9 +30,43 @@
+   esac
+ done
+ 
++# azsupport/ports: JDK 21 warns at each start of what OpenSearch 2.19 sets
++# itself, on stderr: System::setSecurityManager, which it calls (4 lines), the
++# incubator module jdk.incubator.vector of the 20-: line of its jvm.options (1
++# line), and the COMPAT locale provider of its launcher (2 lines: the source of
++# the record, then the warning); those lines go, the rest of stderr stays (aZ,
++# 11.11.2026, as for elasticsearch6)
++opensearch_jdk_warnings() {
++  grep --line-buffered -v -E -e '^WARNING: (A terminally deprecated method in java\.lang\.System has been called|System::setSecurityManager has been called by org\.opensearch\.|Please consider reporting this to the maintainers of org\.opensearch\.|System::setSecurityManager will be removed in a future release)' \
++    -e '^WARNING: (Using incubator modules: jdk\.incubator\.vector|COMPAT locale provider will be removed in a future release)$' \
++    -e ' sun\.util\.locale\.provider\.LocaleProviderAdapter( <clinit>)?$' >&2
++}
++# azsupport/ports: the temporary directory. Without OPENSEARCH_TMPDIR a JVM
++# (TempDirectory) made a new /tmp/opensearch-<number> at every start, which
++# nothing removed. The rc script makes /tmp/opensearch anew at each start and
++# gives it to the user of OpenSearch (opensearch_tmpdir of rc.conf); started by
++# hand, OPENSEARCH_TMPDIR is the same /tmp/opensearch, which may not be there,
++# or may be that of the server: made here for the user who starts it, and no
++# start in a directory that is not this user's own (/tmp is writable by
++# everyone).
+ if [ -z "$OPENSEARCH_TMPDIR" ]; then
+-  OPENSEARCH_TMPDIR=`"$JAVA" "$XSHARE" -cp "$OPENSEARCH_CLASSPATH" org.opensearch.tools.launchers.TempDirectory`
++  OPENSEARCH_TMPDIR=/tmp/opensearch
+ fi
++if [ ! -e "$OPENSEARCH_TMPDIR" ] && [ ! -L "$OPENSEARCH_TMPDIR" ]; then
++  if ! mkdir -m 0700 "$OPENSEARCH_TMPDIR"; then
++    echo "the temporary directory $OPENSEARCH_TMPDIR could not be made: set OPENSEARCH_TMPDIR to a directory of yours" >&2
++    exit 1
++  fi
++fi
++if [ -L "$OPENSEARCH_TMPDIR" ] || [ ! -d "$OPENSEARCH_TMPDIR" ] || [ ! -O "$OPENSEARCH_TMPDIR" ] || [ ! -w "$OPENSEARCH_TMPDIR" ]; then
++  echo "the temporary directory $OPENSEARCH_TMPDIR is not a directory of the user `id -un` (that of the server, if it runs: `ls -ld "$OPENSEARCH_TMPDIR" 2> /dev/null`): set OPENSEARCH_TMPDIR to a directory of yours" >&2
++  exit 1
++fi
++# bash makes the named pipe of ">(...)" below in TMPDIR, /tmp without it
++# (/tmp/sh-np.<random>, where /dev/fd is not mounted), and nothing removes it:
++# in the temporary directory of OpenSearch instead, which the rc script makes
++# anew at each start
++export TMPDIR="$OPENSEARCH_TMPDIR"
+ 
+ # get keystore password before setting java options to avoid
+ # conflicting GC configurations for the keystore tools
+@@ -56,7 +90,7 @@
+ #   - second, JVM options are read from jvm.options and jvm.options.d/*.options
+ #   - third, JVM options from OPENSEARCH_JAVA_OPTS are applied
+ #   - fourth, ergonomic JVM options are applied
+-OPENSEARCH_JAVA_OPTS=`export OPENSEARCH_TMPDIR; "$JAVA" "$XSHARE" -cp "$OPENSEARCH_CLASSPATH" org.opensearch.tools.launchers.JvmOptionsParser "$OPENSEARCH_PATH_CONF"`
++OPENSEARCH_JAVA_OPTS=`export OPENSEARCH_TMPDIR; "$JAVA" "$XSHARE" -XX:-UsePerfData -cp "$OPENSEARCH_CLASSPATH" org.opensearch.tools.launchers.JvmOptionsParser "$OPENSEARCH_PATH_CONF"`
+ 
+ # manual parsing to find out, if process should be detached
+ if [[ $DAEMONIZE = false ]]; then
+@@ -70,7 +104,8 @@
+     -Dopensearch.bundled_jdk="$OPENSEARCH_BUNDLED_JDK" \
+     -cp "$OPENSEARCH_CLASSPATH" \
+     org.opensearch.bootstrap.OpenSearch \
+-    "$@" <<<"$KEYSTORE_PASSWORD"
++    "$@" <<<"$KEYSTORE_PASSWORD" \
++    2> >(opensearch_jdk_warnings)
+ else
+   exec \
+     "$JAVA" \
+@@ -83,7 +118,7 @@
+     -cp "$OPENSEARCH_CLASSPATH" \
+     org.opensearch.bootstrap.OpenSearch \
+     "$@" \
+-    <<<"$KEYSTORE_PASSWORD" &
++    <<<"$KEYSTORE_PASSWORD" 2> >(opensearch_jdk_warnings) &
+   retval=$?
+   pid=$!
+   [ $retval -eq 0 ] || exit $retval
