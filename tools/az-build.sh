@@ -492,10 +492,13 @@ EOF
             'Cflags: -I${includedir}' > "$S/lib/pkgconfig/libpsl.pc"
 }
 # libssh2: the options of the static one (lib_libssh2 of build-libcurl.sh), with the
-# OpenSSL and zlib of the base system, as the other shared libraries
+# OpenSSL and zlib of the base system, as the other shared libraries, and without
+# the same old algorithms of SSH (ssh2_algos of build-libcurl.sh, aZ 12.11.2026)
 s_libssh2() {
+    _algos="$(sed -n 's/^ssh2_algos="\(.*\)"$/\1/p' "$files/curl/build-libcurl.sh")"
+    [ -n "$_algos" ] || { echo "== no ssh2_algos in $files/curl/build-libcurl.sh"; return 1; }
     so_conf libssh2 "$1" --with-crypto=openssl --with-libssl-prefix=/usr --with-libz --enable-hidden-symbols \
-        --disable-examples-build --disable-docker-tests --disable-sshd-tests &&
+        --disable-examples-build --disable-docker-tests --disable-sshd-tests CPPFLAGS="$CPPFLAGS $_algos" &&
         so_mk libssh2 -j"$ncpu" -C src && so_mk libssh2 -C src install &&
         so_mk libssh2 install-includeHEADERS install-pkgconfigDATA
 }

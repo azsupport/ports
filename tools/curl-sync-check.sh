@@ -5,7 +5,10 @@
 # Usage: sh tools/curl-sync-check.sh [<checkout of azsupport/php-src>]
 # Runs from the top of a checkout of this tree (build.yml, on the runner before
 # the VM). Without an argument it takes freebsd/ of master of azsupport/php-src
-# (a sparse clone: git and the network needed).
+# (a sparse clone: git and the network needed), or of the branch FORK_REF names:
+# a change of curl and its libraries goes to a branch of the fork first, and a
+# run of a branch here that carries it compares with that branch (build.yml,
+# input fork_ref); both go into their main branches at the same moment.
 #
 # The fork bundles curl into PHP (--with-curl=bundled: freebsd/curl.conf,
 # freebsd/curl-deps.conf, freebsd/curl/ there), and az/az builds the libcurl of
@@ -28,13 +31,15 @@ here="$top/az/az/files"
 t="$(mktemp -d "${TMPDIR:-/tmp}/curl-sync-check.XXXXXX")" || exit 2
 trap 'rm -rf "$t"' EXIT
 fork="${1:-}"
+ref="${FORK_REF:-master}"
 if [ -z "$fork" ]; then
     fork="$t/php-src"
-    git clone -q --depth 1 --filter=blob:none --no-checkout https://github.com/azsupport/php-src.git "$fork" &&
+    git clone -q --depth 1 --filter=blob:none --no-checkout --branch "$ref" \
+        https://github.com/azsupport/php-src.git "$fork" &&
         git -C "$fork" sparse-checkout set --no-cone /freebsd/curl/ /freebsd/curl.conf /freebsd/curl-deps.conf &&
-        git -C "$fork" checkout -q master ||
-        { echo "curl-sync-check: cannot take freebsd/ of master of azsupport/php-src (git)" >&2; exit 2; }
-    echo "azsupport/php-src: master $(git -C "$fork" rev-parse --short=12 HEAD)"
+        git -C "$fork" checkout -q "$ref" ||
+        { echo "curl-sync-check: cannot take freebsd/ of $ref of azsupport/php-src (git)" >&2; exit 2; }
+    echo "azsupport/php-src: $ref $(git -C "$fork" rev-parse --short=12 HEAD)"
 fi
 there="$fork/freebsd"
 [ -f "$there/curl.conf" ] || { echo "curl-sync-check: no $there/curl.conf" >&2; exit 2; }
@@ -76,9 +81,10 @@ while read -r n; do
 done < "$t/names"
 if [ "$rc" -ne 0 ]; then
     echo
-    echo "The curl of az must be that of the PHP of azsupport/php-src: bring az/az/files/curl.conf,"
+    echo "The curl of az must be that of the PHP of azsupport/php-src ($ref): bring az/az/files/curl.conf,"
     echo "curl-deps.conf and curl/ to freebsd/curl.conf, curl-deps.conf and curl/ of azsupport/php-src"
     echo "(their data lines and patches; the comments name the paths of this tree), then the"
-    echo "distinfo of az/az (the release files of curl and its libraries)."
+    echo "distinfo of az/az (the release files of curl and its libraries). A change of curl not"
+    echo "yet in master of the fork: on a branch of the fork, and FORK_REF (build.yml: fork_ref) that branch."
 fi
 exit "$rc"
