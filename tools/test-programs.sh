@@ -12,15 +12,14 @@
 # OpenJDK 21, JNA and Ant (openjdk21 headless, jna without X11, apache-ant on
 # openjdk21) by java-test.sh,
 # Elasticsearch 6 by elastic-test.sh, Kibana 6 (on our node24, with elasticsearch6)
-# by kibana-test.sh, OpenSearch 2.17 (opensearch217) by opensearch-test.sh, the way
-# of aZ's nodes from opensearch217 to opensearch219 by opensearch-upgrade-test.sh
-# (pkg install opensearch219, which takes opensearch217 away: the same files), then
-# OpenSearch 2.19 (opensearch219) by opensearch-test.sh, Node.js
-# 18 (node18, npm-node18, yarn-node18, corepack-node18) by
-# node18-test.sh after the tests on node24, installed in the place of node24 (one of
-# the two: pkg takes node24 and its npm, yarn and corepack away), OpenSearch
-# Dashboards 2.17 (opensearch-dashboards217, on node18, against opensearch217) by
-# opensearch-dashboards-test.sh after the tests of node18, and Perl (perl5,
+# by kibana-test.sh, OpenSearch 2.17 (opensearch217) by opensearch-test.sh, OpenSearch
+# Dashboards 2.17 (opensearch-dashboards217, on our node24, against opensearch217) by
+# opensearch-dashboards-test.sh, the way of aZ's nodes from opensearch217 to
+# opensearch219 by opensearch-upgrade-test.sh (pkg install opensearch219, which takes
+# opensearch217 away: the same files), then OpenSearch 2.19 (opensearch219) by
+# opensearch-test.sh, Node.js 18 (node18, npm-node18, yarn-node18, corepack-node18)
+# by node18-test.sh after the tests on node24, installed in the place of node24 (one
+# of the two: pkg takes node24 and its npm, yarn and corepack away), and Perl (perl5,
 # under the name of FreeBSD's) by perl-test.sh, with the XS modules of FreeBSD's
 # p5-* packages, which it installs from the FreeBSD repository itself.
 #
@@ -230,9 +229,9 @@ if in_repo node18; then
 else
     say "node18: not in the repository, its tests are skipped"
 fi
-# OpenSearch Dashboards 2.17 (aZ, 12.11.2026: a legacy project): it needs node18, which
-# would take node24 away, so installed only after the test of node18, in its place (3.
-# below), with opensearch217, which its test starts
+# OpenSearch Dashboards 2.17 (aZ, 12.11.2026: a legacy project) on our node24:
+# installed for its test after the test of OpenSearch, with opensearch217, which its
+# test starts, before the test of node18 takes node24 away (3. below)
 osd_=""
 if in_repo opensearch-dashboards217; then
     osd_=" opensearch-dashboards217"
@@ -349,17 +348,17 @@ done
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
         "graphicsmagick GraphicsMagick" "mc mc" ${p_:+"python$p_"} "ytdlp yt-dlp ffmpeg" "utils $utils" \
         ${s_:+"servers$s_"} ${n_:+"node$n_"} ${j_:+"java$j_"} ${e_:+"elastic$e_"} \
-        ${k_:+"kibana$k_ elasticsearch6 node24"} ${os_:+"opensearch$os_"} ${osu_:+"opensearch-upgrade$osu_"} \
-        ${os219_:+"opensearch219$os219_"} ${n18_:+"node18$n18_"} \
-        ${osd_:+"opensearch-dashboards$osd_ opensearch217 node18"} ${l_:+"perl$l_"}; do
+        ${k_:+"kibana$k_ elasticsearch6 node24"} ${os_:+"opensearch$os_"} \
+        ${osd_:+"opensearch-dashboards$osd_ opensearch217 node24"} ${osu_:+"opensearch-upgrade$osu_"} \
+        ${os219_:+"opensearch219$os219_"} ${n18_:+"node18$n18_"} ${l_:+"perl$l_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
     if [ "$t" = node18 ]; then
         # node18 and its npm, yarn and corepack in the place of node24 and its own:
         # pkg install as on a server, which removes those of node24 (their files).
-        # What needs node24 besides its npm and yarn (kibana6, tested before) goes
-        # first, as on a server, where node18 cannot come under it
+        # What needs node24 besides its npm and yarn (kibana6, opensearch-dashboards217,
+        # tested before) goes first, as on a server, where node18 cannot come under it
         : > "$res/test-programs-install-node18.log"
         r24_="$(pkg query '%rn' node24 2> /dev/null | grep -v -x -e npm-node24 -e yarn-node24 | tr '\n' ' ')"
         if [ -n "$r24_" ]; then
@@ -387,7 +386,7 @@ for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "ima
         cat "$res/test-programs-install-opensearch219.log" >> "$log"
     fi
     if [ "$t" = opensearch-dashboards ]; then
-        # on the node18 of the test before it, with the OpenSearch of opensearch217
+        # on the node24 of the tests before it, with the OpenSearch of opensearch217
         o_="opensearch-dashboards217"
         if in_repo opensearch217 && ! inst opensearch217; then o_="$o_ opensearch217"; fi
         say "pkg install -f $o_"

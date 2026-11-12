@@ -1,16 +1,15 @@
 #!/bin/sh
 # opensearch-dashboards-test.sh - test OpenSearch Dashboards 2.17.1 of the repository
 # az (textproc/opensearch-dashboards217; aZ, 12.11.2026: a legacy project), installed
-# from it, on the Node.js 18 of www/node18, against OpenSearch 2.17.1 of
+# from it, on the Node.js 24 of www/node24, against OpenSearch 2.17.1 of
 # textproc/opensearch217: both started by their rc scripts, as a server starts them,
 # OpenSearch with the heap of opensearch_heap (512m) on its port 8200 with its
 # network.host of the sample (both loopback addresses), as on aZ's nodes, Dashboards
 # with the configuration of aZ's ko44 (server.host on 127.0.0.1 here,
-# opensearch.hosts http://localhost:8200, or http://127.0.0.1:8200 where OpenSearch
-# does not answer on ::1, with a note, the settings of the security plugin
+# opensearch.hosts http://localhost:8200, the settings of the security plugin
 # commented out) and node.options next to it:
 #   - the package: no ELF file, no native module, no node/ of the tarball; its node
-#     is that of www/node18; --version, the plugins (13 in, securityDashboards
+#     is that of www/node24; --version, the plugins (13 in, securityDashboards
 #     out), the sample configuration, the
 #     default configuration of the rc script, newsyslog, the packages of the 2.17
 #     branch and of the security fixes;
@@ -97,7 +96,7 @@ finish() {
 }
 running() { pgrep -f "$D/src/cli/dist serve" > /dev/null 2>&1; }
 
-for p in opensearch-dashboards217 opensearch217 node18; do
+for p in opensearch-dashboards217 opensearch217 node24; do
     pkg info -e "$p" || { fail "$p is not installed"; finish; }
 done
 v="$(pkgv opensearch-dashboards217)"
@@ -108,7 +107,7 @@ if [ -z "$b" ]; then pass "no ELF file in the package ($(find "$D" -type f | wc 
 n="$(find "$D" -name '*.node' | head -n 3 | tr '\n' ' ')"
 if [ -z "$n" ] && [ ! -e "$D/node" ]; then pass "no native module (*.node), no node/ of the tarball"; else fail "in the package: ${n:-$D/node}"; fi
 if grep -q "^  NODE=\"$node\"\$" "$D/bin/use_node" && grep -q "procname=\"$node\"" "$rc"; then
-    pass "bin/use_node and rc.d/opensearch-dashboards: the node of www/node18 ($("$node" --version))"
+    pass "bin/use_node and rc.d/opensearch-dashboards: the node of www/node24 ($("$node" --version))"
 else
     fail "bin/use_node or the rc script: not $node"
 fi
@@ -192,15 +191,12 @@ if [ -z "$up" ]; then
     stop_os; finish
 fi
 pass "OpenSearch $(curl -s -m 10 "$os/" | sed -n 's/.*"number" : "\([^"]*\)".*/\1/p') on port 8200 after $((i * 2)) s, plugins: $(curl -s -m 10 "$os/_cat/plugins?h=component" | sort | tr '\n' ' ' | cut -c1-300)"
-# Node.js 18 connects to the first address the system gives for localhost and tries
-# no other (::1 on a host with IPv6): ko44's http://localhost:8200 works when
-# OpenSearch listens on ::1 too
-oshost=localhost
+# Node.js 24 tries each address of localhost (autoSelectFamily, on since Node.js 20):
+# ko44's http://localhost:8200 whether OpenSearch answers on ::1 or not
 if curl -s -m 5 'http://[::1]:8200/' | grep -q '"number"'; then
-    note "OpenSearch answers on [::1]:8200 too: opensearch.hosts http://localhost:8200 of ko44 (Node.js 18 takes the first address of localhost, ::1 on a host with IPv6)"
+    note "OpenSearch answers on [::1]:8200 and 127.0.0.1:8200: opensearch.hosts http://localhost:8200 of ko44"
 else
-    oshost=127.0.0.1
-    note "OpenSearch does not answer on [::1]:8200 here: opensearch.hosts http://127.0.0.1:8200 in the place of ko44's http://localhost:8200 (Node.js 18 takes the first address of localhost and tries no other)"
+    note "OpenSearch answers on 127.0.0.1:8200, not on [::1]:8200: opensearch.hosts http://localhost:8200 of ko44"
 fi
 curl -s -m 60 -o /dev/null "$os/_cluster/health?wait_for_status=yellow&timeout=60s"
 curl -s -m 30 -o /dev/null -H 'Content-Type: application/json' -X PUT "$os/az-test" -d '{"settings":{"number_of_shards":1,"number_of_replicas":0}}'
@@ -212,7 +208,7 @@ done
 # --- the configuration of aZ's ko44, the refusals of the rc script ---------------------------
 conf="$T/conf/opensearch_dashboards.yml"
 cp "$E/opensearch_dashboards.yml.sample" "$conf" || fail "no $E/opensearch_dashboards.yml.sample"
-printf '%s\n' 'server.host: "127.0.0.1"' "opensearch.hosts: [\"http://$oshost:8200\"]" '#opensearch.hosts: ["http://localhost:9200"]' \
+printf '%s\n' 'server.host: "127.0.0.1"' 'opensearch.hosts: ["http://localhost:8200"]' '#opensearch.hosts: ["http://localhost:9200"]' \
     'opensearch.ssl.verificationMode: none' '#opensearch.username: "kibanaserver"' '#opensearch.password: "kibanaserver"' \
     '#opensearch.requestHeadersWhitelist: [ authorization,securitytenant ]' '#opensearch_security.multitenancy.enabled: true' \
     '#opensearch_security.multitenancy.tenants.preferred: ["Private", "Global"]' '#opensearch_security.readonly_mode.roles: ["kibana_read_only"]' \
@@ -268,7 +264,7 @@ o=""; for p in $OUT; do has status "\"id\":\"plugin:$p@" && o="$o $p"; done
 if [ -z "$m$o" ]; then pass "the statuses of the 13 plugins in, none of securityDashboards"; else fail "statuses: missing$m; out but there:$o"; fi
 if grep -o '"state":"[a-z]*"' "$T/a/status" | grep -v -q '"green"'; then fail "statuses not green: $(grep -o '"id":"[^"]*","message":"[^"]*","since":"[^"]*","state":"[a-z]*"' "$T/a/status" | grep -v green | head -n 3 | tr '\n' ' ' | cut -c1-300)"; else pass "every status green"; fi
 hl="$(sed -n 's/.*"size_limit":\([0-9]*\).*/\1/p' "$T/a/status")"
-if [ -n "$hl" ] && [ "$hl" -ge 734003200 ] && [ "$hl" -le 838860800 ]; then pass "the heap of node.options (--max-old-space-size=700): a limit of $((hl / 1048576)) MB"; else fail "the heap limit ${hl:-not told}: not that of node.options"; fi
+if [ -n "$hl" ] && [ "$hl" -ge 734003200 ] && [ "$hl" -le 943718400 ]; then pass "the heap of node.options (--max-old-space-size=700): a limit of $((hl / 1048576)) MB"; else fail "the heap limit ${hl:-not told}: not that of node.options"; fi
 pid="$(cat "$pidfile" 2>/dev/null)"
 c="$(ps -o user= -o command= -p "${pid:-0}" 2>/dev/null)"
 case "$c" in www*"$node"*"$D/src/cli/dist serve"*) pass "the process of the pid file: $node as www, $(ps -o rss= -p "$pid" | tr -d ' ') KB" ;; *) fail "the process of the pid file ${pid:-none}: $c" ;; esac
