@@ -69,7 +69,7 @@
 | Пакет | Origin | Что |
 |---|---|---|
 | `az` | `az/az` | библиотеки сборок в `/usr/local/az`: `lib` (разделяемые, с run path `/usr/local/az/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`), с ними линкуется каждый пакет; статические — в `/usr/local/az/static`, только для особых сборок `az-menu.sh`. OpenSSL, zlib и bzip2 — из базовой системы |
-| `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта, с SCP и SFTP (libssh2); его `libcurl.so.4` — libcurl всех пакетов (модуль curl PHP, git) |
+| `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта, с SCP и SFTP (libssh2 из az, без старых алгоритмов SSH: MAC на MD5, 3DES, RC4, Blowfish, CAST; так же у `ssh2` PHP и SFTP в `mc`); его `libcurl.so.4` — libcurl всех пакетов (модуль curl PHP, git) |
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` и `ffprobe` только с теми форматами, что нужны видеосайтам |
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, программы с 6 на конце (`convert6`, `identify6`, ...); его библиотеки — в `/usr/local/az/lib` |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickCore-7.so` и `libMagickWand-7.so` в `/usr/local/az/lib`, с ними линкуются `magick` и модуль imagick |
@@ -799,6 +799,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 | `jobs` | сколько портов собирать одновременно (`AZ_JOBS`, по умолчанию 4; `1` — порт за портом) |
 | `configure_check` | проверка configure (`AZ_CONFIGURE_CHECK`, по умолчанию выключена): каждый собранный порт PHP конфигурируется ещё раз, нестрого, и сравнивается; с `force` — все порты PHP |
 | `plan` | только план (`AZ_PLAN`, по умолчанию выключен): `az/az` и нужные ему порты собираются, если их надо собирать, все остальные порты решаются — взять или собрать и почему (`results/plan.txt`, раздел отчёта), не собираясь; без проверок, никогда не публикуется |
+| `fork_ref` | ветка azsupport/php-src, с которой сверяется curl пакета az (`FORK_REF` у `tools/curl-sync-check.sh`, по умолчанию `master`): правка curl и его библиотек сначала идёт в ветку форка, прогон ветки здесь, которая её несёт, называет эту ветку, и обе входят в свои основные ветки в один момент |
 | `publish` | опубликовать репозиторий, когда всё собралось и все проверки прошли (по умолчанию выключено: репозиторий, который читают серверы, публикуется по слову aZ) |
 | `publish_only` | вместе с `publish`: публиковать, только когда репозиторий отличается от релиза лишь пакетами этих портов (`категория/порт` через пробел: прогоны [yt-dlp из GitHub](#yt-dlp-из-github)), иначе ничего; пусто — что бы ни отличалось |
 
@@ -809,7 +810,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 останавливает прогон там), сверяет curl пакета az с curl PHP из azsupport/php-src
 ([`tools/curl-sync-check.sh`](tools/curl-sync-check.sh): строки данных
 `az/az/files/curl.conf` и `curl-deps.conf` и патчи `curl/` — с теми, что в `freebsd/` на
-его master; отличие тоже останавливает прогон там), запускает `tools/build.sh` в ВМ FreeBSD
+его master или на ветке форка из входа `fork_ref`; отличие тоже останавливает прогон там), запускает `tools/build.sh` в ВМ FreeBSD
 ([vmactions/freebsd-vm](https://github.com/vmactions/freebsd-vm)), потом для каждой
 версии PHP, пакет которой собран, ставит её пакеты из нового репозитория и проверяет их
 (`tools/install-php.sh`, `tools/check-php.sh`; по строке в `results/checks.txt`),

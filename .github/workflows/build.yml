@@ -66,6 +66,13 @@ on:
         description: 'The plan only: az/az and the ports it needs built when they are to be, every other port decided (kept or to be built, and why: results/plan.txt), not built; no checks, never published'
         type: boolean
         default: false
+      # the branch of azsupport/php-src whose freebsd/curl* the curl of az is compared with
+      # (tools/curl-sync-check.sh, FORK_REF): a change of curl goes to a branch of the fork
+      # first, and into master of the fork when the branch here goes into main
+      fork_ref:
+        description: 'The branch of azsupport/php-src the curl of az (az/az/files/curl*) has to be the same as (tools/curl-sync-check.sh): master, or the branch of the fork with a change of curl not yet in master'
+        required: false
+        default: 'master'
       # off by default: the repository the servers read is published on aZ's word
       publish:
         description: 'Publish the repository (the release the servers read) when everything built and every check passed'
@@ -170,9 +177,12 @@ jobs:
         run: sh tools/check-tree-ci.sh "$RELEASE" "$CPUTYPE"
 
       # the curl of az (az/az/files/curl.conf, curl-deps.conf, curl/) must be that of
-      # the PHP of azsupport/php-src (freebsd/ there, on master): the same releases and
-      # patches. A difference stops the run here, before the VM
+      # the PHP of azsupport/php-src (freebsd/ there, on master, or on the branch of
+      # fork_ref): the same releases and patches. A difference stops the run here,
+      # before the VM
       - name: The curl of az and that of azsupport/php-src
+        env:
+          FORK_REF: ${{ inputs.fork_ref || 'master' }}
         run: |
           set -o pipefail
           sh tools/curl-sync-check.sh 2>&1 | tee curl-sync-check.txt
@@ -492,7 +502,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} configure_check=${{ inputs.configure_check }} plan=${{ inputs.plan }} publish=${{ inputs.publish }} publish_only=${{ inputs.publish_only }}
+          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} configure_check=${{ inputs.configure_check }} plan=${{ inputs.plan }} fork_ref=${{ inputs.fork_ref }} publish=${{ inputs.publish }} publish_only=${{ inputs.publish_only }}
           RUNS_STEPS: build=${{ steps.build.outcome }} outcome=${{ steps.outcome.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
           PART: ${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"

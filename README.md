@@ -69,7 +69,7 @@ Names and origins as the ports, files at the paths of the ports:
 | Package | Origin | What |
 |---|---|---|
 | `az` | `az/az` | the libraries of the builds in `/usr/local/az`: `lib` (shared, with the run path `/usr/local/az/lib`, no ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`), which every package links; the static ones in `/usr/local/az/static` only for the special builds of `az-menu.sh`. OpenSSL, zlib and bzip2 are those of the base system |
-| `curl` | `ftp/curl` | `bin/curl` and `libcurl.so.4`, in the place of the package of the port, with SCP and SFTP (libssh2); its `libcurl.so.4` is the libcurl of every package (the PHP module curl, git) |
+| `curl` | `ftp/curl` | `bin/curl` and `libcurl.so.4`, in the place of the package of the port, with SCP and SFTP (libssh2 of az, without the old algorithms of SSH: the MACs on MD5, 3DES, RC4, Blowfish, CAST; so are `ssh2` of PHP and the SFTP of `mc`); its `libcurl.so.4` is the libcurl of every package (the PHP module curl, git) |
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` and `ffprobe` with only the formats the video sites need |
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, the programs with 6 at the end (`convert6`, `identify6`, ...); its libraries in `/usr/local/az/lib` |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); its `libMagickCore-7.so` and `libMagickWand-7.so` in `/usr/local/az/lib`, which `magick` and the module imagick link |
@@ -818,6 +818,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | `jobs` | the ports built at once (`AZ_JOBS`, default 4; `1`: one after another) |
 | `configure_check` | the configure check (`AZ_CONFIGURE_CHECK`, off by default): each PHP port built configured once more, permissive, and compared; with `force` every PHP port |
 | `plan` | the plan only (`AZ_PLAN`, off by default): `az/az` and the ports it needs built when they are to be, every other port decided, kept or to be built and why (`results/plan.txt`, a section of the report), not built; no checks, never published |
+| `fork_ref` | the branch of azsupport/php-src the curl of az is compared with (`FORK_REF` of `tools/curl-sync-check.sh`, default `master`): a change of curl and its libraries goes to a branch of the fork first, a run of the branch here that carries it names that branch, and both go into their main branches at the same moment |
 | `publish` | publish the repository when everything built and every check passed (off by default: the repository the servers read is published on aZ's word) |
 | `publish_only` | with `publish`: publish only when the repository differs from the release by packages of these ports alone (`category/port`, separated by spaces: the runs of [yt-dlp from GitHub](#yt-dlp-from-github)), else nothing; empty: whatever differs |
 
@@ -828,7 +829,7 @@ official tree on the runner ([`tools/check-tree.sh`](tools/check-tree.sh), bmake
 FAIL stops the run there), compares the curl of az with that of the PHP of
 azsupport/php-src ([`tools/curl-sync-check.sh`](tools/curl-sync-check.sh): the data
 lines of `az/az/files/curl.conf` and `curl-deps.conf` and the patches of `curl/` against
-those of `freebsd/` on its master; a difference stops the run there too), runs
+those of `freebsd/` on its master, or on the branch of the fork that the input `fork_ref` names; a difference stops the run there too), runs
 `tools/build.sh` in a FreeBSD VM
 ([vmactions/freebsd-vm](https://github.com/vmactions/freebsd-vm)), then, for each PHP
 version a package of which was built, installs its packages from the new repository and
