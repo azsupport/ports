@@ -18,7 +18,19 @@
 #     it builds against that tree and its package has no code of az), one with
 #     AZ_STATIC_LIBS that names no such file, or a name there that is no library of
 #     az/az/files/deps.conf (tools/build.sh builds every other port without the
-#     archives of az in its chroot).
+#     archives of az in its chroot);
+#   - a file of the directory of another port its build reads (aZ, 12.11.2026) that
+#     is not in its az_hash: the paths of this tree that its makefiles of this tree name
+#     from its own directory upward (${.CURDIR:H}..., ${.CURDIR}/..): the value make
+#     gives the variable of such a line (so a line of a branch not taken does not
+#     count), the expression itself in a line of a target; outside its directory,
+#     Mk/ and tools/, and not under its MASTERDIR, FILESDIR, PATCHDIR or PKGDIR, nor
+#     its DISTINFO_FILE, EXTRA_PATCHES, a makefile it reads or a file of its
+#     AZ_HASH_FILES (tools/build.sh hashes all these): it names it in AZ_HASH_FILES,
+#     which has to name files or directories of this tree; but the two files of xok
+#     (below), read for nothing that goes into a package. A path a script of tools/
+#     makes itself is not seen here (policy.xml next to the conf of
+#     imagemagick-build.sh): the port names it in AZ_HASH_FILES too.
 #
 # Usage: sh tools/check-tree.sh <official tree>
 #   <official tree>: a checkout of freebsd-ports at the pinned commit (Mk/ and the
@@ -36,6 +48,7 @@ set -u
 off="$(cd "$1" 2>/dev/null && pwd)" || { echo "check-tree: no directory $1" >&2; exit 2; }
 [ -f "$off/Mk/bsd.port.mk" ] || { echo "check-tree: $off has no Mk/bsd.port.mk: not a ports tree" >&2; exit 2; }
 top="$(cd "$(dirname "$0")/.." && pwd)"
+topr="$(cd "$top" && pwd -P)"
 os="$(uname -s)"
 if [ -z "${MAKE:-}" ]; then
     if [ "$os" = FreeBSD ]; then MAKE=make; else MAKE=bmake; fi
@@ -47,6 +60,14 @@ if [ -n "${MAKE_CONF:-}" ]; then
     [ -f "$mc" ] || { echo "check-tree: no make.conf $MAKE_CONF" >&2; exit 2; }
 fi
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/check-tree.XXXXXX")" || { echo "check-tree: no temporary directory" >&2; exit 2; }
+# the files of the directories of other ports that a port reads for nothing of its
+# package (not in its az_hash):
+#   az/az/files/deps.conf: AZ_DEPS_CONF of az/az/Makefile.common, which the ports that
+#     include it read for its line "ports" only, the commit of the official tree that
+#     tools/build.sh checks out (in the base of every az_hash)
+#   databases/mariadb1011-client/pkg-plist: databases/mariadb1011-server puts its lines
+#     into its plist as @comment lines, which pkg leaves out of the package
+xok="az/az/files/deps.conf databases/mariadb1011-client/pkg-plist"
 trap 'rm -rf "$tmp"' EXIT
 trap 'exit 1' INT TERM
 mkdir -p "$tmp/dbdir" "$tmp/wrk"
@@ -78,14 +99,16 @@ for mk in "$top"/*/*/Makefile; do
     d="${mk%/Makefile}"; o="${d#"$top"/}"
     case "$o" in Mk/* | Templates/* | Keywords/* | tools/* | .github/* | work/* | packages/* | distfiles/*) continue ;; esac
     if ! "$MAKE" -C "$d" "$@" -V PKGNAME -V PKGORIGIN -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS \
-        -V AZ_STATIC -V AZ_STATIC_LIBS -V IGNORE > "$tmp/out" 2> "$tmp/err" < /dev/null; then
+        -V AZ_STATIC -V AZ_STATIC_LIBS -V .MAKE.MAKEFILES -V AZ_HASH_FILES -V IGNORE > "$tmp/out" 2> "$tmp/err" < /dev/null; then
         say "FAIL $o: make: $(grep -v '^[[:space:]]*$' "$tmp/err" | tail -n 3 | tr '\n' ' ' | sed 's/ *$//')"
         nfail=$((nfail + 1)); continue
     fi
     pn="$(sed -n 1p "$tmp/out")"; po="$(sed -n 2p "$tmp/out")"
     bd="$(sed -n 3p "$tmp/out")"; ld="$(sed -n 4p "$tmp/out")"; rd="$(sed -n 5p "$tmp/out")"
-    ast="$(sed -n 6p "$tmp/out")"; asl="$(sed -n 7p "$tmp/out")"
-    ign="$(sed -n '8,$p' "$tmp/out" | tr '\n' ' ' | sed 's/ *$//')"
+    ast="$(sed -n 6p "$tmp/out")"; asl="$(sed -n 7p "$tmp/out")"; mkf="$(sed -n 8p "$tmp/out")"
+    ahf="$(sed -n 9p "$tmp/out")"
+    ign="$(sed -n '10,$p' "$tmp/out" | tr '\n' ' ' | sed 's/ *$//')"
+    dr="$(cd "$d" && pwd -P)"
     why=""
     [ -n "$pn" ] || why="$why no PKGNAME;"
     [ "$po" = "$o" ] || why="$why PKGORIGIN is ${po:-empty}, not $o;"
@@ -116,6 +139,64 @@ for mk in "$top"/*/*/Makefile; do
                 why="$why AZ_STATIC_LIBS names $l, no library of az/az/files/deps.conf;"
         done
     fi
+    # the files of the directories of other ports it reads: the variables (but those
+    # tools/build.sh hashes anyway) and the expressions of target lines of its makefiles
+    # of this tree that name a path from its directory upward
+    : > "$tmp/xv"
+    for f in $mkf; do
+        # the Makefile of the port: relative to its directory
+        case "$f" in /*) ;; *) f="$d/$f" ;; esac
+        f="$(realpath "$f" 2> /dev/null)" || continue
+        case "$f" in "$topr"/*) ;; *) continue ;; esac
+        awk '{ while (/\\$/ && (getline n) > 0) { sub(/\\$/, "", $0); $0 = $0 " " n } sub(/#.*/, "") }
+            !/\$\{\.CURDIR(:H)+\}|\$\{\.CURDIR\}\/\.\./ { next }
+            /^[ \t]*\./ { next }
+            match($0, /^[ \t]*[A-Za-z0-9_.]+[ \t]*[?:!+]?=/) {
+                v = substr($0, RSTART, RLENGTH); sub(/[ \t]*[?:!+]?=$/, "", v); gsub(/[ \t]/, "", v)
+                if (v !~ /^(MASTERDIR|FILESDIR|PATCHDIR|PKGDIR|DISTINFO_FILE|EXTRA_PATCHES|AZ_HASH_FILES)$/) print "v", v
+                next
+            }
+            { l = $0
+              while (match(l, /\$\{\.CURDIR(:H)+\}[^ \t"'"'"';]*|\$\{\.CURDIR\}\/\.\.[^ \t"'"'"';]*/)) {
+                  print "e", substr(l, RSTART, RLENGTH); l = substr(l, RSTART + RLENGTH) } }' "$f"
+    done | sort -u > "$tmp/xv"
+    if [ -s "$tmp/xv" ]; then
+        # shellcheck disable=SC2030
+        if (set -f; while read -r _ x; do set -- "$@" -V "$x"; done < "$tmp/xv"
+            exec "$MAKE" -C "$d" "$@" -V MASTERDIR -V FILESDIR -V PATCHDIR -V PKGDIR -V DISTINFO_FILE -V EXTRA_PATCHES \
+                -V AZ_HASH_FILES) > "$tmp/xout" 2> "$tmp/xerr" < /dev/null; then
+            nx="$(wc -l < "$tmp/xv" | tr -d ' ')"
+            # the paths the port has in its hash: directories (MASTERDIR, FILESDIR, PATCHDIR,
+            # PKGDIR, those of AZ_HASH_FILES) and files (the rest)
+            sed -n "$((nx + 1)),$((nx + 7))p" "$tmp/xout" | tr -s ' \t' '\n\n' | sed 's/:-p[0-9]*$//' | grep . |
+                while read -r x; do realpath "$x" 2> /dev/null; done > "$tmp/xin"
+            for x in $mkf; do case "$x" in /*) ;; *) x="$d/$x" ;; esac; realpath "$x" 2> /dev/null; done >> "$tmp/xin"
+            sed -n "1,${nx}p" "$tmp/xout" | paste -d '|' "$tmp/xv" - | while IFS='|' read -r wx vals; do
+                for x in $vals; do
+                    x="${x#*=}"; x="${x%%:-p[0-9]*}"
+                    case "$x" in /*) ;; *) continue ;; esac
+                    r="$(realpath "$x" 2> /dev/null)" || continue
+                    case "$r" in "$dr" | "$dr"/* | "$topr"/Mk | "$topr"/Mk/* | "$topr"/tools | "$topr"/tools/*) continue ;; "$topr"/*) ;; *) continue ;; esac
+                    case " $xok " in *" ${r#"$topr"/} "*) continue ;; esac
+                    ok=0
+                    while read -r c; do
+                        case "$r" in "$c" | "$c"/*) ok=1; break ;; esac
+                    done < "$tmp/xin"
+                    [ "$ok" = 1 ] || echo "${r#"$topr"/} (${wx#* })"
+                done
+            done | sort -u > "$tmp/xbad"
+            if [ -s "$tmp/xbad" ]; then
+                why="$why it reads files of the directory of another port that are not in its az_hash (AZ_HASH_FILES): $(tr '\n' ' ' < "$tmp/xbad" | sed 's/ $//');"
+            fi
+        else
+            why="$why make -V of the paths of other ports its makefiles name failed: $(grep . "$tmp/xerr" | tail -n 1);"
+        fi
+    fi
+    # AZ_HASH_FILES: files or directories of this tree
+    for x in $ahf; do
+        r="$(realpath "$x" 2> /dev/null)" || { why="$why AZ_HASH_FILES names $x, which is not there;"; continue; }
+        case "$r" in "$topr"/*) ;; *) why="$why AZ_HASH_FILES names $x, not a file of this tree;" ;; esac
+    done
     # stderr of a make that worked: warnings of the framework, shown with the port
     warn="$(grep -v '^[[:space:]]*$' "$tmp/err" | head -n 2 | tr '\n' ' ' | sed 's/ *$//')"
     if [ -n "$why" ]; then
