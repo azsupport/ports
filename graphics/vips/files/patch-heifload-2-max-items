@@ -1,0 +1,18 @@
+libvips 8.18 branch after 8.18.7, commit 3c167f16c93b:
+https://github.com/libvips/libvips/commit/3c167f16c93b47197905e66e6074a5b56fc8e3aa
+
+heifload: the security limit of libheif on the number of items of a file, which
+libvips sets to 256, refused real HEIC photos with more items (libvips pull
+request 5034); raised to 1000, as upstream. The limits of memory stay.
+
+--- libvips/foreign/heifload.c.orig
++++ libvips/foreign/heifload.c
+@@ -360,7 +360,7 @@ vips_foreign_load_heif_build(VipsObject *object)
+ 
+ 			limits->max_total_memory = 2ULL * 1024 * 1024 * 1024;
+ 			limits->max_memory_block_size = 1024 * 1024 * 1024;
+-			limits->max_items = 256;
++			limits->max_items = 1000;
+ 		}
+ #endif /* HAVE_HEIF_MAX_TOTAL_MEMORY */
+ #ifdef HAVE_HEIF_GET_DISABLED_SECURITY_LIMITS

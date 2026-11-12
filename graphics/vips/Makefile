@@ -16,6 +16,10 @@
 # highway of the ports of this tree (devel/glib20, graphics/libexif, graphics/cgif,
 # graphics/libimagequant, devel/highway: aZ, 11.11.2026); zlib of the base system.
 # pkg-message: VIPS_BLOCK_UNTRUSTED for nginx.
+# files/patch-*: fixes of the 8.18 branch of libvips after 8.18.7, until 8.18.8 (each
+# with its commit, what and why): the total height of animated GIF, WebP and HEIF,
+# the ICC profile of icc_import, LZW of libnsgif, PNGs of libpng 1.6.0 to 1.6.2, the
+# item limit of HEIF.
 # Every library through a .pc of the work with only its own headers (the include
 # directories of az and of /usr/local have others: GNU iconv.h, libintl.h ...).
 

@@ -274,7 +274,12 @@ Names and origins as the ports, files at the paths of the ports:
   of az; glib, libexif, cgif, libimagequant and highway of their ports of this tree; zlib
   of the base system. For images of the web, `VIPS_BLOCK_UNTRUSTED=1` in the environment
   of nginx (`env VIPS_BLOCK_UNTRUSTED=1;` in the main context of nginx.conf; the message
-  of the package says so) keeps libvips from its untrusted loaders.
+  of the package says so) keeps libvips from its untrusted loaders. With the fixes of
+  the 8.18 branch after 8.18.7, until 8.18.8 ([`files/patch-*`](graphics/vips/files),
+  each with its commit): the total height of animated GIF, WebP and HEIF (an int
+  overflow into a wrong size), the input profile of `icc_import` (used after free),
+  LZW codes across sub-blocks of GIF, PNGs of libpng 1.6.0 to 1.6.2, HEIC photos of
+  more than 256 items.
 - **`multimedia/qt-faststart`**: `bin/qt-faststart`, `tools/qt-faststart.c` of FFmpeg
   9.0.2 (public domain): the official port expired on 30.06.2022 (ffmpeg `-movflags
   +faststart` does the same); kept for compatibility until it is no longer needed (aZ,

@@ -1,0 +1,30 @@
+libvips 8.18 branch after 8.18.7, commit 138af8cdc37a, libnsgif of upstream
+NetSurf (libvips issue 5269, pull request 5270):
+https://github.com/libvips/libvips/commit/138af8cdc37a384cd3588be36f1f51353c7491e9
+
+libnsgif, the GIF decoder built into libvips: an LZW code that spans two
+sub-blocks of the data advanced the input one byte too far when it ended on a
+byte boundary, and such GIFs decoded wrong. With the stddef.h of nsgif.h from
+the same update (the README of the copy left out).
+
+--- libvips/foreign/libnsgif/lzw.c.orig
++++ libvips/foreign/libnsgif/lzw.c
+@@ -177,7 +177,7 @@ static inline lzw_result lzw__read_code(
+ 		ctx->sb_bit += code_size;
+ 	} else {
+ 		/* Slow path: code spans sub-blocks */
+-		uint8_t byte_advance = (current_bit + code_size) >> 3;
++		uint8_t byte_advance = (current_bit + code_size - 1) >> 3;
+ 		uint8_t byte = 0;
+ 		uint8_t bits_remaining_0 = (code_size < (8u - current_bit)) ?
+ 				code_size : (8u - current_bit);
+--- libvips/foreign/libnsgif/nsgif.h.orig
++++ libvips/foreign/libnsgif/nsgif.h
+@@ -16,6 +16,7 @@
+ #ifndef NSNSGIF_H
+ #define NSNSGIF_H
+ 
++#include <stddef.h>
+ #include <stdint.h>
+ #include <stdbool.h>
+ #include <inttypes.h>
