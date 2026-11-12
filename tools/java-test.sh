@@ -140,6 +140,10 @@ public class AzJavaTest {
             r = "ERROR " + t;
             StackTraceElement[] s = t.getStackTrace();
             if (s.length > 0) r += " at " + s[0];
+            // the first cause, as an InternalError of FontManagerFactory hides it
+            Throwable root = t;
+            while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+            if (root != t) r += "; cause: " + root;
         }
         System.out.println(key + "=" + r.replace('\n', ' '));
     }
@@ -412,14 +416,17 @@ case "$fl" in
     [1-9]*" pixels"*) pass "text with the font file $ff (FreeType of az): $fl" ;;
     *) fail "text with the font file $ff: $fl" ;;
 esac
-fc="$(sed -n 's/^map=\(.*libfontconfig\.so.*\)/\1/p' "$o" | tr '\n' ' ')"
-note "fonts: fontconfig in the process: ${fc:-none}"
+# the libfontconfig.so.1 dlopen(3) of OpenJDK finds by the ldconfig hints (it
+# closes it again once it has read the fonts: procstat at the end no longer sees it)
+fc="$(ldconfig -r 2>/dev/null | sed -n 's/^.*=> \(.*\/libfontconfig\.so\.1\)$/\1/p' | head -n 1)"
+[ -n "$fc" ] && fc="$fc ($(pkg which -q "$fc" 2>/dev/null || echo 'of no package'))"
+note "fonts: the libfontconfig.so.1 that dlopen finds: ${fc:-none}"
 (cd "$T" && USE_J2D_FONTCONFIG=no "$J/bin/java" -cp "$T/classes" AzJavaTest "$T" "${ff:--}" font) > "$res/java-nofc.out" 2>&1
 note "without fontconfig (USE_J2D_FONTCONFIG=no, as with our packages only): the families: $(val "$res/java-nofc.out" font_families)"
 note "without fontconfig: a logical font: $(val "$res/java-nofc.out" font_logical)"
 note "without fontconfig: the font file: $(val "$res/java-nofc.out" font_file)"
-font_sum="fontconfig ${fc:-none}; families $(val "$o" font_families | cut -c1-80); SansSerif $(val "$o" font_logical | cut -c1-80); the file $(val "$o" font_file | cut -c1-60)"
-nofc_sum="families $(val "$res/java-nofc.out" font_families | cut -c1-110); the file $(val "$res/java-nofc.out" font_file | cut -c1-40)"
+font_sum="dlopen finds ${fc:-no libfontconfig.so.1}; families $(val "$o" font_families | cut -c1-80); SansSerif $(val "$o" font_logical | cut -c1-80); the file $(val "$o" font_file | cut -c1-60)"
+nofc_sum="families $(val "$res/java-nofc.out" font_families | sed 's/ at [^;]*;/;/' | cut -c1-200); the file $(val "$res/java-nofc.out" font_file | sed 's/ at [^;]*;/;/' | cut -c1-200)"
 # sound
 s="$(val "$o" sound)"
 case "$s" in [0-9]*" mixers"*) pass "AudioSystem.getMixerInfo(): $s" ;; *) fail "AudioSystem.getMixerInfo(): ${s:-not told}" ;; esac
