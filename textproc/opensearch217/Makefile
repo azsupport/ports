@@ -6,9 +6,9 @@
 # 2025Q1 of freebsd-ports: the bundle of OpenSearch with its plugins, the same
 # file and distinfo, and the rc script, patches and pkg-message that
 # textproc/opensearch216 of the pinned tree still has); this port starts from it.
-# On OpenJDK 21, java/openjdk21 of ours (headless, as java/openjdk17; aZ,
-# 12.11.2026: the JDK of textproc/opensearch219 and of 3.x, one JDK for both
-# ports), the JDK of the bundle (Temurin 21.0.4, jdk/release): OpenSearch 2.17
+# On OpenJDK 21, java/openjdk21 of ours (headless; aZ, 12.11.2026: the JDK of
+# textproc/opensearch219, of 3.x and of textproc/elasticsearch6, one JDK for
+# them all), the JDK of the bundle (Temurin 21.0.4, jdk/release): OpenSearch 2.17
 # runs on 11, 17 and 21, and not on 24 and later (JEP 486: those JDKs refuse the
 # Security Manager that OpenSearch 2.x installs at its start). USES=java with
 # JAVA_VERSION 21 gives the rc script ${LOCALBASE}/openjdk21, and
