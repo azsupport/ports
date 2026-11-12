@@ -1,18 +1,22 @@
 --- config/jvm.options.orig
 +++ config/jvm.options
-@@ -19,6 +19,12 @@
+@@ -19,8 +19,14 @@
  # Xms represents the initial size of total heap space
  # Xmx represents the maximum size of total heap space
  
-+# azsupport/ports: this file can be the same on every server. The heap of a
-+# server is set in /etc/rc.conf, elasticsearch_heap="4g": the rc script passes
-+# -Xms and -Xmx of that size in ES_JAVA_OPTS, which bin/elasticsearch puts after
-+# the options of this file (the JVM takes the last -Xms and -Xmx). The two lines
-+# below are the heap without elasticsearch_heap.
+--Xms1g
+--Xmx1g
++# azsupport/ports: one file for every server. Without elasticsearch_heap in
++# /etc/rc.conf the heap is 31g (aZ, 12.11.2026: below the cutoff of compressed
++# oops near 32 GB). On a server with less than 64 GB of RAM set
++# elasticsearch_heap="16g", at most half of the RAM (the rest is the cache of
++# the file system): the rc script passes it as -Xms and -Xmx after this file.
 +
- -Xms1g
- -Xmx1g
++-Xms31g
++-Xmx31g
  
+ ################################################################
+ ## Expert settings
 @@ -46,6 +52,13 @@
  14-:-XX:+UseG1GC
  14-:-XX:G1ReservePercent=25
