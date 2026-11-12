@@ -137,7 +137,7 @@ PORTVERSION=	20261108
 CATEGORIES=	az devel
 MASTER_SITES=	https://github.com/curl/curl/releases/download/curl-8_23_0/:curl \
 		https://github.com/c-ares/c-ares/releases/download/v1.34.9/:cares \
-		https://github.com/nghttp2/nghttp2/releases/download/v1.70.0/:nghttp2 \
+		https://github.com/nghttp2/nghttp2/releases/download/v1.71.0/:nghttp2 \
 		https://codeload.github.com/google/brotli/tar.gz/v1.2.1?dummy=/:brotli \
 		https://github.com/facebook/zstd/releases/download/v1.5.7/:zstd \
 		GNU/libidn:libidn2 \
@@ -150,7 +150,7 @@ MASTER_SITES=	https://github.com/curl/curl/releases/download/curl-8_23_0/:curl \
 # curl-deps.conf, / made _) and the take lines of files/deps.conf give.
 DISTFILES=	curl-8.23.0.tar.xz:curl \
 		c-ares-1.34.9.tar.gz:cares \
-		nghttp2-1.70.0.tar.xz:nghttp2 \
+		nghttp2-1.71.0.tar.xz:nghttp2 \
 		brotli_1.2.1_google-brotli-v1.2.1_GH0.tar.gz:brotli \
 		zstd-1.5.7.tar.zst:zstd \
 		libidn2-2.3.8.tar.gz:libidn2 \
