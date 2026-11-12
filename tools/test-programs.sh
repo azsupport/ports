@@ -18,7 +18,9 @@
 # OpenSearch 2.19 (opensearch219) by opensearch-test.sh, Node.js
 # 18 (node18, npm-node18, yarn-node18, corepack-node18) by
 # node18-test.sh after the tests on node24, installed in the place of node24 (one of
-# the two: pkg takes node24 and its npm, yarn and corepack away), and Perl (perl5,
+# the two: pkg takes node24 and its npm, yarn and corepack away), OpenSearch
+# Dashboards 2.17 (opensearch-dashboards217, on node18, against opensearch217) by
+# opensearch-dashboards-test.sh after the tests of node18, and Perl (perl5,
 # under the name of FreeBSD's) by perl-test.sh, with the XS modules of FreeBSD's
 # p5-* packages, which it installs from the FreeBSD repository itself.
 #
@@ -228,6 +230,15 @@ if in_repo node18; then
 else
     say "node18: not in the repository, its tests are skipped"
 fi
+# OpenSearch Dashboards 2.17 (aZ, 12.11.2026: a legacy project): it needs node18, which
+# would take node24 away, so installed only after the test of node18, in its place (3.
+# below), with opensearch217, which its test starts
+osd_=""
+if in_repo opensearch-dashboards217; then
+    osd_=" opensearch-dashboards217"
+else
+    say "opensearch-dashboards217: not in the repository, its tests are skipped"
+fi
 # OpenJDK 21, JNA and Ant (aZ, 11.11.2026: ours, headless and without X11, for
 # Elasticsearch 6; 12.11.2026: OpenJDK 21 the one JDK, that of Elasticsearch 6 and
 # of OpenSearch 2.17, 2.19 and 3.x; JNA and Ant built and run on it) as the server
@@ -339,7 +350,8 @@ for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "ima
         "graphicsmagick GraphicsMagick" "mc mc" ${p_:+"python$p_"} "ytdlp yt-dlp ffmpeg" "utils $utils" \
         ${s_:+"servers$s_"} ${n_:+"node$n_"} ${j_:+"java$j_"} ${e_:+"elastic$e_"} \
         ${k_:+"kibana$k_ elasticsearch6 node24"} ${os_:+"opensearch$os_"} ${osu_:+"opensearch-upgrade$osu_"} \
-        ${os219_:+"opensearch219$os219_"} ${n18_:+"node18$n18_"} ${l_:+"perl$l_"}; do
+        ${os219_:+"opensearch219$os219_"} ${n18_:+"node18$n18_"} \
+        ${osd_:+"opensearch-dashboards$osd_ opensearch217 node18"} ${l_:+"perl$l_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
@@ -373,6 +385,18 @@ for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "ima
         again "$res/test-programs-install-opensearch219.log" opensearch219
         cat "$res/test-programs-install-opensearch219.log" >> "$res/test-programs-install.log"
         cat "$res/test-programs-install-opensearch219.log" >> "$log"
+    fi
+    if [ "$t" = opensearch-dashboards ]; then
+        # on the node18 of the test before it, with the OpenSearch of opensearch217
+        o_="opensearch-dashboards217"
+        if in_repo opensearch217 && ! inst opensearch217; then o_="$o_ opensearch217"; fi
+        say "pkg install -f $o_"
+        # shellcheck disable=SC2086
+        CONSERVATIVE_UPGRADE=no pkg install -y -f $o_ > "$res/test-programs-install-osd.log" 2>&1 || say "pkg install of $o_ says it failed (test-programs-install-osd.log)"
+        # shellcheck disable=SC2086
+        again "$res/test-programs-install-osd.log" $o_
+        cat "$res/test-programs-install-osd.log" >> "$res/test-programs-install.log"
+        cat "$res/test-programs-install-osd.log" >> "$log"
     fi
     miss=""
     for p in "$@"; do inst "$p" || miss="$miss $p"; done

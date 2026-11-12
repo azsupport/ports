@@ -70,7 +70,27 @@
 # rules a request gives securityAnalyticsDashboards goes through its load() (the
 # functions js-yaml 3 load() makes of !!js/function there are never called:
 # safeDump() throws on them before the rule is sent; azsupport/ports, 12.11.2026).
-# The rest, and what is not taken and why: README.md of the tree.
+# Not taken, and why: the fixes of 2.18 to 2.19.6 and 3.x in the code of the browser
+# (CVE-2026-84942 of Vega, the sanitizing of axis labels, URL and image labels,
+# VEGA_DEBUG, less in Markdown panels, field formats in the document table) and
+# CVE-2026-77811 (the integrations of observability): they are in the compiled
+# bundles, and each needs a user who can save objects, which without the security
+# plugin is everyone who reaches Dashboards, who can do anything through its console
+# anyway; but #11252 (a URL format of a field shows its values unsanitized) touches an
+# index pattern with that format on a field of untrusted values. CVE-2026-18420: the
+# mathjs evaluator of TSVB in 3.x; 2.17.1 evaluates with tinymath. #12259 and the
+# data source parts of #12085: data_source.enabled is off. The block of the config
+# type in imports (#12085): no roles here, who imports can change the settings.
+# Advisories of npm packages the server does not reach here: axios, form-data and
+# follow-redirects (the branding URLs of the configuration only), node-forge (PKCS#12
+# keystores: no SSL here), handlebars (the bootstrap template of the package), moment
+# (the locale of the configuration), lodash, minimatch, picomatch, brace-expansion
+# (paths and patterns of the code), decode-uri-component (query-string only
+# stringifies on the server), ip-address (data sources; Timeline's graphite with its
+# default allowlist), joi 14, ajv, uuid, cookie (the APM agent, off), aws-sdk and
+# bn.js (data sources), @babel/runtime, json-2-csv of reporting (preventCsvInjection
+# not set); those of the browser (dompurify, prismjs, jsPDF, canvg and the others) are
+# compiled into the bundles.
 
 PORTNAME=	opensearch-dashboards
 DISTVERSION=	2.17.1
