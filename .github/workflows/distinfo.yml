@@ -8,6 +8,10 @@ name: The distinfo of a new release
 # <file>.sha512), found there with the same SHA-256 or SHA-512. The lines for
 # distinfo (TIMESTAMP, SHA256, SIZE) go into the summary
 # of the run and into the branch runs of azsupport/azsupport (tools/runs-report.sh).
+# With "list", what is in each file too, for a port made from a binary archive
+# (textproc/opensearch217: the jars and plugins of the bundle): tar -tv or unzip -l,
+# and the text of the members whose paths match its patterns, into a report of its
+# own (<run>-list.md).
 # Started by hand: Actions, "The distinfo of a new release", "Run workflow", or
 # gh api -X POST repos/azsupport/ports/actions/workflows/distinfo.yml/dispatches
 #   -f ref=main -f 'inputs[files]=<name>=<url>' -f 'inputs[sums]=<url>'
@@ -19,6 +23,10 @@ on:
         required: true
       sums:
         description: 'The checksum files of the publisher (sha256sum or sha512sum format), separated by spaces, optional'
+        required: false
+        default: ''
+      list:
+        description: 'What is in each file: its list (tar -tv, unzip -l) and the text of its members whose paths match these shell patterns (separated by spaces; "-": the list only), into a report of its own; empty: nothing'
         required: false
         default: ''
 
@@ -36,11 +44,34 @@ jobs:
         env:
           FILES: ${{ inputs.files }}
           SUMS: ${{ inputs.sums }}
+          LIST: ${{ inputs.list }}
         run: |
           set -u
           rc=0
           mkdir -p dl
           : > notes.txt
+          : > list.md
+          # contents <name>: what is in dl/file, into list.md (LIST)
+          contents() {
+            set -f
+            { echo "## $1"; echo; echo '```'
+              case "$1" in *.zip|*.jar) unzip -l dl/file ;; *) tar -tvf dl/file ;; esac
+              echo '```'; echo; } >> list.md
+            pats=""
+            for p in $LIST; do [ "$p" = - ] || pats="$pats $p"; done
+            if [ -n "$pats" ]; then
+              rm -rf dl/x; mkdir -p dl/x
+              case "$1" in
+                *.zip|*.jar) unzip -q -o dl/file $pats -d dl/x > /dev/null 2>&1 ;;
+                *) tar -xf dl/file -C dl/x --wildcards $pats > /dev/null 2>&1 ;;
+              esac
+              (cd dl/x && find . -type f | LC_ALL=C sort) | while read -r m; do
+                { echo "### ${m#./}"; echo; echo '```'; head -c 100000 "dl/x/$m"; echo; echo '```'; echo; } >> list.md
+              done
+              rm -rf dl/x
+            fi
+            set +f
+          }
           { echo "# distinfo"; echo; echo '```'; echo "TIMESTAMP = $(date +%s)"; } > report.md
           : > dl/sums
           for u in $SUMS; do
@@ -57,7 +88,7 @@ jobs:
               s="$(sha256sum dl/file | cut -d' ' -f1)"; z="$(stat -c %s dl/file)"
               s5="$(sha512sum dl/file | cut -d' ' -f1)"
               echo "ok    $name: $u, $z bytes, SHA-256 $s" >> notes.txt
-              if [ -z "$sha" ]; then sha="$s"; size="$z"; sha5="$s5"
+              if [ -z "$sha" ]; then sha="$s"; size="$z"; sha5="$s5"; [ -z "$LIST" ] || contents "$name"
               elif [ "$s:$z" != "$sha:$size" ]; then echo "FAIL  $name: $u gives another file" >> notes.txt; rc=1; fi
             done
             [ -n "$sha" ] || continue
@@ -84,3 +115,13 @@ jobs:
           RUNS_INPUTS: files=${{ inputs.files }} sums=${{ inputs.sums }}
           RUNS_STEPS: sum=${{ steps.sum.outcome }}
         run: sh tools/runs-report.sh report.md files
+
+      # what is in the files (list), a report of its own
+      - name: The contents, to azsupport/azsupport
+        if: always() && inputs.list != ''
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: files=${{ inputs.files }} list=${{ inputs.list }}
+          RUNS_STEPS: sum=${{ steps.sum.outcome }}
+        run: sh tools/runs-report.sh list.md list
