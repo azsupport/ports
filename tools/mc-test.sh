@@ -367,10 +367,13 @@ fi
 # file_cloning=false in ~/.config/mc/ini bcloneused stays, the copy identical; a copy to
 # another file system identical, mc without an error; a Reget onto a part of the file
 # that is not aligned to the blocks (copy-clone-2-reget). Pool and md device go after.
-# clone_copy <name> <to dir>: F5 of zp/s/src.bin into the dir (the other panel)
+# clone_copy <name> <to dir> [<key>]: F5 of zp/s/src.bin into the dir (the other panel),
+# the key (r: Reget) into the dialog "File exists", F10 when the copy is whole (a copy
+# without cloning takes some seconds on the md device: up to 45 s)
 clone_copy() {
     keys_run "$T/$1.typescript" "sleep 3; printf '$down'; sleep 0.5; printf '\033[15~'; sleep 1.5; printf '$enter';
-        sleep 6; printf '$f10'; sleep 2" "$mc" -u "$T/zp/s" "$2"
+        sleep 2; ${3:+printf $3;} i=0; while [ \$i -lt 45 ] && [ \"\$(stat -f %z '$2/src.bin' 2> /dev/null)\" != 41943040 ];
+        do sleep 1; i=\$((i + 1)); done; sleep 2; printf '$f10'; sleep 2" "$mc" -u "$T/zp/s" "$2"
 }
 # ini_cloning <true|false>: file_cloning in the ini of mc (written at its exits above)
 ini_cloning() {
@@ -409,8 +412,7 @@ else
     # the blocks: the clone of the rest fails, mc appends instead, with O_WRONLY now)
     mkdir -p "$T/zp/c3"
     head -c 20972520 "$T/zp/s/src.bin" > "$T/zp/c3/src.bin"
-    keys_run "$T/cl-rg.typescript" "sleep 3; printf '$down'; sleep 0.5; printf '\033[15~'; sleep 1.5; printf '$enter';
-        sleep 2; printf r; sleep 6; printf '$f10'; sleep 2" "$mc" -u "$T/zp/s" "$T/zp/c3"
+    clone_copy cl-rg "$T/zp/c3" r
     if [ "$keys_exit" = 0 ] && cmp -s "$T/zp/s/src.bin" "$T/zp/c3/src.bin"; then
         pass "file cloning on: Reget onto 20 MB and 1000 bytes of the 40 MB, the copy identical"
     else
