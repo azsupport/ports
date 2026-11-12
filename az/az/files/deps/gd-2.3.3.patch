@@ -1,5 +1,5 @@
-Description: imagesetinterpolation() and imagescale() with IMG_BICUBIC (GD_BICUBIC, GD_BICUBIC_FIXED) failed with libgd 2.3.3: its gdImageSetInterpolationMethod() lost their case (libgd issue #847); PHP gd of every version takes this libgd
-Origin: upstream https://github.com/libgd/libgd/commit/39abd7238cea2ba8baa4bcac1d6fc01c6cb8afab (in libgd master, no release yet), the hunk of src/gd_interpolation.c as Gentoo carries it (media-libs/gd files/gd-2.3.3-GD_BICUBIC.patch), -p0
+Description: imagesetinterpolation() and imagescale() with IMG_BICUBIC (GD_BICUBIC, GD_BICUBIC_FIXED) failed with libgd 2.3.3: its gdImageSetInterpolationMethod() lost their case (libgd issue #847); PHP gd of every version takes this libgd; and CVE-2026-9672, the LZW decoder of GIF (gd_gif_in.c, imagecreatefromgif() of PHP): the second row of its table left uninitialised (table[1][0] set in its place), the data after the end code read on, the decoder state uninitialised
+Origin: upstream https://github.com/libgd/libgd/commit/39abd7238cea2ba8baa4bcac1d6fc01c6cb8afab (in libgd master, no release yet), the hunk of src/gd_interpolation.c as Gentoo carries it (media-libs/gd files/gd-2.3.3-GD_BICUBIC.patch), -p0; CVE-2026-9672: the fix openSUSE carries (gd 2.3.3, gd-CVE-2026-9672.patch of 03.08.2026, bsc#1273101, https://github.com/bmwiedemann/openSUSE/blob/master/packages/g/gd/gd-CVE-2026-9672.patch), the code the libgd bundled in PHP has had since 5.6 (libgd master still lacks it)
 
 --- src/gd_interpolation.c
 +++ src/gd_interpolation.c
@@ -15,3 +15,32 @@ Origin: upstream https://github.com/libgd/libgd/commit/39abd7238cea2ba8baa4bcac1
  		case GD_BLACKMAN:
  			im->interpolation = filter_blackman;
  			break;
+--- src/gd_gif_in.c
++++ src/gd_gif_in.c
+@@ -530,7 +530,7 @@ LWZReadByte_(gdIOCtx *fd, LZW_STATIC_DAT
+ 		}
+ 
+ 		for(; i < (1 << MAX_LWZ_BITS); ++i) {
+-			sd->table[0][i] = sd->table[1][0] = 0;
++			sd->table[0][i] = sd->table[1][i] = 0;
+ 		}
+ 
+ 		sd->sp = sd->stack;
+@@ -584,6 +584,8 @@ LWZReadByte_(gdIOCtx *fd, LZW_STATIC_DAT
+ 			if(count != 0) {
+ 				return -2;
+ 			}
++
++			return -2;
+ 		}
+ 
+ 		incode = code;
+@@ -664,7 +666,7 @@ ReadImage(gdImagePtr im, gdIOCtx *fd, in
+ 	unsigned char c;
+ 	int xpos = 0, ypos = 0, pass = 0;
+ 	int v, i;
+-	LZW_STATIC_DATA sd;
++	LZW_STATIC_DATA sd = {0};
+ 
+ 	/* Initialize the Compression routines */
+ 	if(!ReadOK(fd, &c, 1)) {

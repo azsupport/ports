@@ -1,0 +1,116 @@
+Description: CVE-2026-50811: FT_Get_Var_Design_Coordinates() asked for more coordinates than a variable font has axes read the axis array of a TrueType GX or OpenType variable font past its end (TT_Get_Var_Design, ttgxvar.c; the same pattern in T1_Get_Var_Design of a Type 1 multiple master, t1load.c); the extra coordinates are now zeroed. CVE-2026-95512: a CID-keyed font whose subroutine dictionaries overlap made cid_read_subrs() allocate and decrypt the same data again for each of its font dictionaries (memory and CPU: a denial of service); their total is now limited to four times the size of the font. The fonts FreeType of az reads are the servers' own (ImageMagick, GD, fontconfig, OpenJDK); patched anyway (aZ, 12.11.2026), not the 2.15.0 take line
+Origin: upstream FreeType https://gitlab.freedesktop.org/freetype/freetype/-/commit/8fa928f1617aba65f45b00f0dcb109f077b7741e and https://gitlab.freedesktop.org/freetype/freetype/-/commit/5a280ecde6f324de0d226261036e736e0cb49a71 (CVE-2026-50811, work item 1436, 13.05.2026), https://gitlab.freedesktop.org/freetype/freetype/-/commit/f3ca71c9900fe860849b3163a6e2c1e765b291d9 (CVE-2026-95512, work item 1457, 07.09.2026), all three in 2.15.0, after 2.14.3; as Debian carries them on 2.14.3 (freetype 2.14.3+dfsg-3, debian/patches/CVE-2026-50811.patch and CVE-2026-95512.patch; Ubuntu 2.14.3+dfsg-2ubuntu1 and 2.14.2+dfsg-1ubuntu0.3 the same), -p0
+
+--- src/type1/t1load.c
++++ src/type1/t1load.c
+@@ -677,7 +677,7 @@
+     PS_Blend  blend  = t1face->blend;
+ 
+     FT_Fixed  axiscoords[4];
+-    FT_UInt   i, nc;
++    FT_UInt   i;
+ 
+ 
+     if ( !blend )
+@@ -687,19 +687,18 @@
+                       axiscoords,
+                       blend->num_axis );
+ 
+-    nc = num_coords;
+     if ( num_coords > blend->num_axis )
+     {
+       FT_TRACE2(( "T1_Get_Var_Design:"
+                   " only using first %u of %u coordinates\n",
+                   blend->num_axis, num_coords ));
+-      nc = blend->num_axis;
++
++      FT_ARRAY_ZERO( coords + blend->num_axis, num_coords - blend->num_axis );
++      num_coords = blend->num_axis;
+     }
+ 
+-    for ( i = 0; i < nc; i++ )
++    for ( i = 0; i < num_coords; i++ )
+       coords[i] = mm_axis_unmap( &blend->design_map[i], axiscoords[i] );
+-    for ( ; i < num_coords; i++ )
+-      coords[i] = 0;
+ 
+     return FT_Err_Ok;
+   }
+--- src/truetype/ttgxvar.c
++++ src/truetype/ttgxvar.c
+@@ -3453,9 +3453,7 @@
+     TT_Face       ttface = (TT_Face)face;
+     FT_Error      error  = FT_Err_Ok;
+     GX_Blend      blend;
+-    FT_MM_Var*    mmvar;
+-    FT_Var_Axis*  a;
+-    FT_UInt       i, nc;
++    FT_UInt       i;
+ 
+ 
+     if ( !ttface->blend )
+@@ -3474,31 +3472,30 @@
+         return error;
+     }
+ 
+-    nc = num_coords;
+     if ( num_coords > blend->num_axis )
+     {
+       FT_TRACE2(( "TT_Get_Var_Design:"
+                   " only using first %u of %u coordinates\n",
+                   blend->num_axis, num_coords ));
+-      nc = blend->num_axis;
++
++      FT_ARRAY_ZERO( coords + blend->num_axis, num_coords - blend->num_axis );
++      num_coords = blend->num_axis;
+     }
+ 
+-    mmvar = blend->mmvar;
+-    a     = mmvar->axis;
+     if ( ttface->doblend )
+     {
+-      for ( i = 0; i < nc; i++, a++ )
++      for ( i = 0; i < num_coords; i++ )
+         coords[i] = blend->coords[i];
+     }
+     else
+     {
+-      for ( i = 0; i < nc; i++, a++ )
++      FT_Var_Axis*  a = blend->mmvar->axis;
++
++
++      for ( i = 0; i < num_coords; i++, a++ )
+         coords[i] = a->def;
+     }
+ 
+-    for ( ; i < num_coords; i++, a++ )
+-      coords[i] = a->def;
+-
+     return FT_Err_Ok;
+   }
+ 
+--- src/cid/cidload.c
++++ src/cid/cidload.c
+@@ -517,6 +517,7 @@
+     CID_Subrs      subr;
+     FT_UInt        max_offsets = 0;
+     FT_ULong*      offsets = NULL;
++    FT_ULong       cum_len = 0;
+     PSAux_Service  psaux = (PSAux_Service)face->psaux;
+ 
+ 
+@@ -584,6 +585,14 @@
+       /* now, compute the size of subrs charstrings, */
+       /* allocate, and read them                     */
+       data_len = offsets[num_subrs] - offsets[0];
++      cum_len += data_len;
++
++      if ( cum_len / 4 > stream->size )
++      {
++        FT_ERROR(( "cid_read_subrs: excessive overlaps\n" ));
++        error = FT_THROW( Invalid_File_Format );
++        goto Fail;
++      }
+ 
+       if ( FT_QNEW_ARRAY( subr->code, num_subrs + 1 ) ||
+            FT_QALLOC( subr->code[0], data_len )       )
