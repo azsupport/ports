@@ -13,7 +13,15 @@
 # takes it (files/patch-bin_use__node: its CONFIG_DIR typo fixed too, so node.options
 # of the configuration is read). Its version check needs no change:
 # src/setup_node_env/node_version_validator.js takes the first comparator of
-# engines.node only (">=14.20.1"), so Node.js 24 passes it. The tarball's node/
+# engines.node only (">=14.20.1"), so Node.js 24 passes it. The code of its server
+# calls none of the APIs Node.js 22 to 24 took away (util.is* and util.log,
+# crypto.createCipher, tls.createSecurePair, ...: what has those names is bluebird's
+# own util, the ciphers of node-forge and polyfills for the browser), and the
+# linux-x64 tarball answered on Node.js 24 as on 18 (the start, the tools, the
+# routes of the plugins in, reports, imports, a SIGHUP; azsupport/ports,
+# 12.11.2026); Node.js 24 warns only of url.parse() (DEP0169: the opensearch.hosts
+# of the configuration), which bin/opensearch-dashboards and the rc script do not
+# show (--no-warnings). The tarball's node/
 # (Node.js 18.19.0 and 14.21.3 for Linux) is not in the package: they are its only
 # ELF files. Its node_modules have no native module (no *.node; the @node-rs/xxhash
 # of webpack, which a production start does not load, without its platform
