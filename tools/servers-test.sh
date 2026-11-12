@@ -23,9 +23,13 @@
 #                11th unknown command (CVE-2021-3618; with TLS: ALPN only "ftp");
 #                cmds_denied takes XMKD, XRMD, XCWD, XCUP, XPWD and P@SW as MKD, RMD,
 #                CWD, CDUP, PWD and PASV (CVE-2026-119567); deny_file refuses the paths
-#                through a denied directory; curl gets a file over FTP, and over FTPS
-#                with TLS 1.3 and 1.2; a data connection over TLS with the session of
-#                another login is refused, with the login's own resumed (CVE-2026-119568)
+#                through a denied directory, and through a symbolic link to a denied
+#                directory or file (by the real path, CVE-2015-1419), and an upload
+#                named a.php.x.php with *.php in it (a * matches up to the last .php);
+#                curl gets a file over FTP, and over FTPS with TLS 1.3 and 1.2,
+#                uploads one; a data connection over TLS with the session of another
+#                login is refused, with the login's own resumed (CVE-2026-119568);
+#                the lifetime of the TLS 1.3 session tickets 7 days, not INT_MAX
 #   bind-tools   dig with libidn2 (IDN)
 #   bind920      named -V with TCP Fast Open; named-checkconf of named.conf.sample; named
 #                on 127.0.0.1:15353 with a zone of its own: dig over UDP and TCP and
@@ -257,11 +261,13 @@ vsf_tls() {
 }
 # vsftpd_test <package>: the checks of its vsftpd on 127.0.0.1:12121 with a
 # configuration of its own in $T/<package>: the anonymous login (as bin) in a root of
-# its own, with a directory it may write in (pub/up) and one deny_file denies
-# (pub/.private), cmds_denied=XPWD,CWD,CDUP,MKD,RMD,P@SW (each name of the list and of
-# the command taken as its RFC 959 one: files/patch-CVE-2026-119567) and
-# deny_file={*.mp3,*.mov,.private} (files/patch-deny_file); vsftpd-ext-openssl with
-# FTPS too: allow_anon_ssl, require_ssl_reuse=YES (its default), a certificate made here
+# its own, with a directory it may write in (pub/up), one deny_file denies
+# (pub/.private) and symbolic links to it and to a denied file (pub/link, pub/s.txt),
+# cmds_denied=XPWD,CWD,CDUP,MKD,RMD,P@SW (each name of the list and of the command
+# taken as its RFC 959 one: files/patch-CVE-2026-119567) and
+# deny_file={*.mp3,*.mov,.private,*.php} (files/patch-deny_file,
+# files/patch-deny_file-realpath); vsftpd-ext-openssl with FTPS too: allow_anon_ssl,
+# require_ssl_reuse=YES (its default), a certificate made here
 vsftpd_test() {
     vp="$1"; W="$T/$vp"
     # -v writes to the descriptor 0 (that of the control connection under inetd)
@@ -274,14 +280,17 @@ vsftpd_test() {
     echo private > "$W/ftproot/pub/dir/.private"
     echo ok > "$W/ftproot/pub/ok.txt"
     echo mp3 > "$W/ftproot/pub/a.mp3"
+    ln -s .private "$W/ftproot/pub/link"
+    ln -s a.mp3 "$W/ftproot/pub/s.txt"
+    echo upload > "$W/up.txt"
     chmod -R a+rX "$W/ftproot"
     chmod 777 "$W/ftproot/pub/up" "$W/ftproot/pub/.private"
     {
         printf '%s\n' listen=YES listen_address=127.0.0.1 listen_port=12121 background=NO \
             anonymous_enable=YES "anon_root=$W/ftproot" ftp_username=bin local_enable=NO \
             "secure_chroot_dir=$P/share/vsftpd/empty" write_enable=YES \
-            anon_mkdir_write_enable=YES anon_other_write_enable=YES \
-            cmds_denied=XPWD,CWD,CDUP,MKD,RMD,P@SW 'deny_file={*.mp3,*.mov,.private}'
+            anon_upload_enable=YES anon_mkdir_write_enable=YES anon_other_write_enable=YES \
+            cmds_denied=XPWD,CWD,CDUP,MKD,RMD,P@SW 'deny_file={*.mp3,*.mov,.private,*.php}'
         if [ "$vp" = vsftpd-ext-openssl ]; then
             printf '%s\n' ssl_enable=YES allow_anon_ssl=YES require_ssl_reuse=YES \
                 "rsa_cert_file=$W/cert.pem" "rsa_private_key_file=$W/key.pem"
@@ -333,8 +342,17 @@ vsftpd_test() {
     [ -f "$W/ftproot/pub/.private/secret" ] || s="$s(pub/.private/secret deleted)"
     d='550 Permission denied.'
     case "$s" in "213 3 $d $d $d $d $d $d $d ")
-            pass "$vp: deny_file={*.mp3,*.mov,.private}: pub/ok.txt read; pub/dir/.private, pub/a.mp3, the paths through pub/.private and to it and DELE pub/.private/secret refused" ;;
-        *) fail "$vp: deny_file={*.mp3,*.mov,.private}: the SIZE of pub/ok.txt, pub/.private/secret, pub/dir/.private, pub/a.mp3, /pub/.private/secret, pub//.private/../.private/secret and pub/.private/, DELE pub/.private/secret: $s" ;;
+            pass "$vp: deny_file={*.mp3,*.mov,.private,*.php}: pub/ok.txt read; pub/dir/.private, pub/a.mp3, the paths through pub/.private and to it and DELE pub/.private/secret refused" ;;
+        *) fail "$vp: deny_file={*.mp3,*.mov,.private,*.php}: the SIZE of pub/ok.txt, pub/.private/secret, pub/dir/.private, pub/a.mp3, /pub/.private/secret, pub//.private/../.private/secret and pub/.private/, DELE pub/.private/secret: $s" ;;
+    esac
+    # deny_file by the real path (files/patch-deny_file-realpath, CVE-2015-1419): a
+    # path through the symbolic link pub/link to pub/.private and the link pub/s.txt to
+    # pub/a.mp3 are refused (they were read)
+    r="$(vsf_ftp 'SIZE pub/link/secret' 'SIZE /pub/link/secret' 'SIZE pub/s.txt')"
+    s="$(printf '%s\n' "$r" | grep -E '^(213|250|550) ' | tr '\n' ' ')"
+    case "$s" in "$d $d $d ")
+            pass "$vp: deny_file by the real path: pub/link/secret (pub/link -> .private) and pub/s.txt (-> a.mp3) refused" ;;
+        *) fail "$vp: deny_file by the real path: the SIZE of pub/link/secret, /pub/link/secret and pub/s.txt (pub/link -> .private, pub/s.txt -> a.mp3): $s" ;;
     esac
     # a client: our curl gets a file over FTP (EPSV: PASV is denied) and, with TLS, over
     # FTPS with TLS 1.3 and 1.2: require_ssl_reuse, so its data connection resumed the
@@ -342,6 +360,22 @@ vsftpd_test() {
     if [ -x "$P/bin/curl" ]; then
         r="$("$P/bin/curl" -sS --max-time 20 --ftp-method nocwd "ftp://127.0.0.1:12121/pub/ok.txt" 2>&1)"
         if [ "$r" = ok ]; then pass "$vp: FTP: curl got pub/ok.txt"; else fail "$vp: FTP: curl: $r"; fi
+        # uploads: a.txt is stored; with *.php in deny_file a.php.x.php is refused (the
+        # * of the filter takes up to the last .php: Apache would run the file as PHP),
+        # and so is a name through the link to the denied directory
+        for f in a.txt a.php.x.php link-new.txt; do
+            u="pub/up/$f"; [ "$f" = link-new.txt ] && u=pub/link/new.txt
+            r="$("$P/bin/curl" -sS --max-time 20 --ftp-method nocwd -T "$W/up.txt" "ftp://127.0.0.1:12121/$u" 2>&1)"
+            e=$?
+            if [ "$f" = a.txt ]; then
+                if [ "$e" = 0 ] && [ "$(cat "$W/ftproot/$u" 2>/dev/null)" = upload ]; then pass "$vp: FTP: curl uploaded $u"
+                else fail "$vp: FTP: curl -T $u: exit $e: $r"; fi
+            elif [ "$e" != 0 ] && [ ! -e "$W/ftproot/pub/up/$f" ] && [ ! -e "$W/ftproot/pub/.private/new.txt" ]; then
+                pass "$vp: deny_file: the upload of $u refused: $(printf '%s' "$r" | tr '\n' ' ')"
+            else
+                fail "$vp: deny_file: the upload of $u: exit $e: $r$(ls "$W/ftproot/pub/up" "$W/ftproot/pub/.private" 2>&1 | tr '\n' ' ')"
+            fi
+        done
         if [ "$vp" = vsftpd-ext-openssl ]; then
             for v in 1.3 1.2; do
                 r="$("$P/bin/curl" -sS --max-time 20 -k --ssl-reqd "--tlsv$v" --tls-max "$v" --ftp-method nocwd \
@@ -371,6 +405,15 @@ vsftpd_test() {
             if [ -s "$W/b.sess" ]; then
                 vsf_tls "$o" ab "$W/b.sess"
                 vsf_tls "$o" aa "$W/aa.sess"
+            fi
+            # the lifetime of the session tickets of TLS 1.3: 7 days, which RFC 8446 allows
+            # at most (require_ssl_reuse sets the timeout of the sessions to INT_MAX, which
+            # clients on GnuTLS refused as the lifetime, Debian #929958; OpenSSL 3 sends
+            # 7 days at most)
+            if [ "$v" = 1.3 ]; then
+                lt="$(openssl sess_id -in "$W/b.sess" -noout -text 2>/dev/null | sed -n 's/.*lifetime hint: *\([0-9]*\).*/\1/p')"
+                if [ "$lt" = 604800 ]; then pass "$vp: FTPS, TLS 1.3: the lifetime of the session tickets 604800 s (7 days)"
+                else fail "$vp: FTPS, TLS 1.3: the lifetime of the session tickets ${lt:-not found}, not 604800"; fi
             fi
             echo end > "$W/b.done"
             wait "$b"
