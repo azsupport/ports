@@ -9,8 +9,8 @@
 # vips, qt-faststart) by servers-test.sh, Node.js (node24, npm-node24,
 # yarn-node24, corepack-node24) by node-test.sh, Python (python312, py312-sqlite3,
 # mpdecimal, python3; the official py312-* packages over it) by python-test.sh,
-# OpenJDK 17 and 21, JNA and Ant (openjdk17 and openjdk21, headless, side by side,
-# jna without X11, apache-ant on openjdk21) by java-test.sh,
+# OpenJDK 21, JNA and Ant (openjdk21 headless, jna without X11, apache-ant on
+# openjdk21) by java-test.sh,
 # Elasticsearch 6 by elastic-test.sh, Kibana 6 (on our node24, with elasticsearch6)
 # by kibana-test.sh, OpenSearch 2.17 (opensearch217) by opensearch-test.sh, the way
 # of aZ's nodes from opensearch217 to opensearch219 by opensearch-upgrade-test.sh
@@ -228,11 +228,11 @@ if in_repo node18; then
 else
     say "node18: not in the repository, its tests are skipped"
 fi
-# OpenJDK 17 and 21, JNA and Ant (aZ, 11.11.2026: ours, headless and without X11,
-# those of Elasticsearch 6; 12.11.2026: OpenJDK 21, that of OpenSearch 2.19 and 3.x,
-# the same way, side by side with 17; JNA and Ant built and run on 21) as the server
+# OpenJDK 21, JNA and Ant (aZ, 11.11.2026: ours, headless and without X11, for
+# Elasticsearch 6; 12.11.2026: OpenJDK 21 the one JDK, that of Elasticsearch 6 and
+# of OpenSearch 2.17, 2.19 and 3.x; JNA and Ant built and run on it) as the server
 # packages, before Elasticsearch
-javas="openjdk17 openjdk21 jna apache-ant"
+javas="openjdk21 jna apache-ant"
 j_=""
 for p in $javas; do in_repo "$p" && j_="$j_ $p"; done
 if [ -n "$j_" ]; then
@@ -246,7 +246,7 @@ if [ -n "$j_" ]; then
     want="$want$j_"
 fi
 # Elasticsearch 6 (aZ, 11.11.2026: the legacy sites) as the server packages; its
-# OpenJDK 17 and JNA are those above
+# OpenJDK 21 and JNA are those above
 elastic="elasticsearch6"
 e_=""
 for p in $elastic; do in_repo "$p" && e_="$e_ $p"; done
@@ -276,7 +276,7 @@ if [ -n "$k_" ]; then
     want="$want$k_"
 fi
 # OpenSearch 2.17 (aZ, 12.11.2026: a legacy project) as the server packages; its
-# OpenJDK 17 and JNA are those above
+# OpenJDK 21 and JNA are those above
 opensearches="opensearch217"
 os_=""
 for p in $opensearches; do in_repo "$p" && os_="$os_ $p"; done

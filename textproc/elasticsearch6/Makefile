@@ -177,6 +177,11 @@ USERS=		${SEARCHUSER}
 GROUPS=		${SEARCHGROUP}
 
 SUB_LIST=	ETCDIR=${ETCDIR} JAVA_HOME=${JAVA_HOME}
+# pkg-message: a message for an upgrade from a package on OpenJDK 17 too (what to
+# do with elasticsearch_java_home of rc.conf and with openjdk17): its
+# maximum_version is 6.8.23_26111400, 14.11.2026 00:00 UTC (PORTREVISION is the
+# hour of the build, yymmddhh in UTC), as every package on 17 was built before
+# (the official 6.8.16 too)
 SUB_FILES=	pkg-message
 
 post-patch:

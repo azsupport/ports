@@ -1,10 +1,10 @@
 #!/bin/sh
-# java-test.sh - test the JDKs of the repository az, JNA and Ant, installed from it
-# (aZ, 11.11.2026: our openjdk17, headless, and jna without X11, for Elasticsearch
-# 6; 12.11.2026: our openjdk21, made as openjdk17, for OpenSearch 2.19 and 3.x, and
-# JNA and Ant built and run on it): each JDK installed of openjdk17 and openjdk21
-# (both side by side when both are), with Java programs compiled here with its javac
-# and run with its java; each line of the checks of a JDK begins with its name:
+# java-test.sh - test the JDK of the repository az, JNA and Ant, installed from it
+# (aZ, 11.11.2026: our JDK headless and jna without X11, so that a server with
+# Elasticsearch gets nothing of a desktop; 12.11.2026: openjdk21 the one JDK, that
+# of Elasticsearch 6 and of OpenSearch 2.17, 2.19 and 3.x, with JNA and Ant built
+# and run on it): the JDK of openjdk21, with Java programs compiled here with its
+# javac and run with its java; each line of its checks begins with its name:
 #   version   java -version is that of the package; no bin/java in /usr/local/bin
 #             (no javavmwrapper)
 #   headless  java.awt.GraphicsEnvironment.isHeadless(), without DISPLAY and with
@@ -40,21 +40,18 @@
 #             loaded (-Djna.debug_load.jna=true logs which jnidispatch, procstat),
 #             nothing extracted from the jar (-Djna.debug_load=true logs an
 #             extraction; jna.tmpdir stays empty)
-#   jdk21     openjdk21 alone: what OpenSearch 2.19 and 3.x take of JDK 21 (Lucene
-#             9.12 and 10): a dot product through the Vector API of the module
+#   jdk21     what OpenSearch 2.19 and 3.x take of JDK 21 (Lucene 9.12 and 10): a
+#             dot product through the Vector API of the module
 #             jdk.incubator.vector (--add-modules, as their jvm.options), a file
 #             mapped as a MemorySegment (MMapDirectory) and getpid of libc through
 #             the Linker (FFM, a preview API in 21: --enable-preview)
-#   side by side  both JDKs installed: no file of the one is a file of the other,
-#             each java -version its own (the checks of each above, with the other
-#             installed)
 #   jna.jar   its classes for Java 8 (class file version 52: JNA builds with javac
-#             release 8, on openjdk21), so that it runs on 17 and 21 alike
+#             release 8, on openjdk21)
 #   ant       bin/ant of apache-ant, when it is installed, on the java of the JDK it
 #             needs (openjdk21; no JAVA_HOME, no JAVACMD): a build.xml that compiles
-#             a class for Java 8 into a jar, which each JDK runs
-#   deps      pkg info -d of each JDK and of jna: az only; of apache-ant: openjdk21
-#             only; elasticsearch6, when it is installed: bash, jna and openjdk17,
+#             a class for Java 8 into a jar, which the JDK runs
+#   deps      pkg info -d of the JDK and of jna: az only; of apache-ant: openjdk21
+#             only; elasticsearch6, when it is installed: bash, jna and openjdk21,
 #             and among all the packages it needs none of a desktop
 #
 # Usage (FreeBSD, as root, the packages installed): sh tools/java-test.sh
@@ -67,7 +64,7 @@ set -u
 res="${AZ_RESULTS:-$(pwd)/java-results}"
 T0="${JAVA_TEST_WORK:-/var/tmp/java-test}"
 P=/usr/local
-JDKS_ALL="openjdk17 openjdk21"
+JDKS_ALL="openjdk21"
 jna="$P/share/java/classes/jna.jar"
 mkdir -p "$res"
 rm -rf "$T0"; mkdir -p "$T0/src"
@@ -676,38 +673,14 @@ done
 JN=""
 [ ! -e "$P/bin/java" ] || note "$P/bin/java is there, of $(pkg which -q "$P/bin/java" 2>/dev/null || echo 'no package') (not of a JDK of ours)"
 
-# side by side: no file of the one JDK is one of the other (pkg would not have
-# installed the two), each with its own java (the checks of each above, made with
-# the other installed)
-if [ "$jdks" = "openjdk17 openjdk21" ]; then
-    for p in $jdks; do
-        pkg info -l "$p" | sed -n 's/^[[:space:]]*\(\/.*\)/\1/p' | LC_ALL=C sort > "$res/files-$p.txt"
-    done
-    both="$(LC_ALL=C comm -12 "$res/files-openjdk17.txt" "$res/files-openjdk21.txt" | head -n 5 | tr '\n' ' ')"
-    n17="$(wc -l < "$res/files-openjdk17.txt" | tr -d ' ')"; n21="$(wc -l < "$res/files-openjdk21.txt" | tr -d ' ')"
-    if [ -z "$both" ] && [ "$n17" -gt 100 ] && [ "$n21" -gt 100 ]; then
-        pass "openjdk17 ($n17 files) and openjdk21 ($n21 files) side by side: no file in common"
-    else
-        fail "openjdk17 ($n17 files) and openjdk21 ($n21 files) side by side: the files in common: ${both:-none}"
-    fi
-    v17="$(sed -n 1p "$res/openjdk17/java-version.txt")"; v21="$(sed -n 1p "$res/openjdk21/java-version.txt")"
-    case "$v17 / $v21" in
-        *'version "17.'*' / '*'version "21.'*) pass "each its own java: $P/openjdk17/bin/java $v17; $P/openjdk21/bin/java $v21" ;;
-        *) fail "each its own java: $P/openjdk17/bin/java ${v17:-told nothing}; $P/openjdk21/bin/java ${v21:-told nothing}" ;;
-    esac
-else
-    note "one JDK of ours installed ($jdks): the checks of the two side by side are not made"
-fi
-
-# jna.jar for Java 8 and later (javac.release 8 of JNA, built on 21): it runs on 17
-# and 21 alike
+# jna.jar for Java 8 and later (javac.release 8 of JNA, built on 21)
 cv="$(tar -xOf "$jna" com/sun/jna/Native.class 2>/dev/null | od -An -j 7 -N 1 -t u1 | tr -d ' ')"
 if [ "$cv" = 52 ]; then pass "jna.jar: class file version 52 (Java 8), for every JDK of ours"
 else fail "jna.jar: class file version ${cv:-none} (com/sun/jna/Native.class), not 52 (Java 8)"; fi
 
 # ant: bin/ant of apache-ant runs the java of the JDK it needs (openjdk21; no
 # JAVA_HOME, no JAVACMD), with a build.xml that compiles a class for Java 8 (javac
-# release 8, as JNA builds) into a jar, which each JDK runs then
+# release 8, as JNA builds) into a jar, which the JDK runs then
 if pkg info -e apache-ant; then
     A="$T0/ant"
     rm -rf "$A"; mkdir -p "$A/src"
@@ -768,8 +741,8 @@ fi
 
 if pkg info -e elasticsearch6; then
     d="$(pkg query '%dn' elasticsearch6 | LC_ALL=C sort -u | tr '\n' ' ')"
-    if [ "$d" = "bash jna openjdk17 " ]; then pass "pkg info -d elasticsearch6: bash, jna, openjdk17"
-    else fail "pkg info -d elasticsearch6: ${d:-nothing}, not bash, jna, openjdk17"; fi
+    if [ "$d" = "bash jna openjdk21 " ]; then pass "pkg info -d elasticsearch6: bash, jna, openjdk21"
+    else fail "pkg info -d elasticsearch6: ${d:-nothing}, not bash, jna, openjdk21"; fi
     # every package elasticsearch6 needs, also through the others
     have="elasticsearch6"; new="elasticsearch6"
     while [ -n "$new" ]; do

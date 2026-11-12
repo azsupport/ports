@@ -91,13 +91,12 @@ Names and origins as the ports, files at the paths of the ports:
 | `node18`, `npm-node18`, `yarn-node18`, `corepack-node18` | `www/node18`, `www/npm-node18`, `www/yarn-node18`, `www/corepack-node18` | Node.js 18.20.8, the last 18.x (end of life since 30.04.2025), for a legacy project, back in the ports (the official port went on 2025-09-03), with npm 10.9.10 and corepack 0.33.0 (the last ones for Node 18) and Yarn 1.22.19 (that of `yarn-node24`): `node` on brotli, c-ares, ICU, nghttp2 and libuv of az, llhttp 9.4.3 of `www/llhttp` and the OpenSSL and zlib of the base system; the fixes of the vulnerabilities after the end of life as SUSE carries them for its nodejs18 18.20.8 (SLE 15 SP4 LTSS; with llhttp 9) and, backported, those of the Node.js 22 and 24 security releases of October and November 2026 (dns, http.Agent, tls.checkServerIdentity, https.Agent, zlib, crypto in startup snapshots; the fixes of the TLS and HTTP/2 code, for servers too; the eMudhra/emSign intermediates of compromised keys refused in every chain), with undici 6.29.1 of Node.js 22.23.4 in the place of 5.29.0 (the list, and what is left out and why, in `www/node18/Makefile`); one of `node18` and `node24`, with their npm, yarn and corepack (`pkg install node18 npm-node18 yarn-node18` takes those of node24 away; not with `kibana6`, which needs node24) |
 | `libada`, `llhttp`, `nbytes`, `libnghttp3`, `libngtcp2`, `simdjson`, `uvwasi`, `hdr_histogram` | `devel/libada`, `www/llhttp`, `www/nbytes`, `www/libnghttp3`, `net/libngtcp2`, `devel/simdjson`, `devel/uvwasi`, `graphics/hdr_histogram` | the libraries that Node.js bundles, as ports of this tree (aZ, 11.11.2026): the official ports as they are, `uvwasi` ours on the libuv of az |
 | `python312`, `py312-sqlite3`, `mpdecimal`, `python3` | `lang/python312`, `databases/py-sqlite3`, `math/mpdecimal`, `lang/python3` | Python 3.12, the default Python of the ports tree, under the names of the official packages (aZ, 11.11.2026), so that the `py312-*` packages of the FreeBSD repository (those of yt-dlp) install over it and use it: the options of the official package (LTO, PYMALLOC, IPV6, NLS), libffi, expat, readline and libintl of az, OpenSSL, ncurses, zlib, bzip2 and liblzma of the base system, libmpdec of `mpdecimal` (the official port as it is); its module sqlite3, `py312-sqlite3`, on the SQLite of az; no gdbm and tkinter; `python3` the official meta port as it is (`bin/python3` and the other links to Python 3.12) |
-| `elasticsearch6` | `textproc/elasticsearch6` | Elasticsearch 6.8.23, the last 6.x, for the legacy sites, back in the ports (the official port went on 2023-01-01, at 6.8.16): its rc script with profiles; on our OpenJDK 21 (`java/openjdk21`; aZ, 12.11.2026: one JDK with OpenSearch; `-Djava.security.manager=allow` in `jvm.options`, without which JDK 18 and later refuse its Security Manager), the four lines of the warning of the JDK about `System::setSecurityManager` and the two about the COMPAT locale provider taken out of its start; without ML; the error files of a crash of the JVM in `/var/log/elasticsearch`; no writes of no use (aZ, 11.11.2026): no heap dump at an OutOfMemoryError, no GC log, nothing in `/tmp` but the one `/tmp/elasticsearch` (no `hsperfdata`; its temporary directory, `elasticsearch_tmpdir` of `rc.conf`, made anew at each start), no archives of old logs (the log files of Elastic's `log4j2.properties` as they are, each rolled at its size alone and the rolled file deleted at once: no dated files, no `.gz`); `xpack.ssl.cipher_suites` without the four suites OpenJDK 17 no longer has (no `[ERROR]` about unsupported ciphers at start); `jvm.options` for OpenJDK 17, one file for every server (`-XX:UseAVX=2` for JDK 10 alone: on JDK 17 it warned at every start on a CPU without AVX2; `-XX:+ExitOnOutOfMemoryError`; each change with its source in the file); the heap of a server is `elasticsearch_heap="4g"` in `rc.conf` (`-Xms` and `-Xmx`), without it the 31g of `jvm.options` (below the cutoff of compressed oops; for a server with 64 GB of RAM and more: with less set `elasticsearch_heap`, at most half of the RAM); its tools run by hand (`elasticsearch-keystore`, `elasticsearch-plugin` and the others) leave nothing in `/tmp` either; licences: the default distribution with X-Pack, so Apache 2.0 and the Elastic License 1.0 (its `LICENSE.txt`), which allows the use at no charge and no redistribution |
+| `elasticsearch6` | `textproc/elasticsearch6` | Elasticsearch 6.8.23, the last 6.x, for the legacy sites, back in the ports (the official port went on 2023-01-01, at 6.8.16): its rc script with profiles; on our OpenJDK 21 (`java/openjdk21`; aZ, 12.11.2026: one JDK with OpenSearch; `-Djava.security.manager=allow` in `jvm.options`, without which JDK 18 and later refuse its Security Manager), the four lines of the warning of the JDK about `System::setSecurityManager` and the two about the COMPAT locale provider taken out of its start; without ML; the error files of a crash of the JVM in `/var/log/elasticsearch`; no writes of no use (aZ, 11.11.2026): no heap dump at an OutOfMemoryError, no GC log, nothing in `/tmp` but the one `/tmp/elasticsearch` (no `hsperfdata`; its temporary directory, `elasticsearch_tmpdir` of `rc.conf`, made anew at each start), no archives of old logs (the log files of Elastic's `log4j2.properties` as they are, each rolled at its size alone and the rolled file deleted at once: no dated files, no `.gz`); `xpack.ssl.cipher_suites` without the four suites OpenJDK 17 and 21 no longer have (no `[ERROR]` about unsupported ciphers at start); `jvm.options` for OpenJDK 17 and later, one file for every server (`-XX:UseAVX=2` for JDK 10 alone: on JDK 17 it warned at every start on a CPU without AVX2; `-XX:+ExitOnOutOfMemoryError`; each change with its source in the file); the heap of a server is `elasticsearch_heap="4g"` in `rc.conf` (`-Xms` and `-Xmx`), without it the 31g of `jvm.options` (below the cutoff of compressed oops; for a server with 64 GB of RAM and more: with less set `elasticsearch_heap`, at most half of the RAM); its tools run by hand (`elasticsearch-keystore`, `elasticsearch-plugin` and the others) leave nothing in `/tmp` either; licences: the default distribution with X-Pack, so Apache 2.0 and the Elastic License 1.0 (its `LICENSE.txt`), which allows the use at no charge and no redistribution |
 | `kibana6` | `textproc/kibana6` | Kibana 6.8.23, the last 6.x, for the legacy sites with `elasticsearch6`, back in the ports (the official port went on 2022-03-31, at 6.8.16, with Node.js 10): on our `node24`, with what it needs of Node.js 10 put back (`util.is*` and `util.log`, the MD4 of webpack 4 as MD5, a rejected promise nothing handles a warning, the IPv4 address of `localhost` first), the fixes of hapi for Node.js 11 and 16 in its hapi 17, and `re2` (Timelion's labels) as node-re2 1.27.1 built for this Node.js, with the RE2 2025-11-05 and abseil 20260817.0 it vendors compiled in (a node-re2 that vendors others stops the build); its rc script with daemon(8), as the user www, `reload` for the log; without Machine Learning and Reporting (no Chromium or PhantomJS for FreeBSD), the bundles of the browser built in the build for that set of plugins; licences: the default distribution with X-Pack, so Apache 2.0 and the Elastic License 1.0 (its `LICENSE.txt`), which allows the use at no charge and no redistribution |
 | `opensearch217` | `textproc/opensearch217` | OpenSearch 2.17.1, the last 2.17.x (2.17.2 was never released), for a legacy project: the bundle of OpenSearch that the official `textproc/opensearch` installed at 2.17.1 (the branch 2025Q1 of freebsd-ports), with its rc script with profiles, on OpenJDK 21 of ours (`java/openjdk21`, the JDK of its bundle and of 3.x; aZ, 12.11.2026) and the JNA of `devel/jna` (its library from `lib/jna`, nothing unpacked at a start); without `opensearch-security` (aZ, 12.11.2026: no TLS and no passwords; the rc script refuses a start with a `plugins.security.*` setting in `opensearch.yml`, such as `plugins.security.disabled: true`, and names its lines) and without the plugins that cannot run on FreeBSD or need one that cannot: k-NN (its engines are native code of Linux), Neural Search, Performance Analyzer (the other 19 plugins of the bundle and every module are in, as on aZ's cluster of 2.17.1, so that a node of this package can take the place of one of his; ML Commons runs its remote models only: its local ones need native code of Linux, and the two jars of that code, ONNX Runtime with CUDA and the tokenizers of DJL, 309 of the 357 MiB of the plugin, are left out: aZ, 12.11.2026); the jars of the bundle as they are; the decisions of `elasticsearch6`: the heap is `opensearch_heap` of `rc.conf`, without it the 31g of `jvm.options`, no heap dump, no GC log, nothing in `/tmp` but `/tmp/opensearch` (`opensearch_tmpdir`, made anew at each start), no archives of old logs, the warnings JDK 21 prints at each start for what OpenSearch sets itself taken out (`System::setSecurityManager`, the incubator module `jdk.incubator.vector`, the COMPAT locale provider); its tools run by hand without `JAVA_HOME` and leave nothing in `/tmp`; the paths of the official port, `/var/db/opensearch` and `/var/log/opensearch` |
 | `opensearch219` | `textproc/opensearch219` | OpenSearch 2.19.7, in the place of the official `textproc/opensearch219` and ahead of it (2.19.6 in freebsd-ports, 12.11.2026), for the migration of aZ's cluster of 2.17.1 to 3.x (aZ, 12.11.2026: 3.x upgrades from 2.19 alone): his sites give the text of their visitors to `query_string`, and up to 2.19.6 a `query_string` with deeply nested parentheses overflows the stack of Lucene's parser and halts the node, which 2.19.7 prevents (`search.query.max_query_nesting_depth`, 200; CVE-2025-9624, a `query_string` of nested clauses, is fixed since 2.19.4 by `search.query.max_query_string_length`, 32000), with the other fixes of 2.19.7 listed in the header of its Makefile; on OpenJDK 21 of ours (`java/openjdk21`: the JDK of its bundle and the least of 3.x; 2.x does not run on JDK 24 and later, which refuse its Security Manager) and the JNA of `devel/jna`; every decision of `opensearch217`: without `opensearch-security` (the rc script refuses a `plugins.security.*` setting), k-NN, Neural Search and Performance Analyzer, `opensearch-ml` without its two jars of native code, the other plugins of the bundle and every module in, and Learning to Rank (`opensearch-ltr`, the one plugin of the bundle of 2.19 that 2.17.1 lacks: Java); the jars of the bundle as they are; the heap `opensearch_heap` of `rc.conf` or the 31g of `jvm.options`; nothing written that is of no use, and the warnings JDK 21 prints at each start for what OpenSearch sets itself taken out; the tools without `JAVA_HOME`; the paths `/var/db/opensearch` and `/var/log/opensearch`; the prepackaged rules of Security Analytics, which 2.19 reads from the directory of the configuration, in `/usr/local/etc/opensearch/opensearch-security-analytics` (the official port leaves them out); `pkg install opensearch219` takes the place of `opensearch217` on its data ([`tools/opensearch-upgrade-test.sh`](tools/opensearch-upgrade-test.sh): aZ's node ko44, of the cluster manager alone, and a data node of 2.17.1 come up as 2.19.7 with their indices, documents and objects of the plugins; of his cluster settings the five exporters of query-insights per metric of 2.17, which 2.19 does not have (it has one exporter of all), become `archived.*`, the rest is kept, and on a new cluster of 2.19 they are refused as not recognized; a cluster of a node of each version) |
 | `perl5` | `lang/perl5.42` | Perl 5.42 under the name of FreeBSD's (aZ, 11.11.2026), so that the `p5-*` packages of the FreeBSD repository work with it: the official port as it is (threads, MULTIPLICITY, 64-bit integers, the shared libperl), without DTrace, as every build here (its probes are in the core of Perl only: the XS modules of FreeBSD's packages load and run with it, [`tools/perl-test.sh`](tools/perl-test.sh)) |
-| `openjdk17` | `java/openjdk17` | the JDK of `elasticsearch6`, ours (aZ, 11.11.2026), so that a server with Elasticsearch gets nothing of a desktop: OpenJDK 17 headless in `/usr/local/openjdk17`, without X11, sound, fonts and javavmwrapper (no `/usr/local/bin/java`), on the libjpeg, FreeType and Little CMS of az; needs `az` only |
-| `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | the JDK of `opensearch217` and `opensearch219`, and of OpenSearch 3.x later, ours (aZ, 12.11.2026: one JDK for them all: 2.x does not run on JDK 24 and later, where the Security Manager is disabled for good, and 3.x needs 21 at least): OpenJDK 21 made as `openjdk17`, headless in `/usr/local/openjdk21`, without X11, sound, fonts and javavmwrapper, on the libjpeg, FreeType and Little CMS of az, installed side by side with `openjdk17` (no file in common, each by its `JAVA_HOME`); JNA without X11 and JAWT, on the libffi of az, its library also as `/usr/local/lib/jna/libjnidispatch.so`, which `elasticsearch6`, `opensearch217` and `opensearch219` load (`-Djna.boot.library.path`, `-Djna.nounpack`: nothing unpacked at a start), built on 21 for Java 8 (its jar runs on 17 and 21 alike); Ant, the official port, on our JDK 21, to build JNA (aZ, 12.11.2026: JNA and Ant on 21, 17 left to `elasticsearch6`). `openjdk21` and `jna` need `az` only |
+| `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | the JDK of `elasticsearch6`, `opensearch217` and `opensearch219`, and of OpenSearch 3.x later, ours (aZ, 11.11.2026: so that a server with Elasticsearch gets nothing of a desktop; 12.11.2026: one JDK for them all: OpenSearch 2.x and Elasticsearch 6 do not run on JDK 24 and later, where the Security Manager is disabled for good, and OpenSearch 3.x needs 21 at least): OpenJDK 21 headless in `/usr/local/openjdk21`, without X11, sound, fonts and javavmwrapper (no `/usr/local/bin/java`), on the libjpeg, FreeType and Little CMS of az; JNA without X11 and JAWT, on the libffi of az, its library also as `/usr/local/lib/jna/libjnidispatch.so`, which `elasticsearch6`, `opensearch217` and `opensearch219` load (`-Djna.boot.library.path`, `-Djna.nounpack`: nothing unpacked at a start), built on 21 for Java 8; Ant, the official port, on our JDK 21, to build JNA (aZ, 12.11.2026: JNA and Ant on 21). `openjdk21` and `jna` need `az` only |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives, and the fixes of the vulnerabilities the official port lacks, from Fedora: CVE-2014-8141 … CVE-2022-0530, zip bombs, and from Debian 6.0-31 and OpenBSD (`files/debian/`): CAN-2026-2034442 and CAN-2026-2034443 (a heap and a stack overflow), CVE-2022-1271 of zipgrep, the ZIP64 archives of Windows, the times of the Unix extra fields; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS, with the fix of CVE-2026-96512 (three upstream commits); `bash` without NLS, with three fixes of 5.3 as Gentoo carries them: `wait` of an ended background job, command substitutions with a large environment, the prompt in a single-byte locale; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL, the fixes of CVE-2026-15146, CVE-2026-58470, CVE-2026-58471 and CVE-2026-58472 as Ubuntu carries them; `rsync` 3.5.2, ahead of the official 3.5.1 for its security fixes: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
@@ -351,27 +350,32 @@ Names and origins as the ports, files at the paths of the ports:
   libraries of each module, TLS with the CA store of the base system, hashlib, ctypes,
   decimal, expat, sqlite3, gettext, readline, the compressions; `py312-six` and
   `py312-markupsafe` of FreeBSD over our `python312`).
-- **`java/openjdk17`**, **`devel/jna`** and **`devel/apache-ant`**: the JDK of
-  `textproc/elasticsearch6` and the JNA of it and of `textproc/opensearch217` and `textproc/opensearch219`, ours (aZ, 11.11.2026: a server with Elasticsearch gets
-  nothing of a desktop; the official `openjdk17` pulls about 50 packages of one, X11,
-  fonts, ALSA, HarfBuzz with GLib and Python, giflib, PNG, javavmwrapper, the official
-  `jna` libX11 and libXt), with the names, origins, versions and paths of the official
-  packages. `openjdk17` takes the version, distinfo and patches of the official port of
-  the pinned commit as they are (a new version comes with the pin; of its patches the
-  two that link fontconfig are left out, by name and SHA-256) and builds OpenJDK 17
-  headless (`--enable-headless-only`: `libawt_headless`, no `libawt_xawt` and
+- **`java/openjdk21`**, **`devel/jna`** and **`devel/apache-ant`**: the JDK of
+  `textproc/elasticsearch6`, `textproc/opensearch217` and `textproc/opensearch219`,
+  and of OpenSearch 3.x later, and the JNA of the three, ours (aZ, 11.11.2026: a
+  server with Elasticsearch gets nothing of a desktop; the official OpenJDK pulls
+  about 50 packages of one, X11, fonts, ALSA, HarfBuzz with GLib and Python, giflib,
+  PNG, javavmwrapper, the official `jna` libX11 and libXt; 12.11.2026: one JDK for
+  them all: OpenSearch 2.x and Elasticsearch 6 do not run on JDK 24 and later, where
+  the Security Manager is disabled for good, and OpenSearch 3.x needs 21 at least),
+  with the names, origins, versions and paths of the official packages. `openjdk21`
+  takes the version, distinfo and patches of the official port of the pinned commit
+  as they are (a new version comes with the pin; of its patches the two that link
+  fontconfig are left out, by name and SHA-256) and builds OpenJDK 21 headless
+  (`--enable-headless-only`: `libawt_headless`, no `libawt_xawt` and
   `libsplashscreen`, so giflib and libpng stay bundled and unused; without the
-  headers of X11 too, with the change of OpenJDK for that backported, JDK-8376684
-  of 04.02.2026: 17u needs them headless), without sound (no
-  ALSA and `libjsound` on FreeBSD, as on AIX and OpenBSD: `javax.sound` finds no
-  devices) and without DTrace, on the libjpeg (mozjpeg), FreeType and Little CMS of az
-  (the run path `/usr/local/az/lib` after `$ORIGIN`, in the three libraries that link
-  them), the zlib of the base system and the HarfBuzz it bundles (no port of ours has
-  it); no fonts and no javavmwrapper (no `/usr/local/bin/java`: Elasticsearch takes
-  `JAVA_HOME`); CUPS and the headers of fontconfig (of az) only to build. fontconfig
-  is not linked: OpenJDK loads `libfontconfig.so.1` with dlopen by its name when it
-  needs the fonts of the system, and the rtld of FreeBSD looks for it in
-  `LD_LIBRARY_PATH`, the run path of `bin/java`, the ldconfig hints and `/lib`,
+  headers of X11 too, with the change of OpenJDK for that backported, JDK-8376684 of
+  04.02.2026: 21u needs them headless, to compile and in its configure,
+  `NEEDS_LIB_X11` of `make/autoconf/libraries.m4`), without sound (no ALSA and
+  `libjsound` on FreeBSD, as on AIX and OpenBSD: `javax.sound` finds no devices) and
+  without DTrace, on the libjpeg (mozjpeg), FreeType and Little CMS of az (the run
+  path `/usr/local/az/lib` after `$ORIGIN`, in the three libraries that link them),
+  the zlib of the base system and the HarfBuzz it bundles (no port of ours has it);
+  no fonts and no javavmwrapper (no `/usr/local/bin/java`: Elasticsearch and
+  OpenSearch take `JAVA_HOME`); CUPS and the headers of fontconfig (of az) only to
+  build. fontconfig is not linked: OpenJDK loads `libfontconfig.so.1` with dlopen by
+  its name when it needs the fonts of the system, and the rtld of FreeBSD looks for
+  it in `LD_LIBRARY_PATH`, the run path of `bin/java`, the ldconfig hints and `/lib`,
   `/usr/lib`, never in `/usr/local/az/lib`: with our packages only Java has no fonts
   at all (every use of a font throws `java.lang.InternalError` of
   `sun.font.FontManagerFactory`, a font file too; Elasticsearch draws no text), with
@@ -387,42 +391,23 @@ Names and origins as the ports, files at the paths of the ports:
   dependency on that file: its process maps it, and its system call filter, set
   through JNA, is on, [`tools/elastic-test.sh`](tools/elastic-test.sh); `opensearch217` and
   `opensearch219` the same, [`tools/opensearch-test.sh`](tools/opensearch-test.sh)); built with
-  our `openjdk21` and `apache-ant` (aZ, 12.11.2026: on 21, 17 left to
-  `elasticsearch6`; Ant the official port with `JAVA_VERSION`
-  21, `bin/ant` on the `java` of `openjdk21`): one JDK in the build; JNA compiles
-  for Java 8 (`javac --release 8`), so its jar runs on 17 and 21 alike (the port
-  checks the class file version, 52). The ports check
+  our `openjdk21` and `apache-ant` (aZ, 12.11.2026; Ant the official port with
+  `JAVA_VERSION` 21, `bin/ant` on the `java` of `openjdk21`): one JDK in the build;
+  JNA compiles for Java 8 (`javac --release 8`; the port checks the class file
+  version, 52). The ports check
   what they build (every ELF of the JDK without the libraries of X11, ALSA, giflib,
   libpng, HarfBuzz and fontconfig; the libraries of az by their run path; the
   dependencies: az only). Tests after the install:
-  [`tools/java-test.sh`](tools/java-test.sh) (for each of `openjdk17` and `openjdk21`
-  installed: headless, ImageIO with JPEG and PNG, an ICC conversion, text,
-  `AudioSystem`, TLS 1.3 on 127.0.0.1, the libraries of az in the process, `ldd` of
-  every ELF file of the JDK (the libraries of the JDK, of the base system and of
-  `/usr/local/az/lib` alone, nothing of X11), `getpid()` through JNA, from the jar
-  and from `lib/jna`; for `openjdk21` also a dot product through the Vector API of
-  `jdk.incubator.vector`, a file mapped as a `MemorySegment` and `getpid()` through
-  the `Linker` of FFM, as OpenSearch 2.19 and 3.x use them; the two JDKs side by
-  side; the classes of `jna.jar` for Java 8; `bin/ant` on `openjdk21`, a jar it
-  builds run on each JDK; the dependencies of the packages).
-- **`java/openjdk21`**: OpenJDK 21, the JDK of OpenSearch 2.19 now and of OpenSearch
-  3.x later (aZ, 12.11.2026: one JDK for both: 2.x does not run on JDK 24 and later,
-  where the Security Manager is disabled for good, and 3.x needs 21 at least), made
-  as `openjdk17` with its decisions (above): the name, origin, path
-  (`/usr/local/openjdk21`) and version of the official package (its version,
-  distinfo and patches but the two of fontconfig from the official port of the
-  pinned commit), headless without the headers of X11, without sound, DTrace, fonts
-  and javavmwrapper, on the libjpeg, FreeType and Little CMS of az, the same checks
-  of the port. What differs from 17, and why: the backport of JDK-8376684 has one
-  more part, as the configure of 21u wants the headers of X11 for a headless build
-  too (`NEEDS_LIB_X11` of `make/autoconf/libraries.m4`, false for a headless build
-  in 17u already); no `--disable-hotspot-gtest` (21 has no such option: gtest is
-  built only with `--with-gtest`); the warnings of clang that the official port of
-  21 turns off. Installed side by side with `openjdk17`: no file in common, each its
-  own `java` by its `JAVA_HOME`, the JNA of `devel/jna` (built with 21, for Java 8)
-  on both.
-  Tests after the install: [`tools/java-test.sh`](tools/java-test.sh), every check
-  on each JDK installed.
+  [`tools/java-test.sh`](tools/java-test.sh) (`openjdk21`: headless, ImageIO with
+  JPEG and PNG, an ICC conversion, text, `AudioSystem`, TLS 1.3 on 127.0.0.1, the
+  libraries of az in the process, `ldd` of every ELF file of the JDK (the libraries
+  of the JDK, of the base system and of `/usr/local/az/lib` alone, nothing of X11),
+  `getpid()` through JNA, from the jar and from `lib/jna`, a dot product through the
+  Vector API of `jdk.incubator.vector`, a file mapped as a `MemorySegment` and
+  `getpid()` through the `Linker` of FFM, as OpenSearch 2.19 and 3.x use them; the
+  classes of `jna.jar` for Java 8; `bin/ant` on `openjdk21`, a jar it builds run on
+  the JDK; the dependencies of the packages, those of `elasticsearch6` `bash`, `jna`
+  and `openjdk21`).
 - **`lang/phpXY`** and **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): the core
   `phpXY` and the Apache module `libphpXY.so`, each from the official port of the commit
   of its version (the table above); PCRE2 is that of `devel/pcre2` (5.6: PCRE of
