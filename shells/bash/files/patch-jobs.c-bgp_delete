@@ -1,0 +1,28 @@
+bash 5.3 discarded the saved status of a pid in the table of background pids
+(bgp_delete() in make_child()) for every new child, not only for an asynchronous
+one, which is what goes into that table: the status of a background job or a
+process substitution that had ended could be lost (`wait $pid` answering 127)
+when a later foreground child got the same pid. Only a new asynchronous child
+discards a saved status now.
+The change of make_child() in the devel branch of bash (81d8584, 11.11.2025), as
+Gentoo carries it on 5.3_p20 (app-shells/bash files/bash-5.3_p9-pid-reuse.patch,
+bugs 965423 and 970713:
+https://github.com/gentoo/gentoo/blob/master/app-shells/bash/files/bash-5.3_p9-pid-reuse.patch).
+
+--- jobs.c
++++ jobs.c
+@@ -2482,9 +2482,11 @@ make_child (char *command, int flags)
+ 	 been reused. */
+       delete_old_job (pid);
+ 
+-      /* Perform the check for pid reuse unconditionally.  Some systems reuse
+-	 PIDs before giving a process CHILD_MAX/_SC_CHILD_MAX unique ones. */
+-      bgp_delete (pid);		/* new process, discard any saved status */
++      /* Perform the check for background pid reuse unconditionally.
++	 Some systems reuse PIDs before giving a process
++	 CHILD_MAX/_SC_CHILD_MAX unique ones. */
++      if (async_p)
++	bgp_delete (pid);	/* new background process, discard any saved status */
+ 
+       last_made_pid = pid;
+ 
