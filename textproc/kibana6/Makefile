@@ -70,10 +70,33 @@ COMMENT=	Browser based analytics and search interface to Elasticsearch (of azsup
 WWW=		https://www.elastic.co/kibana \
 		https://github.com/azsupport/ports
 
-# Kibana under Apache 2.0, X-Pack of the default distribution under the Elastic
-# License (as the official port, which named Apache 2.0 only); node-re2, re2 and
-# abseil under BSD and Apache 2.0 licenses
-LICENSE=	APACHE20
+# The licenses of what this package has (aZ, 12.11.2026: X-Pack stays, for its
+# monitoring; the official port named Apache 2.0 alone). The tarball is the
+# default distribution: its LICENSE.txt is the Elastic License agreement (1.0,
+# that of 6.x), under which the binaries of the default distribution are ("The
+# build produces two sets of binaries - one set that falls under the Elastic
+# License and another set that falls under Apache License Version 2.0":
+# LICENSE.txt of elastic/kibana at v6.8.23; its build copies
+# licenses/ELASTIC-LICENSE.txt to LICENSE.txt, src/dev/build/tasks/
+# license_file_task.js); the code outside x-pack is under Apache 2.0 (the same
+# file; NOTICE.txt of the tarball begins "Kibana with X-Pack", the name its build
+# gives the default distribution, src/dev/build/tasks/notice_file_task.js).
+# node-re2 and re2 under the BSD license of three clauses, abseil under Apache
+# 2.0. post-patch checks which file is which.
+# What the Elastic License 1.0 allows (its text, the LICENSE.txt of the tarball):
+# the use of the Basic features at no charge (1.1), for the internal business
+# operations of the licensee and of its contractors and affiliates (6.5); not to
+# "transfer, sell, rent, lease, distribute, sublicense [...] Elastic Software
+# Object Code, in whole or in part, to any third party" (1.2 iii), nor to
+# "modify, copy or use" it otherwise (1.2 ii); for a distribution, commercial or
+# not, Elastic's permission (1.2, its end). So none of the permissions of the
+# ports for it: no mirror and no sale of the distfile or of the package, and no
+# acceptance for the user (it is an agreement that the use accepts).
+LICENSE=	APACHE20 BSD3CLAUSE ELASTIC10
+LICENSE_COMB=	multi
+LICENSE_NAME_ELASTIC10=	Elastic License 1.0 (the default distribution: X-Pack)
+LICENSE_FILE_ELASTIC10=	${WRKSRC}/LICENSE.txt
+LICENSE_PERMS_ELASTIC10=	none
 
 # uv.h, which nan includes: of the libuv of az, which our node24 links (the
 # official kibana8 has devel/libuv for it)
@@ -132,6 +155,13 @@ post-extract:
 		cd ${WRKSRC} && ${FIND} . -name '*.node' -not -path './node/*'; ${FALSE}; }
 
 post-patch:
+	# the license files of the tarball: LICENSE.txt the Elastic License agreement,
+	# NOTICE.txt that of Kibana with X-Pack (LICENSE_FILE_ELASTIC10)
+	@[ "$$(${HEAD} -n 1 ${WRKSRC}/LICENSE.txt)" = "ELASTIC LICENSE AGREEMENT" ] && \
+		${GREP} -q '^  1\.1 Object Code End User License\.' ${WRKSRC}/LICENSE.txt && \
+		${GREP} -q 'distribute, sublicense, loan or otherwise transfer, Elastic Software Object' ${WRKSRC}/LICENSE.txt && \
+		[ "$$(${HEAD} -n 1 ${WRKSRC}/NOTICE.txt)" = "Kibana with X-Pack" ] || \
+		{ ${ECHO_MSG} "LICENSE.txt, NOTICE.txt of the tarball: not the Elastic License 1.0 and the notice of Kibana with X-Pack: $$(${HEAD} -n 1 ${WRKSRC}/LICENSE.txt), $$(${HEAD} -n 1 ${WRKSRC}/NOTICE.txt)"; ${FALSE}; }
 	${RM} ${KIBANA_PATCHED:S|^|${WRKSRC}/|:S|$|.orig|}
 	${CP} ${FILESDIR}/node_compat.js ${WRKSRC}/src/setup_node_env/node_compat.js
 # bin/kibana, kibana-keystore and kibana-plugin: the node of www/node24 (they

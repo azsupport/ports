@@ -61,9 +61,32 @@ COMMENT=	Full-text search engine for Java (of azsupport/ports)
 WWW=		https://www.elastic.co/ \
 		https://github.com/azsupport/ports
 
-# the core under Apache 2.0, X-Pack of the default distribution under the Elastic
-# License (as the official port, which named Apache 2.0 only)
-LICENSE=	APACHE20
+# The licenses of what this package has (aZ, 12.11.2026: X-Pack stays, for the
+# monitoring that Kibana shows; the official port named Apache 2.0 alone). The
+# tarball is the default distribution: its LICENSE.txt is the Elastic License
+# agreement (1.0, that of 6.x), under which the binaries of the default
+# distribution are ("The build produces two sets of binaries - one set that
+# falls under the Elastic License and another set that falls under Apache
+# License 2.0. The binaries that contain `-oss` in the artifact name are
+# licensed under Apache License 2.0": LICENSE.txt of elastic/elasticsearch at
+# v6.8.23; distribution/archives/build.gradle puts licenses/ELASTIC-LICENSE.txt
+# into the tarball as LICENSE.txt); the code outside x-pack is under Apache 2.0
+# (the same file; NOTICE.txt of the tarball: Elasticsearch and the notices of
+# what it bundles). post-patch checks which file is which.
+# What the Elastic License 1.0 allows (its text, the LICENSE.txt of the tarball):
+# the use of the Basic features at no charge (1.1), for the internal business
+# operations of the licensee and of its contractors and affiliates (6.5); not to
+# "transfer, sell, rent, lease, distribute, sublicense [...] Elastic Software
+# Object Code, in whole or in part, to any third party" (1.2 iii), nor to
+# "modify, copy or use" it otherwise (1.2 ii); for a distribution, commercial or
+# not, Elastic's permission (1.2, its end). So none of the permissions of the
+# ports for it: no mirror and no sale of the distfile or of the package, and no
+# acceptance for the user (it is an agreement that the use accepts).
+LICENSE=	APACHE20 ELASTIC10
+LICENSE_COMB=	multi
+LICENSE_NAME_ELASTIC10=	Elastic License 1.0 (the default distribution: X-Pack)
+LICENSE_FILE_ELASTIC10=	${WRKSRC}/LICENSE.txt
+LICENSE_PERMS_ELASTIC10=	none
 
 # JNA by the file of its native library, which jvm.options loads: a jna without
 # it (the official package) does not satisfy this, where jna>0 would
@@ -152,6 +175,14 @@ SUB_LIST=	ETCDIR=${ETCDIR} JAVA_HOME=${JAVA_HOME}
 SUB_FILES=	pkg-message
 
 post-patch:
+	# the license files of the tarball: LICENSE.txt the Elastic License agreement,
+	# NOTICE.txt that of Elasticsearch (LICENSE_FILE_ELASTIC10, PORTDOCS)
+	@[ "$$(${HEAD} -n 1 ${WRKSRC}/LICENSE.txt)" = "ELASTIC LICENSE AGREEMENT" ] && \
+		${GREP} -q '^  1\.1 Object Code End User License\.' ${WRKSRC}/LICENSE.txt && \
+		${GREP} -q 'distribute, sublicense, loan or otherwise transfer, Elastic Software Object' ${WRKSRC}/LICENSE.txt && \
+		[ "$$(${HEAD} -n 1 ${WRKSRC}/NOTICE.txt)" = "Elasticsearch" ] && \
+		${GREP} -q 'The Apache Software' ${WRKSRC}/NOTICE.txt || \
+		{ ${ECHO_MSG} "LICENSE.txt, NOTICE.txt of the tarball: not the Elastic License 1.0 and the notice of Elasticsearch: $$(${HEAD} -n 1 ${WRKSRC}/LICENSE.txt), $$(${HEAD} -n 1 ${WRKSRC}/NOTICE.txt)"; ${FALSE}; }
 	# ML is not supported on FreeBSD
 	@${RM} -r ${WRKSRC}/modules/x-pack-ml
 	# the JNA of devel/jna instead (do-install)
