@@ -69,7 +69,9 @@ opensearch_dashboards_precmd()
 	local _re _set _options
 
 	_re="$(echo %%OSD_CONFIG_OUT%% | tr ' ' '|')"
-	_set="$(grep -n -E "^[[:space:]]*(${_re})[.:]" "${opensearch_dashboards_config}")"
+	# a key of its own (opensearch_security.x: ...), the parent of nested keys
+	# (opensearch_security:), quoted or not
+	_set="$(grep -n -E "^[[:space:]]*[\"']?(${_re})[.:\"']" "${opensearch_dashboards_config}")"
 	if [ -n "${_set}" ]; then
 		echo "${name}: ${opensearch_dashboards_config} has settings of plugins this package does not have (the security plugin: opensearch_security.*; the others: %%OSD_CONFIG_OUT%%), with which OpenSearch Dashboards stops at its start; comment them out:" >&2
 		echo "${_set}" >&2

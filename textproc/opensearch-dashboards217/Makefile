@@ -66,12 +66,11 @@
 # GHSA-8494-f6mr-cjpv, GHSA-jg4p-7fhp-p32p); @hapi/inert, the confinement of
 # 7.1.1 (GHSA-rcvq-m9j9-6f4g); js-yaml 3.15.2 in the place of 3.14.1 (the 3.x line
 # with its security fixes only: GHSA-mh29-5h37-fv8m, GHSA-h67p-54hq-rp68,
-# GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj, GHSA-2883-xcg3-v3hh), which
-# securityAnalyticsDashboards runs on the rules a request gives, and there safeLoad()
-# in the place of load(): js-yaml 3 load() makes functions of !!js/function, and the
-# client runs a toJSON so made when it sends the rule (code of whoever reaches
-# Dashboards run in its process; azsupport/ports, 12.11.2026). The rest, and what is
-# not taken and why: README.md of the tree.
+# GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj, GHSA-2883-xcg3-v3hh): the YAML of the
+# rules a request gives securityAnalyticsDashboards goes through its load() (the
+# functions js-yaml 3 load() makes of !!js/function there are never called:
+# safeDump() throws on them before the rule is sent; azsupport/ports, 12.11.2026).
+# The rest, and what is not taken and why: README.md of the tree.
 
 PORTNAME=	opensearch-dashboards
 DISTVERSION=	2.17.1
@@ -149,7 +148,6 @@ OSD_NPM=	opensearch-${CLIENT_VERSION}.tgz:node_modules/@opensearch-project/opens
 		js-yaml-${JSYAML_VERSION}.tgz:node_modules/js-yaml
 # 1b89a739: "x < Number.MAX_SAFE_INTEGER || x > Number.MAX_SAFE_INTEGER", MIN first
 OSD_NUMERALS=	s/\(\([A-Za-z_$$][A-Za-z0-9_$$]*\)[[:space:]]*<[[:space:]]*Number\.\)MAX_SAFE_INTEGER\([[:space:]]*||[[:space:]]*\2[[:space:]]*>[[:space:]]*Number\.MAX_SAFE_INTEGER\)/\1MIN_SAFE_INTEGER\3/g
-OSD_RULES=	plugins/securityAnalyticsDashboards/server/services/RuleService.js
 
 # the packages of OSD_NPM, each in the place of the directory of the tarball (its own
 # node_modules kept: hpagent 1.2.0 of the client)
@@ -186,11 +184,6 @@ post-patch:
 .endfor
 	@[ "$$(cd ${WRKSRC}/plugins && ${LS} | ${XARGS})" = "${OSD_PLUGINS_IN}" ] || \
 		{ ${ECHO_MSG} "plugins: $$(cd ${WRKSRC}/plugins && ${LS} | ${XARGS}), not ${OSD_PLUGINS_IN}"; ${FALSE}; }
-# securityAnalyticsDashboards: safeLoad() of the rules (see the top)
-	${REINPLACE_CMD} -E -e 's/\((0, *_jsYaml[A-Za-z0-9_]*)\.load\)\(/(\1.safeLoad)(/g' ${WRKSRC}/${OSD_RULES}
-	@[ "$$(${GREP} -c -E '_jsYaml[A-Za-z0-9_]*\.safeLoad\)\(detection\)' ${WRKSRC}/${OSD_RULES})" = 2 ] && \
-		! ${GREP} -q -E '_jsYaml[A-Za-z0-9_]*\.load\)' ${WRKSRC}/${OSD_RULES} || \
-		{ ${ECHO_MSG} "${OSD_RULES}: not the two load() of 2.17.1.0"; ${FALSE}; }
 # 1b89a739: each file with the check of large numerals, its .gz and .br made again
 	@cd ${WRKSRC} && ${GREP} -rl -E 'Number\.MAX_SAFE_INTEGER[[:space:]]*\|\|' \
 		--include='*.js' node_modules/@osd src plugins > ${WRKDIR}/numerals.txt || ${TRUE}
