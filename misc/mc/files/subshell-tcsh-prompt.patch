@@ -1,0 +1,22 @@
+Description: the subshell of tcsh keeps the user's prompt (~/.tcshrc, ~/.cshrc) instead of mc's "%n@%m:%~%# "
+Origin: upstream, https://github.com/MidnightCommander/mc/commit/46a26f2188dca040e00badfab413483b02619bbb
+ (13.10.2025, after 4.8.33): its tcsh part; the PS1 lines of bash and zsh it also
+ removes have no effect in 4.8.33 (as its message says: bash keeps one's PS1 there)
+Bug: https://github.com/MidnightCommander/mc/issues/3792, https://github.com/MidnightCommander/mc/issues/4634
+Why: mc 4.8.33 set the prompt of tcsh after its rc files had run, so Ctrl-O and the
+ command line of mc showed "user@host:dir#" in the place of one's own prompt (that
+ of FreeBSD's .cshrc: "%N@%m:%~ %# "). Not taken: the change of upstream from ">>"
+ to ">" in the precmd alias of tcsh
+ (https://github.com/MidnightCommander/mc/commit/b50e10d9764c7edbeb8d2243877ea4dc87476e54), which breaks the subshell
+ with "set noclobber": tcsh's ">" refuses an existing FIFO then ("File exists.").
+
+--- src/subshell/common.c.orig
++++ src/subshell/common.c
+@@ -1252,7 +1252,6 @@ init_subshell_precmd (char *precmd, size_t buff_size)
+     case SHELL_TCSH:
+         g_snprintf (precmd, buff_size,
+                     "set echo_style=both; "
+-                    "set prompt='%%n@%%m:%%~%%# '; "
+                     "alias precmd 'echo -n;echo $cwd:q >>%s; kill -STOP $$'\n", tcsh_fifo);
+         break;
+     case SHELL_FISH:

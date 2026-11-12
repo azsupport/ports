@@ -1,0 +1,22 @@
+Description: ftpfs reconnects when the server has closed the control connection (421, an idle timeout) for any command, not only for those that read a reply string
+Origin: upstream, https://github.com/MidnightCommander/mc/commit/1fa329b33e8a062c3a3a8067afd2f943b28336d7
+ (10.10.2026, after 4.8.33; no release has it)
+Bug: https://github.com/MidnightCommander/mc/issues/5175
+Why: after the idle timeout of an FTP server (vsftpd: idle_session_timeout, 300 s by
+ default) the first command of mc 4.8.33 failed unless it was PASV or EPSV: Enter on
+ a directory said "Cannot change directory", Ctrl-R jumped to the parent directory.
+
+--- src/vfs/ftpfs/ftpfs.c.orig
++++ src/vfs/ftpfs/ftpfs.c
+@@ -541,7 +541,10 @@ ftpfs_command (struct vfs_class *me, struct vfs_s_super *super, int wait_reply,
+         status = ftpfs_get_reply (me, ftp_super->sock,
+                                   (wait_reply & WANT_STRING) != 0 ? reply_str : NULL,
+                                   sizeof (reply_str) - 1);
+-        if ((wait_reply & WANT_STRING) != 0 && !retry && level == 0 && code == 421)
++        /* 421 means the server has closed the control connection, e.g. after an idle
++         * timeout. Reconnect and resend the command whatever kind of reply it waits for,
++         * otherwise the first command after a timeout (usually CWD) fails. */
++        if (!retry && level == 0 && code == 421)
+         {
+             retry = TRUE;
+             level = 1;

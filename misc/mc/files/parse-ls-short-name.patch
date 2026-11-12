@@ -1,0 +1,31 @@
+Description: the parser of "ls -l" lines (extfs listings, ubsdtar among them, FTP, shell links) read before the name when it was one byte long or empty
+Origin: Alpine, https://github.com/alpinelinux/aports/blob/77c6bbe29ea4a9352138b3c974c3926f0ff3635e/main/mc/ticket_4642_parse_ls_vga_fix.patch;
+ upstream fixed it otherwise (str_rstrip_eol(): https://github.com/MidnightCommander/mc/commit/ac9a81d9bd369fc6f571850b90a2f534dc03cc8e,
+ 30.01.2025, after 4.8.33)
+Bug: https://github.com/MidnightCommander/mc/issues/4642
+Why: vfs_parse_ls_lga() stripped the end of line of the name with "--p2 > 0" on a
+ size_t: for a name of one byte (or none) p2 went round to SIZE_MAX and the bytes
+ before the name were read (undefined behaviour; no visible effect seen). This
+ checks the length first, keeping the stripping of up to two \r or \n.
+
+--- lib/vfs/parse_ls_vga.c.orig
++++ lib/vfs/parse_ls_vga.c
+@@ -855,13 +855,12 @@ vfs_parse_ls_lga (const char *p, struct stat *s, char **filename, char **linknam
+ 
+     if (t != NULL)
+     {
+-        size_t p2;
++        size_t p2 = strlen (t);
+ 
+-        p2 = strlen (t);
+-        if (--p2 > 0 && (t[p2] == '\r' || t[p2] == '\n'))
+-            t[p2] = '\0';
+-        if (--p2 > 0 && (t[p2] == '\r' || t[p2] == '\n'))
+-            t[p2] = '\0';
++        if (p2 > 0 && (t[p2 - 1] == '\r' || t[p2 - 1] == '\n'))
++            t[--p2] = '\0';
++        if (p2 > 0 && (t[p2 - 1] == '\r' || t[p2 - 1] == '\n'))
++            t[--p2] = '\0';
+     }
+ 
+     g_free (p_copy);

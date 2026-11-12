@@ -1,0 +1,37 @@
+Description: a click on the line after the last file of a panel took that line for a file (an index past the list), and dragging from there below the panel crashed mc
+Origin: upstream, https://github.com/MidnightCommander/mc/commit/abbd9d59159fd01c7ae79b80626660f7b28acb67
+ and https://github.com/MidnightCommander/mc/commit/130d0f043508ffc0a16c638a91c8dde8eac1b0a0 (15.02.2025, after 4.8.33)
+Bug: https://github.com/MidnightCommander/mc/issues/4651
+Why: mc 4.8.33 died with SIGSEGV after a press on the line below the last file of a
+ panel that is not full and a drag down out of the panel (each event below it moved
+ the cursor further past the list). panel_mouse_is_on_item() returns "after the
+ last file" for that line, move_down() keeps the cursor in the list. With
+ mouse-sgr-ncurses.patch the mouse works with TERM=xterm, so this is reached there too.
+
+--- src/filemanager/panel.c.orig
++++ src/filemanager/panel.c
+@@ -2195,8 +2195,14 @@ move_down (WPanel *panel)
+ {
+     int items;
+ 
+-    if (panel->dir.len == 0 || panel->current + 1 == panel->dir.len)
++    if (panel->dir.len == 0)
++        return;
++
++    if (panel->current >= panel->dir.len - 1)
++    {
++        panel->current = panel->dir.len - 1;
+         return;
++    }
+ 
+     unselect_item (panel);
+     panel->current++;
+@@ -4062,7 +4068,7 @@ panel_mouse_is_on_item (const WPanel *panel, int y, int x)
+     y += panel->top + lines * col;
+ 
+     /* are we below or in the next column of last file? */
+-    if (y > panel->dir.len)
++    if (y >= panel->dir.len)
+         return MOUSE_AFTER_LAST_FILE;
+ 
+     /* we are on item of the file file; return an index to select a file */

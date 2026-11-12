@@ -1,0 +1,65 @@
+Description: the mouse with ncurses in terminals whose terminfo has kmous=\E[< (xterm, xterm-256color): mc took KEY_MOUSE for the old X10 mode and misread every click
+Origin: upstream, https://github.com/MidnightCommander/mc/commit/51bfcb948a07a837b26c4e7463ff18b6443233c4
+ (17.10.2025, after 4.8.33); Gentoo carries a hack for the same bug,
+ https://github.com/gentoo/gentoo/blob/83931af093bf98f6b1b502c1b0a0eda4913ceb3f/app-misc/mc/files/mc-4.8.26-ncurses-mouse.patch
+ (it takes every KEY_MOUSE for the SGR mode, which breaks terminals with \E[M); this
+ is the fix of mc instead
+Bug: https://github.com/MidnightCommander/mc/issues/4144
+Why: ncurses returns KEY_MOUSE when it sees the prefix of terminfo's kmous, which is
+ \E[< (the SGR mode that mc turns on) for xterm since ncurses 6.1; mc 4.8.33 then
+ parsed the rest as X10 coordinates: clicks did nothing or hit the wrong place, and
+ their bytes went into the command line. mc remembers whether kmous was \E[< and
+ then parses KEY_MOUSE as SGR.
+
+--- lib/tty/key.c.orig
++++ lib/tty/key.c
+@@ -2103,12 +2103,11 @@ tty_get_event (struct Gpm_Event *event, gboolean redo_event, gboolean block)
+ #endif /* KEY_MOUSE */
+                           || c == MCKEY_EXTENDED_MOUSE))
+     {
+-        /* Mouse event. See tickets 2956 and 3954 for extended mode detection. */
++        /* Mouse event. See tickets 2956, 3954 and 4144 for extended mode detection. */
+         gboolean extended = c == MCKEY_EXTENDED_MOUSE;
+ 
+ #ifdef KEY_MOUSE
+-        extended = extended || (c == KEY_MOUSE && xmouse_seq == NULL
+-                                && xmouse_extended_seq != NULL);
++        extended = extended || (c == KEY_MOUSE && ncurses_key_mouse_means_extended);
+ #endif /* KEY_MOUSE */
+ 
+         xmouse_get_event (event, extended);
+--- lib/tty/mouse.c.orig
++++ lib/tty/mouse.c
+@@ -49,6 +49,7 @@ gboolean mouse_enabled = FALSE;
+ int mouse_fd = -1;              /* for when gpm_fd changes to < 0 and the old one must be cleared from select_set */
+ const char *xmouse_seq;
+ const char *xmouse_extended_seq;
++gboolean ncurses_key_mouse_means_extended = FALSE;
+ 
+ /*** file scope macro definitions ****************************************************************/
+ 
+--- lib/tty/mouse.h.orig
++++ lib/tty/mouse.h
+@@ -103,6 +103,9 @@ extern const char *xmouse_seq;
+ /* String indicating that an SGR extended mouse event has occurred, namely "\E[<" */
+ extern const char *xmouse_extended_seq;
+ 
++/* Whether ncurses's KEY_MOUSE refers to an SGR extended mouse event */
++extern gboolean ncurses_key_mouse_means_extended;
++
+ /*** declarations of public functions ************************************************************/
+ 
+ /* General (i.e. both for xterm and gpm) mouse support definitions */
+--- lib/tty/tty.c.orig
++++ lib/tty/tty.c
+@@ -408,7 +408,10 @@ tty_init_xterm_support (gboolean is_xterm)
+     if (xmouse_seq != NULL)
+     {
+         if (strcmp (xmouse_seq, ESC_STR "[<") == 0)
++        {
+             xmouse_seq = ESC_STR "[M";
++            ncurses_key_mouse_means_extended = TRUE;
++        }
+ 
+         xmouse_extended_seq = ESC_STR "[<";
+     }
