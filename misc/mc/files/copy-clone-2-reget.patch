@@ -1,0 +1,28 @@
+Description: a Reget with file cloning on opened the destination without O_WRONLY on a second try ("Bad file descriptor"): the fix of upstream for copy-clone-1.patch
+Origin: upstream, https://github.com/MidnightCommander/mc/commit/4fd670e2be7fe2896fa4123bd173198ee9412a50
+ (15.08.2026, after 4.8.33)
+Bug: https://github.com/MidnightCommander/mc/issues/5082
+Why: when cloning the rest of a file for a Reget failed, copy_file_file() opened the
+ destination again in O_APPEND mode with O_WRONLY cleared, so that the copy failed; the
+ flag stays now, and the O_WRONLY that was set twice is gone.
+
+--- src/filemanager/file.c.orig
++++ src/filemanager/file.c
+@@ -2649,7 +2649,7 @@ copy_file_file (file_op_context_t *ctx, const char *src_path, const char *dst_pa
+         /* FICLONERANGE on Linux and copy_file_range(2) on FreeBSD support block-aligned ranges for
+          * cloning, but for not in O_APPEND mode. Use O_WRONLY + mc_lseek instead as we don't care
+          * about atomicity in our use cases. */
+-        open_flags |= mc_global.vfs.file_cloning ? O_WRONLY : O_APPEND;
++        open_flags |= mc_global.vfs.file_cloning ? 0 : O_APPEND;
+ #else
+         open_flags |= O_APPEND;
+ #endif
+@@ -2702,7 +2702,7 @@ copy_file_file (file_op_context_t *ctx, const char *src_path, const char *dst_pa
+             ctx->do_append = TRUE;
+             mc_close (dest_desc);
+             dst_status = DEST_NONE;
+-            open_flags = (open_flags & ~O_WRONLY) | O_APPEND;
++            open_flags |= O_APPEND;
+             goto open_dest;
+         }
+     }
