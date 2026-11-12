@@ -2,7 +2,7 @@
 # elastic-test.sh - test Elasticsearch 6 of the repository az, installed from it (aZ,
 # 11.11.2026: for the legacy sites): elasticsearch6 started by its rc script, as a
 # server starts it, on 127.0.0.1:9200 with a data and log directory of the test:
-#   - its version 6.8.23 and the JVM it runs on (OpenJDK 17 of the ports, the default
+#   - its version 6.8.23 and the JVM it runs on (OpenJDK 21 of this tree, the default
 #     of its rc script: no elasticsearch_java_home in rc.conf);
 #   - lib/jna.jar a link to the jna.jar of devel/jna, which is a whole zip;
 #   - JNA loads its native library from the file of devel/jna (jvm.options:
@@ -19,7 +19,7 @@
 #     file (analysis-icu, fetched from artifacts.elastic.co), by hand as root:
 #     installed, listed, removed, and nothing of it left in /tmp (its copy of the
 #     zip there is removed by the tool itself);
-#   - the start says nothing of System::setSecurityManager (the four lines of JDK 17
+#   - the start says nothing of System::setSecurityManager (the four lines of the JDK
 #     are taken out), and its log has no JNA that failed (the JNA it bundles);
 #   - its tools run by hand as root, without ES_TMPDIR (elasticsearch-keystore,
 #     -plugin, -certutil, -shard, -croneval, -sql-cli, elasticsearch -V): each does
@@ -27,7 +27,7 @@
 #     elasticsearch-<number>) but the /tmp/elasticsearch that bin/elasticsearch
 #     makes for its user, and which it refuses when it is another user's;
 #   - the heap from elasticsearch_heap of rc.conf (512m here) over the -Xms and
-#     -Xmx of jvm.options; the options of jvm.options for OpenJDK 17 in the running JVM
+#     -Xmx of jvm.options; the options of jvm.options for OpenJDK 21 in the running JVM
 #     (no -XX:UseAVX, no heap dump, -XX:+ExitOnOutOfMemoryError, -Dlog4j2.formatMsgNoLookups);
 #     no warning of the JVM at the start; no GC log; nothing of Elasticsearch in
 #     /tmp and /var/tmp from its start to its stop but its temporary directory
@@ -67,11 +67,11 @@ if ! pkg info -e elasticsearch6; then
     echo "elastic-test: $ok ok, $bad failed" >> "$out"
     exit 1
 fi
-# its rc script runs it on OpenJDK 17 by itself, its JNA is that of devel/jna
-if grep -q '^: ${elasticsearch_java_home="/usr/local/openjdk17"}' "$P/etc/rc.d/elasticsearch"; then
-    pass "rc.d/elasticsearch: elasticsearch_java_home /usr/local/openjdk17 by default"
+# its rc script runs it on OpenJDK 21 by itself, its JNA is that of devel/jna
+if grep -q '^: ${elasticsearch_java_home="/usr/local/openjdk21"}' "$P/etc/rc.d/elasticsearch"; then
+    pass "rc.d/elasticsearch: elasticsearch_java_home /usr/local/openjdk21 by default"
 else
-    fail "rc.d/elasticsearch: elasticsearch_java_home is not /usr/local/openjdk17 by default: $(grep -m 1 'elasticsearch_java_home=' "$P/etc/rc.d/elasticsearch")"
+    fail "rc.d/elasticsearch: elasticsearch_java_home is not /usr/local/openjdk21 by default: $(grep -m 1 'elasticsearch_java_home=' "$P/etc/rc.d/elasticsearch")"
 fi
 j="$P/lib/elasticsearch/lib/jna.jar"
 l="$(readlink "$j")"
@@ -93,7 +93,7 @@ sed -i '' -e "s|^path.data: .*|path.data: $T/data|" -e "s|^path.logs: .*|path.lo
 B="$P/lib/elasticsearch/bin"
 rm -rf /tmp/hsperfdata_root /tmp/elasticsearch
 ls -A /tmp | sort > "$T/tools-before.txt"
-tool() { (cd / && env -u ES_TMPDIR -u ES_JAVA_OPTS JAVA_HOME="$P/openjdk17" ES_PATH_CONF="$conf" "$B/$@") > "$T/tool.out" 2>&1 < /dev/null; }
+tool() { (cd / && env -u ES_TMPDIR -u ES_JAVA_OPTS JAVA_HOME="$P/openjdk21" ES_PATH_CONF="$conf" "$B/$@") > "$T/tool.out" 2>&1 < /dev/null; }
 said() { head -n 2 "$T/tool.out" | cut -c1-150 | tr '\n' ' '; }
 tool elasticsearch-keystore create; r=$?
 if [ "$r" = 0 ] && [ -s "$conf/elasticsearch.keystore" ]; then pass "elasticsearch-keystore create: $conf/elasticsearch.keystore"; else fail "elasticsearch-keystore create: exit $r, $(said)"; fi
@@ -123,7 +123,7 @@ if [ ! -s "$pz" ] || ! unzip -tqq "$pz" > /dev/null 2>&1; then
 else
     tool elasticsearch-plugin install --batch "file://$pz"; r=$?
     n="$(ls -A /tmp | sort | comm -13 "$T/tools-before.txt" - | tr '\n' ' ')"
-    tool2() { (cd / && env -u ES_TMPDIR -u ES_JAVA_OPTS JAVA_HOME="$P/openjdk17" ES_PATH_CONF="$conf" "$B/$@") > "$T/tool2.out" 2>&1 < /dev/null; }
+    tool2() { (cd / && env -u ES_TMPDIR -u ES_JAVA_OPTS JAVA_HOME="$P/openjdk21" ES_PATH_CONF="$conf" "$B/$@") > "$T/tool2.out" 2>&1 < /dev/null; }
     tool2 elasticsearch-plugin list
     if [ "$r" = 0 ] && grep -q -x 'analysis-icu' "$T/tool2.out" && [ -d "$P/lib/elasticsearch/plugins/analysis-icu" ] && [ -z "$n" ]; then
         pass "elasticsearch-plugin install --batch file://analysis-icu-$pv.zip: installed and listed, nothing left in /tmp ($(wc -c < "$pz" | tr -d ' ') bytes of zip)"
@@ -143,7 +143,7 @@ fi
 # bin/elasticsearch by hand (its version, with a heap of its own: that of
 # jvm.options is 31g): makes /tmp/elasticsearch for its user, and does not start
 # in that of another user
-(cd / && env -u ES_TMPDIR JAVA_HOME="$P/openjdk17" ES_PATH_CONF="$conf" ES_JAVA_OPTS="-Xms64m -Xmx64m" "$B/elasticsearch" -V) > "$T/tool.out" 2>&1 < /dev/null; r=$?
+(cd / && env -u ES_TMPDIR JAVA_HOME="$P/openjdk21" ES_PATH_CONF="$conf" ES_JAVA_OPTS="-Xms64m -Xmx64m" "$B/elasticsearch" -V) > "$T/tool.out" 2>&1 < /dev/null; r=$?
 n="$(ls -A /tmp | sort | comm -13 "$T/tools-before.txt" - | tr '\n' ' ')"
 if [ "$r" = 0 ] && grep -q "Version: $(pkgv elasticsearch6)" "$T/tool.out" && [ "$n" = "elasticsearch " ] && [ "$(stat -f '%Su %Lp' /tmp/elasticsearch)" = "root 700" ]; then
     pass "bin/elasticsearch -V by hand as root: $(said | cut -c1-60); new in /tmp: /tmp/elasticsearch alone, root 700"
@@ -151,7 +151,7 @@ else
     fail "bin/elasticsearch -V by hand: exit $r, $(said); new in /tmp: ${n:-nothing}; $(stat -f '%Su %Lp' /tmp/elasticsearch 2>&1)"
 fi
 chown -R elasticsearch:elasticsearch "$T"
-(cd / && su -m elasticsearch -c "env -u ES_TMPDIR JAVA_HOME='$P/openjdk17' ES_PATH_CONF='$conf' ES_JAVA_OPTS='-Xms64m -Xmx64m' '$B/elasticsearch' -V") > "$T/tool.out" 2>&1 < /dev/null; r=$?
+(cd / && su -m elasticsearch -c "env -u ES_TMPDIR JAVA_HOME='$P/openjdk21' ES_PATH_CONF='$conf' ES_JAVA_OPTS='-Xms64m -Xmx64m' '$B/elasticsearch' -V") > "$T/tool.out" 2>&1 < /dev/null; r=$?
 if [ "$r" != 0 ] && grep -q 'is not a directory of the user elasticsearch' "$T/tool.out"; then
     pass "bin/elasticsearch by hand as elasticsearch with the /tmp/elasticsearch of root: refused"
 else
@@ -199,7 +199,7 @@ else
     v="$(printf '%s' "$a" | sed -n 's/.*"number" *: *"\([^"]*\)".*/\1/p' | head -n 1)"
     if [ "$v" = "$(pkgv elasticsearch6)" ]; then pass "version $v"; else fail "version $v, the package is $(pkgv elasticsearch6)"; fi
     j="$(get '/_nodes/_local/jvm?filter_path=**.jvm.version,**.jvm.vm_name' | sed -n 's/.*"version" *: *"\([^"]*\)".*/\1/p' | head -n 1)"
-    case "$j" in 17.*) pass "the JVM: $j" ;; *) fail "the JVM: ${j:-not told}, not 17" ;; esac
+    case "$j" in 21.*) pass "the JVM: $j" ;; *) fail "the JVM: ${j:-not told}, not 21" ;; esac
     # the options of the running JVM, one per line, in their order
     get '/_nodes/_local/jvm?filter_path=**.jvm.input_arguments,**.jvm.mem.heap_max_in_bytes' > "$T/jvm.json"
     sed -e 's/.*"input_arguments" *: *\[//' -e 's/\].*//' "$T/jvm.json" | tr ',' '\n' | sed -e 's/^"//' -e 's/"$//' > "$T/args.txt"
@@ -213,11 +213,11 @@ else
     m=""
     for o in '-XX:+UseG1GC' '-XX:G1ReservePercent=25' '-XX:InitiatingHeapOccupancyPercent=30' '-XX:+ExitOnOutOfMemoryError' \
         '-XX:ErrorFile=/var/log/elasticsearch/hs_err_pid%p.log' '-XX:ReplayDataFile=/var/log/elasticsearch/replay_pid%p.log' '-Dlog4j2.formatMsgNoLookups=true' \
-        '-Djava.locale.providers=COMPAT' '-Dio.netty.noUnsafe=true' '-XX:+AlwaysPreTouch' '-XX:+PerfDisableSharedMem' "-Djava.io.tmpdir=$tmpd"; do
+        '-Djava.locale.providers=COMPAT' '-Djava.security.manager=allow' '-Dio.netty.noUnsafe=true' '-XX:+AlwaysPreTouch' '-XX:+PerfDisableSharedMem' "-Djava.io.tmpdir=$tmpd"; do
         grep -q -x -F -e "$o" "$T/args.txt" || m="$m $o"
     done
     if [ -z "$m" ] && ! grep -q -E 'UseAVX|HeapDump|Xlog|GCLog|PrintGC' "$T/args.txt"; then
-        pass "the options of jvm.options for OpenJDK 17 in the JVM, java.io.tmpdir $tmpd; no -XX:UseAVX, no heap dump, no GC log"
+        pass "the options of jvm.options for OpenJDK 21 in the JVM, java.io.tmpdir $tmpd; no -XX:UseAVX, no heap dump, no GC log"
     else
         fail "the options of the JVM: missing:${m:- none}$(grep -E 'UseAVX|HeapDump|Xlog|GCLog|PrintGC' "$T/args.txt" | sed 's/^/, has /' | tr '\n' ' ')"
     fi
@@ -279,9 +279,9 @@ else
 fi
 cp "$T/start.out" "$res/elasticsearch-start.out"
 if grep -q 'setSecurityManager' "$T/start.out"; then
-    fail "the start printed the warning of JDK 17 about setSecurityManager: $(grep -m 1 'setSecurityManager' "$T/start.out")"
+    fail "the start printed the warning of the JDK about setSecurityManager: $(grep -m 1 'setSecurityManager' "$T/start.out")"
 else
-    pass "the start without the warning of JDK 17 about setSecurityManager"
+    pass "the start without the warning of the JDK about setSecurityManager"
 fi
 if grep -i -E 'warning|deprecated|unrecognized|ignoring option' "$T/start.out" > "$T/warn.txt"; then
     fail "the start printed $(wc -l < "$T/warn.txt" | tr -d ' ') warnings: $(head -n 2 "$T/warn.txt" | cut -c1-200 | tr '\n' ' ')"

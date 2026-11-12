@@ -23,8 +23,8 @@
 +
 +# azsupport/ports: the cipher suites of TLS of X-Pack: its default list of 6.8.23
 +# (XPackSettings.DEFAULT_CIPHERS, in its order) without the four TLS_RSA_WITH_AES_*
-+# (256_CBC_SHA256, 256_CBC_SHA, 128_CBC_SHA256, 128_CBC_SHA), which OpenJDK 17 of
-+# the ports (17.0.21) no longer has: with the default list Elasticsearch writes
++# (256_CBC_SHA256, 256_CBC_SHA, 128_CBC_SHA256, 128_CBC_SHA), which OpenJDK 17 and
++# 21 of the ports (17.0.21) no longer have: with the default list Elasticsearch writes
 +# "[ERROR][o.e.x.c.s.SSLService] unsupported ciphers [...] were requested but
 +# cannot be used in this JVM" at every start and uses these eight (the four as
 +# that message names them on FreeBSD 15.1, 11.11.2026). Nothing usable is dropped.
