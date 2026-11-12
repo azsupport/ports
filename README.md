@@ -79,8 +79,8 @@ Names and origins as the ports, files at the paths of the ports:
 | `git` | `devel/git` | git without Perl, Python, Tcl/Tk, gettext, the manual pages and git daemon; HTTPS through our `curl`, `git grep -P` with `pcre2` |
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi and env too), no SSL; APR and libmaxminddb of az |
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached without TLS, SASL and DTrace, libevent of az; the variant with TLS; one of the two |
-| `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11: of the engines of the options InnoDB only, no GSSAPI; the socket `/tmp/mysql.sock` compiled in and in `my.cnf` |
-| `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext with its rc.d script, the fix of CVE-2021-3618 (ALPACA) of vsftpd 3.0.5 and ours of CVE-2026-119567, CVE-2026-119568 and `deny_file`; the variant with SSL; one of the two |
+| `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11: of the engines of the options InnoDB only, no GSSAPI; the socket `/tmp/mysql.sock` compiled in and in `my.cnf`; the fix of the regression CONC-821 of its Connector/C |
+| `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext with its rc.d script, the fix of CVE-2021-3618 (ALPACA) of vsftpd 3.0.5, ours of CVE-2026-119567, CVE-2026-119568 and `deny_file`, and of Debian: `deny_file` by the real path (CVE-2015-1419), PAM modules that start processes; the variant with SSL; one of the two |
 | `3proxy`, `3proxy-openssl` | `net/3proxy`, `net/3proxy-openssl` | 3proxy 0.9.9.3 of the LTS line, ahead of the official 0.9.5 for its security fixes, with the names and paths of the official port; PAM, PCRE2 of `pcre2`, no TLS; the variant with TLS; one of the two |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: the DNS server `named` with TCP Fast Open, no GSSAPI, DNSTAP, LMDB and statistics channels; dig, host, nslookup, delv, nsupdate and the DNSSEC tools, with IDN |
 | `vips` | `graphics/vips` | libvips 8.18 for the Lua scripts of nginx that convert images on the fly: JPEG (mozjpeg), PNG, WebP, HEIC (load), AVIF (load and save), GIF, with ICC profiles, EXIF and SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
@@ -98,7 +98,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `opensearch-dashboards217` | `textproc/opensearch-dashboards217` | OpenSearch Dashboards 2.17.1, the last 2.17.x (2.17.2 was never released), for a legacy project with `opensearch217`: the bundle of the official port of 2.17.1 (branch 2025Q1) on our `node24`, not on the Node.js 18 it was made for (end of life since 30.04.2025; its version check takes the first comparator of `engines.node` only, `>=14.20.1`), without its Node.js for Linux, the only ELF files of the bundle (no native module: nothing built); 13 plugins, without `securityDashboards` (`opensearch217` has no security plugin: OpenSearch over plain http without credentials), `reportsDashboards` in (no Chromium in 2.17.1: CSV and XLSX made by the server, PDF and PNG by the browser); its rc script with daemon(8), as the user www, refuses a configuration with a setting of a plugin it does not have (`opensearch_security.*`), reads `node.options`, `reload` for the log, which newsyslog rolls at 10 MB without archives; the commits of the 2.17 branch after 2.17.1 that fit a binary build, and the security fixes after 2.17.1 that touch it (the DoS of `/api/core/capabilities`, CVE-2026-75897; redirects off-site; `__proto__` in imports; `@hapi/content`, `@hapi/inert`, js-yaml 3.15.2): the list, and what is not taken and why, in `textproc/opensearch-dashboards217/Makefile` |
 | `perl5` | `lang/perl5.42` | Perl 5.42 under the name of FreeBSD's (aZ, 11.11.2026), so that the `p5-*` packages of the FreeBSD repository work with it: the official port as it is (threads, MULTIPLICITY, 64-bit integers, the shared libperl), without DTrace, as every build here (its probes are in the core of Perl only: the XS modules of FreeBSD's packages load and run with it, [`tools/perl-test.sh`](tools/perl-test.sh)) |
 | `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | the JDK of `elasticsearch6`, `opensearch217` and `opensearch219`, and of OpenSearch 3.x later, ours (aZ, 11.11.2026: so that a server with Elasticsearch gets nothing of a desktop; 12.11.2026: one JDK for them all: OpenSearch 2.x and Elasticsearch 6 do not run on JDK 24 and later, where the Security Manager is disabled for good, and OpenSearch 3.x needs 21 at least): OpenJDK 21 headless in `/usr/local/openjdk21`, without X11, sound, fonts and javavmwrapper (no `/usr/local/bin/java`), on the libjpeg, FreeType and Little CMS of az; JNA without X11 and JAWT, on the libffi of az, its library also as `/usr/local/lib/jna/libjnidispatch.so`, which `elasticsearch6`, `opensearch217` and `opensearch219` load (`-Djna.boot.library.path`, `-Djna.nounpack`: nothing unpacked at a start), built on 21 for Java 8; Ant, the official port, on our JDK 21, to build JNA (aZ, 12.11.2026: JNA and Ant on 21). `openjdk21` and `jna` need `az` only |
-| `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives, and the fixes of the vulnerabilities the official port lacks, from Fedora: CVE-2014-8141 … CVE-2022-0530, zip bombs, and from Debian 6.0-31 and OpenBSD (`files/debian/`): CAN-2026-2034442 and CAN-2026-2034443 (a heap and a stack overflow), CVE-2022-1271 of zipgrep, the ZIP64 archives of Windows, the times of the Unix extra fields; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS, with the fix of CVE-2026-96512 (three upstream commits); `bash` without NLS, with three fixes of 5.3 as Gentoo carries them: `wait` of an ended background job, command substitutions with a large environment, the prompt in a single-byte locale; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL, the fixes of CVE-2026-15146, CVE-2026-58470, CVE-2026-58471 and CVE-2026-58472 as Ubuntu carries them; `rsync` 3.5.2, ahead of the official 3.5.1 for its security fixes: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
+| `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives, and the fixes of the vulnerabilities the official port lacks, from Fedora: CVE-2014-8141 … CVE-2022-0530, zip bombs, and from Debian 6.0-31 and OpenBSD (`files/debian/`): CAN-2026-2034442 and CAN-2026-2034443 (a heap and a stack overflow), CVE-2022-1271 of zipgrep, the ZIP64 archives of Windows, the times of the Unix extra fields; and the patterns of zipgrep with `\|`, the error of closing an extracted file, an extra field cut short, the Zip64 data descriptors of Java (madler `af0d07f`), `memmove()` in the sliding window (OpenBSD, `files/openbsd/`) and the fix of CVE-2014-8139 as Info-ZIP corrected it (`unzip -t` of a jar failed); `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR, and three fixes of Debian (a heap overflow on a resize, the padding of the status line, `defflow` after a reattach); `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS, with the fixes of CVE-2026-96512 (three upstream commits), CVE-2026-35535 (the mailer as root with the groups of the user) and of an `@includedir` file with `:` in its name (upstream `3e474c2`, `ff0b6be`, as Debian carries them); `yamdi` with the fix of Debian for `-c`; `bash` without NLS, with three fixes of 5.3 as Gentoo carries them: `wait` of an ended background job, command substitutions with a large environment, the prompt in a single-byte locale; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL, the fixes of CVE-2026-15146, CVE-2026-58470, CVE-2026-58471 and CVE-2026-58472 as Ubuntu carries them, without OPIE (S/KEY: CVE-2026-16599); `rsync` 3.5.2, ahead of the official 3.5.1 for its security fixes: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
 | `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 70 for 7.4 and 8.1, 68 for 8.2 to 8.4, 65 for 5.6 (with the variants below); the list of one: `pkg search -r az '^php84-'` |
@@ -212,8 +212,9 @@ Names and origins as the ports, files at the paths of the ports:
   before. Off: Options, Configuration, "Use COW file cloning", or `file_cloning=false` in
   `~/.config/mc/ini`. zip, jar, 7z, rar and ISO images open as a directory with
   [`files/ubsdtar`](misc/mc/files/ubsdtar), on `tar` of the base system (libarchive),
-  without Perl, 7-Zip or unrar; Perl, zip and GNU diff give what they give (writing into
-  zip, the deb and rpm helpers, `mcdiff`) once they are installed.
+  without Perl, 7-Zip or unrar (a file of an encrypted zip fails at once: `tar` asked for
+  its passphrase on the terminal, and mc waited); Perl, zip and GNU diff give what they
+  give (writing into zip, the deb and rpm helpers, `mcdiff`) once they are installed.
 - These seven: the version of the official port at the pinned commit (or of the take
   line of its conf) with the build stamp as `PORTREVISION`; every distfile in the fetch
   phase; tests after the install: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
@@ -240,7 +241,12 @@ Names and origins as the ports, files at the paths of the ports:
   management), the socket `/tmp/mysql.sock` compiled into the server and the client
   library and in `my.cnf.sample` (`/tmp` is a memory disk on the servers, tmpmfs), the
   PID file in `/var/run/mysql`; PCRE2 of `pcre2`, lz4, zstd and fmt of az, zlib (not the
-  copy MariaDB has), OpenSSL and libedit of the base system.
+  copy MariaDB has), OpenSSL and libedit of the base system. With the fix of the
+  regression CONC-821 of the Connector/C of 10.11.19
+  ([`files/patch-libmariadb_libmariadb_mariadb__stmt.c`](databases/mariadb1011-server/files/patch-libmariadb_libmariadb_mariadb__stmt.c),
+  upstream `ead038d` as Debian carries it): `mysql_stmt_bind_result()` set the length of
+  each string and BLOB to 0, so the programs that bind again after a fetch (Perl, Python,
+  Qt) got empty strings; PHP (mysqlnd) is not affected.
 - **`ftp/vsftpd-ext`** and **`ftp/vsftpd-ext-openssl`**: vsftpd-ext with its rc.d script
   (RC_SCRIPT); the variant with SSL (VSFTPD_SSL, the OpenSSL of the base system); one of
   the two. With the fix of CVE-2021-3618 (ALPACA) as vsftpd 3.0.5 has it
@@ -257,7 +263,13 @@ Names and origins as the ports, files at the paths of the ports:
   [`files/patch-CVE-2026-119568`](ftp/vsftpd-ext/files/patch-CVE-2026-119568): a data
   connection over TLS resumes only a session of its own login (no stateless session
   tickets: their key was the same for every login, and `require_ssl_reuse` took the
-  session of another one).
+  session of another one). And of Debian:
+  [`files/patch-deny_file-realpath`](ftp/vsftpd-ext/files/patch-deny_file-realpath):
+  `deny_file` by the real path too, the part of the fix of CVE-2015-1419 vsftpd-ext lacks
+  (a symbolic link to a denied directory or file, made other than by FTP, led past it;
+  the greedy `*` it has already: with `{*.php}`, an upload named `a.php.x.php` is
+  refused); [`files/patch-pam-exec-hang`](ftp/vsftpd-ext/files/patch-pam-exec-hang): a
+  login hung when a PAM module had started and reaped a process of its own (pam_exec).
 - **`net/3proxy`** and **`net/3proxy-openssl`**: 3proxy 0.9.9.3, the LTS line of upstream
   (07.11.2026), for its security fixes: the official port has 0.9.5, which upstream no
   longer supports. With the two fixes of the 0.9 branch after it (a pcre rule without an
@@ -301,8 +313,10 @@ Names and origins as the ports, files at the paths of the ports:
   grep -P, Apache with the modules of the servers on a port of its own, memcached,
   MariaDB on its default socket `/tmp/mysql.sock`, named with a zone of its own asked by
   dig over UDP and TCP and by an IDN name, rndc, vips with JPEG, WebP, PNG and GIF,
-  vsftpd-ext and vsftpd-ext-openssl (what the fixes above close refused; curl gets a
-  file over FTP and FTPS), the libraries of each).
+  vsftpd-ext and vsftpd-ext-openssl (what the fixes above close refused, uploads named
+  `a.php.x.php` or through a link to a denied directory too; curl gets a file over FTP
+  and FTPS and uploads one; the TLS 1.3 tickets live 7 days at most), the libraries of
+  each).
 - **`www/yt-dlp`**: the package `yt-dlp` in the place of the official one: the official
   port as it is, at a newer release of yt-dlp (the grabbers of the video sites need the
   extractors of the latest), depending on our `multimedia/ffmpeg`; its Python packages are
