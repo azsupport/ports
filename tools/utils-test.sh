@@ -6,7 +6,9 @@
 # but its own of bsddialog and sudo, and those of az and pcre2 of wget and rsync);
 # zip makes an archive unzip reads; bash: its command substitutions with the
 # exported environment, the prompt of its readline in the C locale (script(1));
-# unzip: a ZIP64 archive of Windows, the time of an old Unix extra field.
+# unzip: a ZIP64 archive of Windows, the time of an old Unix extra field, a jar of
+# jar(1), a Zip64 entry with a data descriptor of 32-bit lengths (Java), a zip written
+# to a pipe; zipgrep with an alternation; wget without OPIE.
 #
 # Usage (FreeBSD, the packages installed): sh tools/utils-test.sh
 # Results: utils-results/tests.txt (one line per check, the summary at the end);
@@ -91,10 +93,10 @@ if [ -z "$miss" ]; then pass "3proxy: the plugins, by the names of 0.9.5 too"; e
 if libs_of "$P/bin/wget" libpcre2-8; then pass "wget: $libs_out"; else fail "wget: $libs_bad"; fi
 feat=" $("$P/bin/wget" --version 2>&1 | sed -n '/^[+-]/p' | tr '\n' ' ') "
 miss=""
-for f in +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm; do
+for f in +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm -opie; do
     case "$feat" in *" $f "*) ;; *) miss="$miss $f" ;; esac
 done
-if [ -z "$miss" ]; then pass "wget: +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm"; else fail "wget lacks$miss (it has:$feat)"; fi
+if [ -z "$miss" ]; then pass "wget: +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm -opie"; else fail "wget lacks$miss (it has:$feat)"; fi
 rv="$("$P/bin/rsync" --version 2>&1)"
 miss=""
 for f in xxh128 zstd lz4 file-flags; do printf '%s\n' "$rv" | grep -q -- "$f" || miss="$miss $f"; done
@@ -146,6 +148,24 @@ else
     fail "unzip: the time of a UX extra field followed by Ux: $(TZ=UTC stat -f %Sm "$T/ux/h.txt" 2>&1), not 2026-03-04 05:06:07 UTC"
 fi
 
+# unzip -t of a jar made by jar(1) (12.11.2026): its first entry has the extra block
+# 0xCAFE with no data, which the early fix of CVE-2014-8139 of the official port
+# refused ("EF block length (0 bytes) invalid", status 2; files/cve-2014-8139-pkvms.patch)
+printf '%s\n' \
+    'UEsDBBQACAgIAO25bF0AAAAAAAAAAAAAAAAFAAQAYS50eHT+ygAAy0osUshPU0isKi4tKMgvKuEC' \
+    'AFBLBwg+k6C+EwAAABEAAABQSwECFAAUAAgICADtuWxdPpOgvhMAAAARAAAABQAEAAAAAAAAAAAA' \
+    'AAAAAAAAYS50eHT+ygAAUEsFBgAAAAABAAEANwAAAEoAAAAAAA==' | openssl base64 -d > "$T/m.jar"
+if "$P/bin/unzip" -t "$T/m.jar" > "$T/jar.log" 2>&1; then pass "unzip -t of a jar made by jar(1) (the extra block 0xCAFE with no data)"
+else fail "unzip -t of a jar made by jar(1): $(tr '\n' ' ' < "$T/jar.log" | cut -c1-200)"; fi
+# a Zip64 entry whose data descriptor has 32-bit lengths, as the zip library of Java
+# writes some (unzip-zipbomb-part7.patch): not "a possible zip bomb" (status 12)
+printf '%s\n' \
+    'UEsDBC0ACAAIAAAAIQAAAAAAAAAAAAAAAAAFAAAAai50eHSryiwwM1FIzSspqlTIT1PISixL5AIA' \
+    'UEsHCNsEHVcWAAAAFAAAAFBLAQIUAy0ACAAIAAAAIQDbBB1X//////////8FABQAAAAAAAAAAACk' \
+    'gQAAAABqLnR4dAEAEAAUAAAAAAAAABYAAAAAAAAAUEsFBgAAAAABAAEARwAAAEkAAAAAAA==' | openssl base64 -d > "$T/z64dd.zip"
+if "$P/bin/unzip" -t "$T/z64dd.zip" > "$T/z64dd.log" 2>&1; then pass "unzip -t of a Zip64 entry with a data descriptor of 32-bit lengths (Java)"
+else fail "unzip -t of a Zip64 entry with a data descriptor of 32-bit lengths: $(tr '\n' ' ' < "$T/z64dd.log" | cut -c1-200)"; fi
+
 mkdir -p "$T/src/dir a"
 printf 'zip of azsupport\n' > "$T/src/dir a/file 1.txt"
 if (cd "$T/src" && "$P/bin/zip" -q -r "$T/t.zip" .) > "$T/zip.log" 2>&1 &&
@@ -155,6 +175,18 @@ if (cd "$T/src" && "$P/bin/zip" -q -r "$T/t.zip" .) > "$T/zip.log" 2>&1 &&
 else
     fail "zip, unzip: $(cat "$T/zip.log" "$T/unzip.log" 2> /dev/null | head -n 3 | tr '\n' ' ')"
 fi
+# a zip that zip writes to a pipe (data descriptors with their signature) is tested as
+# before; zipgrep with an alternation (fix-zipgrep.patch: it found nothing)
+printf 'alpha\nbeta\ngamma\n' > "$T/src/g.txt"
+if (cd "$T/src" && "$P/bin/zip" -q - g.txt | cat > "$T/stream.zip") 2> "$T/stream.log" &&
+        "$P/bin/unzip" -t "$T/stream.zip" >> "$T/stream.log" 2>&1; then
+    pass "zip to a pipe, unzip -t: its data descriptors read"
+else
+    fail "zip to a pipe, unzip -t: $(tr '\n' ' ' < "$T/stream.log" | cut -c1-200)"
+fi
+v="$(PATH="$P/bin:$PATH" "$P/bin/zipgrep" 'alpha|gamma' "$T/stream.zip" 2>&1 | tr '\n' ' ')"
+if [ "$v" = "g.txt:alpha g.txt:gamma " ]; then pass "zipgrep 'alpha|gamma': g.txt:alpha g.txt:gamma"
+else fail "zipgrep 'alpha|gamma': \"$v\", not \"g.txt:alpha g.txt:gamma\""; fi
 
 echo "tests: $ok ok, $bad failed" >> "$out"
 cat "$out"

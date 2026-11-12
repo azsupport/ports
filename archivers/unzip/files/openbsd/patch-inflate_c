@@ -1,0 +1,23 @@
+From: OpenBSD archivers/unzip, patches/patch-inflate_c
+Subject: memmove(), not memcpy(), for the copies within the sliding window
+ The source and the destination of a copy in the window of inflate.c (the
+ deflate method, that of nearly every archive) can overlap, on a normal archive
+ too (a match about 32 KB back near the end of the window): undefined
+ behaviour. OpenBSD's libc aborts on it (SIGABRT); FreeBSD's memcpy() copies
+ forward on amd64 and gives the right data, but its __memcpy_chk of
+ _FORTIFY_SOURCE would abort as well. memmove() is defined for overlapping
+ regions.
+Origin: https://github.com/openbsd/ports/commit/89a66a1dff2e6f28933fc45957b6b62615dbfd71
+ (13.01.2025), as it is, -p0
+
+--- inflate.c.orig	Wed Jul 30 10:31:08 2008
++++ inflate.c	Mon Jan 13 18:09:38 2025
+@@ -1018,7 +1018,7 @@ unsigned bl, bd;        /* number of bits decoded by t
+           if ((unsigned)w - d >= e)
+           /* (this test assumes unsigned comparison) */
+           {
+-            memcpy(redirSlide + (unsigned)w, redirSlide + d, e);
++            memmove(redirSlide + (unsigned)w, redirSlide + d, e);
+             w += e;
+             d += e;
+           }
