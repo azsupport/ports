@@ -1,0 +1,136 @@
+Description: the %cd actions of mc.ext.ini (archives: tar, zip, 7z, rar, ISO...) copied the path into a static buffer of 1 KB without a bound: a GString instead
+Origin: upstream, https://github.com/MidnightCommander/mc/commit/694c66817ae106e3cadf8f3c22e9fea6530df93b
+ (22.03.2026, after 4.8.33; no release has it), backported to the code of 4.8.33
+ (its text is a char * there, not a GString)
+Bug: https://github.com/MidnightCommander/mc/issues/5115
+Why: a buffer overflow by the contents of an archive. Enter on a file whose name is
+ longer than 1 KB (a tar entry can have such a name: pax, GNU long names) with an
+ action "%cd %p/<vfs>://" (ours: ubsdtar, utar...) wrote past the static buffer of
+ src/filemanager/ext.c with strcpy(): mc 4.8.33 crashed (tools/mc-test.sh opens such
+ a tar). The command for %cd is built in a GString of exec_extension() now, freed at
+ its end.
+
+--- src/filemanager/ext.c.orig
++++ src/filemanager/ext.c
+@@ -96,9 +96,7 @@ typedef char *(*quote_func_t) (const char *name, gboolean quote_percent);
+ static mc_config_t *ext_ini = NULL;
+ static gchar **ext_ini_groups = NULL;
+ static vfs_path_t *localfilecopy_vpath = NULL;
+-static char buffer[BUF_1K];
+ 
+-static char *pbuffer = NULL;
+ static time_t localmtime = 0;
+ static quote_func_t quote_func = name_quote;
+ static gboolean run_view = FALSE;
+@@ -235,7 +233,7 @@ exec_get_export_variables (const vfs_path_t *filename_vpath)
+ /* --------------------------------------------------------------------------------------------- */
+ 
+ static GString *
+-exec_make_shell_string (const char *lc_data, const vfs_path_t *filename_vpath)
++exec_make_shell_string (const char *lc_data, const vfs_path_t *filename_vpath, GString ** buffer)
+ {
+     GString *shell_string;
+     char lc_prompt[80] = "\0";
+@@ -301,7 +299,12 @@ exec_make_shell_string (const char *lc_data, const vfs_path_t *filename_vpath)
+                         is_cd = TRUE;
+                         quote_func = fake_name_quote;
+                         do_local_copy = FALSE;
+-                        pbuffer = buffer;
++
++                        if (*buffer == NULL)
++                            *buffer = g_string_sized_new (128);
++                        else
++                            g_string_set_size (*buffer, 0);
++
+                         lc_data += i - 1;
+                     }
+                     else
+@@ -336,10 +339,7 @@ exec_make_shell_string (const char *lc_data, const vfs_path_t *filename_vpath)
+                                 if (!is_cd)
+                                     g_string_append (shell_string, text);
+                                 else
+-                                {
+-                                    strcpy (pbuffer, text);
+-                                    pbuffer = strchr (pbuffer, '\0');
+-                                }
++                                    g_string_append (*buffer, text);
+ 
+                                 g_free (text);
+                             }
+@@ -357,7 +357,7 @@ exec_make_shell_string (const char *lc_data, const vfs_path_t *filename_vpath)
+             if (!whitespace (*lc_data))
+                 written_nonspace = TRUE;
+             if (is_cd)
+-                *(pbuffer++) = *lc_data;
++                g_string_append_c (*buffer, *lc_data);
+             else
+                 g_string_append_c (shell_string, *lc_data);
+         }
+@@ -406,21 +406,18 @@ exec_extension_view (void *target, char *cmd, const vfs_path_t *filename_vpath,
+ /* --------------------------------------------------------------------------------------------- */
+ 
+ static void
+-exec_extension_cd (WPanel *panel)
++exec_extension_cd (WPanel *panel, GString *buffer)
+ {
+-    char *q;
++    size_t i;
+     vfs_path_t *p_vpath;
+ 
+-    *pbuffer = '\0';
+-    pbuffer = buffer;
+     /* Search last non-space character. Start search at the end in order
+        not to short filenames containing spaces. */
+-    q = pbuffer + strlen (pbuffer) - 1;
+-    while (q >= pbuffer && whitespace (*q))
+-        q--;
+-    q[1] = 0;
++    for (i = buffer->len; i != 0 && whitespace (buffer->str[i - 1]); i--)
++        ;
++    g_string_set_size (buffer, i);
+ 
+-    p_vpath = vfs_path_from_str_flags (pbuffer, VPF_NO_CANON);
++    p_vpath = vfs_path_from_str_flags (buffer->str, VPF_NO_CANON);
+     panel_cd (panel, p_vpath, cd_parse_command);
+     vfs_path_free (p_vpath, TRUE);
+ }
+@@ -433,12 +430,12 @@ exec_extension (WPanel *panel, void *target, const vfs_path_t *filename_vpath,
+                 const char *lc_data, int start_line)
+ {
+     GString *shell_string, *export_variables;
++    GString *buffer = NULL;
+     vfs_path_t *script_vpath = NULL;
+     int cmd_file_fd;
+     FILE *cmd_file;
+     char *cmd = NULL;
+ 
+-    pbuffer = NULL;
+     localmtime = 0;
+     quote_func = name_quote;
+     run_view = FALSE;
+@@ -448,13 +445,13 @@ exec_extension (WPanel *panel, void *target, const vfs_path_t *filename_vpath,
+     /* Avoid making a local copy if we are doing a cd */
+     do_local_copy = !vfs_file_is_local (filename_vpath);
+ 
+-    shell_string = exec_make_shell_string (lc_data, filename_vpath);
++    shell_string = exec_make_shell_string (lc_data, filename_vpath, &buffer);
+     if (shell_string == NULL)
+         goto ret;
+ 
+     if (is_cd)
+     {
+-        exec_extension_cd (panel);
++        exec_extension_cd (panel, buffer);
+         g_string_free (shell_string, TRUE);
+         goto ret;
+     }
+@@ -539,6 +536,9 @@ exec_extension (WPanel *panel, void *target, const vfs_path_t *filename_vpath,
+ 
+     exec_cleanup_file_name (filename_vpath, TRUE);
+   ret:
++    if (buffer != NULL)
++        g_string_free (buffer, TRUE);
++
+     return script_vpath;
+ }
+ 

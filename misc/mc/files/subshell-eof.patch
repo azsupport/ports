@@ -1,0 +1,92 @@
+Description: the subshell exits (exit or ^D in Ctrl-O) on FreeBSD without "read (subshell_pty...)" and an exit of mc with status 1: the end of file of the pty is how the subshell dies here
+Origin: NetBSD pkgsrc, https://github.com/NetBSD/pkgsrc/blob/6f9f6aaa362dae2d391a90715fe53db6b3a61f96/sysutils/mc/patches/patch-src_subshell_common.c
+ (rev. 1.3, 2021), without its hunk that takes /bin/sh for a shell like ash (mc has no
+ precmd for it: see pkg-message)
+Why: when the subshell (a session leader) exits, the BSDs revoke its terminal and a
+ read of the master of the pty gives 0 (end of file), not -1 with EIO as on Linux.
+ That comes before the SIGCHLD of its exit, and mc 4.8.33 took it for an error unless
+ the SIGCHLD had come first: it printed "read (subshell_pty...): <the errno of
+ something else>" and exited at once with status 1, without its normal end (the
+ history, the setup, the directory for mc-wrapper). FreeBSD's pkg-message of mc shows
+ that message: "read (subshell_pty...): No such file or directory (2)", a read of
+ 0 bytes. An end of file is the death of the subshell now; until its SIGCHLD has come
+ it is read again. The messages of feed_subshell() show the errno of the call that
+ failed (tcsetattr() before them could change it).
+
+--- src/subshell/common.c.orig
++++ src/subshell/common.c
+@@ -792,6 +792,7 @@ feed_subshell (int how, gboolean fail_on_error)
+ {
+     fd_set read_set;            /* For 'select' */
+     int bytes;                  /* For the return value from 'read' */
++    int serrno;                 /* errno of 'select' and 'read': tcsetattr() may change it */
+     int i;                      /* Loop counter */
+ 
+     struct timeval wtime;       /* Maximum time we wait for the subshell */
+@@ -826,6 +827,7 @@ feed_subshell (int how, gboolean fail_on_error)
+ 
+         if (select (maxfdp + 1, &read_set, NULL, NULL, wptr) == -1)
+         {
++            serrno = errno;
+             /* Despite using SA_RESTART, we still have to check for this */
+             if (errno == EINTR)
+             {
+@@ -836,7 +838,7 @@ feed_subshell (int how, gboolean fail_on_error)
+             }
+             tcsetattr (STDOUT_FILENO, TCSANOW, &shell_mode);
+             fprintf (stderr, "select (FD_SETSIZE, &read_set...): %s\r\n",
+-                     unix_error_string (errno));
++                     unix_error_string (serrno));
+             exit (EXIT_FAILURE);
+         }
+ 
+@@ -849,19 +851,21 @@ feed_subshell (int how, gboolean fail_on_error)
+             /* for (i=0; i<5; ++i)  * FIXME -- experimental */
+         {
+             bytes = read (mc_global.tty.subshell_pty, pty_buffer, sizeof (pty_buffer));
++            serrno = errno;
+ 
+-            /* The subshell has died */
+-            if (bytes == -1 && errno == EIO && !subshell_alive)
++            /* The subshell has died: EIO on Linux, end of file (0) on the BSDs; until its
++             * SIGCHLD has come, an end of file is read again */
++            if (((bytes == -1 && errno == EIO) || bytes == 0) && !subshell_alive)
+                 return FALSE;
+ 
+-            if (bytes <= 0)
++            if (bytes < 0)
+             {
+ #ifdef PTY_ZEROREAD
+                 /* On IBM i, read(1) can return 0 for a non-closed fd */
+                 continue;
+ #else
+                 tcsetattr (STDOUT_FILENO, TCSANOW, &shell_mode);
+-                fprintf (stderr, "read (subshell_pty...): %s\r\n", unix_error_string (errno));
++                fprintf (stderr, "read (subshell_pty...): %s\r\n", unix_error_string (serrno));
+                 exit (EXIT_FAILURE);
+ #endif
+             }
+@@ -879,9 +883,10 @@ feed_subshell (int how, gboolean fail_on_error)
+             bytes = read (subshell_pipe[READ], subshell_cwd, sizeof (subshell_cwd));
+             if (bytes <= 0)
+             {
++                serrno = errno;
+                 tcsetattr (STDOUT_FILENO, TCSANOW, &shell_mode);
+                 fprintf (stderr, "read (subshell_pipe[READ]...): %s\r\n",
+-                         unix_error_string (errno));
++                         unix_error_string (serrno));
+                 exit (EXIT_FAILURE);
+             }
+ 
+@@ -906,9 +911,10 @@ feed_subshell (int how, gboolean fail_on_error)
+             bytes = read (STDIN_FILENO, pty_buffer, sizeof (pty_buffer));
+             if (bytes <= 0)
+             {
++                serrno = errno;
+                 tcsetattr (STDOUT_FILENO, TCSANOW, &shell_mode);
+                 fprintf (stderr,
+-                         "read (STDIN_FILENO, pty_buffer...): %s\r\n", unix_error_string (errno));
++                         "read (STDIN_FILENO, pty_buffer...): %s\r\n", unix_error_string (serrno));
+                 exit (EXIT_FAILURE);
+             }
+ 

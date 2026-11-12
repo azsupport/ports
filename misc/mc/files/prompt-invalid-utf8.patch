@@ -1,0 +1,23 @@
+Description: the prompt of the subshell with bytes that are not UTF-8 (a directory named in KOI8-R or CP1251 in it) lost the letters after them, and mc read past its end
+Origin: upstream, https://github.com/MidnightCommander/mc/commit/763330325c48c88364fa55d680584a92825be051
+ (02.11.2025, after 4.8.33; part 1 of 2: part 2, which also keeps the bytes that
+ are not UTF-8 and other control characters in the prompt, is left out)
+Bug: https://github.com/MidnightCommander/mc/issues/4801
+Why: strip_ctrl_codes() (the prompt of mc's command line from that of the subshell)
+ stepped over a byte that is not UTF-8 by the length its value has as a lead byte.
+ In a UTF-8 locale the prompt "/www/d\370> " of bash (\370 is "ш" in CP1251)
+ became "/www/d": the step from \370 (5 bytes) went over "> ", the end of the
+ string and two bytes after it. Such a byte is one byte now (not printed, as
+ before). tcsh turns such bytes of its prompt into UTF-8 itself; bash and zsh do not.
+
+--- lib/util.c.orig
++++ lib/util.c
+@@ -828,7 +828,7 @@ strip_ctrl_codes (char *s)
+         {
+             char *n;
+ 
+-            n = str_get_next_char (r);
++            n = str_get_next_char_safe (r);
+             if (str_isprint (r))
+             {
+                 memmove (w, r, n - r);

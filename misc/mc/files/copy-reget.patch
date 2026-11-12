@@ -1,0 +1,19 @@
+Description: a "Reget" (resume) of one file of a copy made the files copied after it lose their beginning: the offset is reset after each file
+Origin: upstream, https://github.com/MidnightCommander/mc/commit/334a9e8102bf0b3b065e5af87841fe34ec5b801a
+ (15.08.2026, after 4.8.33; no release has it)
+Bug: https://github.com/MidnightCommander/mc/issues/5138
+Why: a silent corruption of copies. Copying a and b (F5, or F6 across file systems)
+ where the destination has a part of a: "Reget" for a resumes a, then b is copied
+ from the offset of a (mc 4.8.32 and 4.8.33 keep it: cc34729f45, ticket #4563), its
+ first bytes missing. copy_file_file() resets the offset at its end.
+
+--- src/filemanager/file.c.orig
++++ src/filemanager/file.c
+@@ -3016,6 +3016,7 @@ copy_file_file (file_op_context_t *ctx, const char *src_path, const char *dst_pa
+   ret_fast:
+     vfs_path_free (src_vpath, TRUE);
+     vfs_path_free (dst_vpath, TRUE);
++    ctx->do_reget = -1;         /* reinit for a next file */
+     return return_status;
+ }
+ 

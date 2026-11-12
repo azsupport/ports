@@ -6,6 +6,7 @@ preserving the full power of the command prompt. You will wonder how
 you could ever live without it.
 
 The mc of azsupport/ports (misc/mc/files/mc.conf): the editor, the
-subshell, the charsets and SFTP, with GLib and libssh2 inside, so that it
-needs no other package; zip, 7z, rar and ISO images open with tar of the
-base system. Versions and options: share/doc/mc/VERSIONS.
+subshell, the charsets and SFTP, on the shared GLib of the package glib and
+libssh2 of az; zip, 7z, rar and ISO images open with tar of the base
+system; fixes of mc after 4.8.33 (misc/mc/files/*.patch). Versions,
+options and patches: share/doc/mc/VERSIONS.
