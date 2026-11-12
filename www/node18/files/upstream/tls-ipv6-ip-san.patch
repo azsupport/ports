@@ -1,0 +1,63 @@
+tls: match IPv6 hosts against IP-Address SANs: checkServerIdentity() of the fix of
+CVE-2026-48618 (files/suse/cves.patch) took the host through domainToASCII() before
+net.isIP(), which gives '' for an IPv6 literal, so a certificate with the IP-Address
+SAN of an IPv6 host failed ("Cert does not contain a DNS name"); the fix of
+CVE-2026-106069 builds on it.
+Upstream: https://github.com/nodejs/node/commit/beb4cd4cd31c8a6726102baabf441cad93eae3b1
+(v22.23.4; PR https://github.com/nodejs/node/pull/64145, fixes nodejs/node#64144).
+Backport to 18.20.8 (azsupport/ports, 12.11.2026): the primordials of lib/tls.js of 18
+(ArrayPrototypeIncludes).
+
+diff --git a/lib/tls.js b/lib/tls.js
+index 0367482a..5f2de80d 100644
+--- a/lib/tls.js
++++ b/lib/tls.js
+@@ -307,8 +307,14 @@ exports.checkServerIdentity = function checkServerIdentity(hostname, cert) {
+   let valid = false;
+   let reason = 'Unknown reason';
+ 
+-  if (net.isIP(hostnameASCIIWithoutFQDN)) {
+-    valid = ArrayPrototypeIncludes(ips, canonicalizeIP(hostnameASCIIWithoutFQDN));
++  // An IP literal must not be IDNA-normalized: domainToASCII() returns '' for
++  // an IPv6 literal (it is not a domain), so matching against the normalized
++  // host would skip IP-SAN matching for IPv6 entirely. Match IP hosts against
++  // the original hostname (net.isIP() rejects non-ASCII, so there is no IDNA
++  // confusion to guard against here); the normalized form is kept for the
++  // DNS-name path below.
++  if (net.isIP(hostname)) {
++    valid = ArrayPrototypeIncludes(ips, canonicalizeIP(hostname));
+     if (!valid) {
+       reason = `IP: ${hostname} is not in the cert's list: ` +
+                ArrayPrototypeJoin(ips, ', ');
+diff --git a/test/parallel/test-tls-check-server-identity.js b/test/parallel/test-tls-check-server-identity.js
+index 3dc0275e..37ac6c9e 100644
+--- a/test/parallel/test-tls-check-server-identity.js
++++ b/test/parallel/test-tls-check-server-identity.js
+@@ -95,6 +95,27 @@ const tests = [
+     cert: { subject: { CN: '8.8.8.8' }, subjectaltname: 'IP Address:8.8.8.8' }
+   },
+ 
++  // An "IP Address:" SAN also matches an IPv6 host. Regression test for the
++  // IDNA-normalization change: domainToASCII('::1') === '' (an IPv6 literal is
++  // not a domain), which made the normalized host skip IPv6 IP-SAN matching.
++  {
++    host: '::1',
++    cert: { subject: {}, subjectaltname: 'IP Address:::1' }
++  },
++
++  // IPv6 hosts and SANs are matched canonically.
++  {
++    host: '2001:db8::1',
++    cert: { subject: {}, subjectaltname: 'IP Address:2001:DB8:0:0:0:0:0:1' }
++  },
++
++  // A non-matching IPv6 "IP Address:" SAN is rejected.
++  {
++    host: '::1',
++    cert: { subject: {}, subjectaltname: 'IP Address:::2' },
++    error: 'IP: ::1 is not in the cert\'s list: ::2'
++  },
++
+   // But not when it's a CIDR.
+   {
+     host: '8.8.8.8',

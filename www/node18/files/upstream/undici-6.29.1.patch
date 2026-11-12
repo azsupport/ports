@@ -1,0 +1,18 @@
+undici 6.29.1, the bundle of Node.js 22.23.4 (deps/undici/undici.js, a distfile of
+this port: the Makefile copies it over that of 18.20.8 in post-patch), in the place
+of the undici 5.29.0 of 18.20.8 with the backports of SUSE: the version
+process.versions.undici reports.
+Upstream: https://github.com/nodejs/node/commit/857be5afa358ec17e74550d306ffe0c3e55f497f
+(v22.23.4: deps: update undici to 6.29.1; PR https://github.com/nodejs/node/pull/66765).
+
+diff --git a/src/undici_version.h b/src/undici_version.h
+index d1bd357d..fc270593 100644
+--- a/src/undici_version.h
++++ b/src/undici_version.h
+@@ -2,5 +2,5 @@
+ // Refer to tools/update-undici.sh
+ #ifndef SRC_UNDICI_VERSION_H_
+ #define SRC_UNDICI_VERSION_H_
+-#define UNDICI_VERSION "5.29.0"
++#define UNDICI_VERSION "6.29.1"
+ #endif  // SRC_UNDICI_VERSION_H_

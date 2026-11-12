@@ -39,23 +39,56 @@
 # CVE-2026-48619, CVE-2026-48928, CVE-2026-48930, CVE-2026-48931, CVE-2026-48932
 # and CVE-2026-58044 (one fix), CVE-2026-48933, CVE-2026-48934, CVE-2026-48937,
 # CVE-2026-56846, CVE-2026-56848, CVE-2026-56850, CVE-2026-58040, CVE-2026-58042,
-# CVE-2026-58045; undici 6.28.0 for CVE-2026-6733, CVE-2026-9679, CVE-2026-11525,
-# CVE-2026-12151, CVE-2026-15157, CVE-2026-16728, CVE-2026-16729, CVE-2026-22036.
-# They are all the fixes of Debian 12 for its nodejs 18.20.4 (18.20.4+dfsg-1~deb12u3,
-# 16.08.2026) and more. Open on 11.11.2026 (no distribution has them for Node 18):
-# those of the Node.js release of 21.10.2026, CVE-2026-105481, CVE-2026-105482,
-# CVE-2026-106069, CVE-2026-106072 and CVE-2026-106074, and the undici releases
-# after 6.28.0. The others of 2025 and 2026 are of the Permission Model, node:sqlite,
-# Windows or code of Node 20 and later; CVE-2026-111497 is in the brotli of 18.20.8,
-# not in the brotli 1.2.1 of az.
+# CVE-2026-58045; in undici CVE-2026-6733, CVE-2026-9679, CVE-2026-11525,
+# CVE-2026-12151, CVE-2026-15157, CVE-2026-16728, CVE-2026-16729, CVE-2026-22036
+# (SUSE backports them into the undici 5.29.0 of 18.20.8, which stays 5.29.0; the
+# undici 6.29.1 below takes its place). They are all the fixes of Debian 12 for its
+# nodejs 18.20.4 (18.20.4+dfsg-1~deb12u3, 16.08.2026) and more.
+#
+# Then the fixes no distribution has for Node 18 that touch the legacy project, an
+# application of node behind nginx, which does TLS and HTTP/2 and gives node plain
+# HTTP/1.1 (aZ, 12.11.2026): of the Node.js 22 security releases of 21.10.2026
+# (22.23.4) and 11.11.2026 (22.23.5), in files/upstream, each with its commit of
+# nodejs/node and how the backport differs, applied after those of SUSE:
+# CVE-2026-105482 (dns: names with a NUL byte), CVE-2026-105481 (http.Agent: a
+# response that came before its request on a kept-alive socket), CVE-2026-106069
+# and CVE-2026-106072 (tls.checkServerIdentity(): hosts that are IPv4 addresses
+# only in a non-canonical form; on tls-ipv6-ip-san.patch, its predecessor: IPv6
+# hosts against IP-Address SANs, which the fix of CVE-2026-48618 broke),
+# CVE-2026-106074 (the random caches of crypto in user-land startup snapshots),
+# CVE-2026-123877 (https.Agent: sockets and TLS sessions shared between TLS
+# policies), CVE-2026-123862 (zlib: params() then destroy()); and undici 6.29.1,
+# the bundle of Node.js 22.23.4 (nodejs/node 857be5afa358: deps/undici/undici.js,
+# the distfile node-v22.23.4-undici.js, put over that of 18.20.8 in post-patch;
+# undici-6.29.1.patch gives process.versions its version), in the place of the
+# undici 5.29.0 with the backports of SUSE: undici 6 runs on Node 18.17 and later
+# (Node.js 20 moved to it within its LTS line), and Node 18 takes fetch(),
+# FormData, Headers, Request and Response of it. Not taken: the fixes of the TLS
+# and HTTP/2 code of node, for its servers (nginx in front: aZ, 12.11.2026),
+# CVE-2026-123828, CVE-2026-123863, CVE-2026-123864, CVE-2026-123865,
+# CVE-2026-123866, CVE-2026-123867, CVE-2026-123868, CVE-2026-123872,
+# CVE-2026-123874, CVE-2026-123875 and CVE-2026-126051; CVE-2026-123871 (the proxy
+# support of http and https, which Node 18 does not have); CVE-2026-106071,
+# CVE-2026-106073, CVE-2026-123829 and CVE-2026-123873 (the Permission Model, Node
+# 20 and later); CVE-2026-105483 (code of Node 24 and later), CVE-2026-106070
+# (zlib.ZipFile of Node 26). The others of 2025 and 2026 are of the Permission
+# Model, node:sqlite, Windows or code of Node 20 and later; CVE-2026-111497 is in
+# the brotli of 18.20.8, not in the brotli 1.2.1 of az. llhttp 9.4.4 (22.23.5,
+# nodejs/node 554fff40f0) fixes the check of header values in its SIMD code of
+# arm64 (NEON) and WebAssembly; the C and SSE4.2 code of amd64 parses as 9.4.3
+# does, the llhttp of www/llhttp (a differential fuzzing of the two, 12.11.2026).
 
 PORTNAME=	node
 PORTVERSION=	${NODEJS_PORTVERSION}
 PORTREVISION=	${AZ_STAMP:U0}
 DISTVERSIONPREFIX=	v
 CATEGORIES=	www
-MASTER_SITES=	https://nodejs.org/dist/v${PORTVERSION}/
+MASTER_SITES=	https://nodejs.org/dist/v${PORTVERSION}/ \
+		https://raw.githubusercontent.com/nodejs/node/v${UNDICI_NODE}/deps/undici/undici.js?dummy=/:undici
 PKGNAMESUFFIX=	${PORTVERSION:R:R}
+DISTFILES=	${DISTNAME}${EXTRACT_SUFX} \
+		node-v${UNDICI_NODE}-undici.js:undici
+EXTRACT_ONLY=	${DISTNAME}${EXTRACT_SUFX}
 
 MAINTAINER=	github@azsupport.com
 COMMENT=	V8 JavaScript for client and server (of azsupport/ports)
@@ -81,10 +114,25 @@ RUN_DEPENDS=	${AZ_NODE_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@} \
 USES=		compiler:c++11-lib gmake localbase pkgconfig python:3.9-3.13,build \
 		shebangfix tar:xz
 
-# the security fixes (see the top), in the order of SUSE
+# the security fixes (see the top): those of SUSE in its order, then those of
+# Node.js 22, made on them in this order (the fix of CVE-2026-106069 builds on
+# tls-ipv6-ip-san.patch; the others touch files of their own)
 EXTRA_PATCHES=	${FILESDIR}/suse/CVE-2026-21637.patch:-p1 \
 		${FILESDIR}/suse/CVE-2025-59465.patch:-p1 \
-		${FILESDIR}/suse/cves.patch:-p1
+		${FILESDIR}/suse/cves.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-105482.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-105481.patch:-p1 \
+		${FILESDIR}/upstream/tls-ipv6-ip-san.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-106069.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-106074.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123877.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123862.patch:-p1 \
+		${FILESDIR}/upstream/undici-6.29.1.patch:-p1
+
+# undici: deps/undici/undici.js of this release of Node.js 22 (see the top), a
+# distfile of its own; the framework puts the name of the distfile after the site,
+# where GitHub takes it for a query (?dummy=/) and fetch(1) names the file by it
+UNDICI_NODE=	22.23.4
 
 # llhttp: Node 18 links -lhttp_parser without --shared-http-parser-libname and has
 # no pkg-config name for it, so no -L either: the -L${LOCALBASE}/lib of
@@ -160,6 +208,9 @@ post-patch:
 	@${RM} -r ${WRKSRC}/deps/npm/
 	@${RM} -r ${WRKSRC}/deps/uv/
 	@${RM} -r ${WRKSRC}/deps/zlib/
+# undici 6.29.1 (see the top) in the place of the bundle of 18.20.8, which node
+# builds in as internal/deps/undici/undici (deps/undici/src is not built)
+	${CP} ${DISTDIR}/node-v${UNDICI_NODE}-undici.js ${WRKSRC}/deps/undici/undici.js
 
 post-configure:
 	# Post-process Makefile and *.mk files created by node-gyp and remove
