@@ -4,7 +4,8 @@
 # rsync with the shared libraries of az (and wget with PCRE2 of devel/pcre2): each
 # runs (its version) and has its libraries (none missing; those of the base system,
 # but its own of bsddialog and sudo, and those of az and pcre2 of wget and rsync);
-# zip makes an archive unzip reads.
+# zip makes an archive unzip reads; bash: its command substitutions with the
+# exported environment, the prompt of its readline in the C locale (script(1)).
 #
 # Usage (FreeBSD, the packages installed): sh tools/utils-test.sh
 # Results: utils-results/tests.txt (one line per check, the summary at the end);
@@ -101,6 +102,26 @@ if libs_of "$P/bin/rsync"; then pass "rsync: $libs_out"; else fail "rsync: $libs
 libs "$P/bin/sudo" libsudo_util
 libs "$P/bin/bsddialog" libbsddialog
 libs "$P/lib/snmp_ucd.so"
+
+# bash (shells/bash/files): the command substitutions of an exported environment made
+# once (SHLVL updated in it in place) give what they gave (bash expands them, not sh)
+# shellcheck disable=SC2016
+v="$(env SHLVL=5 "$P/bin/bash" -c 'echo "$SHLVL $(printenv SHLVL) $(export B=2; printenv B) [$(printenv B)]"' 2>&1)"
+if [ "$v" = "6 5 2 []" ]; then pass "bash: SHLVL and the exported variables in command substitutions"
+else fail "bash: command substitutions gave \"$v\", not \"6 5 2 []\""; fi
+# the prompt with escape sequences in the C locale, a short line of the history
+# recalled after one that wrapped (Gentoo bug 984299): printed again from column 0,
+# not from the 14th byte of the prompt (its stray "m" right after the cursor up)
+e="$(printf '\033')"
+v="$( (sleep 2; printf 'true 1\r'; sleep 1; printf 'echo %0100d\r' 0; sleep 1; printf '\033[A'; sleep 1
+    printf '\033[A'; sleep 1; printf '\003exit\r'; sleep 1) | env -i TERM=xterm LC_ALL=C HOME="$T" \
+    PATH=/bin:/usr/bin INPUTRC=/dev/null PS1='White \[\e[01;32m\]green\[\e[00m\] \$ ' \
+    script -q /dev/null "$P/bin/bash" --norc --noprofile -i 2>&1)"
+case "$v" in
+    *"${e}[Amgreen"*) fail "bash: the prompt with colours not printed again in the C locale after a wrapped line" ;;
+    *"true 1"*"true 1"*) pass "bash: the prompt with colours printed again in the C locale after a wrapped line" ;;
+    *) fail "bash -i in script(1): the recalled line not seen: $(printf '%s' "$v" | tr -cd '[:print:]' | tail -c 200)" ;;
+esac
 
 mkdir -p "$T/src/dir a"
 printf 'zip of azsupport\n' > "$T/src/dir a/file 1.txt"

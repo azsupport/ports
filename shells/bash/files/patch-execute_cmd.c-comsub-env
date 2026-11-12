@@ -1,0 +1,35 @@
+A command substitution whose last command is run without a fork (the implicit exec
+of $(cmd)) lowered SHLVL first and only then made the exported environment, so a
+shell with many exported variables rebuilt the whole environment for every such
+command substitution: the export environment is made first now and SHLVL updated in
+it in place.
+A part of commit 2d4ba0c61858 of the devel branch of bash (20.05.2026: "fixed an
+issue with adjusting SHLVL in subshells that caused the environment to be rebuilt
+too many times"), as Gentoo carries it on 5.3_p20 (app-shells/bash
+files/bash-5.3_p20-comsub-export-env-rebuild.patch:
+https://github.com/gentoo/gentoo/blob/master/app-shells/bash/files/bash-5.3_p20-comsub-export-env-rebuild.patch).
+
+--- execute_cmd.c
++++ execute_cmd.c
+@@ -5814,9 +5814,17 @@ execute_disk_command (WORD_LIST *words, REDIRECT *redirects, char *command_line,
+ 	 shell level like `exec' would do. Don't do this if we are already
+ 	 in a pipeline environment, assuming it's already been done. */
+       if (nofork && pipe_in == NO_PIPE && pipe_out == NO_PIPE && (subshell_environment & SUBSHELL_PIPE) == 0)
+-	adjust_shell_level (-1);
+-
+-      maybe_make_export_env ();
++	{
++	  maybe_make_export_env ();
++	  adjust_shell_level (-1);
++	  update_export_env_inplace ("SHLVL=", 6, get_string_value ("SHLVL"));
++	  /* adjust_shell_level() marks the export environment dirty because SHLVL is
++	     exported. Since we have already built the environment, update SHLVL in place
++	     below and avoid forcing a full rebuild here. */
++	  array_needs_making = 0;
++	}
++      else
++	maybe_make_export_env ();
+       put_command_name_into_env (command);
+     }
+   else if (command == 0 && notfound_str == 0)	/* make sure */
+

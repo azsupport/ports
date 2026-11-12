@@ -1,0 +1,31 @@
+In a single-byte locale (C, POSIX) the prompt is printed wrong once a short line of
+the history is recalled after one that wrapped, when the prompt has escape
+sequences (PS1 with colours): bash53-017 (readline83-004) replaced the test whether
+to print the prompt again from column 0 by one for multibyte locales, where
+_rl_last_c_pos is a column; in a single-byte locale it is an index into the line,
+as the test before took it. The single-byte test as before, the multibyte one as
+bash53-017 has it.
+The patch of Kerin Millar (23.10.2026) for readline 8.3.6 as Gentoo carries it
+(sys-libs/readline files/readline-8.3_p6-single-byte-prompt-reprint.patch, bug
+984299:
+https://github.com/gentoo/gentoo/blob/master/sys-libs/readline/files/readline-8.3_p6-single-byte-prompt-reprint.patch),
+the path that of the readline in bash; Gentoo's bash links the readline of the
+system, this one is built with its own. The same line in the devel branch of bash
+(a4a9dbc, 30.10.2026) is "pmt_offset + (...) ? _rl_last_c_pos :
+local_prompt_len", which C reads as "(pmt_offset + (...)) ? ...", so not that.
+
+--- lib/readline/display.c
++++ lib/readline/display.c
+@@ -1509,7 +1509,11 @@ rl_redisplay (void)
+ 	         on the current screen line begins in the buffer. It is a
+ 	         buffer position, an index into curline
+ 	         (local_prompt + pmt_offset) */
+-	      cursor_bufpos = pmt_offset + local_prompt_len;
++	      cursor_bufpos = pmt_offset;
++	      if (mb_cur_max == 1 || rl_byte_oriented)
++		cursor_bufpos += _rl_last_c_pos;
++	      else
++		cursor_bufpos += local_prompt_len;
+ 
+ 	      if (local_prompt && local_prompt_invis_chars[cursor_linenum] &&
+ 		    _rl_last_c_pos > 0 &&
