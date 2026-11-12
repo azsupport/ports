@@ -1,0 +1,21 @@
+[
+{ type: install
+  message: <<EOM
+Kibana 6.8.23 runs here on the Node.js 24 of www/node24 (it was made for
+Node.js 10): %%WWWDIR%%/src/setup_node_env/node_compat.js puts back
+what it needs of Node.js 10, hapi has its fixes for Node.js 16, and re2 is
+node-re2 1.27.1 built for this Node.js.
+
+Machine Learning and Reporting (with its CSV export) are off: Elasticsearch has
+no machine learning on FreeBSD, and Reporting needs the Chromium or PhantomJS
+of Kibana, which FreeBSD cannot run and the package does not have. They are off
+in %%ETCDIR%%/kibana.yml.sample and, for an older kibana.yml too, by the rc
+script (kibana_args in rc.conf). The bundles of the package are built for these
+plugins: with another set (a plugin turned on or off, one installed) Kibana
+builds them again in %%WWWDIR%%/optimize at its start, which takes
+minutes and more than 1 GB of memory.
+
+service kibana reload opens the log file again (after its rotation).
+EOM
+}
+]
