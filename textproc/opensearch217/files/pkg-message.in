@@ -24,7 +24,9 @@ does not open on this node, an ingest or search pipeline with a processor
 of opensearch-neural-search does not run on it, and a cluster whose state
 holds opensearch-knn-blocked-models (after a model of k-NN was deleted)
 does not take it as a node. opensearch-ml runs its remote models
-(connectors) only: its local models need native code of Linux.
+(connectors) only: its local models need native code of Linux, and the
+two jars of that code (ONNX Runtime with CUDA, the tokenizers of DJL:
+309 MiB) are not in this package.
 
 With bootstrap.memory_lock: true in opensearch.yml OpenSearch locks its
 memory (the whole heap, at the start). The rc script runs it in the
