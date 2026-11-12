@@ -1,0 +1,61 @@
+[
+{ type: install
+  message: <<EOM
+OpenSearch 2.17.1 was installed (of azsupport/ports).
+
+Please see %%ETCDIR%% for a sample version of
+opensearch.yml.
+
+This package has no security plugin (no TLS, no users and passwords): a
+setting of it in opensearch.yml stops the start. The rc script refuses
+to start with one and names its lines; remove them, such as
+
+plugins.security.disabled: true
+
+and every other plugins.security.* (and opendistro_security.*) line.
+Without the plugin, everyone who reaches the HTTP and transport ports
+can read and change every index: keep them behind the firewall.
+
+Not in this package (native code of Linux, or a plugin that needs one
+of them): opensearch-knn, opensearch-neural-search,
+opensearch-performance-analyzer, opensearch-ml, opensearch-skills,
+opensearch-flow-framework; and opensearch-security. An index that uses
+one of them (a knn_vector field, index.knn) does not open here.
+
+With bootstrap.memory_lock: true in opensearch.yml OpenSearch locks its
+memory (the whole heap, at the start). The rc script runs it in the
+login class root, whose memorylocked is unlimited; the two sysctls it
+needs are the defaults of FreeBSD:
+
+sysctl security.bsd.unprivileged_mlock=1
+sysctl vm.max_user_wired
+
+(pages of 4 KB; above 8400000 for a heap of 31g).
+
+The heap of this server is set in /etc/rc.conf, as -Xmx takes it (-Xms and
+-Xmx get the same size). Without it the heap is the 31g of jvm.options,
+which is for a server with 64 GB of RAM and more: with less RAM set it, at
+most half of the RAM (the rest is the cache of the file system):
+
+opensearch_heap="4g"
+
+OpenSearch of this package keeps no archives of old logs: path.logs holds
+the files of each log, in JSON and in text (<cluster>_server.json and
+<cluster>.log, the deprecation, slow and task logs), and a file that
+reaches its size (128 MB the server logs, 1 GB the others) starts anew,
+the old one is deleted (%%ETCDIR%%/log4j2.properties). It writes no GC
+log and no heap dump. The archives that are there already
+(<cluster>-<date>-<n>.json.gz and .log.gz, the others .gz, gc.log*) stay
+until removed by hand.
+
+Its temporary directory is /tmp/opensearch, made anew at each start
+(opensearch_tmpdir in /etc/rc.conf for another place).
+
+When running within a jail, it's highly advisable to set:
+
+enforce_statfs = 1
+
+for the jail running opensearch instance.
+EOM
+}
+]
