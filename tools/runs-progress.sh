@@ -95,10 +95,32 @@ while [ "$(date +%s)" -lt "$end" ]; do
                     echo "The logs of the ports building now (results/logs, lines and the last one):"
                     echo
                     for po in $nowo; do
-                        lf="$ws/results/logs/$(printf '%s' "$po" | tr '/@' '__').log"
+                        key="$(printf '%s' "$po" | tr '/@' '__')"
+                        lf="$ws/results/logs/$key.log"
                         # shellcheck disable=SC2086
                         ssh $o "$vm" "wc -l < '$lf' 2>/dev/null; tail -n 1 '$lf' 2>/dev/null" < /dev/null > "$w/plog" 2> /dev/null || :
-                        echo "    $po: $(sed -n 1p "$w/plog" | tr -d ' ') lines; $(sed -n 2p "$w/plog" | cut -c 1-200)"
+                        n="$(sed -n 1p "$w/plog" | tr -d ' ')"
+                        # how the log grows (aZ, 12.11.2026: a build that is stuck must show
+                        # at once, not after hours): the lines since the last report, and
+                        # how long the log has not grown; 30 minutes without a line is named
+                        grow=""; stall=""
+                        case "$n" in
+                            ''|*[!0-9]*) ;;
+                            *)
+                                prev=""; since=""
+                                [ -f "$w/lines.$key" ] && read -r prev since < "$w/lines.$key"
+                                t="$(date -u '+%s')"
+                                case "$prev" in
+                                    ''|*[!0-9]*) since="$t" ;;
+                                    *) grow=", +$(( n - prev )) since the last report"
+                                       [ "$n" = "$prev" ] || since="$t" ;;
+                                esac
+                                echo "$n ${since:-$t}" > "$w/lines.$key"
+                                idle=$(( (t - ${since:-$t}) / 60 ))
+                                [ "$idle" -lt 30 ] || stall="; NO NEW LINE FOR $idle MINUTES: stuck?"
+                                ;;
+                        esac
+                        echo "    $po: $n lines$grow$stall; $(sed -n 2p "$w/plog" | cut -c 1-200)"
                     done
                 fi
             else
