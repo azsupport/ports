@@ -11,7 +11,8 @@
 # mpdecimal, python3; the official py312-* packages over it) by python-test.sh,
 # OpenJDK 17 and JNA (openjdk17, headless, and jna without X11) by java-test.sh,
 # Elasticsearch 6 by elastic-test.sh, Kibana 6 (on our node24, with elasticsearch6)
-# by kibana-test.sh, Node.js 18 (node18, npm-node18, yarn-node18, corepack-node18) by
+# by kibana-test.sh, OpenSearch 2.17 (opensearch217) by opensearch-test.sh, Node.js
+# 18 (node18, npm-node18, yarn-node18, corepack-node18) by
 # node18-test.sh after the tests on node24, installed in the place of node24 (one of
 # the two: pkg takes node24 and its npm, yarn and corepack away), and Perl (perl5,
 # under the name of FreeBSD's) by perl-test.sh, with the XS modules of FreeBSD's
@@ -40,7 +41,7 @@
 
 set -u
 top="$(cd "$(dirname "$0")/.." && pwd)"
-usage() { sed -n 's/^# \{0,1\}//; 14,17p' "$0" >&2; exit "${1:-2}"; }
+usage() { sed -n '/^# Usage/,/^#   --repo/s/^# \{0,1\}//p' "$0" >&2; exit "${1:-2}"; }
 say() { printf '[test-programs %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
 repo=""
@@ -265,6 +266,21 @@ if [ -n "$k_" ]; then
     cat "$res/test-programs-install-kibana.log" >> "$log"
     want="$want$k_"
 fi
+# OpenSearch 2.17 (aZ, 12.11.2026: a legacy project) as the server packages; its
+# OpenJDK 17 and JNA are those above
+opensearches="opensearch217"
+os_=""
+for p in $opensearches; do in_repo "$p" && os_="$os_ $p"; done
+if [ -n "$os_" ]; then
+    say "pkg install -f$os_"
+    # shellcheck disable=SC2086
+    CONSERVATIVE_UPGRADE=no pkg install -y -f $os_ > "$res/test-programs-install-opensearch.log" 2>&1 || say "pkg install of OpenSearch says it failed (test-programs-install-opensearch.log)"
+    # shellcheck disable=SC2086
+    again "$res/test-programs-install-opensearch.log" $os_
+    cat "$res/test-programs-install-opensearch.log" >> "$res/test-programs-install.log"
+    cat "$res/test-programs-install-opensearch.log" >> "$log"
+    want="$want$os_"
+fi
 # Perl (aZ, 11.11.2026: under the name of FreeBSD's, so that its p5-* packages work
 # with it) as the server packages: perl5; perl-test.sh installs the official p5-*
 # packages with XS over it (as a server does) and takes them away again
@@ -305,7 +321,7 @@ done
 for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "imagemagick ImageMagick6 ImageMagick7" \
         "graphicsmagick GraphicsMagick" "mc mc" ${p_:+"python$p_"} "ytdlp yt-dlp ffmpeg" "utils $utils" \
         ${s_:+"servers$s_"} ${n_:+"node$n_"} ${j_:+"java$j_"} ${e_:+"elastic$e_"} \
-        ${k_:+"kibana$k_ elasticsearch6 node24"} ${n18_:+"node18$n18_"} ${l_:+"perl$l_"}; do
+        ${k_:+"kibana$k_ elasticsearch6 node24"} ${os_:+"opensearch$os_"} ${n18_:+"node18$n18_"} ${l_:+"perl$l_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift

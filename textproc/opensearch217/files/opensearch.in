@@ -1,0 +1,248 @@
+#!/bin/sh
+
+# PROVIDE: opensearch
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: shutdown
+#
+# Add the following line to /etc/rc.conf to enable opensearch:
+#
+# opensearch_enable="YES"
+#
+# opensearch_user (username): Set to opensearch by default.
+#               Set it to required username.
+# opensearch_group (group):   Set to opensearch by default.
+#               Set it to required group.
+# opensearch_config (path):   Set to %%PREFIX%%/etc/opensearch/opensearch.yml by default.
+#               Set it to the config file location.
+# opensearch_login_class (class): Set to root by default.
+#               The login class whose limits OpenSearch runs with (rc.subr:
+#               limits -C). bootstrap.memory_lock: true of opensearch.yml
+#               locks the memory of the JVM with mlockall(2), which the kernel
+#               allows up to RLIMIT_MEMLOCK of the process: unlimited in the
+#               class root of /etc/login.conf (memorylocked), 64K in the class
+#               default and 128M in daemon, with which OpenSearch says
+#               "Unable to lock JVM Memory". The other two conditions are the
+#               defaults of FreeBSD: security.bsd.unprivileged_mlock=1, and
+#               the locked memory of all processes within vm.max_user_wired
+#               (pages; four fifths of the free memory at boot). A heap of
+#               31g is locked whole at the start (-XX:+AlwaysPreTouch), with
+#               about 1 GB of the JVM beside it: the server needs that much
+#               RAM free for it for good (it is never swapped), and
+#               vm.max_user_wired above 8400000, which a server with 64 GB
+#               of RAM has by default.
+# opensearch_java_home (path): Set to %%JAVA_HOME%% by default.
+#               Set it to the root of the JDK to use.
+# opensearch_heap (size):     Not set by default: the heap is the -Xms and
+#               -Xmx of jvm.options (31g, for a server with 64 GB of RAM and
+#               more; with less set it, at most half of the RAM). Set it to
+#               the size of the heap of this server, as -Xmx takes it (512m,
+#               4g, ...): it becomes both -Xms and -Xmx, after the options of
+#               jvm.options, which can then be the same file on every server.
+#               With profiles: opensearch_<profile>_heap.
+# opensearch_tmpdir (path):   Set to /tmp/opensearch by default.
+#               The temporary directory of OpenSearch (OPENSEARCH_TMPDIR, its
+#               java.io.tmpdir), its own: whatever is at that path is removed
+#               and the directory made anew before each start, for
+#               opensearch_user with mode 0700. With profiles:
+#               opensearch_<profile>_tmpdir, one for each profile that runs.
+#
+# This package has no security plugin (aZ, 12.11.2026: connections without
+# TLS and without passwords): a start with a setting of that plugin in
+# opensearch.yml (plugins.security.*, such as plugins.security.disabled: true,
+# or the old opendistro_security.*) is refused, with the lines to remove;
+# OpenSearch itself would stop at them as unknown settings.
+#
+. /etc/rc.subr
+
+name=opensearch
+rcvar=opensearch_enable
+
+load_rc_config ${name}
+
+: ${opensearch_enable:=NO}
+: ${opensearch_user=opensearch}
+: ${opensearch_group=opensearch}
+: ${opensearch_config=%%PREFIX%%/etc/opensearch}
+: ${opensearch_login_class=root}
+: ${opensearch_java_home="%%JAVA_HOME%%"}
+: ${opensearch_heap=""}
+: ${opensearch_tmpdir="/tmp/opensearch"}
+
+required_files="${opensearch_config}/opensearch.yml"
+_pidprefix=/var/run/opensearch/opensearch
+pidfile=${_pidprefix}.pid
+procname=${opensearch_java_home}/bin/java
+
+extra_commands="console status"
+console_cmd=opensearch_console
+start_precmd=opensearch_precmd
+command=%%PREFIX%%/lib/opensearch/bin/opensearch
+command_args="-d --pidfile=${pidfile}"
+
+export OPENSEARCH_PATH_CONF=${opensearch_config}
+export JAVA_HOME=${opensearch_java_home}
+
+# opensearch_security_settings <opensearch.yml>: its lines that set a setting of
+# the security plugin, "<number>: <line>". The dotted path of each key of the
+# YAML from its indentation, so that the nested forms are found too
+# (plugins: / security: / disabled: true; plugins.security: / disabled: true;
+# plugins: {security: ...}); comments and lists are passed over.
+opensearch_security_settings()
+{
+    /usr/bin/awk '
+    {
+        l = $0
+        sub(/\r$/, "", l)
+        if (l ~ /^[ \t]*(#|$)/ || l ~ /^(---|\.\.\.)/)
+            next
+        match(l, /^[ \t]*/)
+        n = RLENGTH
+        r = substr(l, n + 1)
+        if (r ~ /^- /)
+            next
+        q = substr(r, 1, 1)
+        if (q == "\"" || q == "\047") {
+            e = index(substr(r, 2), q)
+            if (e == 0)
+                next
+            k = substr(r, 2, e - 1)
+            a = substr(r, e + 2)
+        } else {
+            c = index(r, ":")
+            if (c == 0)
+                next
+            k = substr(r, 1, c - 1)
+            a = substr(r, c)
+        }
+        if (a !~ /^:([ \t]|$)/)
+            next
+        v = substr(a, 2)
+        sub(/^[ \t]+/, "", v)
+        sub(/[ \t]+$/, "", k)
+        while (d > 0 && ind[d] >= n)
+            d--
+        p = ""
+        for (i = 1; i <= d; i++)
+            p = p key[i] "."
+        p = p k
+        d++
+        ind[d] = n
+        key[d] = k
+        if (p ~ /^(plugins\.security|opendistro_security)(\.|$)/ ||
+            (p == "plugins" && v ~ /^\{/ && v ~ /[{,][ \t]*["\047]?security["\047]?[ \t]*[.:]/))
+            printf "%d: %s\n", NR, l
+    }' "$1"
+}
+
+# The temporary directory: without OPENSEARCH_TMPDIR bin/opensearch made a new
+# /tmp/opensearch-<number> at every start (TempDirectory) and nothing removed
+# it; this one is the same at every start. /tmp is writable by everyone, so it
+# is made anew by root: what is at that path goes (rm does not follow a
+# symbolic link), mkdir fails if something appeared there meanwhile, and only
+# then it is given to the user of OpenSearch.
+opensearch_precmd()
+{
+    _yml="${opensearch_config}/opensearch.yml"
+    _sec=""
+    [ -r "${_yml}" ] && _sec="$(opensearch_security_settings "${_yml}")"
+    if [ -n "${_sec}" ]; then
+        echo "${_yml} sets the security plugin, which this package does not have (OpenSearch would stop at an unknown setting): remove these lines and start again:"
+        echo "${_sec}" | /usr/bin/sed 's/^/    line /'
+        echo "not started"
+        return 1
+    fi
+    case "${opensearch_tmpdir}" in
+    */|*/../*|*/..|*/./*|*/.) _bad=1 ;;
+    /*/*) _bad="" ;;
+    *) _bad=1 ;;
+    esac
+    if [ -n "${_bad}" ]; then
+        echo "opensearch_tmpdir=\"${opensearch_tmpdir}\" is not the path of a directory below one of /: not started"
+        return 1
+    fi
+    /bin/rm -rf -- "${opensearch_tmpdir}"
+    if ! /bin/mkdir -m 0700 -- "${opensearch_tmpdir}"; then
+        echo "${opensearch_tmpdir}: could not be made anew (something is at that path): not started"
+        return 1
+    fi
+    /usr/sbin/chown -h ${opensearch_user}:${opensearch_group} "${opensearch_tmpdir}" || return 1
+    /usr/bin/install -d -o ${opensearch_user} -g ${opensearch_group} -m 755 ${pidfile%/*}
+    /usr/bin/install -d -o ${opensearch_user} -g ${opensearch_group} -m 755 /var/db/opensearch
+    /usr/bin/install -d -o ${opensearch_user} -g ${opensearch_group} -m 755 /var/log/opensearch
+}
+
+opensearch_console()
+{
+    command_args=""
+    run_rc_command "start"
+}
+
+if [ -n "$2" ]; then
+    profile="$2"
+    if [ "x${opensearch_profiles}" != "x" ]; then
+        eval opensearch_config="\${opensearch_${profile}_config:-}"
+        if [ "x${opensearch_config}" = "x" ]; then
+            echo "You must define a configuration  (opensearch_${profile}_config)"
+            exit 1
+        fi
+	export OPENSEARCH_PATH_CONF=${opensearch_config}
+        required_files="${opensearch_config}/opensearch.yml"
+        required_files="${opensearch_config}/jvm.options"
+        eval opensearch_enable="\${opensearch_${profile}_enable:-${opensearch_enable}}"
+        eval opensearch_heap="\${opensearch_${profile}_heap:-${opensearch_heap}}"
+        eval opensearch_tmpdir="\${opensearch_${profile}_tmpdir:-${opensearch_tmpdir}}"
+        pidfile="${_pidprefix}.${profile}.pid"
+	command_args="-d --pidfile=${pidfile}"
+	echo "===> opensearch profile: ${profile}"
+    else
+        echo "$0: extra argument ignored"
+    fi
+else
+    if [ "x${opensearch_profiles}" != "x" -a "x$1" != "x" ]; then
+        for profile in ${opensearch_profiles}; do
+            eval _enable="\${opensearch_${profile}_enable}"
+            case "x${_enable:-${opensearch_enable}}" in
+            x|x[Nn][Oo]|x[Nn][Oo][Nn][Ee])
+                continue
+                ;;
+            x[Yy][Ee][Ss])
+                ;;
+            *)
+                if test -z "$_enable"; then
+                    _var=opensearch_enable
+                else
+                    _var=opensearch_"${profile}"_enable
+                fi
+                echo "Bad value" \
+                    "'${_enable:-${opensearch_enable}}'" \
+                    "for ${_var}. " \
+                    "Profile ${profile} skipped."
+                continue
+                ;;
+            esac
+            %%PREFIX%%/etc/rc.d/opensearch $1 ${profile}
+            retcode="$?"
+            if [ "0${retcode}" -ne 0 ]; then
+                failed="${profile} (${retcode}) ${failed:-}"
+            else
+                success="${profile} ${success:-}"
+            fi
+        done
+        exit 0
+    fi
+fi
+
+# The heap of this server: -Xms and -Xmx, equal, in OPENSEARCH_JAVA_OPTS, which
+# bin/opensearch puts after the options of jvm.options (the JVM takes the last
+# -Xms and -Xmx), so that jvm.options is the same file on every server.
+if [ -n "${opensearch_heap}" ]; then
+    if ! expr "${opensearch_heap}" : '[1-9][0-9]*[kKmMgG]\{0,1\}$' > /dev/null; then
+        echo "opensearch_heap=\"${opensearch_heap}\" is not a size of -Xmx (512m, 4g, ...)"
+        exit 1
+    fi
+    export OPENSEARCH_JAVA_OPTS="-Xms${opensearch_heap} -Xmx${opensearch_heap}"
+fi
+export OPENSEARCH_TMPDIR="${opensearch_tmpdir}"
+
+run_rc_command "$1"
