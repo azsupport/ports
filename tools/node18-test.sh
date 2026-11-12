@@ -104,10 +104,12 @@ js() {
     _n="$1"; _f="$2"; shift 2
     # shellcheck disable=SC2086
     _o="$(cd "$T" && env HOME="$T/home" $jsenv "$P/bin/node" "$@" "$_f" 2> "$T/js.err" < /dev/null)"
+    _rc=$?
     case "$_o" in
         "OK "*) pass "$_n: ${_o#OK }" ;;
         "FAIL "*) fail "$_n: ${_o#FAIL }" ;;
-        *) fail "$_n: $(printf '%s\n' "$_o" "$(cat "$T/js.err")" | sed -n '/[^[:space:]]/{p;q;}')" ;;
+        *) _e="$(printf '%s\n' "$_o" "$(cat "$T/js.err")" | sed -n '/[^[:space:]]/{p;q;}')"
+           fail "$_n: ${_e:-no output}; exit status $_rc" ;;
     esac
 }
 pkgv() { pkg query '%v' "$1" 2>/dev/null | sed 's/[_,].*//'; }
