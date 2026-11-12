@@ -209,14 +209,15 @@ fi
 # The patches of misc/mc/files (each its header), through mc in a terminal as above:
 # keys_run <typescript> <keys> <command>...: the keys (sh commands: sleeps and printfs)
 # into the terminal; keys_exit its exit status (a signal: that of mc, as script(1)
-# gives it), keys_secs its seconds, <typescript>.txt its strings
+# gives it), keys_secs its seconds, <typescript>.txt its strings; script -t 0 writes the
+# typescript at once (the keys may wait for what it shows)
 keys_run() {
     _t="$1" _k="$2"; shift 2
     keys_exit="?" keys_secs=0
     rm -f "$_t.rc"
     (eval "$_k") | {
         _s0=$(date +%s)
-        timeout 60 script -q "$_t" sh -c 'stty rows 30 cols 100; exec "$@"' sh "$@" > /dev/null 2>&1
+        timeout 60 script -q -t 0 "$_t" sh -c 'stty rows 30 cols 100; exec "$@"' sh "$@" > /dev/null 2>&1
         echo "$? $(( $(date +%s) - _s0 ))" > "$_t.rc"
     }
     [ -f "$_t.rc" ] && read -r keys_exit keys_secs < "$_t.rc"
@@ -351,14 +352,16 @@ if [ -x "$bash" ]; then
     cpd="$T/cp/d$(printf '\370')"
     mkdir -p "$cpd"
     printf "PS1='\\\\w> '\n" > "$HOME/.bashrc"
-    # F10 after 6 s (bash took longer than 3 or 4 s to start in some runs: 43210253159,
-    # 43213822115, exit 124), y for "The shell is still active. Quit anyway?" of an mc
-    # that still waits for it
-    keys_run "$T/cp.typescript" "sleep 6; printf '$f10'; sleep 2; printf y; sleep 2" \
+    # F10 once mc has drawn the prompt, up to 40 s (bash took longer than the 10 s mc
+    # waits for the start of a subshell in some runs: 43210253159, 43213822115,
+    # 43217797075), y for "The shell is still active. Quit anyway?" of an mc that still
+    # waits for it
+    keys_run "$T/cp.typescript" "i=0; while [ \$i -lt 40 ] && ! grep -a -q -F '$T/cp/d> ' '$T/cp.typescript';
+        do sleep 1; i=\$((i + 1)); done; sleep 1; printf '$f10'; sleep 2; printf y; sleep 2" \
         env SHELL="$bash" sh -c 'cd "$1" && exec "$2"' sh "$cpd" "$mc"
     rm -f "$HOME/.bashrc"
     if [ "$keys_exit" = 0 ] && grep -q "$T/cp/d> " "$T/cp.typescript.txt"; then
-        pass "bash subshell in a directory named in CP1251: the prompt on the command line \"$T/cp/d> \""
+        pass "bash subshell in a directory named in CP1251: the prompt on the command line \"$T/cp/d> \" (mc quit after ${keys_secs}s)"
     else
         fail "bash subshell in a directory named in CP1251: exit $keys_exit after ${keys_secs}s, prompt \"$T/cp/d> \" $(grep -q -F "$T/cp/d> " "$T/cp.typescript.txt" && echo there || echo missing), lines with $T/cp: $(grep -c -F "$T/cp" "$T/cp.typescript.txt"); $(tr '\n' ' ' < "$T/cp.typescript.txt" | tail -c 160)"
     fi
