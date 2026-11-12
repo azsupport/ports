@@ -524,6 +524,7 @@ env AZ_CPUTYPE=x86-64-v2 sh tools/build.sh
 env AZ_PORTSDIR=/usr/ports sh tools/build.sh
 env AZ_JOBS=1 sh tools/build.sh
 env AZ_DRYRUN=1 sh tools/build.sh
+env AZ_PLAN=1 sh tools/build.sh
 env AZ_CONFIGURE_CHECK=1 sh tools/build.sh --force
 ```
 
@@ -581,7 +582,18 @@ What it does, with the logic of poudriere:
   log and its own packages directory (two packages with the same files, `php84-mysqlnd`
   and `php84-mysqlnd-openssl`, build side by side); the summary in the order of the
   queue; `results/waves.txt`. `AZ_JOBS=1`: one port after another, as before;
-  `AZ_DRYRUN=1`: the waves of the run said, nothing built;
+  `AZ_DRYRUN=1`: the waves of the run said, nothing built (the ports that need az are
+  decided after az is built, when it is to be built);
+- `AZ_PLAN=1` (the input `plan` of the workflow), the plan of a run, to check its
+  decisions cheaply: `az/az` and the ports it needs are built when they are to be (the
+  ports that need az are decided by the interfaces of the new az), every other port only
+  decided, kept from the repository or to be built and why (`PLAN` lines of the
+  summary, `results/plan.txt`), not built; the repository gets what was built (az, so
+  that the next run keeps it); no checks, never published;
+- a port that names no file of the static tree of az (`/usr/local/az/static`) in its
+  dependencies builds without the archives of az (they go from its chroot): only a port
+  that says `AZ_STATIC_LIBS` can link them into its package
+  ([Versions and rebuilds](#versions-and-rebuilds));
 - a `NEED_ROOT` port (`az/az`: it builds into `/usr/local/az`): into that of its own
   chroot, as any port;
 - `AZ_CONFIGURE_CHECK=1`, the configure check: after the build of each PHP port (the
@@ -606,6 +618,7 @@ What it does, with the logic of poudriere:
 - the results in `results/`: `summary.txt` (a line per port, `result: OK` or
   `result: FAIL (...)` at the end), `queue.txt`, `hashes.txt`, `waves.txt`, `logs/`
   (`logs/chroots.log`: the catalogs and the official packages fetched at the start),
+  `az-interface.txt` and `abi-check.txt` (az), `plan.txt` (`AZ_PLAN`),
   `configure-check.txt` (`AZ_CONFIGURE_CHECK`).
 
 ### Versions and rebuilds
@@ -628,17 +641,60 @@ or of its slaves: a change of the php.ini block, the profile script, the rc.d sc
 the pkg-message of `lang/php74` builds `php74` again, not the modules and `mod_php74`
 (pkg takes a dependency by its name, not its version). No revisions bumped by hand.
 
-A port that links libraries of `az/az` takes into its `az_hash` not the hash of all of
-az but that of the last of its libraries in the order of `az/az/files/deps.conf`
-([`tools/az-lib-hashes.sh`](tools/az-lib-hashes.sh)): the common part of az, the own
-lines of the library (its `lib` and `take` lines, its build functions in
-`tools/az-build.sh` and `files/curl/build-libcurl.sh`, its patches and distfiles) and
-the hashes of the libraries before it. Its libraries: those of the files of az its
-dependencies name (`${AZ_PREFIX}/lib/libxml2.so:az/az`: libxml2) and those of
-`AZ_HASH_LIBS` in its Makefile (a program that links more than it names: `ftp/curl`,
-`multimedia/ffmpeg`). Comments, `upstream` lines and the documentation of az are in no
-such hash. A new library goes at the end of the `lib` lines: it builds again only az
-and the ports that link it (aZ, 10.11.2026).
+`az/az` is built again when anything of it changes; a port that needs it takes into its
+`az_hash` not the hash of az but the interfaces of the libraries of az it uses (aZ,
+12.11.2026: as FreeBSD and Debian, which do not build again the dependents of a shared
+library for a fix inside it). The interface of a library comes out of the build of az:
+[`tools/az-build.sh`](tools/az-build.sh) writes a manifest a library into the package
+(`/usr/local/az/share/az/interface/<library>.txt`) from what its builds installed (the
+files whose inode changed after the start of each of its builds, in both trees): its
+headers, `.pc` files, `*-config` scripts, cmake and other files with their SHA-256, the
+SONAMEs of its shared libraries, the names of its archives, its version, the hash of its
+build functions (`b_`, `s_` of `tools/az-build.sh`, `lib_` of
+`files/curl/build-libcurl.sh`: its configure and cmake options) and the libraries of az
+it requires (the `NEEDED` of its shared libraries, `Requires` and `-l` of its `.pc`
+files, the `#include` lines of its headers); `common.txt` has the files of no library
+(`bin/pkg-config`). [`tools/az-interface.sh`](tools/az-interface.sh) makes of a manifest
+the interface hash (the hashes of the archives left out) and the content hash, and the
+closure of what a library requires. A port takes the interface hash of each library of
+the closure of those it uses (those whose manifests have the files of az its
+dependencies name, `${AZ_PREFIX}/lib/libxml2.so:az/az`: libxml2, and those its
+`AZ_HASH_LIBS` names: a program that links more than its dependencies name, `ftp/curl`,
+`multimedia/ffmpeg`, `graphics/ImageMagick*`, `graphics/GraphicsMagick`) and of
+`common.txt`. So a fix inside the code of a library (the same headers, `.pc` files,
+SONAMEs, version and options) builds again only az; a new version, a changed header or
+`.pc` file, a new SONAME or a changed option builds again the ports that use that
+library. The hashes of the ports that need az are made once az is done: at once when its
+package in the repository has the same `az_hash` (its manifests), after its build when it
+is built (az is the first stage); a package of az without manifests is built again.
+
+Static use: no port of this tree links the archives of az (`/usr/local/az/static`) into
+its package; `graphics/ImageMagick7` and `graphics/GraphicsMagick` build their own static
+libraries against that tree, for PHP built on a server (`AZ_STATIC_LIBS= none`: their
+headers and `.pc` files are in the interfaces, both trees). A port that would link them
+names them in `AZ_STATIC_LIBS` (the content hash of those libraries, archives too, goes
+into its `az_hash`); [`tools/check-tree.sh`](tools/check-tree.sh) asks for
+`AZ_STATIC_LIBS` of a port whose dependencies name a file of the static tree, and
+`tools/build.sh` builds every other port without the archives of az in its chroot.
+
+Nothing slips by unseen:
+
+- after az is built in a run, before the tests, the ABI check of every package of the
+  repository that needs az ([`tools/az-abi-check.sh`](tools/az-abi-check.sh)): each
+  SONAME of az its files need (`shlibs_required` of pkg) is in the new az, and each
+  undefined dynamic symbol they bind from a library of az is defined there (the symbols
+  the new az lost against the az of the repository, `nm -D`; the ELF files only of the
+  packages that need a SONAME that lost some, `readelf -d`, `nm -D`); a package that
+  fails is built again in the same run, one not built goes from the repository
+  (`results/abi-check.txt`);
+- the tests of all the programs run in every run (`tools/test-programs.sh`), with the
+  packages kept against the new az;
+- a package that links a library of az its `az_hash` does not take (its
+  `shlibs_required` against the closures of its own libraries and of the ports it
+  needs) fails the run: `AZ_HASH_LIBS` of its Makefile is short;
+- `results/az-interface.txt` (a section of the report): the interfaces of the libraries
+  of az, those that changed against the az of the repository, the ABI check, and the
+  ports kept by interface while az was built again (a line `az:` of the summary).
 
 [`tools/install-php.sh`](tools/install-php.sh) `<version>` installs the PHP packages of
 a version from that repository, as a server does (the core, `mod_php74` and the
@@ -661,6 +717,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | `force` | build them also when their package with the same `az_hash` is in the release already |
 | `jobs` | the ports built at once (`AZ_JOBS`, default 4; `1`: one after another) |
 | `configure_check` | the configure check (`AZ_CONFIGURE_CHECK`, off by default): each PHP port built configured once more, permissive, and compared; with `force` every PHP port |
+| `plan` | the plan only (`AZ_PLAN`, off by default): `az/az` and the ports it needs built when they are to be, every other port decided, kept or to be built and why (`results/plan.txt`, a section of the report), not built; no checks, never published |
 | `publish` | publish the repository when everything built and every check passed (off by default: the repository the servers read is published on aZ's word) |
 
 It takes the repository of the last run (an actions/cache, saved also when a run
