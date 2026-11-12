@@ -54,4 +54,26 @@ e.g., after installing X-Pack you will have to correct:
 !!! PLUGINS NOTICE !!!
 EOM
 }
+{ type: upgrade
+  maximum_version: "6.8.23_26111400"
+  message: <<EOM
+Elasticsearch of this package runs on OpenJDK 21 (java/openjdk21,
+/usr/local/openjdk21), no longer on OpenJDK 17. After an upgrade from a
+package on OpenJDK 17:
+
+- a line elasticsearch_java_home="/usr/local/openjdk17" in /etc/rc.conf
+  keeps it on OpenJDK 17: take it away (the rc script runs it on
+  /usr/local/openjdk21 by itself) and restart it:
+
+sysrc -x elasticsearch_java_home
+service elasticsearch restart
+
+- then openjdk17 is of no use to it:
+
+pkg autoremove
+
+removes it when it came as a dependency and nothing else needs it
+(pkg delete openjdk17 when it was installed by hand).
+EOM
+}
 ]
