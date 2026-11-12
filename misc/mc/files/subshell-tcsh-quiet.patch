@@ -1,0 +1,175 @@
+Description: the lines mc itself sends to a subshell of tcsh (its init, the cd that follows the panels, the commands of the user menu) stay out of the history of tcsh, in memory and in ~/.history; what the user types stays
+Origin: azsupport/ports (aZ, 12.11.2026), after the tickets of upstream
+ https://github.com/MidnightCommander/mc/issues/2104 and https://github.com/MidnightCommander/mc/issues/3063 (bash and zsh skip mc's commands by their
+ leading space, ignorespace; tcsh has nothing like it)
+Why: Up in Ctrl-O and "history" showed a cd "`printf '%b' '\0057...'`" for each
+ directory a panel had been in and the init line of mc with its precmd alias, and
+ savehist kept them in ~/.history. Now:
+ - the cd: mc writes it into mc.cmd.<pid> of its temporary directory and sends a key
+   that its init binds with bindkey -c to "source" that file (tcsh records no command
+   of a key binding), then an empty line (not recorded either) for precmd and a new
+   prompt; when the file cannot be written, the cd is typed as before;
+ - the init line ends with "history -c; history -L": the list tcsh loaded at its
+   start ($histfile or ~/.history) again, without that line. The reloaded events get
+   new numbers (after those of the first load and of the init line: %h and !N are
+   higher than without mc); about 60 ms for 10000 events, once per start of mc;
+ - a command mc runs by itself (EXECUTE_HIDE: the user menu, "/bin/sh /tmp/.../mcusr...")
+   does not go through the subshell of tcsh: it runs through the shell as in mc without
+   a subshell (as the user menu without its prompt already does).
+ The commands the user types, in Ctrl-O or at the command line of mc, are typed into
+ tcsh as before and stay. mc keeps the directories itself: the "Dir Hist" sections of
+ ~/.local/share/mc/history (Alt-Shift-H, Alt-Y, Alt-U). The init also sets edit (the
+ key needs the line editor of tcsh). noclobber: precmd keeps ">>" to its FIFO, and mc
+ writes the file itself.
+
+--- src/execute.c.orig
++++ src/execute.c
+@@ -315,7 +315,10 @@ do_executev (const char *shell, int flags, char *const argv[])
+         fflush (stdout);
+     }
+ #ifdef ENABLE_SUBSHELL
+-    if (mc_global.tty.use_subshell && (flags & EXECUTE_INTERNAL) == 0)
++    /* A command that mc runs by itself (EXECUTE_HIDE: the user menu) does not go through a
++     * subshell of tcsh, which would record it in its history (tcsh has no ignorespace) */
++    if (mc_global.tty.use_subshell && (flags & EXECUTE_INTERNAL) == 0
++        && ((flags & EXECUTE_HIDE) == 0 || mc_global.shell->type != SHELL_TCSH))
+     {
+         do_update_prompt ();
+ 
+@@ -425,11 +428,9 @@ shell_execute (const char *command, int flags)
+ {
+     char *cmd = NULL;
+ 
++    /* EXECUTE_HIDE stays in the flags for do_executev() */
+     if ((flags & EXECUTE_HIDE) != 0)
+-    {
+         cmd = g_strconcat (" ", command, (char *) NULL);
+-        flags ^= EXECUTE_HIDE;
+-    }
+ 
+ #ifdef ENABLE_SUBSHELL
+     if (mc_global.tty.use_subshell)
+--- src/subshell/common.c.orig
++++ src/subshell/common.c
+@@ -175,6 +175,14 @@ enum
+ /* tcsh closes all non-standard file descriptors, so we have to use a pipe */
+ static char tcsh_fifo[128];
+ 
++/* tcsh has nothing like the ignorespace of bash and zsh, which keeps the commands mc sends
++ * out of the history: tcsh runs them from this file by a key bound with bindkey -c (the
++ * commands of a key binding are not recorded), and a history -c and -L in its init line
++ * takes that line out again */
++static char tcsh_cmd_file[128];
++#define TCSH_CMD_KEY_BINDKEY "^[(mcCD"
++#define TCSH_CMD_KEY ESC_STR "(mcCD"
++
+ static int subshell_pty_slave = -1;
+ 
+ /* The key for switching back to MC from the subshell */
+@@ -1251,8 +1259,10 @@ init_subshell_precmd (char *precmd, size_t buff_size)
+ 
+     case SHELL_TCSH:
+         g_snprintf (precmd, buff_size,
+-                    "set echo_style=both; "
+-                    "alias precmd 'echo -n;echo $cwd:q >>%s; kill -STOP $$'\n", tcsh_fifo);
++                    "set echo_style=both; set edit; "
++                    "alias precmd 'echo -n;echo $cwd:q >>%s; kill -STOP $$'; "
++                    "bindkey -c '" TCSH_CMD_KEY_BINDKEY "' 'source %s'; "
++                    "history -c; history -L\n", tcsh_fifo, tcsh_cmd_file);
+         break;
+     case SHELL_FISH:
+         g_snprintf (precmd, buff_size,
+@@ -1383,10 +1393,31 @@ clear_cwd_pipe (void)
+ 
+ /* --------------------------------------------------------------------------------------------- */
+ 
++/* tcsh: the command mc runs by the key of bindkey -c into tcsh_cmd_file; FALSE when it
++ * could not be written (then it is typed as before) */
++static gboolean
++tcsh_write_cmd_file (const char *cmd)
++{
++    int fd;
++    size_t len;
++    gboolean ok;
++
++    fd = open (tcsh_cmd_file, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600);
++    if (fd == -1)
++        return FALSE;
++    len = strlen (cmd);
++    ok = write_all (fd, cmd, len) == (ssize_t) len && write_all (fd, "\n", 1) == 1;
++    ok = close (fd) == 0 && ok;
++    return ok;
++}
++
++/* --------------------------------------------------------------------------------------------- */
++
+ static void
+ do_subshell_chdir (const vfs_path_t *vpath, gboolean update_prompt)
+ {
+     char *pcwd;
++    GString *cd_cmd;
+ 
+     pcwd = vfs_path_to_str_flags (subshell_get_cwd (), 0, VPF_RECODE);
+ 
+@@ -1428,29 +1459,38 @@ do_subshell_chdir (const vfs_path_t *vpath, gboolean update_prompt)
+     }
+ 
+     /* The initial space keeps this out of the command history (in bash
+-       because we set "HISTCONTROL=ignorespace") */
+-    write_all (mc_global.tty.subshell_pty, " cd ", 4);
++       because we set "HISTCONTROL=ignorespace"; tcsh runs it by its key) */
++    cd_cmd = g_string_new (" cd ");
+ 
+     if (vpath == NULL)
+-        write_all (mc_global.tty.subshell_pty, "/", 1);
++        g_string_append_c (cd_cmd, '/');
+     else
+     {
+         const char *translate;
+ 
+         translate = vfs_translate_path (vfs_path_as_str (vpath));
+         if (translate == NULL)
+-            write_all (mc_global.tty.subshell_pty, ".", 1);
++            g_string_append_c (cd_cmd, '.');
+         else
+         {
+             GString *temp;
+ 
+             temp = subshell_name_quote (translate);
+-            write_all (mc_global.tty.subshell_pty, temp->str, temp->len);
++            g_string_append_len (cd_cmd, temp->str, temp->len);
+             g_string_free (temp, TRUE);
+         }
+     }
+ 
+-    write_all (mc_global.tty.subshell_pty, "\n", 1);
++    /* tcsh: the cd from the file by the key, then an empty line for precmd and a new
++     * prompt (neither is recorded in the history) */
++    if (mc_global.shell->type != SHELL_TCSH || !tcsh_write_cmd_file (cd_cmd->str))
++    {
++        write_all (mc_global.tty.subshell_pty, cd_cmd->str, cd_cmd->len);
++        write_all (mc_global.tty.subshell_pty, "\n", 1);
++    }
++    else
++        write_all (mc_global.tty.subshell_pty, TCSH_CMD_KEY "\n", sizeof (TCSH_CMD_KEY "\n") - 1);
++    g_string_free (cd_cmd, TRUE);
+ 
+     subshell_state = RUNNING_COMMAND;
+     if (!feed_subshell (QUIETLY, TRUE))
+@@ -1548,6 +1588,8 @@ init_subshell (void)
+         {
+             g_snprintf (tcsh_fifo, sizeof (tcsh_fifo), "%s/mc.pipe.%d",
+                         mc_tmpdir (), (int) getpid ());
++            g_snprintf (tcsh_cmd_file, sizeof (tcsh_cmd_file), "%s/mc.cmd.%d",
++                        mc_tmpdir (), (int) getpid ());
+             if (mkfifo (tcsh_fifo, 0600) == -1)
+             {
+                 fprintf (stderr, "mkfifo(%s) failed: %s\r\n", tcsh_fifo, unix_error_string (errno));
+@@ -1879,6 +1921,7 @@ exit_subshell (void)
+             if (unlink (tcsh_fifo) == -1)
+                 fprintf (stderr, "Cannot remove named pipe %s: %s\r\n",
+                          tcsh_fifo, unix_error_string (errno));
++            (void) unlink (tcsh_cmd_file);
+         }
+ 
+         if (subshell_prompt != NULL)
