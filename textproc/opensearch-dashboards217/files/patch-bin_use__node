@@ -1,0 +1,24 @@
+--- bin/use_node.orig	2026-11-12 12:00:00 UTC
++++ bin/use_node
+@@ -45,7 +45,8 @@
+ 
+ # Get an absolute path for OSD_HOME
+ OSD_HOME="$(cd "$(dirname "${SCRIPT}")/.."; pwd)"
+-CONFIG_DIR=${OSD_PATH_CONF:-"OSD_HOME/config"}
++# azsupport/ports: "$OSD_HOME/config", not "OSD_HOME/config" (no node.options was read)
++CONFIG_DIR=${OSD_PATH_CONF:-"$OSD_HOME/config"}
+ 
+ # Places to look for the Node.js binary in order: OSD_NODE_HOME > NODE_HOME > bundled with OSD > system-wide
+ if [ ! -z "$OSD_NODE_HOME" ]; then
+@@ -58,8 +59,9 @@
+   NODE_ERROR_SHOW=true
+ else
+   # Set these variables outside, as catchalls, to show meaningful errors if needed
+-  NODE="$OSD_HOME/node/bin/node"
+-  NODE_ERROR_MSG="bundled with OpenSearch Dashboards"
++  # azsupport/ports: the Node.js of the package node18, not the one of the tarball
++  NODE="%%LOCALBASE%%/bin/node"
++  NODE_ERROR_MSG="of the package node18"
+   # A bin folder at the root is only present in release builds that have a bundled Node.js binary
+   if [ -d "${OSD_HOME}/bin" ]; then
+     NODE_ERROR_SHOW=true
