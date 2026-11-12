@@ -13,6 +13,21 @@
 # of the official port): node uses its header gtest_prod.h only, and its library
 # goes into the test program cctest only, which is not installed. No DTrace (the
 # configure of Node.js has it off on FreeBSD), JIT on, no documents (DOCS off).
+#
+# Makefile.version and distinfo: 24.22.3 (11.11.2026), ahead of the official port at
+# 24.22.2 (freebsd-ports at the pinned commit and main of 12.11.2026), for the
+# security release of Node.js of November 2026 (aZ, 12.11.2026: node patched fully;
+# a newer version for vulnerabilities that touch us): CVE-2026-123828,
+# CVE-2026-123829, CVE-2026-123862, CVE-2026-123863, CVE-2026-123864,
+# CVE-2026-123865, CVE-2026-123866, CVE-2026-123867, CVE-2026-123868,
+# CVE-2026-123871, CVE-2026-123872, CVE-2026-123873, CVE-2026-123874,
+# CVE-2026-123875, CVE-2026-123877 and CVE-2026-126051. The distinfo from the
+# distinfo.yml run 43239019280 (the tarball of nodejs.org against its
+# SHASUMS256.txt). The patches of the official port apply to it as to 24.22.2 (the
+# files they touch are the same); the libraries stay: its SQLite 3.54.1 and brotli
+# 1.2.1 are those of az, and its llhttp 9.4.4 fixes the SIMD code of arm64 and
+# WebAssembly only, so www/llhttp 9.4.3 parses as it does on amd64 (see
+# www/node18/Makefile).
 
 PORTNAME=	node
 PORTVERSION=	${NODEJS_PORTVERSION}
