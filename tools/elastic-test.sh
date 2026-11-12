@@ -12,8 +12,13 @@
 #     libffi of az (procstat -v), no jna* in its /tmp/elasticsearch, nothing of JNA
 #     failing in its log, and its native part on FreeBSD works through it: the
 #     system call filter, RLIMIT_NPROC of the process set to 0, which FreeBSD makes
-#     its least, 1 (procstat -l; memory lock, bootstrap.memory_lock, is not turned
-#     on here);
+#     its least, 1 (procstat -l), and the memory lock that aZ's servers have on
+#     (bootstrap.memory_lock: true in the elasticsearch.yml of the test): mlockall
+#     true, no "Unable to lock JVM Memory" in the log;
+#   - elasticsearch-plugin install of an official plugin of this version from a
+#     file (analysis-icu, fetched from artifacts.elastic.co), by hand as root:
+#     installed, listed, removed, and nothing of it left in /tmp (its copy of the
+#     zip there is removed by the tool itself);
 #   - the start says nothing of System::setSecurityManager (the four lines of JDK 17
 #     are taken out), and its log has no JNA that failed (the JNA it bundles);
 #   - its tools run by hand as root, without ES_TMPDIR (elasticsearch-keystore,
@@ -83,7 +88,7 @@ for f in elasticsearch.yml jvm.options log4j2.properties role_mapping.yml roles.
     cp "$P/etc/elasticsearch/$f.sample" "$conf/$f" || fail "no $P/etc/elasticsearch/$f.sample"
 done
 sed -i '' -e "s|^path.data: .*|path.data: $T/data|" -e "s|^path.logs: .*|path.logs: $T/logs|" "$conf/elasticsearch.yml"
-{ echo "http.port: 19200"; echo "transport.port: 19300"; echo "network.host: 127.0.0.1"; echo "cluster.name: az-test"; } >> "$conf/elasticsearch.yml"
+{ echo "http.port: 19200"; echo "transport.port: 19300"; echo "network.host: 127.0.0.1"; echo "cluster.name: az-test"; echo "bootstrap.memory_lock: true"; } >> "$conf/elasticsearch.yml"
 # the tools by hand, as root, before any start: what each leaves in /tmp
 B="$P/lib/elasticsearch/bin"
 rm -rf /tmp/hsperfdata_root /tmp/elasticsearch
@@ -106,6 +111,35 @@ tool elasticsearch-sql-cli --help; r=$?
 if [ "$r" = 0 ] && [ -s "$T/tool.out" ]; then pass "elasticsearch-sql-cli --help"; else fail "elasticsearch-sql-cli --help: exit $r, $(said)"; fi
 n="$(ls -A /tmp | sort | comm -13 "$T/tools-before.txt" - | tr '\n' ' ')"
 if [ -z "$n" ]; then pass "the tools left nothing in /tmp"; else fail "the tools left in /tmp: $n"; fi
+# elasticsearch-plugin install from a file: it copies the zip into java.io.tmpdir,
+# /tmp for the tools, and removes the copy itself; what stays in /tmp after the
+# install and after the removal
+pv="$(pkgv elasticsearch6)"
+pz="$T/analysis-icu-$pv.zip"
+i=0
+while [ "$i" -lt 3 ] && ! fetch -q -T 60 -o "$pz" "https://artifacts.elastic.co/downloads/elasticsearch-plugins/analysis-icu/analysis-icu-$pv.zip" 2> "$T/fetch.err"; do i=$((i + 1)); sleep 10; done
+if [ ! -s "$pz" ] || ! unzip -tqq "$pz" > /dev/null 2>&1; then
+    fail "elasticsearch-plugin install: analysis-icu-$pv.zip not fetched from artifacts.elastic.co: $(tail -n 1 "$T/fetch.err" 2>/dev/null)"
+else
+    tool elasticsearch-plugin install --batch "file://$pz"; r=$?
+    n="$(ls -A /tmp | sort | comm -13 "$T/tools-before.txt" - | tr '\n' ' ')"
+    tool2() { (cd / && env -u ES_TMPDIR -u ES_JAVA_OPTS JAVA_HOME="$P/openjdk17" ES_PATH_CONF="$conf" "$B/$@") > "$T/tool2.out" 2>&1 < /dev/null; }
+    tool2 elasticsearch-plugin list
+    if [ "$r" = 0 ] && grep -q -x 'analysis-icu' "$T/tool2.out" && [ -d "$P/lib/elasticsearch/plugins/analysis-icu" ] && [ -z "$n" ]; then
+        pass "elasticsearch-plugin install --batch file://analysis-icu-$pv.zip: installed and listed, nothing left in /tmp ($(wc -c < "$pz" | tr -d ' ') bytes of zip)"
+    else
+        fail "elasticsearch-plugin install: exit $r, $(said); listed: $(tr '\n' ' ' < "$T/tool2.out" | cut -c1-80); left in /tmp: ${n:-nothing}"
+    fi
+    tool elasticsearch-plugin remove analysis-icu; r=$?
+    n="$(ls -A /tmp | sort | comm -13 "$T/tools-before.txt" - | tr '\n' ' ')"
+    o="$(ls -A "$P/lib/elasticsearch/plugins" 2>/dev/null | tr '\n' ' ')"
+    if [ "$r" = 0 ] && [ -z "$o" ] && [ -z "$n" ]; then
+        pass "elasticsearch-plugin remove analysis-icu: plugins empty again, nothing left in /tmp"
+    else
+        fail "elasticsearch-plugin remove: exit $r, $(said); in plugins: ${o:-nothing}; left in /tmp: ${n:-nothing}"
+        rm -rf "$P/lib/elasticsearch/plugins/analysis-icu" "$P"/lib/elasticsearch/plugins/.removing-* "$P"/lib/elasticsearch/plugins/.installing-*
+    fi
+fi
 # bin/elasticsearch by hand (its version, with a heap of its own: that of
 # jvm.options is 31g): makes /tmp/elasticsearch for its user, and does not start
 # in that of another user
@@ -219,13 +253,21 @@ else
     # the native part of Elasticsearch on FreeBSD, through JNA: its system call
     # filter, setrlimit(RLIMIT_NPROC) to 0 (SystemCallFilter.bsdImpl), which the
     # kernel raises to its least, 1 (kern_proc_setrlimit): no new process for the
-    # user elasticsearch, which has this one, so no fork; memory lock is not turned
-    # on here
+    # user elasticsearch, which has this one, so no fork
     nproc="$(procstat -l "${pid:-0}" 2>/dev/null | awk '$3 == "maxprocesses" { print $4, $5 }')"
     if [ "$nproc" = "1 1" ]; then
-        pass "the system call filter of Elasticsearch through JNA: maxprocesses 1 1 of the process $pid (procstat -l: set to 0); mlockall ${mla:-not told} (bootstrap.memory_lock not set)"
+        pass "the system call filter of Elasticsearch through JNA: maxprocesses 1 1 of the process $pid (procstat -l: set to 0)"
     else
         fail "the system call filter: maxprocesses ${nproc:-not told} of the process ${pid:-of no pidfile}, not 1 1 (RLIMIT_NPROC set to 0)"
+    fi
+    # bootstrap.memory_lock: true, as on aZ's servers: mlockall(MCL_CURRENT) through
+    # JNA, allowed by the login class root of the rc script (memorylocked=unlimited;
+    # RLIMIT_MEMLOCK of the process: procstat -l) and by vm.max_user_wired
+    ml="$(procstat -l "${pid:-0}" 2>/dev/null | awk '$3 == "memorylocked" { print $4, $5 }')"
+    if [ "$mla" = true ] && ! grep -q -i 'Unable to lock JVM Memory' "$T/logs/az-test.log"; then
+        pass "bootstrap.memory_lock: mlockall true, no \"Unable to lock JVM Memory\" in the log (memorylocked ${ml:-not told} of the process, vm.max_user_wired $(sysctl -n vm.max_user_wired 2>/dev/null) pages, security.bsd.unprivileged_mlock $(sysctl -n security.bsd.unprivileged_mlock 2>/dev/null))"
+    else
+        fail "bootstrap.memory_lock: mlockall ${mla:-not told}; memorylocked ${ml:-not told}; $(grep -i -m 1 -A 1 'Unable to lock JVM' "$T/logs/az-test.log" | cut -c1-200 | tr '\n' ' ')"
     fi
     h="$(get '/_cluster/health?wait_for_status=yellow&timeout=60s' | sed -n 's/.*"status" *: *"\([^"]*\)".*/\1/p')"
     case "$h" in green|yellow) pass "cluster health: $h" ;; *) fail "cluster health: ${h:-no answer}" ;; esac

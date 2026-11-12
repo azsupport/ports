@@ -15,6 +15,22 @@
 #               Set it to required group.
 # elasticsearch_config (path):   Set to %%PREFIX%%/etc/elasticsearch/elasticsearch.yml by default.
 #               Set it to the config file location.
+# elasticsearch_login_class (class): Set to root by default.
+#               The login class whose limits Elasticsearch runs with (rc.subr:
+#               limits -C). bootstrap.memory_lock: true of elasticsearch.yml
+#               locks the memory of the JVM with mlockall(2), which the kernel
+#               allows up to RLIMIT_MEMLOCK of the process: unlimited in the
+#               class root of /etc/login.conf (memorylocked), 64K in the class
+#               default and 128M in daemon, with which Elasticsearch says
+#               "Unable to lock JVM Memory". The other two conditions are the
+#               defaults of FreeBSD: security.bsd.unprivileged_mlock=1, and
+#               the locked memory of all processes within vm.max_user_wired
+#               (pages; four fifths of the free memory at boot). A heap of
+#               31g is locked whole at the start (-XX:+AlwaysPreTouch), with
+#               about 1 GB of the JVM beside it: the server needs that much
+#               RAM free for it for good (it is never swapped), and
+#               vm.max_user_wired above 8400000, which a server with 64 GB
+#               of RAM has by default.
 # elasticsearch_java_home (path): Set to %%JAVA_HOME%% by default.
 #               Set it to the root of the JDK to use.
 # elasticsearch_heap (size):     Not set by default: the heap is the -Xms and
