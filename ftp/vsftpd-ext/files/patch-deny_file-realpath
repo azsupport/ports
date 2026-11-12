@@ -1,0 +1,170 @@
+deny_file by the real path too: CVE-2015-1419, the part of its fix that vsftpd-ext
+lacks. Ours (azsupport/ports, 12.11.2026) on vsftpd-ext 3.0.3.1 and our
+patch-deny_file, from Debian (sid 3.0.5-1: 0050-CVE-2015-1419.patch of SUSE,
+0070-realpath_wrapper.patch and the fix of its typo in
+0082-debian-bugfixes-tls-utf8.patch; https://bugs.debian.org/776922).
+vsftpd-ext has the rest of the fix of SUSE already (the filter on the last component
+of the path, the whole path for a pattern that starts with "/"), and the greedy "*" of
+Debian's 0006-greedy.patch (Red Hat bz 392181): with deny_file={*.php} an upload
+named a.php.x.php is refused. What it lacks is realpath(): the checks see the path as
+the client wrote it, so a symbolic link made in the tree of the FTP user other than by
+FTP (by a site, say) led past them: with deny_file={*.mp3,.private}, pub/link/secret
+where pub/link points to .private was read and an upload to pub/link/new.txt went into
+.private, and pub/s.txt pointing to a.mp3 was read.
+access.c: vsf_access_check_file() checks the real path too (realpath(3); for a name
+that does not exist yet, as that of an upload or a new directory, the real path of its
+directory and the name: vsf_sysutil_realpath() of sysutil.c, the wrapper of Debian's
+0070), with the same checks as the path as written: the filter, the whole of
+deny_file in it, each directory on its way (patch-deny_file). Unlike Debian's 0050,
+the filter itself is unchanged: hide_file and the listings do not resolve each name
+(a name of a listing is relative to the listed directory, not to the current one).
+Safe: it only denies more, never less; a path that cannot be resolved is checked as
+written only, as before.
+Tested on Linux and by tools/servers-test.sh, with deny_file={*.mp3,*.mov,.private,*.php}:
+the SIZE of pub/link/secret and /pub/link/secret (pub/link -> .private) and of pub/s.txt
+(-> a.mp3) refused (without the patch: read), the upload of pub/link/new.txt refused
+(stored in .private), that of pub/up/a.php.x.php refused (with and without), of
+pub/up/a.txt stored. vsftpd-ext and vsftpd-ext-openssl carry the same file.
+
+--- access.c
++++ access.c
+@@ -11,6 +11,7 @@
+ #include "ls.h"
+ #include "tunables.h"
+ #include "str.h"
++#include "sysutil.h"
+ 
+ /* azsupport/ports: deny_file covers what is inside a denied directory.
+  * The filter matches the last component of a path only (the whole path,
+@@ -50,6 +51,45 @@ vsf_access_dirs_denied(const struct mystr* p_filename_str,
+   return denied;
+ }
+ 
++/* azsupport/ports (CVE-2015-1419, the part vsftpd-ext lacks; Debian
++ * 0050-CVE-2015-1419.patch and 0070-realpath_wrapper.patch with the fix of
++ * 0082): deny_file by the path as the system resolves it too. The checks of
++ * vsf_access_check_file() see the path as the client wrote it, so a symbolic
++ * link made in the tree of the FTP user other than by FTP (by a site, say)
++ * led past them: with deny_file={*.php,.private}, pub/link/secret where
++ * pub/link points to .private, or pub/a.txt pointing to x.php. The real path
++ * (realpath(3); for a name that does not exist yet, as that of an upload or
++ * of a new directory, the real path of its directory and the name) goes
++ * through the same checks: the filter, the whole of deny_file in it, each
++ * directory on its way. It only denies more, never less; a path that cannot
++ * be resolved is checked as written only, as before.
++ */
++static int
++vsf_access_real_path_denied(const struct mystr* p_filename_str,
++                            const struct mystr* p_access_str)
++{
++  static struct mystr s_real_str;
++  struct str_locate_result loc_res;
++  unsigned int iters = 0;
++  char* p_real = vsf_sysutil_realpath(str_getbuf(p_filename_str), 1);
++  if (p_real == 0)
++  {
++    return 0;
++  }
++  str_alloc_text(&s_real_str, p_real);
++  vsf_sysutil_free(p_real);
++  if (vsf_filename_passes_filter(&s_real_str, p_access_str, &iters))
++  {
++    return 1;
++  }
++  loc_res = str_locate_str(&s_real_str, p_access_str);
++  if (loc_res.found)
++  {
++    return 1;
++  }
++  return vsf_access_dirs_denied(&s_real_str, p_access_str);
++}
++
+ int
+ vsf_access_check_file(const struct mystr* p_filename_str)
+ {
+@@ -81,6 +121,10 @@ vsf_access_check_file(const struct mystr* p_filename_str)
+   {
+     return 0;
+   }
++  if (vsf_access_real_path_denied(p_filename_str, &s_access_str))
++  {
++    return 0;
++  }
+   return 1;
+ }
+ 
+--- sysutil.c
++++ sysutil.c
+@@ -1038,6 +1038,62 @@ vsf_sysutil_rename(const char* p_from, const char* p_to)
+   return rename(p_from, p_to);
+ }
+ 
++/* azsupport/ports (CVE-2015-1419; Debian 0070-realpath_wrapper.patch with the
++ * fix of 0082): the path as the system resolves it, realpath(3), in memory
++ * of malloc() (vsf_sysutil_free() it); with may_be_fresh, for a name that
++ * does not exist yet (an upload, a new directory), the real path of its
++ * directory and the name. 0 when it cannot be resolved.
++ */
++char*
++vsf_sysutil_realpath(const char* p_path, int may_be_fresh)
++{
++  char* p_resolved = realpath(p_path, NULL);
++  const char* p_name;
++  char* p_dir;
++  size_t dir_len;
++  if (p_resolved != NULL || errno != ENOENT || !may_be_fresh)
++  {
++    return p_resolved;
++  }
++  p_name = strrchr(p_path, '/');
++  if (p_name == NULL)
++  {
++    p_name = p_path;
++    p_dir = realpath(".", NULL);
++  }
++  else
++  {
++    char* p_orig_dir;
++    p_name++;
++    p_orig_dir = strndup(p_path, (size_t) (p_name - p_path));
++    if (p_orig_dir == NULL)
++    {
++      return NULL;
++    }
++    p_dir = realpath(p_orig_dir, NULL);
++    free(p_orig_dir);
++  }
++  if (p_dir == NULL)
++  {
++    return NULL;
++  }
++  dir_len = strlen(p_dir);
++  /* the root: the "/" is added below */
++  if (dir_len == 1)
++  {
++    dir_len = 0;
++  }
++  p_resolved = malloc(dir_len + strlen(p_name) + 2);
++  if (p_resolved != NULL)
++  {
++    memcpy(p_resolved, p_dir, dir_len);
++    p_resolved[dir_len] = '/';
++    strcpy(p_resolved + dir_len + 1, p_name);
++  }
++  free(p_dir);
++  return p_resolved;
++}
++
+ struct vsf_sysutil_dir*
+ vsf_sysutil_opendir(const char* p_dirname)
+ {
+--- sysutil.h
++++ sysutil.h
+@@ -67,6 +67,7 @@ int vsf_sysutil_mkdir(const char* p_dirname, const unsigned int mode);
+ int vsf_sysutil_rmdir(const char* p_dirname);
+ int vsf_sysutil_chdir(const char* p_dirname);
+ int vsf_sysutil_rename(const char* p_from, const char* p_to);
++char* vsf_sysutil_realpath(const char* p_path, int may_be_fresh);
+ 
+ struct vsf_sysutil_dir;
+ struct vsf_sysutil_dir* vsf_sysutil_opendir(const char* p_dirname);
