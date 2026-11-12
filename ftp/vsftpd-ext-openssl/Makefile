@@ -7,5 +7,10 @@ AZ_OFFICIAL=	ftp/vsftpd-ext
 PKGNAMESUFFIX=	-openssl
 OPTIONS_SLAVE=	RC_SCRIPT VSFTPD_SSL
 CONFLICTS_INSTALL=	vsftpd-ext
+# CVE-2021-3618 (ALPACA), which vsftpd-ext 3.0.3.1 lacks: the fixes of vsftpd 3.0.5
+# on its files, the same file as ftp/vsftpd-ext's (see it): ALPN only "ftp",
+# ssl_sni_hostname, the HTTP methods and the 11th unknown command before the login
+# close the connection (12.11.2026)
+EXTRA_PATCHES=	${.CURDIR}/files/patch-CVE-2021-3618
 
 .include "${.CURDIR:H:H}/Mk/az-official.mk"
