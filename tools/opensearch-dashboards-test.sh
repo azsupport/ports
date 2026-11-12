@@ -112,16 +112,25 @@ if grep -q "^  NODE=\"$node\"\$" "$D/bin/use_node" && grep -q "procname=\"$node\
 else
     fail "bin/use_node or the rc script: not $node"
 fi
-x="$(cd /tmp && "$D/bin/opensearch-dashboards" --version 2>&1)"
-if [ "$x" = "$v" ]; then pass "bin/opensearch-dashboards --version: $x"; else fail "bin/opensearch-dashboards --version: $(printf '%s' "$x" | tail -n 2 | tr '\n' ' ' | cut -c1-200), the package is $v"; fi
+# (its tools stop as root without --allow-root, as upstream: src/setup_node_env/root)
+x="$(cd /tmp && "$D/bin/opensearch-dashboards" --version 2>&1)"; r=$?
+case "$r $x" in 1*'should not be run as root'*) pass "as root without --allow-root its tools stop: $x" ;; *) fail "bin/opensearch-dashboards --version as root without --allow-root: exit $r, $(printf '%s' "$x" | tail -n 2 | tr '\n' ' ' | cut -c1-200)" ;; esac
+x="$(cd /tmp && "$D/bin/opensearch-dashboards" --version --allow-root 2>&1)"
+if [ "$x" = "$v" ]; then pass "bin/opensearch-dashboards --version --allow-root: $x"; else fail "bin/opensearch-dashboards --version --allow-root: $(printf '%s' "$x" | tail -n 2 | tr '\n' ' ' | cut -c1-200), the package is $v"; fi
 # (list prints the id of each plugin, then an empty line)
-x="$(cd /tmp && "$D/bin/opensearch-dashboards-plugin" list 2>&1 | sed -e 's/@.*//' -e '/^$/d' | sort | tr '\n' ' ' | sed 's/ $//')"
+x="$(cd /tmp && "$D/bin/opensearch-dashboards-plugin" list --allow-root 2>&1 | sed -e 's/@.*//' -e '/^$/d' | sort | tr '\n' ' ' | sed 's/ $//')"
 w="$(printf '%s\n' $IN | sort | tr '\n' ' ' | sed 's/ $//')"
 if [ "$x" = "$w" ]; then pass "bin/opensearch-dashboards-plugin list: the 13 plugins in"; else fail "bin/opensearch-dashboards-plugin list: $x"; fi
 x="$(ls "$D/plugins" | sort | tr '\n' ' ' | sed 's/ $//')"
 o=""; for p in $OUT; do [ -e "$D/plugins/$p" ] && o="$o $p"; done
 if [ "$x" = "$w" ] && [ -z "$o" ]; then pass "plugins: $(echo $IN | wc -w | tr -d ' ') in, not $OUT"; else fail "plugins: $x; out but there:$o"; fi
-(cd /tmp && "$D/bin/opensearch-dashboards-keystore" --help > "$T/ks.out" 2>&1) && pass "bin/opensearch-dashboards-keystore --help" || fail "bin/opensearch-dashboards-keystore --help: $(head -n 2 "$T/ks.out" | tr '\n' ' ')"
+# (--help prints the usage and exits 64: defaultHelp of src/cli/command.js)
+(cd /tmp && "$D/bin/opensearch-dashboards-keystore" --help --allow-root > "$T/ks.out" 2>&1); r=$?
+if [ "$r" = 64 ] && grep -q 'Usage: bin/opensearch-dashboards-keystore' "$T/ks.out" && grep -q -w create "$T/ks.out"; then
+    pass "bin/opensearch-dashboards-keystore --help --allow-root: its usage (exit 64)"
+else
+    fail "bin/opensearch-dashboards-keystore --help --allow-root: exit $r, $(head -n 3 "$T/ks.out" | tr '\n' ' ' | cut -c1-200)"
+fi
 if [ "$(cd "$D/config" 2>/dev/null && pwd -P)" = "$E" ]; then pass "www/opensearch-dashboards/config -> etc/opensearch-dashboards"; else fail "www/opensearch-dashboards/config: $(readlink "$D/config")"; fi
 if grep -q "opensearch_dashboards_config:=\"$E/opensearch_dashboards.yml\"" "$rc"; then pass "the rc script's configuration: $E/opensearch_dashboards.yml"; else fail "the rc script's default configuration is not $E/opensearch_dashboards.yml"; fi
 s="$(grep -v -E '^[[:space:]]*(#|$)' "$E/opensearch_dashboards.yml.sample" | grep -v -x -e '---' | head -n 3 | tr '\n' ' ')"
@@ -387,7 +396,9 @@ t0="$(date +%s)"; c="$(curl -s -m 30 -o "$T/a/disp" -w '%{http_code}' -H 'osd-xs
 if [ "$c" != 000 ] && [ $((t1 - t0)) -le 3 ]; then pass "a Content-Disposition of 200000 characters: $c in $((t1 - t0)) s (@hapi/content 6.0.3)"; else fail "a Content-Disposition of 200000 characters: $c in $((t1 - t0)) s"; fi
 
 # --- the core: console, Timeline, TSVB, sample data, requests at once --------------------------
-want "the console: GET _cluster/health" console 200 '"cluster_name" : "az-test"' POST '/api/console/proxy?path=_cluster%2Fhealth&method=GET' ''
+# (the console asks OpenSearch with pretty=true, but parses its JSON answer and gives
+# it back compact: stringify of @osd/std, src/plugins/console/server/routes/api/console/proxy)
+want "the console: GET _cluster/health" console 200 '"cluster_name":"az-test"' POST '/api/console/proxy?path=_cluster%2Fhealth&method=GET' ''
 TL='"time":{"from":"2026-11-12T00:00:00Z","to":"2026-11-13T00:00:00Z","interval":"1h","timezone":"UTC"}'
 want "Timeline: .es().label() with a regular expression" timeline 200 '"label":"x ' POST /api/timeline/run \
     "{\"sheet\":[\".es(index=az-test*, timefield=t).label(\\\"x \$1\\\", \\\"(.*)\\\")\"],$TL}"
