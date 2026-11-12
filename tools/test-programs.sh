@@ -183,6 +183,8 @@ if [ -n "$u_" ]; then
 fi
 # the server packages (aZ, 10.11.2026) as the utilities: git, Apache with
 # mod_maxminddb, memcached, MariaDB, vsftpd-ext, the BIND tools, qt-faststart
+# (servers-test.sh puts vsftpd-ext-openssl of the repository in the place of
+# vsftpd-ext for its checks, and vsftpd-ext back)
 servers="apache24 ap24-mod_maxminddb bind-tools bind920 git mariadb1011-client mariadb1011-server memcached qt-faststart vips vsftpd-ext"
 s_=""
 for p in $servers; do in_repo "$p" && s_="$s_ $p"; done

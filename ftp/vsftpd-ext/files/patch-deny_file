@@ -1,0 +1,80 @@
+deny_file: the paths through a denied directory. Ours (azsupport/ports, 12.11.2026),
+not upstream's. The filter of deny_file matches the last component of a path only
+(the whole path, made absolute, for a pattern that starts with "/"), and the second
+check, the whole of deny_file found as a part of the path, finds nothing for a list
+in braces: with deny_file={*.mp3,*.mov,.private}, the example of vsftpd.conf(5), the
+name .private was denied, but .private/secret and .private/ were not, so what is in a
+denied directory could be read, written, deleted, listed and entered by a path that
+goes on past its name.
+access.c: vsf_access_check_file() checks each directory the path names on its way
+(each part before a "/") as it checks the path itself: the same filter, a budget of
+iterations of its own each (VSFTP_MATCHITERS_MAX); a path one of them matches is
+denied.
+Safe: it only denies more, never less (the checks before it are unchanged), and only
+a path that names a directory deny_file denies; hide_file (names hidden in listings)
+is unchanged.
+Tested on Linux and by tools/servers-test.sh: with deny_file={*.mp3,*.mov,.private}
+the SIZE of pub/.private/secret, /pub/.private/secret,
+pub//.private/../.private/secret and pub/.private/ and DELE pub/.private/secret are
+refused (without the patch the file was read three times, the directory passed the
+check and the file was deleted), pub/ok.txt is read. vsftpd-ext and
+vsftpd-ext-openssl carry the same file.
+
+--- access.c
++++ access.c
+@@ -12,6 +12,44 @@
+ #include "tunables.h"
+ #include "str.h"
+ 
++/* azsupport/ports: deny_file covers what is inside a denied directory.
++ * The filter matches the last component of a path only (the whole path,
++ * made absolute, for a pattern that starts with "/"), and the check of the
++ * whole of deny_file as a part of the path, which denies a path through a
++ * single denied name, finds nothing for a list in braces: with
++ * deny_file={*.mp3,*.mov,.private} the name ".private" was denied, but
++ * ".private/secret" and ".private/" were not, so what is inside a denied
++ * directory could be read, written, listed and entered by a path that goes
++ * on past its name. Each directory the path names on its way (each part
++ * before a "/") is now checked as the path itself is: the same filter, a
++ * budget of iterations of its own each. It only denies more, never less.
++ */
++static int
++vsf_access_dirs_denied(const struct mystr* p_filename_str,
++                       const struct mystr* p_access_str)
++{
++  struct mystr dir_str = INIT_MYSTR;
++  unsigned int len = str_getlen(p_filename_str);
++  unsigned int i;
++  int denied = 0;
++
++  for (i = 1; i < len && !denied; i++)
++  {
++    if (str_get_char_at(p_filename_str, i) == '/' &&
++        str_get_char_at(p_filename_str, i - 1) != '/')
++    {
++      unsigned int iters = 0;
++      str_left(p_filename_str, &dir_str, i);
++      if (vsf_filename_passes_filter(&dir_str, p_access_str, &iters))
++      {
++        denied = 1;
++      }
++    }
++  }
++  str_free(&dir_str);
++  return denied;
++}
++
+ int
+ vsf_access_check_file(const struct mystr* p_filename_str)
+ {
+@@ -39,6 +77,10 @@ vsf_access_check_file(const struct mystr* p_filename_str)
+       return 0;
+     }
+   }
++  if (vsf_access_dirs_denied(p_filename_str, &s_access_str))
++  {
++    return 0;
++  }
+   return 1;
+ }
+ 

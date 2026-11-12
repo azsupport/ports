@@ -1,8 +1,9 @@
 #!/bin/sh
 # servers-test.sh - test the server packages of the repository az, installed from it
 # (aZ, 10.11.2026): git, apache24 with ap24-mod_maxminddb, memcached,
-# mariadb1011-server and -client, vsftpd-ext, bind-tools, bind920, vips and qt-faststart. Each
-# that is installed runs (its version) and loads only libraries of the base system,
+# mariadb1011-server and -client, vsftpd-ext (and vsftpd-ext-openssl), bind-tools,
+# bind920, vips and qt-faststart. Each that is installed runs (its version) and
+# loads only libraries of the base system,
 # of az (/usr/local/az/lib) and of our other ports (pcre2, curl, its own): our ports
 # link each other's shared libraries. And:
 #   git          git grep -P (PCRE2) in a repository made here; git-remote-http
@@ -16,8 +17,15 @@
 #                compiled in, /tmp/mysql.sock (that of my.cnf.sample too); InnoDB
 #                the default engine, REGEXP (PCRE2), the compression provider
 #                provider_lz4 (lz4 of az) installed and active
-#   vsftpd-ext   on 127.0.0.1:12121: an HTTP method before the login closes the
-#                connection, and so does the 11th unknown command (CVE-2021-3618)
+#   vsftpd-ext   on 127.0.0.1:12121, and vsftpd-ext-openssl in its place (from the
+#                repository azbuild of test-programs.sh; vsftpd-ext back after it): an
+#                HTTP method before the login closes the connection, and so does the
+#                11th unknown command (CVE-2021-3618; with TLS: ALPN only "ftp");
+#                cmds_denied takes XMKD, XRMD, XCWD, XCUP, XPWD and P@SW as MKD, RMD,
+#                CWD, CDUP, PWD and PASV (CVE-2026-119567); deny_file refuses the paths
+#                through a denied directory; curl gets a file over FTP, and over FTPS
+#                with TLS 1.3 and 1.2; a data connection over TLS with the session of
+#                another login is refused, with the login's own resumed (CVE-2026-119568)
 #   bind-tools   dig with libidn2 (IDN)
 #   bind920      named -V with TCP Fast Open; named-checkconf of named.conf.sample; named
 #                on 127.0.0.1:15353 with a zone of its own: dig over UDP and TCP and
@@ -207,32 +215,210 @@ if have mariadb1011-server && have mariadb1011-client; then
     fi
 else skip "mariadb1011-server or mariadb1011-client"; fi
 
-# vsftpd-ext
-if have vsftpd-ext; then
+# vsftpd-ext and vsftpd-ext-openssl (the same files, with TLS; one of the two installed)
+# vsf_wait <file> <extended regular expression> <tenths of a second>: until a line of
+# the file matches, at most that long
+vsf_wait() {
+    _i=0
+    while [ "$_i" -lt "$3" ] && ! grep -q -E "$2" "$1" 2>/dev/null; do sleep 0.1; _i=$((_i + 1)); done
+}
+# vsf_ftp <command>...: the replies of an anonymous login without TLS that sends the
+# commands, each after the reply to the one before
+vsf_ftp() {
+    { sleep 0.5; printf 'USER anonymous\r\n'; sleep 0.4; printf 'PASS x@x\r\n'; sleep 0.4
+      for _c in "$@"; do printf '%s\r\n' "$_c"; sleep 0.4; done; printf 'QUIT\r\n'; sleep 0.4; } |
+        nc -w 5 127.0.0.1 12121 2>&1 | tr -d '\r'
+}
+# vsf_tls <TLS option of s_client> <name> <session file>: an anonymous login over TLS
+# (AUTH TLS: s_client -starttls ftp, its session written to $W/<name>.sess) lists pub
+# (NLST) on a data connection over TLS (PROT P, EPSV) that s_client makes with the
+# session of the file: the replies in $W/<name>.out, what s_client says of the data
+# connection in $W/<name>-data.out
+vsf_tls() {
+    _o="$W/$2.out"
+    rm -f "$_o" "$W/$2.sess" "$W/$2-data.out"
+    # the commands wait for the replies that s_client writes to $_o
+    # shellcheck disable=SC2094
+    { sleep 1; printf 'USER anonymous\r\nPASS x@x\r\nPBSZ 0\r\nPROT P\r\nEPSV\r\n'
+      vsf_wait "$_o" '^229 ' 100
+      printf 'NLST pub\r\n'
+      vsf_wait "$_o" '^(226|425|426|451|522) ' 150
+      printf 'QUIT\r\n'; sleep 1; } |
+        timeout 60 openssl s_client -connect 127.0.0.1:12121 -starttls ftp "$1" -quiet \
+            -sess_out "$W/$2.sess" > "$_o" 2>&1 &
+    _c=$!
+    vsf_wait "$_o" '^229 ' 100
+    _dp="$(sed -n 's/^229 .*(|||\([0-9]*\)|).*/\1/p' "$_o" | tr -d '\r')"
+    if [ -n "$_dp" ]; then
+        timeout 20 openssl s_client -connect "127.0.0.1:$_dp" "$1" -sess_in "$3" -ign_eof \
+            < /dev/null > "$W/$2-data.out" 2>&1
+    fi
+    wait "$_c"
+}
+# vsftpd_test <package>: the checks of its vsftpd on 127.0.0.1:12121 with a
+# configuration of its own in $T/<package>: the anonymous login (as bin) in a root of
+# its own, with a directory it may write in (pub/up) and one deny_file denies
+# (pub/.private), cmds_denied=XPWD,CWD,CDUP,MKD,RMD,P@SW (each name of the list and of
+# the command taken as its RFC 959 one: files/patch-CVE-2026-119567) and
+# deny_file={*.mp3,*.mov,.private} (files/patch-deny_file); vsftpd-ext-openssl with
+# FTPS too: allow_anon_ssl, require_ssl_reuse=YES (its default), a certificate made here
+vsftpd_test() {
+    vp="$1"; W="$T/$vp"
     # -v writes to the descriptor 0 (that of the control connection under inetd)
     r="$("$P/libexec/vsftpd" -v 0>&1 2>&1)"
-    case "$r" in *"version 3"*) pass "vsftpd-ext: $r" ;;
-        *) fail "vsftpd-ext: no \"version 3\" in what vsftpd -v 0>&1 says: $r" ;; esac
-    chk vsftpd "$P/libexec/vsftpd"
-    # CVE-2021-3618 (files/patch-CVE-2021-3618 of the port): before the login an HTTP
-    # method closes the connection, and so does the 11th unknown command
-    mkdir -p "$T/ftproot"
-    printf '%s\n' listen=YES listen_address=127.0.0.1 listen_port=12121 background=NO \
-        anonymous_enable=YES "anon_root=$T/ftproot" local_enable=NO \
-        "secure_chroot_dir=$P/share/vsftpd/empty" > "$T/vsftpd.conf"
-    "$P/libexec/vsftpd" "$T/vsftpd.conf" > "$T/vsftpd.log" 2>&1 &
+    case "$r" in *"version 3"*) pass "$vp: $r" ;;
+        *) fail "$vp: no \"version 3\" in what vsftpd -v 0>&1 says: $r" ;; esac
+    chk "$vp" "$P/libexec/vsftpd"
+    mkdir -p "$W/ftproot/pub/.private" "$W/ftproot/pub/dir" "$W/ftproot/pub/up/old"
+    echo secret > "$W/ftproot/pub/.private/secret"
+    echo private > "$W/ftproot/pub/dir/.private"
+    echo ok > "$W/ftproot/pub/ok.txt"
+    echo mp3 > "$W/ftproot/pub/a.mp3"
+    chmod -R a+rX "$W/ftproot"
+    chmod 777 "$W/ftproot/pub/up" "$W/ftproot/pub/.private"
+    {
+        printf '%s\n' listen=YES listen_address=127.0.0.1 listen_port=12121 background=NO \
+            anonymous_enable=YES "anon_root=$W/ftproot" ftp_username=bin local_enable=NO \
+            "secure_chroot_dir=$P/share/vsftpd/empty" write_enable=YES \
+            anon_mkdir_write_enable=YES anon_other_write_enable=YES \
+            cmds_denied=XPWD,CWD,CDUP,MKD,RMD,P@SW 'deny_file={*.mp3,*.mov,.private}'
+        if [ "$vp" = vsftpd-ext-openssl ]; then
+            printf '%s\n' ssl_enable=YES allow_anon_ssl=YES require_ssl_reuse=YES \
+                "rsa_cert_file=$W/cert.pem" "rsa_private_key_file=$W/key.pem"
+        fi
+    } > "$W/vsftpd.conf"
+    if [ "$vp" = vsftpd-ext-openssl ] && ! openssl req -x509 -newkey rsa:2048 -nodes -days 2 \
+            -subj /CN=127.0.0.1 -keyout "$W/key.pem" -out "$W/cert.pem" > "$W/req.log" 2>&1; then
+        fail "$vp: openssl req (the certificate of the test): $(tail -n 1 "$W/req.log")"
+        return
+    fi
+    "$P/libexec/vsftpd" "$W/vsftpd.conf" > "$W/vsftpd.log" 2>&1 &
     vsf=$!
     sleep 1
+    # CVE-2021-3618 (files/patch-CVE-2021-3618 of the port): before the login an HTTP
+    # method closes the connection, and so does the 11th unknown command; with TLS a
+    # client whose ALPN does not offer "ftp" is refused (alert 120)
     r="$(printf 'GET / HTTP/1.1\r\n' | nc -w 5 127.0.0.1 12121 2>&1 | tr -d '\r' | tr '\n' ' ')"
-    case "$r" in *"500 HTTP protocol commands not allowed."*) pass "vsftpd-ext: an HTTP method before the login: $r" ;;
-        *) fail "vsftpd-ext: an HTTP method before the login: $r $(head -n 2 "$T/vsftpd.log" | tr '\n' ' ')" ;; esac
+    case "$r" in *"500 HTTP protocol commands not allowed."*) pass "$vp: an HTTP method before the login: $r" ;;
+        *) fail "$vp: an HTTP method before the login: $r $(head -n 2 "$W/vsftpd.log" | tr '\n' ' ')" ;; esac
     r="$( (i=0; while [ "$i" -lt 11 ]; do printf 'XYZ\r\n'; sleep 0.2; i=$((i + 1)); done) |
         nc -w 5 127.0.0.1 12121 2>&1 | tr -d '\r' | tr '\n' ' ')"
     case "$r" in *"530 Please login with USER and PASS. 500 Too many errors."*)
-            pass "vsftpd-ext: the 11th unknown command before the login: 500 Too many errors." ;;
-        *) fail "vsftpd-ext: 11 unknown commands before the login: $r" ;; esac
+            pass "$vp: the 11th unknown command before the login: 500 Too many errors." ;;
+        *) fail "$vp: 11 unknown commands before the login: $r" ;; esac
+    if [ "$vp" = vsftpd-ext-openssl ]; then
+        r="$( { sleep 1; printf 'QUIT\r\n'; sleep 1; } | timeout 20 openssl s_client -connect 127.0.0.1:12121 \
+            -starttls ftp -alpn http/1.1 -quiet 2>&1 | tr -d '\r' | tr '\n' ' ')"
+        s="$( { sleep 1; printf 'QUIT\r\n'; sleep 1; } | timeout 20 openssl s_client -connect 127.0.0.1:12121 \
+            -starttls ftp -alpn ftp -quiet 2>&1 | tr -d '\r' | tr '\n' ' ')"
+        case "$r:$s" in *"alert number 120"*:*"221 Goodbye."*)
+                pass "$vp: ALPN http/1.1 refused (alert 120), ALPN ftp served" ;;
+            *) fail "$vp: ALPN http/1.1: $r; ALPN ftp: $s" ;; esac
+    fi
+    # CVE-2026-119567: the other names of denied commands (XPWD denies PWD too, P@SW
+    # PASV); XMKD would make pub/up/new, XRMD remove pub/up/old
+    r="$(vsf_ftp XPWD PWD 'XCWD pub' XCUP 'XMKD pub/up/new' 'XRMD pub/up/old' P@SW PASV)"
+    n="$(printf '%s\n' "$r" | grep -c '^550 Permission denied.')"
+    if [ "$n" = 8 ] && [ -d "$W/ftproot/pub/up/old" ] && [ ! -e "$W/ftproot/pub/up/new" ]; then
+        pass "$vp: cmds_denied=XPWD,CWD,CDUP,MKD,RMD,P@SW: XPWD, PWD, XCWD, XCUP, XMKD, XRMD, P@SW and PASV refused (CVE-2026-119567)"
+    else
+        fail "$vp: cmds_denied=XPWD,CWD,CDUP,MKD,RMD,P@SW: $n of XPWD, PWD, XCWD, XCUP, XMKD, XRMD, P@SW and PASV refused: $(printf '%s\n' "$r" | grep -E '^[1-5][0-9][0-9] ' | tr '\n' ' ')"
+    fi
+    # deny_file: the paths through a denied directory (pub/.private), to it and a
+    # delete in it are refused as the name itself is
+    r="$(vsf_ftp 'SIZE pub/ok.txt' 'SIZE pub/.private/secret' 'SIZE pub/dir/.private' 'SIZE pub/a.mp3' \
+        'SIZE /pub/.private/secret' 'SIZE pub//.private/../.private/secret' 'SIZE pub/.private/' \
+        'DELE pub/.private/secret')"
+    s="$(printf '%s\n' "$r" | grep -E '^(213|250|550) ' | tr '\n' ' ')"
+    [ -f "$W/ftproot/pub/.private/secret" ] || s="$s(pub/.private/secret deleted)"
+    d='550 Permission denied.'
+    case "$s" in "213 3 $d $d $d $d $d $d $d ")
+            pass "$vp: deny_file={*.mp3,*.mov,.private}: pub/ok.txt read; pub/dir/.private, pub/a.mp3, the paths through pub/.private and to it and DELE pub/.private/secret refused" ;;
+        *) fail "$vp: deny_file={*.mp3,*.mov,.private}: the SIZE of pub/ok.txt, pub/.private/secret, pub/dir/.private, pub/a.mp3, /pub/.private/secret, pub//.private/../.private/secret and pub/.private/, DELE pub/.private/secret: $s" ;;
+    esac
+    # a client: our curl gets a file over FTP (EPSV: PASV is denied) and, with TLS, over
+    # FTPS with TLS 1.3 and 1.2: require_ssl_reuse, so its data connection resumed the
+    # session of its control connection
+    if [ -x "$P/bin/curl" ]; then
+        r="$("$P/bin/curl" -sS --max-time 20 --ftp-method nocwd "ftp://127.0.0.1:12121/pub/ok.txt" 2>&1)"
+        if [ "$r" = ok ]; then pass "$vp: FTP: curl got pub/ok.txt"; else fail "$vp: FTP: curl: $r"; fi
+        if [ "$vp" = vsftpd-ext-openssl ]; then
+            for v in 1.3 1.2; do
+                r="$("$P/bin/curl" -sS --max-time 20 -k --ssl-reqd "--tlsv$v" --tls-max "$v" --ftp-method nocwd \
+                    "ftp://127.0.0.1:12121/pub/ok.txt" 2>&1)"
+                if [ "$r" = ok ]; then
+                    pass "$vp: FTPS, TLS $v: curl got pub/ok.txt, its data connection resumed the session of its control connection (require_ssl_reuse)"
+                else
+                    fail "$vp: FTPS, TLS $v: curl: $r"
+                fi
+            done
+        fi
+    else
+        note "$vp: no $P/bin/curl: no file got by a client"
+    fi
+    # CVE-2026-119568: a data connection over TLS made with the session of another
+    # login (b, logged in meanwhile) is refused, one with the login's own resumed
+    if [ "$vp" = vsftpd-ext-openssl ]; then
+        for v in 1.3 1.2; do
+            o="-tls1_${v#1.}"
+            rm -f "$W/b.out" "$W/b.sess" "$W/b.done"
+            { sleep 1; printf 'USER anonymous\r\nPASS x@x\r\n'; vsf_wait "$W/b.done" end 300
+              printf 'QUIT\r\n'; sleep 1; } |
+                timeout 60 openssl s_client -connect 127.0.0.1:12121 -starttls ftp "$o" -quiet \
+                    -sess_out "$W/b.sess" > "$W/b.out" 2>&1 &
+            b=$!
+            vsf_wait "$W/b.out" '^230 ' 100
+            if [ -s "$W/b.sess" ]; then
+                vsf_tls "$o" ab "$W/b.sess"
+                vsf_tls "$o" aa "$W/aa.sess"
+            fi
+            echo end > "$W/b.done"
+            wait "$b"
+            if [ ! -s "$W/b.sess" ]; then
+                fail "$vp: FTPS, TLS $v: no session of the login b: $(tr -d '\r' < "$W/b.out" | tail -n 3 | tr '\n' ' ')"
+                continue
+            fi
+            for w in ab aa; do
+                c="$(tr -d '\r' < "$W/$w.out" | grep -E '^(150|226|425|426|451|522) ' | tr '\n' ' ')"
+                s="$(grep -E '^(New|Reused),' "$W/$w-data.out" 2>/dev/null | head -n 1)"
+                if [ "$w" = ab ]; then
+                    case "$c" in *"226 "*) fail "$vp: FTPS, TLS $v: a data connection with the session of another login served (${s:-no data connection}): $c" ;;
+                        *"522 "*) pass "$vp: FTPS, TLS $v: a data connection with the session of another login refused (${s:-no data connection}): $c(CVE-2026-119568)" ;;
+                        *) fail "$vp: FTPS, TLS $v: a data connection with the session of another login (${s:-no data connection}): $c$(tr -d '\r' < "$W/$w.out" | tail -n 2 | tr '\n' ' ')" ;; esac
+                else
+                    case "$c:$s" in *"226 "*:Reused*) pass "$vp: FTPS, TLS $v: the login's own session resumed on its data connection ($s): $c" ;;
+                        *) fail "$vp: FTPS, TLS $v: the login's own session on its data connection (${s:-no data connection}): $c$(tr -d '\r' < "$W/$w.out" | tail -n 2 | tr '\n' ' ')" ;; esac
+                fi
+            done
+        done
+    fi
     kill "$vsf" 2>/dev/null
-else skip vsftpd-ext; fi
+    wait "$vsf" 2>/dev/null
+}
+if have vsftpd-ext; then
+    vsftpd_test vsftpd-ext
+    # vsftpd-ext-openssl from the repository azbuild of test-programs.sh in the place of
+    # vsftpd-ext (pkg install takes it away, the same files, as on a server), and
+    # vsftpd-ext back after its checks
+    if [ -n "$(pkg rquery -r azbuild '%n' vsftpd-ext-openssl 2>/dev/null)" ]; then
+        CONSERVATIVE_UPGRADE=no pkg install -y -f -r azbuild vsftpd-ext-openssl > "$T/pkg-vsftpd.log" 2>&1
+        if have vsftpd-ext-openssl && ! have vsftpd-ext; then
+            vsftpd_test vsftpd-ext-openssl
+        else
+            fail "vsftpd-ext-openssl: not installed in the place of vsftpd-ext: $(tail -n 2 "$T/pkg-vsftpd.log" | tr '\n' ' ')"
+        fi
+        CONSERVATIVE_UPGRADE=no pkg install -y -f -r azbuild vsftpd-ext >> "$T/pkg-vsftpd.log" 2>&1
+        if have vsftpd-ext && ! have vsftpd-ext-openssl; then
+            pass "vsftpd-ext: back in the place of vsftpd-ext-openssl"
+        else
+            fail "vsftpd-ext: not back in the place of vsftpd-ext-openssl: $(tail -n 2 "$T/pkg-vsftpd.log" | tr '\n' ' ')"
+        fi
+    else
+        note "vsftpd-ext-openssl: not in a repository azbuild (that of test-programs.sh): not tested"
+    fi
+elif have vsftpd-ext-openssl; then
+    vsftpd_test vsftpd-ext-openssl
+else skip "vsftpd-ext and vsftpd-ext-openssl"; fi
 
 # bind-tools
 if have bind-tools; then
