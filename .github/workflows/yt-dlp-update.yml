@@ -1,0 +1,77 @@
+name: yt-dlp at the latest release of GitHub
+
+# www/yt-dlp follows the releases of github.com/yt-dlp/yt-dlp, not the version of
+# the official port (aZ, 12.11.2026: «yt-dl кстати надо подхватывать свежие релизы из
+# гитхаба, а не сидеть на том что в порте»), and its yt-dlp-ejs with it:
+# tools/ytdlp-update.sh every 6 hours on main. A newer release: DISTVERSION and
+# distinfo of www/yt-dlp (the SHA-256 that of the API of GitHub and of the
+# SHA2-256SUMS of the release), its patches checked against the new source (one that
+# applies only with fuzz made again), www/py-yt-dlp-ejs ours (tools/ytdlp-ejs/) when
+# the release pins a newer yt-dlp-ejs than the official port of the pinned tree, the
+# ports checked with make -V (tools/check-tree-ci.sh), one commit of aZ pushed to main
+# with the token of the run, and the build of www/yt-dlp on both levels: build.yml
+# with publish and publish_only, so that the release takes the new packages only
+# when nothing else of the repository of that run differs from it (else they go out
+# with the next publish of aZ). The report: the summary of the run, and the branch
+# runs of azsupport/azsupport when something was done, is waiting or failed
+# (tools/runs-report.sh, secret RUNS_TOKEN).
+# By hand: Actions, "yt-dlp at the latest release of GitHub", "Run workflow"; a run
+# of another branch than main is always a dry run (dry_run, pretend: the tests).
+
+on:
+  schedule:
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: the update with its checks, the diff of its commit and the build it would start; nothing pushed or started'
+        type: boolean
+        default: false
+      pretend:
+        description: 'A test, with dry_run: www/yt-dlp taken as at this version (2026.10.21), so that the latest release is an update'
+        required: false
+        default: ''
+      pretend_ejs:
+        description: 'A test, with dry_run and pretend: the official www/py-yt-dlp-ejs taken as at this version (0.7.0), so that ours is made'
+        required: false
+        default: ''
+
+# contents: the push to main; actions: the runs of build.yml, and starting one
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: yt-dlp-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # the history of the ports: when they last changed (the runs of build.yml since)
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: The latest release of yt-dlp, into www/yt-dlp
+        id: update
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          PRETEND: ${{ inputs.pretend }}
+          PRETEND_EJS: ${{ inputs.pretend_ejs }}
+        run: sh tools/ytdlp-update.sh ${DRY_RUN:+--dry-run} ${PRETEND:+--pretend "$PRETEND"} ${PRETEND_EJS:+--pretend-ejs "$PRETEND_EJS"}
+
+      # the report into the branch runs of the private azsupport/azsupport (secret
+      # RUNS_TOKEN): a run by hand, an update, a build started or waiting, a failure;
+      # a check that found nothing new has its summary only
+      - name: Report to azsupport/azsupport
+        if: ${{ always() && (github.event_name == 'workflow_dispatch' || steps.update.outputs.notable == '1' || steps.update.outcome != 'success') }}
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: event=${{ github.event_name }} dry_run=${{ inputs.dry_run }} pretend=${{ inputs.pretend }} pretend_ejs=${{ inputs.pretend_ejs }}
+          RUNS_STEPS: update=${{ steps.update.outcome }} changed=${{ steps.update.outputs.changed }}
+        run: sh tools/runs-report.sh ytdlp-update.md yt-dlp
