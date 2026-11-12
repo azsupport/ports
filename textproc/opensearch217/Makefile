@@ -45,14 +45,19 @@
 #        (it loads without native code: its remote models, connectors to
 #        outside services, run; its local models need ONNX Runtime, the
 #        tokenizers of DJL or PyTorch, native code of Linux, macOS and Windows,
-#        and cannot be deployed here; with its own netty 4.1.108.Final, of the
-#        client of the AWS SDK of its connectors), opensearch-notifications,
+#        and cannot be deployed here: the two jars of that code are left out,
+#        aZ, 12.11.2026, ML_NATIVE_JARS below: onnxruntime_gpu-1.16.3.jar, ONNX
+#        Runtime with CUDA, 290 MiB, and tokenizers-0.28.0.jar, the tokenizers
+#        of DJL, 19 MiB, 309 of the 357 MiB of the plugin; its policy names no
+#        jar, and their classes are loaded only to deploy a local model; with
+#        its own netty 4.1.108.Final, of the client of the AWS SDK of its
+#        connectors), opensearch-notifications,
 #        opensearch-notifications-core, opensearch-observability,
 #        opensearch-reports-scheduler, opensearch-security-analytics,
 #        opensearch-skills (it extends opensearch-ml), opensearch-sql,
 #        opensearch-system-templates, query-insights; the modules of the server
 #        all.
-# No jar of the bundle is changed (aZ, 12.11.2026: the fixes that newer jars of
+# No jar of the bundle is replaced (aZ, 12.11.2026: the fixes that newer jars of
 # the same lines would bring go to him as a list first): the code of OpenSearch,
 # its plugins and their libraries is that of 2.17.1 (the fixes of 2.18 and
 # later in it cannot be applied to the bundle); post-patch checks that the jars
@@ -145,6 +150,10 @@ OPENSEARCH_PLUGINS_OUT= \
 		opensearch-knn opensearch-neural-search \
 		opensearch-performance-analyzer opensearch-security
 
+# the two jars of opensearch-ml with the native code of its local models, out
+# (above)
+ML_NATIVE_JARS=	onnxruntime_gpu-1.16.3.jar tokenizers-0.28.0.jar
+
 # the jars of netty of the bundle: those of modules/transport-netty4 (the HTTP
 # and transport ports), and those of opensearch-ml (the client of the AWS SDK of
 # its connectors)
@@ -197,6 +206,15 @@ post-patch:
 		[ "$$(cd ${WRKSRC}/config && ${FIND} . -type f ! -name '*.orig' ! -name '*.bak' | ${SED} 's|^\./||' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "$$(echo ${CONFIG_FILES} ${PLUGINS_CONFIG_FILES} | ${TR} ' ' '\n' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" ] && \
 		[ -z "$$(${FIND} ${WRKSRC}/lib ${WRKSRC}/modules ${WRKSRC}/plugins \( -name '*.so' -o -name '*.so.*' -o -name '*.dylib' -o -name '*.dll' -o -name '*.sh' -o -type l \) -print)" ] || \
 		{ ${ECHO_MSG} "plugins and config after the removal: not those of the port: $$(cd ${WRKSRC}/plugins && ls | ${TR} '\n' ' '); config: $$(cd ${WRKSRC}/config && ${FIND} . -type f | ${TR} '\n' ' ')"; ${FALSE}; }
+	# opensearch-ml without the jars of the native code of its local models
+	# (ML_NATIVE_JARS): those two there, then gone, and nothing else
+	@cd ${WRKSRC}/plugins/opensearch-ml && ls | LC_ALL=C ${SORT} > ${WRKDIR}/ml-files.bundle && \
+		for j in ${ML_NATIVE_JARS}; do [ -f $$j ] || { ${ECHO_MSG} "plugins/opensearch-ml: no $$j, which this port takes out"; exit 1; }; done && \
+		${RM} ${ML_NATIVE_JARS} && \
+		[ "$$(ls | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "$$(${GREP} -v -x -F ${ML_NATIVE_JARS:S/^/-e /} ${WRKDIR}/ml-files.bundle | ${TR} '\n' ' ')" ] && \
+		[ $$(ls | wc -l) -eq $$(($$(wc -l < ${WRKDIR}/ml-files.bundle) - 2)) ] && \
+		! ls | ${GREP} -q -e '^onnxruntime_gpu' -e '^tokenizers-' || \
+		{ ${ECHO_MSG} "plugins/opensearch-ml: not the files of the bundle without ${ML_NATIVE_JARS}: $$(ls | ${TR} '\n' ' ')"; ${FALSE}; }
 	# netty: the jars of the bundle this port was written for (above)
 	@[ "$$(cd ${WRKSRC}/modules/transport-netty4 && LC_ALL=C ls netty-*.jar | ${TR} '\n' ' ')" = "${NETTY_JARS:O:S/$/-${NETTY_BUNDLED}.jar/} " ] && \
 		[ "$$(cd ${WRKSRC} && ${FIND} lib plugins modules -name 'netty-*.jar' ! -path 'modules/transport-netty4/*' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "${NETTY_ML:O:S|^|plugins/opensearch-ml/|} " ] || \
@@ -310,6 +328,7 @@ post-install:
 		! ls ${STAGEDIR}${PREFIX}/lib/opensearch/lib/jna-*.jar > /dev/null 2>&1 || \
 		{ ${ECHO_MSG} "lib/jna.jar is not the link to ${JAVAJARDIR}/jna.jar alone"; ${FALSE}; }
 	@[ "$$(cd ${STAGEDIR}${PREFIX}/lib/opensearch/plugins && ls | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "$$(echo ${OPENSEARCH_PLUGINS} | ${TR} ' ' '\n' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" ] && \
+		[ -z "$$(cd ${STAGEDIR}${PREFIX}/lib/opensearch/plugins/opensearch-ml && ls ${ML_NATIVE_JARS} 2>/dev/null)" ] && \
 		[ "$$(cd ${STAGEDIR}${PREFIX}/lib/opensearch && ${FIND} . -name 'netty-*.jar' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "$$(for j in ${NETTY_JARS:O}; do printf './modules/transport-netty4/%s-${NETTY_BUNDLED}.jar ' $$j; done)${NETTY_ML:O:S|^|./plugins/opensearch-ml/|} " ] || \
 		{ ${ECHO_MSG} "lib/opensearch: not the plugins of the port or the netty of the bundle"; ${FALSE}; }
 	@[ "${JAVA_HOME}" = "${LOCALBASE}/openjdk17" ] && \

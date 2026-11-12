@@ -8,8 +8,10 @@
 #     of the four it leaves out (no opensearch-security, its tools and demo
 #     certificates; no opensearch-knn, -neural-search, -performance-analyzer); the
 #     netty of modules/transport-netty4 the 4.1.112.Final of the bundle, no other
-#     netty but that of the client of opensearch-ml; the paths of
-#     opensearch.yml.sample /var/db/opensearch and /var/log/opensearch;
+#     netty but that of the client of opensearch-ml; opensearch-ml without
+#     the two jars of the native code of its local models (onnxruntime_gpu,
+#     tokenizers: aZ, 12.11.2026), its size and that of the package; the paths
+#     of opensearch.yml.sample /var/db/opensearch and /var/log/opensearch;
 #   - its tools run by hand as root, without JAVA_HOME (bin/opensearch-env takes the
 #     JDK of the port) and without OPENSEARCH_TMPDIR (opensearch-keystore,
 #     -plugin, -node, -shard, opensearch -V): each does its job and leaves nothing in
@@ -35,7 +37,9 @@
 #     mlockall true; the plugins it loaded (_cat/plugins) those of the port; the
 #     start says nothing of System::setSecurityManager (the four lines of JDK 17 are
 #     taken out) and no warning of the JVM; no [ERROR] in its log;
-#   - the health of the cluster, a document indexed and found; an index with the
+#   - the health of the cluster, a document indexed and found; opensearch-ml
+#     without native code: a connector of a remote model made (its credential
+#     encrypted by the master key of the plugin), read and found; an index with the
 #     codec zstd of opensearch-custom-codecs (zstd-jni on FreeBSD); HTTP with
 #     Accept-Encoding gzip and zstd (2.17.1 hung on zstd on Linux: upstream #17408
 #     of 2.19.1) and request bodies with Content-Encoding gzip and zstd (#23324 of
@@ -63,7 +67,10 @@
 #     warnings it logs (a note each; the settings deprecated those expected:
 #     cluster.initial_master_nodes, cluster.remote.connect, node.data, node.ingest,
 #     node.master, reindex.remote.whitelist, and the role master of node.master),
-#     no [ERROR] but that of opensearch-security-analytics, stopped.
+#     no [ERROR] but that of opensearch-security-analytics; the settings of his
+#     cluster (aZ, 12.11.2026: those of index-management and query-insights,
+#     with a key of no use that 2.17.1 took, persistent, and one transient)
+#     taken, each there with its value, and no [ERROR] after them; stopped.
 #
 # Usage (FreeBSD, as root, the packages installed): sh tools/opensearch-test.sh
 # Results: opensearch-results/tests.txt (one line per check, the summary at the end),
@@ -128,6 +135,16 @@ n="$(cd "$P/lib/opensearch" && find . -name 'netty-*.jar' ! -path './plugins/ope
 nw="$(for a in netty-buffer netty-codec netty-codec-http netty-common netty-handler netty-resolver netty-transport netty-transport-native-unix-common; do printf './modules/transport-netty4/%s-%s.jar ' "$a" "$netty"; done)"
 nm="$(cd "$P/lib/opensearch/plugins/opensearch-ml" 2>/dev/null && ls netty-*.jar | tr '\n' ' ')"
 if [ "$n" = "$nw" ]; then pass "netty $netty of the bundle in modules/transport-netty4 (8 jars), no other netty but that of the client of opensearch-ml: $nm"; else fail "netty: $n"; fi
+# opensearch-ml without the two jars of the native code of its local models
+# (aZ, 12.11.2026: onnxruntime_gpu-1.16.3.jar, tokenizers-0.28.0.jar)
+ml="$P/lib/opensearch/plugins/opensearch-ml"
+mj="$(ls "$ml" 2>/dev/null | grep -e '^onnxruntime_gpu' -e '^tokenizers-' | tr '\n' ' ')"
+mk="$(du -sk "$ml" 2>/dev/null | awk '{ print $1 }')"
+if [ -d "$ml" ] && [ -z "$mj" ] && [ "${mk:-999999}" -lt 102400 ]; then
+    pass "opensearch-ml without onnxruntime_gpu and tokenizers: $(ls "$ml" | wc -l | tr -d ' ') files, $((mk / 1024)) MiB; the package opensearch217: $(pkg query '%sh' opensearch217) installed"
+else
+    fail "opensearch-ml: ${mj:-the jars of the native code gone, but} $((${mk:-0} / 1024)) MiB"
+fi
 if [ "$(grep -v -e '^#' -e '^$' "$P/etc/opensearch/opensearch.yml.sample" | tr '\n' ' ')" = "path.data: /var/db/opensearch path.logs: /var/log/opensearch " ]; then
     pass "opensearch.yml.sample: path.data /var/db/opensearch, path.logs /var/log/opensearch, nothing else"
 else
@@ -350,6 +367,19 @@ else
     s="$(send GET /az-test/_search '{ "query": { "match": { "title": "azsupport" } } }')"
     case "$s" in *'"total":{"value":1'*) pass "a document indexed and found" ;;
         *) fail "the search: $(printf '%s' "$s" | cut -c1-200) (index: $(cut -c1-120 "$T/i.out"), document: $(cut -c1-120 "$T/d.out"))" ;; esac
+    # opensearch-ml without native code: a connector of a remote model (to the
+    # API of OpenAI, never called; an endpoint ML Commons trusts by default), kept
+    # with its credential encrypted by the master key of the plugin, read and
+    # found again
+    mc="$(send POST /_plugins/_ml/connectors/_create '{ "name": "az-test", "description": "a connector of the test of azsupport, never called", "version": 1, "protocol": "http", "parameters": { "model": "text-embedding-3-small" }, "credential": { "openAI_key": "not-a-key" }, "actions": [ { "action_type": "predict", "method": "POST", "url": "https://api.openai.com/v1/embeddings", "headers": { "Authorization": "Bearer ${credential.openAI_key}" }, "request_body": "{ \"input\": ${parameters.input}, \"model\": \"${parameters.model}\" }", "pre_process_function": "connector.pre_process.openai.embedding", "post_process_function": "connector.post_process.openai.embedding" } ] }')"
+    mcid="$(printf '%s' "$mc" | sed -n 's/.*"connector_id" *: *"\([^"]*\)".*/\1/p')"
+    mg="$(get "/_plugins/_ml/connectors/${mcid:-none}")"
+    msn="$(send POST /_plugins/_ml/connectors/_search '{ "query": { "match": { "name": "az-test" } } }' | sed -n 's/.*"total" *: *{ *"value" *: *\([0-9]*\).*/\1/p')"
+    if [ -n "$mcid" ] && printf '%s' "$mg" | grep -q '"name" *: *"az-test"' && [ "$msn" = 1 ]; then
+        pass "opensearch-ml without native code: a connector of a remote model made ($mcid), read and found (_plugins/_ml/connectors)"
+    else
+        fail "opensearch-ml: the connector: $(printf '%s' "$mc" | cut -c1-200); read: $(printf '%s' "$mg" | cut -c1-120); found: ${msn:-no answer}"
+    fi
     # HTTP compression of the netty of the port: the answers, gzip and zstd asked
     # for; request bodies in gzip and in zstd (garbage: an error, not a hang)
     hc() { curl -s -m 15 -o "$T/hc.body" -D "$T/hc.head" -w '%{http_code} %{time_total}' "$@" 2>/dev/null; }
@@ -562,6 +592,54 @@ else
 fi
 w="$(grep -c '\]\[WARN \]' /var/log/opensearch/ko44.log 2>/dev/null)"
 [ "${w:-0}" = 0 ] || note "ko44: its log has $w warnings: $(grep '\]\[WARN \]' /var/log/opensearch/ko44.log | head -n 4 | sed -e 's/^[^]]*\]//' | cut -c1-200 | tr '\n' ' ')"
+# the settings of aZ's cluster (12.11.2026: those of ko44), persistent and
+# transient, as he has them: taken by 2.17.1, each there with its value
+# (_cluster/settings, flat), the key of no use
+# search.insights.top_queries.cpu.exporter.asd too, and no [ERROR] after them
+cat > "$T/ko44-cluster-settings.json" << 'EOF'
+{
+  "persistent": {
+    "cluster.routing.allocation.enable": "all",
+    "plugins.index_state_management.metadata_migration.status": 1,
+    "plugins.index_state_management.template_migration.control": -1,
+    "search.insights.top_queries.cpu.enabled": false,
+    "search.insights.top_queries.latency.enabled": false,
+    "search.insights.top_queries.cpu.exporter.config.index": "'top-cpu-'YYYY",
+    "search.insights.top_queries.cpu.exporter.enabled": false,
+    "search.insights.top_queries.cpu.exporter.asd": false,
+    "search.insights.top_queries.latency.exporter.config.index": "'top-latensy-'YYYY",
+    "search.insights.top_queries.latency.exporter.enabled": false,
+    "search.insights.top_queries.group_by": "none",
+    "search.insights.top_queries.max_groups_excluding_topn": 100,
+    "search.query.metrics.enabled": false
+  },
+  "transient": {
+    "cluster.routing.allocation.enable": "all"
+  }
+}
+EOF
+ne="$(grep -c -E '\]\[ERROR\]' /var/log/opensearch/ko44.log 2>/dev/null)"
+cs="$(curl -s -m 30 -H 'Content-Type: application/json' -X PUT "$ko/_cluster/settings" --data-binary @"$T/ko44-cluster-settings.json" 2>/dev/null)"
+sleep 2
+cg="$(fetch -q -o - "$ko/_cluster/settings?flat_settings=true" 2>/dev/null)"
+cp_="$(printf '%s' "$cg" | sed -n 's/.*"persistent" *: *{\([^}]*\)}.*/\1/p')"
+ct_="$(printf '%s' "$cg" | sed -n 's/.*"transient" *: *{\([^}]*\)}.*/\1/p')"
+cm=""
+for kv in '"cluster.routing.allocation.enable":"all"' '"plugins.index_state_management.metadata_migration.status":"1"' \
+    '"plugins.index_state_management.template_migration.control":"-1"' '"search.insights.top_queries.cpu.enabled":"false"' \
+    '"search.insights.top_queries.latency.enabled":"false"' "\"search.insights.top_queries.cpu.exporter.config.index\":\"'top-cpu-'YYYY\"" \
+    '"search.insights.top_queries.cpu.exporter.enabled":"false"' '"search.insights.top_queries.cpu.exporter.asd":"false"' \
+    "\"search.insights.top_queries.latency.exporter.config.index\":\"'top-latensy-'YYYY\"" '"search.insights.top_queries.latency.exporter.enabled":"false"' \
+    '"search.insights.top_queries.group_by":"none"' '"search.insights.top_queries.max_groups_excluding_topn":"100"' '"search.query.metrics.enabled":"false"'; do
+    case "$cp_" in *"$kv"*) ;; *) cm="$cm persistent $kv;" ;; esac
+done
+case "$ct_" in *'"cluster.routing.allocation.enable":"all"'*) ;; *) cm="$cm transient cluster.routing.allocation.enable;" ;; esac
+ne2="$(grep -c -E '\]\[ERROR\]' /var/log/opensearch/ko44.log 2>/dev/null)"
+if printf '%s' "$cs" | grep -q '"acknowledged" *: *true' && [ -z "$cm" ] && [ "${ne2:-0}" = "${ne:-0}" ]; then
+    pass "ko44: the settings of aZ's cluster taken, the 13 persistent (search.insights.top_queries.cpu.exporter.asd too) and the transient one, each there with its value, no [ERROR] after them"
+else
+    fail "ko44: the settings of aZ's cluster: $(printf '%s' "$cs" | cut -c1-200); not there:${cm:- none}; [ERROR] after them: $((${ne2:-0} - ${ne:-0})) ($(grep -E '\]\[ERROR\]' /var/log/opensearch/ko44.log 2>/dev/null | tail -n 1 | sed -e 's/^[^]]*\]//' | cut -c1-200))"
+fi
 "$rc" onestop > "$T/ko44-stop.out" 2>&1; r=$?
 if [ "$r" = 0 ] && ! fetch -q -o - "$ko/" > /dev/null 2>&1; then pass "ko44: rc.d/opensearch onestop"; else fail "ko44: rc.d/opensearch onestop: exit $r, $(tail -n 1 "$T/ko44-stop.out")"; fi
 
