@@ -85,13 +85,16 @@ git -C "$r" -c user.name='github-actions[bot]' -c user.email='41898282+github-ac
 
 # the parts of a run push at the same time: on a refused push, rebase and again
 i=0
-while [ $i -lt 5 ]; do
+while [ $i -lt 10 ]; do
     i=$((i + 1))
     if git -C "$r" push -q origin HEAD:runs 2>"$w/err"; then
         echo "runs report: $file"
         exit 0
     fi
-    sleep $((i * 3))
-    git -C "$r" pull -q --rebase origin runs 2>>"$w/err" || true
+    # a jitter, so that reports refused together do not try again together
+    sleep $((i * 3 + $(od -An -N1 -tu1 /dev/urandom | tr -d ' ') % 7))
+    # the rebase rewrites the commit: it needs the identity the commit was made with
+    git -C "$r" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+        pull -q --rebase origin runs 2>>"$w/err" || true
 done
 warn "push to azsupport/azsupport (runs) failed: $(hide < "$w/err" | tail -n 3 | tr '\n' ' ')"
