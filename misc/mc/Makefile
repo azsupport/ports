@@ -14,7 +14,7 @@
 # (files/mc.conf: what each of them still gives when it is installed). The other
 # files/*.patch: fixes of mc after 4.8.33, of upstream and of Gentoo, Debian, NetBSD
 # and Alpine (aZ, 11.11.2026), and ours: mc's own lines out of the history of a tcsh
-# subshell, 96 entries in its history lists (aZ, 12.11.2026); each says where from,
+# subshell (aZ, 12.11.2026); each says where from,
 # what and why. mc-build.sh applies them after the patches of the official port, in
 # the order of their names.
 

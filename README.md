@@ -74,7 +74,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, the programs with 6 at the end (`convert6`, `identify6`, ...); its libraries in `/usr/local/az/lib` |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); its `libMagickCore-7.so` and `libMagickWand-7.so` in `/usr/local/az/lib`, which `magick` and the module imagick link |
 | `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) with the formats of our ImageMagick; its libraries in `/usr/local/az/lib`, which `gm` and the module gmagick link |
-| `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; GLib of `glib`, libssh2 of az, PCRE2 of `pcre2`; zip, 7z, rar and ISO images through `tar` of the base system (the names of a zip of Windows in CP866); fixes of mc after 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), each with its source): the overflow of `%cd` with a long name in an archive, Reget spoiling the next files of a copy, the mouse with `TERM=xterm` (Gentoo) and a crash of a drag, the exit of the subshell on FreeBSD (NetBSD), the prompt of tcsh kept, a prompt with bytes not UTF-8, the descriptor of the subshell's pipe (Debian), "ls -l" lines with names of one byte (Alpine), ftp: reconnect after an idle timeout, the password of `~/.netrc`; copies that clone the blocks on ZFS (`copy_file_range`, upstream #5082); ours: none of mc's own lines (its cd, its init, the user menu) in the history of a tcsh subshell, 96 entries in each history list of mc (not 60) |
+| `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; GLib of `glib`, libssh2 of az, PCRE2 of `pcre2`; zip, 7z, rar and ISO images through `tar` of the base system (the names of a zip of Windows in CP866); fixes of mc after 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), each with its source): the overflow of `%cd` with a long name in an archive, Reget spoiling the next files of a copy, the mouse with `TERM=xterm` (Gentoo) and a crash of a drag, the exit of the subshell on FreeBSD (NetBSD), the prompt of tcsh kept, a prompt with bytes not UTF-8, the descriptor of the subshell's pipe (Debian), "ls -l" lines with names of one byte (Alpine), ftp: reconnect after an idle timeout, the password of `~/.netrc`; copies that clone the blocks on ZFS (`copy_file_range`, upstream #5082); ours: none of mc's own lines (its cd, its init, the user menu) in the history of a tcsh subshell |
 | `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 and PCRE 8.45, the official ports: the PCRE of every package (PHP, Apache, git, wget, mc, MariaDB; nginx later) |
 | `git` | `devel/git` | git without Perl, Python, Tcl/Tk, gettext, the manual pages and git daemon; HTTPS through our `curl`, `git grep -P` with `pcre2` |
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi and env too), no SSL; APR and libmaxminddb of az |
@@ -187,11 +187,8 @@ Names and origins as the ports, files at the paths of the ports:
   script(1) can show them). In a subshell of tcsh the history (Up, `history`,
   `~/.history`) keeps what one types there or at mc's command line and none of mc's own
   lines: the cd that follows a panel runs by a key bound with `bindkey -c`; the
-  directories stay in mc's own history (Alt-Shift-H, Alt-Y, Alt-U). Each history list of
-  mc keeps 96 entries: the default of `num_history_items_recorded`, which an existing
-  `~/.config/mc/ini` overrides (mc writes the value into it at its exit with
-  `auto_save_setup`, on by default: a server that has one keeps 60 until it is changed
-  there). A copy (F5, F6 across directories) clones the blocks where the file system
+  directories stay in mc's own history (Alt-Shift-H, Alt-Y, Alt-U). A copy (F5, F6
+  across directories) clones the blocks where the file system
   can (upstream's file cloning of #5082, [`files/copy-clone-1.patch`](misc/mc/files/copy-clone-1.patch)
   and its fix `copy-clone-2-reget.patch`; mc-build.sh runs autoreconf for its
   `configure.ac` and checks `HAVE_COPY_FILE_RANGE` and `HAVE_FILE_CLONING_BY_RANGE`, and runs
