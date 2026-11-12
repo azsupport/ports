@@ -351,17 +351,16 @@ if [ -x "$bash" ]; then
     cpd="$T/cp/d$(printf '\370')"
     mkdir -p "$cpd"
     printf "PS1='\\\\w> '\n" > "$HOME/.bashrc"
-    # the end by exit in Ctrl-O, as for tcsh; F10 while mc still takes the subshell for
-    # busy asks "The shell is still active. Quit anyway?" (run 43210253159: no answer,
-    # exit 124): F10 and y only when mc is still there after the exit
-    keys_run "$T/cp.typescript" "sleep 4; printf '\017'; sleep 2; printf 'exit\r'; sleep 4; printf '$f10'; sleep 1;
-        printf y; sleep 2" \
+    # F10 after 6 s (bash took longer than 3 or 4 s to start in some runs: 43210253159,
+    # 43213822115, exit 124), y for "The shell is still active. Quit anyway?" of an mc
+    # that still waits for it
+    keys_run "$T/cp.typescript" "sleep 6; printf '$f10'; sleep 2; printf y; sleep 2" \
         env SHELL="$bash" sh -c 'cd "$1" && exec "$2"' sh "$cpd" "$mc"
     rm -f "$HOME/.bashrc"
     if [ "$keys_exit" = 0 ] && grep -q "$T/cp/d> " "$T/cp.typescript.txt"; then
         pass "bash subshell in a directory named in CP1251: the prompt on the command line \"$T/cp/d> \""
     else
-        fail "bash subshell in a directory named in CP1251: exit $keys_exit after ${keys_secs}s, no \"$T/cp/d> \": $(tr '\n' ' ' < "$T/cp.typescript.txt" | tail -c 200)"
+        fail "bash subshell in a directory named in CP1251: exit $keys_exit after ${keys_secs}s, prompt \"$T/cp/d> \" $(grep -q -F "$T/cp/d> " "$T/cp.typescript.txt" && echo there || echo missing), lines with $T/cp: $(grep -c -F "$T/cp" "$T/cp.typescript.txt"); $(tr '\n' ' ' < "$T/cp.typescript.txt" | tail -c 160)"
     fi
 else
     echo "skip  the prompt of bash with a byte that is not UTF-8: no $bash" >> "$out"
