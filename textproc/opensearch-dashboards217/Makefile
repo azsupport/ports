@@ -247,9 +247,12 @@ post-install:
 	@if ${FIND} ${STAGEDIR}${WWWDIR} \( -name '*.node' -o -name '*.orig' -o -name '*.rej' -o -path '*/node/bin/*' \) | \
 		${GREP} .; then ${ECHO_MSG} "these files must not be in the package"; ${FALSE}; fi
 # (its configuration: that of the work tree, as the package has the samples only;
-# bin/opensearch-dashboards reads it to set up APM before it parses its arguments)
-	@[ "$$(cd /tmp && ${SETENV} HOME=${WRKDIR} OSD_PATH_CONF=${WRKSRC}/config ${STAGEDIR}${WWWDIR}/bin/opensearch-dashboards --version 2>&1)" = "${DISTVERSION}" ] || \
-		{ ${ECHO_MSG} "bin/opensearch-dashboards --version does not say ${DISTVERSION}"; ${FALSE}; }
+# bin/opensearch-dashboards reads it to set up APM before it parses its arguments;
+# --allow-root: its tools stop as root without it, src/setup_node_env/root, and the
+# build is root)
+	@v="$$(cd /tmp && ${SETENV} HOME=${WRKDIR} OSD_PATH_CONF=${WRKSRC}/config ${STAGEDIR}${WWWDIR}/bin/opensearch-dashboards --version --allow-root 2>&1)"; \
+		[ "$$v" = "${DISTVERSION}" ] || \
+		{ ${ECHO_MSG} "bin/opensearch-dashboards --version does not say ${DISTVERSION}: $$v"; ${FALSE}; }
 .for n in ${OSD_NPM}
 	@[ "$$(${LOCALBASE}/bin/node -p 'require(process.argv[1]).version' ${STAGEDIR}${WWWDIR}/${n:C/^[^:]*://}/package.json)" = \
 		"$$(echo ${n:C/:.*//:R} | ${SED} 's/.*-//')" ] || \
