@@ -95,7 +95,8 @@
 | `kibana6` | `textproc/kibana6` | Kibana 6.8.23, последний 6.x, для легаси-сайтов вместе с `elasticsearch6`, снова портом (официальный порт убран 31.03.2022, на 6.8.16, с Node.js 10): на нашем `node24`, с возвращённым из Node.js 10 тем, что ему нужно (`util.is*` и `util.log`, MD4 webpack 4 как MD5, необработанный отказ промиса — предупреждение, IPv4-адрес `localhost` первым), с исправлениями hapi для Node.js 11 и 16 в его hapi 17 и с `re2` (метки Timelion) как node-re2 1.27.1, собранным под этот Node.js; его rc-скрипт с daemon(8), от пользователя www, `reload` для журнала; без Machine Learning и Reporting (Chromium и PhantomJS для FreeBSD нет), бандлы браузера собраны при сборке под этот набор плагинов |
 | `opensearch217` | `textproc/opensearch217` | OpenSearch 2.17.1, последний 2.17.x (2.17.2 так и не вышел), для старого проекта: бандл OpenSearch, который ставил официальный `textproc/opensearch` на 2.17.1 (ветка 2025Q1 freebsd-ports), с его rc-скриптом с профилями, на OpenJDK 17 из портов и JNA из `devel/jna` (его библиотека из `lib/jna`, при запуске ничего не распаковывается); без `opensearch-security` (aZ, 12.11.2026: без TLS и без паролей; rc-скрипт не запускает его, если в `opensearch.yml` есть настройка `plugins.security.*`, например `plugins.security.disabled: true`, и называет эти строки) и без плагинов, которые не работают на FreeBSD или которым нужен такой: k-NN (его движки — нативный код Linux), Neural Search, Performance Analyzer (остальные 19 плагинов бандла и все модули на месте, как в кластере aZ на 2.17.1, чтобы узел из этого пакета мог заменить его узел; ML Commons работает только с удалёнными моделями: локальным нужен нативный код Linux, и два jar с этим кодом — ONNX Runtime с CUDA и токенизаторы DJL, 309 из 357 МиБ плагина — убраны: aZ, 12.11.2026); jar-файлы бандла как есть; решения `elasticsearch6`: куча — `opensearch_heap` в `rc.conf`, без неё — 31g из `jvm.options`, нет дампа кучи, нет журнала GC, в `/tmp` только `/tmp/opensearch` (`opensearch_tmpdir`, создаётся заново при каждом запуске), нет архивов старых журналов, предупреждение JDK 17 о `System::setSecurityManager` убрано; утилиты при ручном запуске работают без `JAVA_HOME` и ничего не оставляют в `/tmp`; пути официального порта — `/var/db/opensearch` и `/var/log/opensearch` |
 | `perl5` | `lang/perl5.42` | Perl 5.42 под именем пакета FreeBSD (aZ, 11.11.2026), чтобы с ним работали пакеты `p5-*` из репозитория FreeBSD: официальный порт как есть (потоки, MULTIPLICITY, 64-битные целые, разделяемая libperl), без DTrace, как все сборки здесь (его пробы есть только в ядре Perl: XS-модули пакетов FreeBSD с ним загружаются и работают, [`tools/perl-test.sh`](tools/perl-test.sh)) |
-| `openjdk17`, `jna`, `apache-ant` | `java/openjdk17`, `devel/jna`, `devel/apache-ant` | JDK и JNA для `elasticsearch6` и `opensearch217`, наши (aZ, 11.11.2026), чтобы сервер с Elasticsearch не получал ничего от рабочего стола: OpenJDK 17 без графики в `/usr/local/openjdk17`, без X11, звука, шрифтов и javavmwrapper (нет `/usr/local/bin/java`), на libjpeg, FreeType и Little CMS из az; JNA без X11 и JAWT, на libffi из az, его библиотека — ещё и файлом `/usr/local/lib/jna/libjnidispatch.so`, который загружают `elasticsearch6` и `opensearch217` (`-Djna.boot.library.path`, `-Djna.nounpack`: при запуске ничего не распаковывается); Ant — официальный порт — на нашем JDK, для сборки JNA. `openjdk17` и `jna` зависят только от `az` |
+| `openjdk17` | `java/openjdk17` | JDK для `elasticsearch6` и `opensearch217`, наш (aZ, 11.11.2026), чтобы сервер с Elasticsearch не получал ничего от рабочего стола: OpenJDK 17 без графики в `/usr/local/openjdk17`, без X11, звука, шрифтов и javavmwrapper (нет `/usr/local/bin/java`), на libjpeg, FreeType и Little CMS из az; зависит только от `az` |
+| `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | JDK для OpenSearch 2.19 сейчас и OpenSearch 3.x потом, наш (aZ, 12.11.2026: один JDK для обоих: 2.x не работает на JDK 24 и новее, где Security Manager отключён насовсем, а 3.x нужен JDK не ниже 21): OpenJDK 21, сделанный как `openjdk17`, без графики в `/usr/local/openjdk21`, без X11, звука, шрифтов и javavmwrapper, на libjpeg, FreeType и Little CMS из az, ставится рядом с `openjdk17` (общих файлов нет, каждый — по своему `JAVA_HOME`); JNA без X11 и JAWT, на libffi из az, его библиотека — ещё и файлом `/usr/local/lib/jna/libjnidispatch.so`, который загружают `elasticsearch6` и `opensearch217` (`-Djna.boot.library.path`, `-Djna.nounpack`: при запуске ничего не распаковывается), собран на 21 для Java 8 (его jar работает и на 17, и на 21); Ant — официальный порт — на нашем JDK 21, для сборки JNA (aZ, 12.11.2026: JNA и Ant — на 21, 17 оставлен `elasticsearch6` и `opensearch217`). `openjdk21` и `jna` зависят только от `az` |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows, и с исправлениями уязвимостей, которых нет в официальном порту, из Fedora: CVE-2014-8141 … CVE-2022-0530, zip-бомбы, и из Debian 6.0-31 и OpenBSD (`files/debian/`): CAN-2026-2034442 и CAN-2026-2034443 (переполнения кучи и стека), CVE-2022-1271 в zipgrep, архивы ZIP64 из Windows, время из Unix-полей extra; `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR; `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS, с исправлением CVE-2026-96512 (три коммита апстрима); `bash` без NLS, с тремя исправлениями 5.3, как их несёт Gentoo: `wait` закончившегося фонового задания, подстановки команд при большом окружении, приглашение в однобайтовой локали; `portmaster` только с дополнением для bash), `wget` и `rsync` наши, с разделяемыми библиотеками az (`wget`: IDN, PSL, исправления CVE-2026-15146, CVE-2026-58470, CVE-2026-58471 и CVE-2026-58472, как их несёт Ubuntu; `rsync` 3.5.2, раньше официального 3.5.1 ради исправлений безопасности: lz4, zstd, xxhash, без ICONV), PCRE2 из `pcre2` (`wget`) и OpenSSL базы |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
@@ -373,14 +374,39 @@
   файла: его процесс отображает этот файл в память, его фильтр системных вызовов,
   который ставится через JNA, включён, [`tools/elastic-test.sh`](tools/elastic-test.sh); так же
   `opensearch217`, [`tools/opensearch-test.sh`](tools/opensearch-test.sh));
-  собран нашими `openjdk17` и `apache-ant` (официальный
-  порт с `JAVA_VERSION` 17, `bin/ant` на нашей `java`): в сборке один JDK. Порты
+  собран нашими `openjdk21` и `apache-ant` (aZ, 12.11.2026: на 21, 17 оставлен
+  `elasticsearch6` и `opensearch217`; Ant — официальный порт с `JAVA_VERSION` 21,
+  `bin/ant` на `java` из `openjdk21`): в сборке один JDK; JNA компилируется для
+  Java 8 (`javac --release 8`), поэтому его jar работает и на 17, и на 21 (порт
+  проверяет версию class-файлов — 52). Порты
   проверяют то, что собрали (ни один ELF JDK не линкует библиотеки X11, ALSA, giflib,
   libpng, HarfBuzz и fontconfig; библиотеки az — по пути поиска; зависимости — только
-  az). Тесты после установки — [`tools/java-test.sh`](tools/java-test.sh) (без графики,
-  ImageIO с JPEG и PNG, преобразование ICC, текст, `AudioSystem`, TLS 1.3 на 127.0.0.1,
-  библиотеки az в процессе, `getpid()` через JNA — из jar и из `lib/jna`, зависимости
-  пакетов).
+  az). Тесты после установки — [`tools/java-test.sh`](tools/java-test.sh) (для каждого
+  установленного из `openjdk17` и `openjdk21`: без графики, ImageIO с JPEG и PNG,
+  преобразование ICC, текст, `AudioSystem`, TLS 1.3 на 127.0.0.1, библиотеки az в
+  процессе, `ldd` каждого ELF-файла JDK (только библиотеки самого JDK, базы и
+  `/usr/local/az/lib`, ничего от X11), `getpid()` через JNA — из jar и из `lib/jna`;
+  для `openjdk21` ещё скалярное произведение через Vector API из
+  `jdk.incubator.vector`, файл, отображённый как `MemorySegment`, и `getpid()` через
+  `Linker` из FFM — так, как их используют OpenSearch 2.19 и 3.x; оба JDK рядом;
+  class-файлы `jna.jar` для Java 8; `bin/ant` на `openjdk21`, собранный им jar — на
+  каждом JDK; зависимости пакетов).
+- **`java/openjdk21`**: OpenJDK 21 — JDK для OpenSearch 2.19 сейчас и OpenSearch 3.x
+  потом (aZ, 12.11.2026: один JDK для обоих: 2.x не работает на JDK 24 и новее, где
+  Security Manager отключён насовсем, а 3.x нужен JDK не ниже 21), сделан как
+  `openjdk17`, с его решениями (выше): имя, origin, путь (`/usr/local/openjdk21`) и
+  версия официального пакета (версия, distinfo и патчи, кроме двух про fontconfig, —
+  из официального порта закреплённого коммита), без графики и без заголовков X11, без
+  звука, DTrace, шрифтов и javavmwrapper, на libjpeg, FreeType и Little CMS из az, те
+  же проверки порта. Отличия от 17 и почему: у перенесённого JDK-8376684 на одну
+  часть больше — configure 21u требует заголовки X11 и для сборки без графики
+  (`NEEDS_LIB_X11` в `make/autoconf/libraries.m4`; в 17u для такой сборки он уже
+  false); нет `--disable-hotspot-gtest` (в 21 такого параметра нет: gtest собирается
+  только с `--with-gtest`); предупреждения clang, которые отключает официальный порт
+  21. Ставится рядом с `openjdk17`: общих файлов нет, у каждого своя `java` по своему
+  `JAVA_HOME`, JNA из `devel/jna` (собран на 21, для Java 8) — на обоих. Тесты после
+  установки — [`tools/java-test.sh`](tools/java-test.sh), все проверки на каждом
+  установленном JDK.
 - **`lang/phpXY`** и **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): ядро `phpXY` и
   модуль Apache `libphpXY.so`, каждый — из официального порта коммита своей версии
   (таблица выше); PCRE2 — из `devel/pcre2` (у 5.6 PCRE из `devel/pcre`), а не встроенная

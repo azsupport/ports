@@ -95,7 +95,8 @@ Names and origins as the ports, files at the paths of the ports:
 | `kibana6` | `textproc/kibana6` | Kibana 6.8.23, the last 6.x, for the legacy sites with `elasticsearch6`, back in the ports (the official port went on 2022-03-31, at 6.8.16, with Node.js 10): on our `node24`, with what it needs of Node.js 10 put back (`util.is*` and `util.log`, the MD4 of webpack 4 as MD5, a rejected promise nothing handles a warning, the IPv4 address of `localhost` first), the fixes of hapi for Node.js 11 and 16 in its hapi 17, and `re2` (Timelion's labels) as node-re2 1.27.1 built for this Node.js; its rc script with daemon(8), as the user www, `reload` for the log; without Machine Learning and Reporting (no Chromium or PhantomJS for FreeBSD), the bundles of the browser built in the build for that set of plugins |
 | `opensearch217` | `textproc/opensearch217` | OpenSearch 2.17.1, the last 2.17.x (2.17.2 was never released), for a legacy project: the bundle of OpenSearch that the official `textproc/opensearch` installed at 2.17.1 (the branch 2025Q1 of freebsd-ports), with its rc script with profiles, on OpenJDK 17 of the ports and the JNA of `devel/jna` (its library from `lib/jna`, nothing unpacked at a start); without `opensearch-security` (aZ, 12.11.2026: no TLS and no passwords; the rc script refuses a start with a `plugins.security.*` setting in `opensearch.yml`, such as `plugins.security.disabled: true`, and names its lines) and without the plugins that cannot run on FreeBSD or need one that cannot: k-NN (its engines are native code of Linux), Neural Search, Performance Analyzer (the other 19 plugins of the bundle and every module are in, as on aZ's cluster of 2.17.1, so that a node of this package can take the place of one of his; ML Commons runs its remote models only: its local ones need native code of Linux, and the two jars of that code, ONNX Runtime with CUDA and the tokenizers of DJL, 309 of the 357 MiB of the plugin, are left out: aZ, 12.11.2026); the jars of the bundle as they are; the decisions of `elasticsearch6`: the heap is `opensearch_heap` of `rc.conf`, without it the 31g of `jvm.options`, no heap dump, no GC log, nothing in `/tmp` but `/tmp/opensearch` (`opensearch_tmpdir`, made anew at each start), no archives of old logs, the warning of JDK 17 about `System::setSecurityManager` taken out; its tools run by hand without `JAVA_HOME` and leave nothing in `/tmp`; the paths of the official port, `/var/db/opensearch` and `/var/log/opensearch` |
 | `perl5` | `lang/perl5.42` | Perl 5.42 under the name of FreeBSD's (aZ, 11.11.2026), so that the `p5-*` packages of the FreeBSD repository work with it: the official port as it is (threads, MULTIPLICITY, 64-bit integers, the shared libperl), without DTrace, as every build here (its probes are in the core of Perl only: the XS modules of FreeBSD's packages load and run with it, [`tools/perl-test.sh`](tools/perl-test.sh)) |
-| `openjdk17`, `jna`, `apache-ant` | `java/openjdk17`, `devel/jna`, `devel/apache-ant` | the JDK and JNA of `elasticsearch6` and `opensearch217`, ours (aZ, 11.11.2026), so that a server with Elasticsearch gets nothing of a desktop: OpenJDK 17 headless in `/usr/local/openjdk17`, without X11, sound, fonts and javavmwrapper (no `/usr/local/bin/java`), on the libjpeg, FreeType and Little CMS of az; JNA without X11 and JAWT, on the libffi of az, its library also as `/usr/local/lib/jna/libjnidispatch.so`, which `elasticsearch6` and `opensearch217` load (`-Djna.boot.library.path`, `-Djna.nounpack`: nothing unpacked at a start); Ant, the official port, on our JDK, to build JNA. `openjdk17` and `jna` need `az` only |
+| `openjdk17` | `java/openjdk17` | the JDK of `elasticsearch6` and `opensearch217`, ours (aZ, 11.11.2026), so that a server with Elasticsearch gets nothing of a desktop: OpenJDK 17 headless in `/usr/local/openjdk17`, without X11, sound, fonts and javavmwrapper (no `/usr/local/bin/java`), on the libjpeg, FreeType and Little CMS of az; needs `az` only |
+| `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | the JDK of OpenSearch 2.19 now and of OpenSearch 3.x later, ours (aZ, 12.11.2026: one JDK for both: 2.x does not run on JDK 24 and later, where the Security Manager is disabled for good, and 3.x needs 21 at least): OpenJDK 21 made as `openjdk17`, headless in `/usr/local/openjdk21`, without X11, sound, fonts and javavmwrapper, on the libjpeg, FreeType and Little CMS of az, installed side by side with `openjdk17` (no file in common, each by its `JAVA_HOME`); JNA without X11 and JAWT, on the libffi of az, its library also as `/usr/local/lib/jna/libjnidispatch.so`, which `elasticsearch6` and `opensearch217` load (`-Djna.boot.library.path`, `-Djna.nounpack`: nothing unpacked at a start), built on 21 for Java 8 (its jar runs on 17 and 21 alike); Ant, the official port, on our JDK 21, to build JNA (aZ, 12.11.2026: JNA and Ant on 21, 17 left to `elasticsearch6` and `opensearch217`). `openjdk21` and `jna` need `az` only |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives, and the fixes of the vulnerabilities the official port lacks, from Fedora: CVE-2014-8141 … CVE-2022-0530, zip bombs, and from Debian 6.0-31 and OpenBSD (`files/debian/`): CAN-2026-2034442 and CAN-2026-2034443 (a heap and a stack overflow), CVE-2022-1271 of zipgrep, the ZIP64 archives of Windows, the times of the Unix extra fields; `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR; `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS, with the fix of CVE-2026-96512 (three upstream commits); `bash` without NLS, with three fixes of 5.3 as Gentoo carries them: `wait` of an ended background job, command substitutions with a large environment, the prompt in a single-byte locale; `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL, the fixes of CVE-2026-15146, CVE-2026-58470, CVE-2026-58471 and CVE-2026-58472 as Ubuntu carries them; `rsync` 3.5.2, ahead of the official 3.5.1 for its security fixes: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
@@ -385,15 +386,42 @@ Names and origins as the ports, files at the paths of the ports:
   dependency on that file: its process maps it, and its system call filter, set
   through JNA, is on, [`tools/elastic-test.sh`](tools/elastic-test.sh); `opensearch217` the
   same, [`tools/opensearch-test.sh`](tools/opensearch-test.sh)); built with
-  our `openjdk17` and `apache-ant` (the official port with
-  `JAVA_VERSION` 17, `bin/ant` on our `java`): one JDK in the build. The ports check
+  our `openjdk21` and `apache-ant` (aZ, 12.11.2026: on 21, 17 left to
+  `elasticsearch6` and `opensearch217`; Ant the official port with `JAVA_VERSION`
+  21, `bin/ant` on the `java` of `openjdk21`): one JDK in the build; JNA compiles
+  for Java 8 (`javac --release 8`), so its jar runs on 17 and 21 alike (the port
+  checks the class file version, 52). The ports check
   what they build (every ELF of the JDK without the libraries of X11, ALSA, giflib,
   libpng, HarfBuzz and fontconfig; the libraries of az by their run path; the
   dependencies: az only). Tests after the install:
-  [`tools/java-test.sh`](tools/java-test.sh) (headless, ImageIO with JPEG and PNG, an
-  ICC conversion, text, `AudioSystem`, TLS 1.3 on 127.0.0.1, the libraries of az in
-  the process, `getpid()` through JNA, from the jar and from `lib/jna`, the
-  dependencies of the packages).
+  [`tools/java-test.sh`](tools/java-test.sh) (for each of `openjdk17` and `openjdk21`
+  installed: headless, ImageIO with JPEG and PNG, an ICC conversion, text,
+  `AudioSystem`, TLS 1.3 on 127.0.0.1, the libraries of az in the process, `ldd` of
+  every ELF file of the JDK (the libraries of the JDK, of the base system and of
+  `/usr/local/az/lib` alone, nothing of X11), `getpid()` through JNA, from the jar
+  and from `lib/jna`; for `openjdk21` also a dot product through the Vector API of
+  `jdk.incubator.vector`, a file mapped as a `MemorySegment` and `getpid()` through
+  the `Linker` of FFM, as OpenSearch 2.19 and 3.x use them; the two JDKs side by
+  side; the classes of `jna.jar` for Java 8; `bin/ant` on `openjdk21`, a jar it
+  builds run on each JDK; the dependencies of the packages).
+- **`java/openjdk21`**: OpenJDK 21, the JDK of OpenSearch 2.19 now and of OpenSearch
+  3.x later (aZ, 12.11.2026: one JDK for both: 2.x does not run on JDK 24 and later,
+  where the Security Manager is disabled for good, and 3.x needs 21 at least), made
+  as `openjdk17` with its decisions (above): the name, origin, path
+  (`/usr/local/openjdk21`) and version of the official package (its version,
+  distinfo and patches but the two of fontconfig from the official port of the
+  pinned commit), headless without the headers of X11, without sound, DTrace, fonts
+  and javavmwrapper, on the libjpeg, FreeType and Little CMS of az, the same checks
+  of the port. What differs from 17, and why: the backport of JDK-8376684 has one
+  more part, as the configure of 21u wants the headers of X11 for a headless build
+  too (`NEEDS_LIB_X11` of `make/autoconf/libraries.m4`, false for a headless build
+  in 17u already); no `--disable-hotspot-gtest` (21 has no such option: gtest is
+  built only with `--with-gtest`); the warnings of clang that the official port of
+  21 turns off. Installed side by side with `openjdk17`: no file in common, each its
+  own `java` by its `JAVA_HOME`, the JNA of `devel/jna` (built with 21, for Java 8)
+  on both.
+  Tests after the install: [`tools/java-test.sh`](tools/java-test.sh), every check
+  on each JDK installed.
 - **`lang/phpXY`** and **`www/mod_phpXY`** (5.6, 7.4, 8.1, 8.2, 8.3, 8.4): the core
   `phpXY` and the Apache module `libphpXY.so`, each from the official port of the commit
   of its version (the table above); PCRE2 is that of `devel/pcre2` (5.6: PCRE of
