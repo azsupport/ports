@@ -30,9 +30,15 @@ if (major, minor) <= (3, 10):
 if (major, minor) >= (3, 11):
     sqlite_srcs.append('_sqlite/blob.c',)
 
+# load_extension(): since Python 3.11 _sqlite/connection.c builds it only with
+# PY_SQLITE_ENABLE_LOAD_EXTENSION (what --enable-loadable-sqlite-extensions of
+# configure defines); SQLITE_OMIT_LOAD_EXTENSION, which this file of the official
+# port still sets, means nothing there, so the module had none (run 43162996074:
+# "load_extension absent"). The SQLite of az has it.
 try:
     import ctypes
     ctypes.CDLL(az + '/lib/libsqlite3.so').sqlite3_load_extension
+    macros.append(('PY_SQLITE_ENABLE_LOAD_EXTENSION', '1'))
 except AttributeError:
     macros.append(('SQLITE_OMIT_LOAD_EXTENSION', '1'))
 
