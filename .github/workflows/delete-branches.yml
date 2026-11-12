@@ -1,0 +1,61 @@
+# Deletes branches that are merged into main (aZ, 12.11.2026: the merged branches are
+# deleted without him). Claude's sandbox cannot delete a branch of GitHub (its proxy lets
+# neither `git push --delete` nor the REST API through), so the deletion runs here, on
+# GitHub, with the token of this workflow. A branch is deleted only when every commit of
+# it is in main by its patch (git cherry); force skips that check, for a branch whose
+# commits went into main changed (conflicts solved in the rebase), compared by hand first.
+name: Delete merged branches
+
+on:
+  workflow_dispatch:
+    inputs:
+      branches:
+        description: 'The branches, separated by spaces (never main)'
+        type: string
+        required: true
+      force:
+        description: 'Delete even when git cherry finds commits not in main (compared by hand first)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Delete the branches merged into main
+        env:
+          BRANCHES: ${{ inputs.branches }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -u
+          rc=0
+          for b in $BRANCHES; do
+            case "$b" in
+              main|HEAD|-*) echo "::error title=$b::never deleted"; rc=1; continue ;;
+            esac
+            if ! git ls-remote --exit-code --heads origin "refs/heads/$b" > /dev/null; then
+              echo "$b: no such branch"
+              continue
+            fi
+            git fetch -q origin "+refs/heads/$b:refs/remotes/origin/$b" "+refs/heads/main:refs/remotes/origin/main"
+            left="$(git cherry origin/main "origin/$b" | grep -c '^+' || true)"
+            if [ "$left" != 0 ] && [ "$FORCE" != true ]; then
+              echo "::error title=$b::$left commit(s) not in main by their patch: kept"
+              git cherry -v origin/main "origin/$b" | grep '^+'
+              rc=1
+              continue
+            fi
+            if git push -q origin --delete "$b"; then
+              echo "$b: deleted (commits not in main by their patch: $left; force: $FORCE)" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error title=$b::not deleted"
+              rc=1
+            fi
+          done
+          exit $rc

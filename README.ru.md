@@ -781,6 +781,15 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 | `PKG_SIGNING_KEY` | закрытый ключ RSA (PEM) к `keys/az.pub`: попадает в ВМ только файлом, используется `pkg repo` и удаляется |
 | `RUNS_TOKEN` | fine-grained токен с Contents на чтение и запись в azsupport/azsupport, для отчётов |
 
+### Слитые ветки
+
+[`delete-branches.yml`](.github/workflows/delete-branches.yml), «Delete merged branches»:
+удаляет названные ветки (через пробел), все коммиты которых есть в main по патчу
+(`git cherry`); `force` пропускает эту проверку — для ветки, чьи коммиты вошли в main
+изменёнными при rebase, сверенной перед этим вручную. Работает на GitHub с токеном workflow,
+потому что из песочницы, где делаются ветки, ветку на GitHub удалить нельзя (aZ, 12.11.2026:
+слитые ветки удаляются без него).
+
 ### Библиотеки с GCC
 
 [`lib-bench.yml`](.github/workflows/lib-bench.yml), «Libraries of az with the base clang and
