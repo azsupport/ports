@@ -170,7 +170,10 @@ Names and origins as the ports, files at the paths of the ports:
   Build and run: az.
 - **`graphics/ImageMagick6`**: `bin/convert6`, `identify6`, `mogrify6`, `composite6`
   and the others, next to ImageMagick 7, linking their libraries in `/usr/local/az/lib`:
-  JPEG, PNG, WebP, GIF, HEIC and AVIF only, with our policy. Build and run: az.
+  JPEG, PNG, WebP, GIF, HEIC and AVIF only, with our policy; with the fix OpenBSD
+  carries for an image with a broken EXIF or 8BIM profile, which 6.9.13-60 did not
+  write at all ([`files/imagemagick6-write-profiles.patch`](graphics/ImageMagick6/files/imagemagick6-write-profiles.patch),
+  ImageMagick6 issue 427). Build and run: az.
 - **`graphics/ImageMagick7`**: the package `ImageMagick7` in the place of the official
   one: `bin/magick` and its names, the same formats and policy, linking its shared
   `libMagickCore-7.so` and `libMagickWand-7.so` in `/usr/local/az/lib`, which imagick of

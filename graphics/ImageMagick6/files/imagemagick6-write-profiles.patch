@@ -1,0 +1,23 @@
+ImageMagick 6: WriteImage() returned false, and wrote nothing, when the image
+profiles could not be synchronised with the image (SyncImageProfiles(): a broken
+EXIF or 8BIM profile, as uploaded photos have): since 98153baf2e6 (27.03.2026, "check
+pixel sync return status", a mis-merge of b1db40da509 of ImageMagick 7, whose
+WriteImage() does not look at that result). Its result ignored again, as
+ImageMagick 7 does.
+The fix of ImageMagick6 issue #427 (https://github.com/ImageMagick/ImageMagick6/issues/427)
+as OpenBSD carries it on 6.9.13-60 (graphics/ImageMagick, patches/patch-magick_constitute_c,
+https://github.com/openbsd/ports/blob/master/graphics/ImageMagick/patches/patch-magick_constitute_c);
+upstream: "ImageMagick 6 will only receive security updates".
+
+--- a/magick/constitute.c
++++ b/magick/constitute.c
+@@ -1225,8 +1225,7 @@ MagickExport MagickBooleanType WriteImage(const ImageI
+   if ((image->ping != MagickFalse) &&
+       (SyncImagePixelCache(image,exception) == MagickFalse))
+     return(MagickFalse);
+-  if (SyncImageProfiles(image) == MagickFalse)
+-    return(MagickFalse);
++  (void)SyncImageProfiles(image);
+   DisassociateImageStream(image);
+   option=GetImageOption(image_info,"delegate:bimodal");
+   if ((option != (const char *) NULL) &&

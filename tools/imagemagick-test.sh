@@ -18,8 +18,10 @@
 # site (thumbnail to JPEG, resize to WebP, the first frame of an animation, all
 # frames); the BMP intermediate the sites write and read back; a PNG watermark
 # (composite); text (-annotate, label:) with a font that fontconfig finds; CMYK to
-# sRGB. Refused: SVG, MVG, MSL, PostScript, EPS, PDF,
-# TIFF, MNG, text:, label:@file, caption:@file, -comment @file, @file, inline:,
+# sRGB; a JPEG with a broken EXIF profile (ImageMagick 6:
+# graphics/ImageMagick6/files/imagemagick6-write-profiles.patch). Refused: SVG,
+# MVG, MSL, PostScript, EPS, PDF, TIFF, MNG, text:, label:@file, caption:@file,
+# -comment @file, @file, inline:,
 # http:, https:, ftp:, a file in /etc, a ../ path, standard input. The delegates
 # built in (-version) must be those of the conf, and the policy ours.
 #
@@ -182,6 +184,18 @@ for im in $(awk '$1 == "im" { print $2 }' "$conf"); do
         pass "$im: BMP intermediate (write $o, read back to JPEG)"
     else
         fail "$im: BMP intermediate: $(last "$w/c.log")"
+    fi
+    # a photo with a broken EXIF profile (an APP1 whose byte order is neither II nor MM)
+    # converts: ImageMagick 6.9.13-60 wrote nothing without
+    # graphics/ImageMagick6/files/imagemagick6-write-profiles.patch
+    if [ -f "$T/photo.jpg" ]; then
+        { printf '\377\330\377\341\000\030Exif\000\000QQ\000\052\000\000\000\010\000\000\000\000\000\000\000\000'
+          tail -c +3 "$T/photo.jpg"; } > "$w/badexif.jpg"
+        if "$cv" "$w/badexif.jpg" -resize 320x240 "$w/badexif.png" > "$w/c.log" 2>&1 && [ -s "$w/badexif.png" ]; then
+            pass "$im: a JPEG with a broken EXIF profile -> PNG"
+        else
+            fail "$im: a JPEG with a broken EXIF profile -> PNG: $(last "$w/c.log")"
+        fi
     fi
     # a PNG watermark, text, CMYK to sRGB
     # shellcheck disable=SC2086
