@@ -1,0 +1,15 @@
+--- config/kibana.yml.orig	2026-11-11 12:00:00 UTC
++++ config/kibana.yml
+@@ -111,3 +111,12 @@
+ 
+ # Specifies locale to be used for all localizable strings, dates and number formats.
+ #i18n.locale: "en"
++
++# azsupport/ports: Machine Learning needs the machine learning of Elasticsearch,
++# and Reporting (PDF and PNG, and CSV with them) the Chromium or PhantomJS that
++# Kibana brings; FreeBSD has none of them (the package has neither browser, and
++# Reporting does not start without one). The bundles of the package are built with
++# both off; with another set of plugins Kibana builds its bundles again at its start
++# (minutes). The rc script turns both off as well (kibana_args).
++xpack.ml.enabled: false
++xpack.reporting.enabled: false

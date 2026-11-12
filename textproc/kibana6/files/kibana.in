@@ -1,0 +1,67 @@
+#!/bin/sh
+
+# PROVIDE: kibana
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: shutdown
+#
+# kibana_enable (bool):	Set to YES to start Kibana. Default: NO
+# kibana_config (path):	The configuration. Default: %%ETCDIR%%/kibana.yml
+# kibana_user, kibana_group:	Default: www
+# kibana_log (path):	The log of Kibana. Default: /var/log/kibana.log
+# kibana_args (str):	More settings for Kibana, which win over kibana.yml.
+#			Default: --xpack.ml.enabled=false --xpack.reporting.enabled=false
+#			(azsupport/ports: Machine Learning needs the machine learning of
+#			Elasticsearch, Reporting the Chromium or PhantomJS that Kibana
+#			brings; FreeBSD has none of them and the package has neither
+#			browser: off for a kibana.yml of before too)
+
+. /etc/rc.subr
+
+name=kibana
+rcvar=kibana_enable
+
+load_rc_config $name
+
+: ${kibana_enable:="NO"}
+: ${kibana_config:="%%ETCDIR%%/kibana.yml"}
+: ${kibana_user:="www"}
+: ${kibana_group:="www"}
+: ${kibana_log:="/var/log/kibana.log"}
+: ${kibana_args="--xpack.ml.enabled=false --xpack.reporting.enabled=false"}
+
+export BABEL_DISABLE_CACHE=1
+export NODE_ENV=production
+
+required_files="${kibana_config}"
+pidfile="/var/run/${name}/${name}.pid"
+start_precmd="kibana_precmd"
+# reload: SIGHUP, Kibana opens its log file again (after newsyslog)
+extra_commands="reload"
+procname="%%LOCALBASE%%/bin/node"
+command="/usr/sbin/daemon"
+# --max-http-header-size=65536 as bin/kibana has it
+command_args="-f -p ${pidfile} ${procname} --no-warnings --max-http-header-size=65536 %%WWWDIR%%/src/cli serve --config ${kibana_config} --log-file ${kibana_log} ${kibana_args}"
+
+kibana_precmd()
+{
+	if [ ! -d $(dirname ${pidfile}) ]; then
+		install -d -o ${kibana_user} -g ${kibana_group} $(dirname ${pidfile})
+	fi
+
+	if [ ! -f ${kibana_log} ]; then
+		install -o ${kibana_user} -g ${kibana_group} -m 640 /dev/null ${kibana_log}
+	fi
+
+	if [ ! -d %%WWWDIR%%/optimize ]; then
+		install -d -o ${kibana_user} -g ${kibana_group} %%WWWDIR%%/optimize
+	else
+		# Kibana builds its bundles in optimize again when its set of
+		# plugins differs from that of the bundles of the package (a plugin
+		# installed, turned on or off), and a plugin may have been installed
+		# as root: optimize belongs to the user of Kibana.
+		chown -R ${kibana_user}:${kibana_group} %%WWWDIR%%/optimize
+	fi
+}
+
+run_rc_command "$1"
