@@ -36,9 +36,36 @@ AZ_UNZIP_FIXES=	unzip-6.0-attribs-overflow.patch \
 		CVE-2022-0529.patch \
 		CVE-2022-0530.patch
 
+# Then the fixes of Debian (unzip 6.0-31, 12.11.2026) that neither the official
+# port nor Fedora has, in files/debian (each says what, its bug and origin), and
+# that of OpenBSD for zipgrep: the heap buffer overflow in memextract() (stored
+# extra fields; CAN-2026-2034442) and the stack one in the SmartZip field of
+# zipinfo (CAN-2026-2034443), the rest of the fix of CVE-2015-7696 (an encrypted
+# stored entry shorter than its 12-byte header), zipgrep and member names with a
+# newline (CVE-2022-1271, OpenBSD), and bugs: the symlink flag left uninitialised,
+# the PKWare verification bit taken for file attributes, the ZIP64 archives of
+# Windows (no disks in the locator: "attempt to seek before beginning"), the times
+# of an old Unix extra field dropped by a newer one, the 6th byte of 64-bit sizes,
+# the version >= 10 of the program that made an entry (zipinfo). Not taken:
+# CAN-2026-2034440 (EF_IZUNIX3 uid/gid, code this build leaves out) and the code
+# page changes of Ubuntu (this port has its own ICONV patches).
+AZ_UNZIP_FIXES_DEBIAN=	can-2026-2034442.patch \
+			can-2026-2034443.patch \
+			fix-integer-underflow-csiz-decrypted.patch \
+			zipgrep-cve-2022-1271.patch \
+			initialize-the-symlink-flag.patch \
+			handle-pkware-verification-bit.patch \
+			handle-windows-zip64-files.patch \
+			restore-unix-timestamps-accurately.patch \
+			fix-warning-messages-on-big-files.patch \
+			allow-greater-hostver-values.patch
+
 post-patch:
 .for p in ${AZ_UNZIP_FIXES}
 	@${PATCH} -d ${WRKSRC} -p1 -s -f < ${.CURDIR}/files/fedora/${p}
+.endfor
+.for p in ${AZ_UNZIP_FIXES_DEBIAN}
+	@${PATCH} -d ${WRKSRC} -p1 -s -f < ${.CURDIR}/files/debian/${p}
 .endfor
 
 .include "${.CURDIR:H:H}/Mk/az-official.mk"

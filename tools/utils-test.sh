@@ -5,7 +5,8 @@
 # runs (its version) and has its libraries (none missing; those of the base system,
 # but its own of bsddialog and sudo, and those of az and pcre2 of wget and rsync);
 # zip makes an archive unzip reads; bash: its command substitutions with the
-# exported environment, the prompt of its readline in the C locale (script(1)).
+# exported environment, the prompt of its readline in the C locale (script(1));
+# unzip: a ZIP64 archive of Windows, the time of an old Unix extra field.
 #
 # Usage (FreeBSD, the packages installed): sh tools/utils-test.sh
 # Results: utils-results/tests.txt (one line per check, the summary at the end);
@@ -116,12 +117,34 @@ e="$(printf '\033')"
 v="$( (sleep 2; printf 'true 1\r'; sleep 1; printf 'echo %0100d\r' 0; sleep 1; printf '\033[A'; sleep 1
     printf '\033[A'; sleep 1; printf '\003exit\r'; sleep 1) | env -i TERM=xterm LC_ALL=C HOME="$T" \
     PATH=/bin:/usr/bin INPUTRC=/dev/null PS1='White \[\e[01;32m\]green\[\e[00m\] \$ ' \
-    script -q /dev/null "$P/bin/bash" --norc --noprofile -i 2>&1)"
+    timeout 60 script -q /dev/null "$P/bin/bash" --norc --noprofile -i 2>&1)"
 case "$v" in
     *"${e}[Amgreen"*) fail "bash: the prompt with colours not printed again in the C locale after a wrapped line" ;;
     *"true 1"*"true 1"*) pass "bash: the prompt with colours printed again in the C locale after a wrapped line" ;;
     *) fail "bash -i in script(1): the recalled line not seen: $(printf '%s' "$v" | tr -cd '[:print:]' | tail -c 200)" ;;
 esac
+
+# unzip (archivers/unzip/files/debian): a ZIP64 archive as Windows writes it (no disks
+# in the ZIP64 locator) is read; the time of an old Unix extra field (UX) followed by a
+# newer one (Ux) is kept: 05:06:07 UTC, not the DOS time of the entry (06:06:08)
+printf '%s\n' \
+    'UEsDBBQAAAAAAFY7bF3fJfaaFAAAABQAAAAFAAAAdy50eHRoZWxsbyB3aW5kb3dzIHppcDY0ClBL' \
+    'AQIUAxQAAAAAAFY7bF3fJfaaFAAAABQAAAAFAAAAAAAAAAAAAACAAQAAAAB3LnR4dFBLBgYsAAAA' \
+    'AAAAAC0ALQAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAAzAAAAAAAAADcAAAAAAAAAUEsGBwAAAABq' \
+    'AAAAAAAAAAAAAABQSwUGAAAAAP///////////////wAA' | openssl base64 -d > "$T/w64.zip"
+if "$P/bin/unzip" -t "$T/w64.zip" > "$T/w64.log" 2>&1; then pass "unzip: a ZIP64 archive of Windows (no disks in the locator)"
+else fail "unzip -t of a ZIP64 archive of Windows: $(tail -n 2 "$T/w64.log" | tr '\n' ' ')"; fi
+printf '%s\n' \
+    'UEsDBBQAAAAAAMQwZFwgMDo2BgAAAAYAAAAFABgAaC50eHRVWAwAv72nab+9p2noA+gDVXgEAOgD' \
+    '6ANoZWxsbwpQSwECFAMUAAAAAADEMGRcIDA6NgYAAAAGAAAABQAYAAAAAAAAAAAApIEAAAAAaC50' \
+    'eHRVWAwAv72nab+9p2noA+gDVXgEAOgD6ANQSwUGAAAAAAEAAQBLAAAAQQAAAAAA' | openssl base64 -d > "$T/ux.zip"
+mkdir -p "$T/ux"
+if TZ=UTC "$P/bin/unzip" -q -o -d "$T/ux" "$T/ux.zip" > "$T/ux.log" 2>&1 &&
+        [ "$(stat -f %m "$T/ux/h.txt")" = 1772600767 ]; then
+    pass "unzip: the time of a UX extra field followed by Ux"
+else
+    fail "unzip: the time of a UX extra field followed by Ux: $(TZ=UTC stat -f %Sm "$T/ux/h.txt" 2>&1), not 2026-03-04 05:06:07 UTC"
+fi
 
 mkdir -p "$T/src/dir a"
 printf 'zip of azsupport\n' > "$T/src/dir a/file 1.txt"
