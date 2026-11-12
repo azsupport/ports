@@ -92,11 +92,13 @@ pyrun() {
 }
 pkgv() { pkg query '%v' "$1" 2>/dev/null | sed 's/[_,].*//'; }
 # azh <header of az> <macro>...: the version of a library of az from its header: the
-# values of the macros joined by dots (quotes away)
+# values of the macros joined by dots (quotes away); "#define" or "#  define" (expat.h
+# of 2.10.0 indents them: run 43053670939 read nothing there)
 azh() {
     _h="/usr/local/az/include/$1"; shift
     for _m in "$@"; do
-        awk -v m="$_m" '$1 == "#define" && $2 == m { gsub(/"/, "", $3); print $3; exit }' "$_h" 2>/dev/null
+        awk -v m="$_m" '{ sub(/^#[ \t]*define[ \t]+/, "#define ") }
+            $1 == "#define" && $2 == m { gsub(/"/, "", $3); print $3; exit }' "$_h" 2>/dev/null
     done | paste -s -d . -
 }
 # ann <package> <annotation>: the value of an annotation of an installed package
