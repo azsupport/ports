@@ -17,8 +17,8 @@
 # CP1251 (prompt-invalid-utf8; when bash is installed), the history of tcsh after five
 # cd of a panel, a command at mc's command line, the user menu and a command in Ctrl-O
 # (subshell-tcsh-quiet: only the typed commands in "history" and ~/.history, the
-# directories in the Dir Hist of mc's history file), num_history_items_recorded=1000 in
-# a new ~/.config/mc/ini (history-items-1000), F5 inside a ZFS pool on an md device
+# directories in the Dir Hist of mc's history file), num_history_items_recorded=96 in
+# a new ~/.config/mc/ini (history-items-96), F5 inside a ZFS pool on an md device
 # clones the blocks, not with file_cloning=false, a copy to another file system is
 # whole (copy-clone-1). Checked by hand only (no
 # server or shell for them here): ftp-reconnect, ftp-netrc-password (an FTP server
@@ -440,9 +440,9 @@ fi
 zpool destroy -f "$pool" 2> /dev/null
 [ -n "$md" ] && mdconfig -d -u "$md" 2> /dev/null
 rm -rf "$T/zpool.img" "$T/zp" "$ctmp"
-# history-items-1000.patch: the ini of mc, written at its exits above into a new HOME
-if grep -q -x 'num_history_items_recorded=1000' "$HOME/.config/mc/ini" 2> /dev/null; then
-    pass "a new ~/.config/mc/ini has num_history_items_recorded=1000"
+# history-items-96.patch: the ini of mc, written at its exits above into a new HOME
+if grep -q -x 'num_history_items_recorded=96' "$HOME/.config/mc/ini" 2> /dev/null; then
+    pass "a new ~/.config/mc/ini has num_history_items_recorded=96"
 else
     fail "~/.config/mc/ini: $(grep num_history_items_recorded "$HOME/.config/mc/ini" 2> /dev/null || echo "no $HOME/.config/mc/ini")"
 fi
