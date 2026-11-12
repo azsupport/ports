@@ -210,9 +210,9 @@ post-patch:
 	@while read f; do \
 		${CP} -p ${WRKSRC}/$$f ${WRKDIR}/numerals.tmp; \
 		${SED} -i '' -e '${OSD_NUMERALS}' ${WRKSRC}/$$f; \
-		if ! ${CMP} -s ${WRKSRC}/$$f ${WRKDIR}/numerals.tmp; then \
+		if ! cmp -s ${WRKSRC}/$$f ${WRKDIR}/numerals.tmp; then \
 			${ECHO_MSG} "1b89a739: $$f"; \
-			if [ -f ${WRKSRC}/$$f.gz ]; then ${GZIP_CMD:N-*} -9 -n -c ${WRKSRC}/$$f > ${WRKSRC}/$$f.gz; fi; \
+			if [ -f ${WRKSRC}/$$f.gz ]; then gzip -9 -n -c ${WRKSRC}/$$f > ${WRKSRC}/$$f.gz; fi; \
 			if [ -f ${WRKSRC}/$$f.br ]; then ${LOCALBASE}/bin/node -e 'const z = require("zlib"), fs = require("fs"); \
 				fs.writeFileSync(process.argv[2], z.brotliCompressSync(fs.readFileSync(process.argv[1]), \
 				{ params: { [z.constants.BROTLI_PARAM_QUALITY]: 11 } }))' ${WRKSRC}/$$f ${WRKSRC}/$$f.br; fi; \
