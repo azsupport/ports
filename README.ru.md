@@ -167,8 +167,11 @@
   Сборка и работа: az.
 - **`graphics/ImageMagick6`**: `bin/convert6`, `identify6`, `mogrify6`, `composite6` и
   остальные, рядом с ImageMagick 7, линкуются со своими библиотеками в
-  `/usr/local/az/lib`: только JPEG, PNG, WebP, GIF, HEIC и AVIF, с нашей policy. Сборка и
-  работа: az.
+  `/usr/local/az/lib`: только JPEG, PNG, WebP, GIF, HEIC и AVIF, с нашей policy; с
+  исправлением, которое несёт OpenBSD, для картинки с испорченным профилем EXIF или
+  8BIM: 6.9.13-60 её вовсе не записывал
+  ([`files/imagemagick6-write-profiles.patch`](graphics/ImageMagick6/files/imagemagick6-write-profiles.patch),
+  issue 427 ImageMagick6). Сборка и работа: az.
 - **`graphics/ImageMagick7`**: пакет `ImageMagick7` вместо официального: `bin/magick` и
   его имена, те же форматы и policy, линкуются с его разделяемыми `libMagickCore-7.so` и
   `libMagickWand-7.so` в `/usr/local/az/lib`, с ними же линкуется imagick из PHP
