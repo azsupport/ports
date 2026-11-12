@@ -1,0 +1,18 @@
+FFmpeg master 0260f625ba51 (2026-10-02), not in release/9.0 after 9.0.2:
+https://github.com/FFmpeg/FFmpeg/commit/0260f625ba51ba9f02b189da757862fd96fb1da0
+
+mov: mov_read_trun() moved the time-to-sample entries after the insertion point
+by their count instead of by the count of index entries, out of the array on a
+crafted fragmented mp4 (found by OpenAI Security Research).
+
+--- a/libavformat/mov.c
++++ b/libavformat/mov.c
+@@ -6380,7 +6380,7 @@ static int mov_read_trun(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+                 (sti->nb_index_entries - index_entry_pos));
+         memmove(sc->tts_data + index_entry_pos + entries,
+                 sc->tts_data + index_entry_pos,
+-                sizeof(*sc->tts_data) * (sc->tts_count - index_entry_pos));
++                sizeof(*sc->tts_data) * (sti->nb_index_entries - index_entry_pos));
+         if (index_entry_pos < sc->current_sample) {
+             sc->current_sample += entries;
+         }

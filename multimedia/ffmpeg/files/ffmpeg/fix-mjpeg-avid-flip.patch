@@ -1,0 +1,39 @@
+FFmpeg master 4968cc472b72 (2026-10-10), not in release/9.0 after 9.0.2:
+https://github.com/FFmpeg/FFmpeg/commit/4968cc472b724e52fc9fd405877f367b42db92cf
+
+MJPEG of Avid (the tags AVRn and AVDJ, which mov maps to MJPEG too): a flipped
+picture was flipped before the frame height and cropping of Avid were set, and
+the flip read past the planes: a heap read overflow from a crafted upload.
+
+--- a/libavcodec/mjpegdec.c
++++ b/libavcodec/mjpegdec.c
+@@ -2797,6 +2797,14 @@ the_end:
+             }
+         }
+     }
++    if (avctx->codec_id != AV_CODEC_ID_SMVJPEG &&
++        (avctx->codec_tag == MKTAG('A', 'V', 'R', 'n') ||
++         avctx->codec_tag == MKTAG('A', 'V', 'D', 'J')) &&
++        avctx->coded_height > s->orig_height) {
++        frame->height   = AV_CEIL_RSHIFT(avctx->coded_height, avctx->lowres);
++        frame->crop_top = frame->height - avctx->height;
++    }
++
+     if (s->flipped && !s->rgb && !s->bayer) {
+         ret = av_pix_fmt_get_chroma_sub_sample(avctx->pix_fmt, &hshift, &vshift);
+         if (ret)
+@@ -2921,14 +2929,6 @@ the_end:
+             av_log(avctx, AV_LOG_WARNING, "couldn't attach EXIF metadata\n");
+     }
+ 
+-    if (avctx->codec_id != AV_CODEC_ID_SMVJPEG &&
+-        (avctx->codec_tag == MKTAG('A', 'V', 'R', 'n') ||
+-         avctx->codec_tag == MKTAG('A', 'V', 'D', 'J')) &&
+-        avctx->coded_height > s->orig_height) {
+-        frame->height   = AV_CEIL_RSHIFT(avctx->coded_height, avctx->lowres);
+-        frame->crop_top = frame->height - avctx->height;
+-    }
+-
+ the_end_no_picture:
+     av_log(avctx, AV_LOG_DEBUG, "decode frame unused %td bytes\n",
+            buf_end - buf_ptr);

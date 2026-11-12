@@ -1,0 +1,28 @@
+FFmpeg master 2c2f6e96e317 (2026-08-31), not in release/9.0 after 9.0.2;
+CVE-2026-107676:
+https://github.com/FFmpeg/FFmpeg/commit/2c2f6e96e31795ae95a8f8323a493ffbc493111f
+
+libavutil: av_dynamic_hdr_plus_to_t35() wrote the colour saturation fields of a
+window only with tone mapping, while it sized the payload with them, so up to
+three bytes of the payload were uninitialised heap. The Matroska muxer writes
+this payload into the BlockAdditional of every frame of an HDR10+ video, as in
+a -c copy into mkv: memory of the process in the output file.
+
+--- a/libavutil/hdr_dynamic_metadata.c
++++ b/libavutil/hdr_dynamic_metadata.c
+@@ -379,11 +379,11 @@ int av_dynamic_hdr_plus_to_t35(const AVDynamicHDRPlus *s, uint8_t **data, size_t
+             for (int i = 0; i < s->params[w].num_bezier_curve_anchors; i++)
+                 put_bits(pb, 10, s->params[w].bezier_curve_anchors[i].num * bezier_anchor_den /
+                     s->params[w].bezier_curve_anchors[i].den);
+-            put_bits(pb, 1, s->params[w].color_saturation_mapping_flag);
+-            if (s->params[w].color_saturation_mapping_flag)
+-                put_bits(pb, 6, s->params[w].color_saturation_weight.num * saturation_weight_den /
+-                    s->params[w].color_saturation_weight.den);
+         }
++        put_bits(pb, 1, s->params[w].color_saturation_mapping_flag);
++        if (s->params[w].color_saturation_mapping_flag)
++            put_bits(pb, 6, s->params[w].color_saturation_weight.num * saturation_weight_den /
++                s->params[w].color_saturation_weight.den);
+     }
+ 
+     flush_put_bits(pb);

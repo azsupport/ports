@@ -1,0 +1,22 @@
+FFmpeg master 3b1cbb5e0f66 (2026-10-29), not in release/9.0 after 9.0.2;
+CVE-2026-125225:
+https://github.com/FFmpeg/FFmpeg/commit/3b1cbb5e0f66b85d15f1d3527436520b3f4711ec
+
+aac_adtstoasc, which the mp4, mov and Matroska muxers put on AAC with ADTS
+headers (a -c copy from MPEG-TS or an mkv): an ADTS packet of 256 MB or more
+overflowed the bit count, init_get_bits() failed unchecked and get_bits() read
+through NULL: a crash.
+
+--- a/libavcodec/bsf/aac_adtstoasc.c
++++ b/libavcodec/bsf/aac_adtstoasc.c
+@@ -79,7 +79,9 @@ static int aac_adtstoasc_filter(AVBSFContext *bsfc, AVPacket *pkt)
+ 
+         if (!hdr.chan_config) {
+             GetBitContext gb;
+-            init_get_bits(&gb, pkt->data, pkt->size * 8);
++            ret = init_get_bits8(&gb, pkt->data, pkt->size);
++            if (ret < 0)
++                goto fail;
+             if (get_bits(&gb, 3) != 5) {
+                 avpriv_report_missing_feature(bsfc,
+                                               "PCE-based channel configuration "

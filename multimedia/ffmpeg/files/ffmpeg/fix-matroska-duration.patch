@@ -1,0 +1,21 @@
+FFmpeg release/9.0 after 9.0.2, commit 0ba284bbcbbe, from master d42f8d8767cb:
+https://github.com/FFmpeg/FFmpeg/commit/0ba284bbcbbefecfd110859acce36cbc8a4bdf82
+
+Matroska: a negative Duration of the segment became a negative duration of the
+file, and a huge one overflowed the conversion into microseconds (undefined
+behaviour). Such a duration is now ignored and the duration estimated as for a
+file without one: ffprobe and ffmpeg -i (what KVS reads the duration from) no
+longer show a negative one. tools/ffmpeg-test.sh checks it.
+
+--- a/libavformat/matroskadec.c
++++ b/libavformat/matroskadec.c
+@@ -3490,7 +3490,8 @@ static int matroska_read_header(AVFormatContext *s)
+ 
+     if (!matroska->time_scale)
+         matroska->time_scale = 1000000;
+-    if (isnan(matroska->duration))
++    if (isnan(matroska->duration) || matroska->duration < 0 ||
++        matroska->duration >= (double)INT64_MAX / matroska->time_scale)
+         matroska->duration = 0;
+     if (matroska->duration)
+         matroska->ctx->duration = matroska->duration * matroska->time_scale *

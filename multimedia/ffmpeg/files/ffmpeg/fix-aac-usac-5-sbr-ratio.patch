@@ -1,0 +1,22 @@
+FFmpeg master 0d6ab4c619b1 (2026-10-12), not in release/9.0 after 9.0.2:
+https://github.com/FFmpeg/FFmpeg/commit/0d6ab4c619b13e8e5e0ca48359afc88579fa67c8
+
+AAC USAC: SBR with a ratio other than 2:1 (8:3, 4:1) is not implemented, the
+decoder put uninitialised memory into the audio (even of the conformance sample
+Sintel_24kbps_rap5s.mp4). Such audio is now refused as not supported, as
+upstream does: an upload with it does not convert, instead of getting that
+memory in its sound.
+
+--- a/libavcodec/aac/aacdec_usac.c
++++ b/libavcodec/aac/aacdec_usac.c
+@@ -588,6 +588,10 @@ int ff_aac_usac_config_decode(AACDecContext *ac, AVCodecContext *avctx,
+     }
+ 
+     usac->core_sbr_frame_len_idx = get_bits(gb, 3); /* coreSbrFrameLengthIndex */
++    if (usac->core_sbr_frame_len_idx == 2 || usac->core_sbr_frame_len_idx == 4) {
++        avpriv_report_missing_feature(avctx, "USAC SBR with a ratio other than 2:1");
++        return AVERROR_PATCHWELCOME;
++    }
+     m4ac->frame_length_short = usac->core_sbr_frame_len_idx == 0 ||
+                                usac->core_sbr_frame_len_idx == 2;
+ 

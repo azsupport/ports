@@ -21,7 +21,10 @@
 # silence from -f lavfi -i anullsrc, a video from pictures (task-%d.jpg).
 # VP9 copied into MKV and MP4 (the muxers put vp9_superframe on it); MPEG-TS in an
 # .mp4 (an HLS download of yt-dlp) read like the others and copied into MP4 as
-# yt-dlp fixes it. Refused, by content: other containers and playlists named .mp4
+# yt-dlp fixes it. A Matroska file with a negative duration: estimated instead
+# (files/ffmpeg/fix-matroska-duration.patch); a JPEG whose EXIF IFDs loop: read
+# once (fix-exif-1-ifd-loop.patch). Refused, by content: other
+# containers and playlists named .mp4
 # (AVI, FLV, MPEG-PS, Ogg, MP3, WAV, GIF, SubRip, HLS; a concat script too: its
 # demuxer is built, but only for -f concat), and every protocol but file and pipe.
 # The lists of demuxers (with the lavfi device), decoders and protocols must be
@@ -334,6 +337,42 @@ for p in logo.png shot.jpg shot.webp; do
         *) fail "$p: ffprobe: ${o:-nothing}" ;;
     esac
 done
+# a negative Duration of the segment of a Matroska file
+# (multimedia/ffmpeg/files/ffmpeg/fix-matroska-duration.patch): ignored, the duration
+# estimated as for a file without one; without the patch ffprobe gives -1.000000 and
+# ffmpeg -i "Duration: 00:00:00.-99", which KVS reads
+for s in h264_ac3.mkv h264_vorbis.mkv hevc_opus.mkv; do
+    [ -f "$T/$s" ] || continue
+    cp "$T/$s" "$T/negdur.mkv"
+    # the Duration of the segment info (ID 0x4489, a float of 8 bytes) becomes -1000.0 (ms)
+    off="$(od -An -v -tx1 "$T/negdur.mkv" | tr -s ' \n' '  ' |
+        awk '{ i = index($0, " 44 89 88 "); print (i ? (i - 1) / 3 + 3 : -1) }')"
+    if [ "$off" -lt 0 ]; then
+        fail "$s: no Duration of 8 bytes in its segment info"
+    else
+        printf '\300\217\100\000\000\000\000\000' | dd of="$T/negdur.mkv" bs=1 seek="$off" conv=notrunc 2>/dev/null
+        d="$("$fp" -v error -show_entries format=duration -of csv=p=0 "$T/negdur.mkv" 2>/dev/null)"
+        i="$("$ff" -hide_banner -i "$T/negdur.mkv" 2>&1 | sed -n 's/^ *Duration: \([^,]*\),.*/\1/p')"
+        case "$d:$i" in
+            -*|*:*-*|:*|*:) fail "$s with a Duration of -1 s: ffprobe ${d:-nothing}, ffmpeg -i ${i:-nothing}" ;;
+            *) pass "$s with a Duration of -1 s: ffprobe $d, ffmpeg -i $i (estimated)" ;;
+        esac
+    fi
+    break
+done
+# a JPEG whose EXIF chain of IFDs loops back to IFD0 (Orientation 6 in it): read once
+# (multimedia/ffmpeg/files/ffmpeg/fix-exif-1-ifd-loop.patch; FFmpeg 9.0.2 read it 16
+# times more, IFD1 to IFD16), the orientation turned into the display matrix
+if [ -f "$T/shot.jpg" ]; then
+    { printf '\377\330\377\341\000\042Exif\000\000II*\000\010\000\000\000\001\000\022\001\003\000\001\000\000\000\006\000\000\000\010\000\000\000'
+      tail -c +3 "$T/shot.jpg"; } > "$T/exifloop.jpg"
+    v="$("$fp" -v error -show_frames -show_entries frame=side_data_list -of compact "$T/exifloop.jpg" 2>&1)"
+    case "$v" in
+        *IFD2/*|*IFD16/*) fail "exifloop.jpg: the loop of IFDs followed: $(echo "$v" | cut -c1-120)" ;;
+        *rotation=-90*) pass "exifloop.jpg: the loop of IFDs read once, Orientation 6 -> rotation -90" ;;
+        *) fail "exifloop.jpg: $(echo "$v" | cut -c1-160)" ;;
+    esac
+fi
 
 # --- the other ways of remote_cron.php and the plugins of KVS --------------------
 # join <out> <format> <sample>...: a join as remote_cron.php does it (-f concat -safe

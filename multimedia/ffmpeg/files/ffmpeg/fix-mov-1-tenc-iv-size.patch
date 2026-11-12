@@ -1,0 +1,26 @@
+FFmpeg master ae348e4aa246 (2026-09-24), not in release/9.0 after 9.0.2:
+https://github.com/FFmpeg/FFmpeg/commit/ae348e4aa24634a00ee41285b59817fcb190d7e9
+
+mov (mp4, mov): the per-sample IV size of a tenc box was stored before it was
+checked; with an invalid size (up to 255) the reader of senc then read that
+many bytes into the IV of 16 bytes: a heap write overflow from a crafted
+upload. fix-mov-2 to -5 apply after this one.
+
+--- a/libavformat/mov.c
++++ b/libavformat/mov.c
+@@ -8519,12 +8519,12 @@ static int mov_read_tenc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+         if (!sc->cenc.encryption_index)
+             return AVERROR(ENOMEM);
+     }
+-    sc->cenc.per_sample_iv_size = avio_r8(pb);
+-    if (sc->cenc.per_sample_iv_size != 0 && sc->cenc.per_sample_iv_size != 8 &&
+-        sc->cenc.per_sample_iv_size != 16) {
++    iv_size = avio_r8(pb);
++    if (iv_size != 0 && iv_size != 8 && iv_size != 16) {
+         av_log(c->fc, AV_LOG_ERROR, "invalid per-sample IV size value\n");
+         return AVERROR_INVALIDDATA;
+     }
++    sc->cenc.per_sample_iv_size = iv_size;
+     if (avio_read(pb, sc->cenc.default_encrypted_sample->key_id, 16) != 16) {
+         av_log(c->fc, AV_LOG_ERROR, "failed to read the default key ID\n");
+         return AVERROR_INVALIDDATA;

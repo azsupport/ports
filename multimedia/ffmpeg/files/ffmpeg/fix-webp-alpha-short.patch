@@ -1,0 +1,32 @@
+FFmpeg master 92b318e0b336 (2026-11-03), not in release/9.0 after 9.0.2;
+CVE-2026-125098:
+https://github.com/FFmpeg/FFmpeg/commit/92b318e0b33623720d9f128ad7bc5fa8277c34f7
+
+WebP: an uncompressed ALPH chunk shorter than width times height left the rest
+of the alpha plane as it was, with the content of an earlier picture of the
+same decoder (a sequence of pictures): disclosure of memory. Such a chunk is
+now refused.
+
+--- a/libavcodec/webp.c
++++ b/libavcodec/webp.c
+@@ -1257,6 +1257,8 @@ static int vp8_lossy_decode_alpha(AVCodecContext *avctx, AVFrame *p,
+     if (s->alpha_compression == ALPHA_COMPRESSION_NONE) {
+         GetByteContext gb;
+ 
++        if (data_size < s->width * s->height)
++            return AVERROR_INVALIDDATA;
+         bytestream2_init(&gb, data_start, data_size);
+         for (y = 0; y < s->height; y++)
+             bytestream2_get_buffer(&gb, p->data[3] + p->linesize[3] * y,
+@@ -1335,8 +1337,10 @@ static int vp8_lossy_decode_frame(AVCodecContext *avctx, AVFrame *p,
+     if (s->has_alpha) {
+         ret = vp8_lossy_decode_alpha(avctx, p, s->alpha_data,
+                                      s->alpha_data_size);
+-        if (ret < 0)
++        if (ret < 0) {
++            *got_frame = 0;
+             return ret;
++        }
+     }
+     return ret;
+ }
