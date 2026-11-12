@@ -63,12 +63,21 @@
 # undici-6.29.1.patch gives process.versions its version), in the place of the
 # undici 5.29.0 with the backports of SUSE: undici 6 runs on Node 18.17 and later
 # (Node.js 20 moved to it within its LTS line), and Node 18 takes fetch(),
-# FormData, Headers, Request and Response of it. Not taken: the fixes of the TLS
-# and HTTP/2 code of node, for its servers (nginx in front: aZ, 12.11.2026),
-# CVE-2026-123828, CVE-2026-123863, CVE-2026-123864, CVE-2026-123865,
-# CVE-2026-123866, CVE-2026-123867, CVE-2026-123868, CVE-2026-123872,
-# CVE-2026-123874, CVE-2026-123875 and CVE-2026-126051; CVE-2026-123871 (the proxy
-# support of http and https, which Node 18 does not have); CVE-2026-106071,
+# FormData, Headers, Request and Response of it. Then the fixes of the TLS and
+# HTTP/2 code of node, those for its servers too (aZ, 12.11.2026: the node of the
+# project seems to make no https requests to the outside; patched all the same),
+# in files/upstream as well: tls-spki-blocklist.patch (22.23.4, nodejs/node
+# 4342503fd8b5, no CVE of Node.js: the eight eMudhra/emSign intermediates whose keys
+# were compromised in October 2026, refused as CERT_REVOKED by a verify callback on
+# every SSL_CTX of node, with the CA store of the base system as with any other),
+# of 22.23.5 CVE-2026-123863, CVE-2026-123864, CVE-2026-123865, CVE-2026-123866,
+# CVE-2026-123867, CVE-2026-123872 (three commits) and CVE-2026-123875, and of
+# 24.22.3 (fixed there and not in 22.x; Node 18 has their code) CVE-2026-123828,
+# CVE-2026-123868 and CVE-2026-123874. Not taken: CVE-2026-126051 (a TLS server
+# whose socket is destroyed before its onclienthello and oncertcb callbacks run:
+# Node 24 runs them from an immediate; Node 18, as 22, calls them in the
+# handshake itself, so no socket is destroyed in between); CVE-2026-123871 (the
+# proxy support of http and https, which Node 18 does not have); CVE-2026-106071,
 # CVE-2026-106073, CVE-2026-123829 and CVE-2026-123873 (the Permission Model, Node
 # 20 and later); CVE-2026-105483 (code of Node 24 and later), CVE-2026-106070
 # (zlib.ZipFile of Node 26). The others of 2025 and 2026 are of the Permission
@@ -115,8 +124,9 @@ USES=		compiler:c++11-lib gmake localbase pkgconfig python:3.9-3.13,build \
 		shebangfix tar:xz
 
 # the security fixes (see the top): those of SUSE in its order, then those of
-# Node.js 22, made on them in this order (the fix of CVE-2026-106069 builds on
-# tls-ipv6-ip-san.patch; the others touch files of their own)
+# Node.js 22 and 24, made on them in this order (later ones build on earlier ones
+# where they touch the same files: src/crypto/crypto_tls.cc,
+# src/crypto/crypto_context.cc, src/node_http2.cc and lib/tls.js)
 EXTRA_PATCHES=	${FILESDIR}/suse/CVE-2026-21637.patch:-p1 \
 		${FILESDIR}/suse/CVE-2025-59465.patch:-p1 \
 		${FILESDIR}/suse/cves.patch:-p1 \
@@ -127,7 +137,18 @@ EXTRA_PATCHES=	${FILESDIR}/suse/CVE-2026-21637.patch:-p1 \
 		${FILESDIR}/upstream/CVE-2026-106074.patch:-p1 \
 		${FILESDIR}/upstream/CVE-2026-123877.patch:-p1 \
 		${FILESDIR}/upstream/CVE-2026-123862.patch:-p1 \
-		${FILESDIR}/upstream/undici-6.29.1.patch:-p1
+		${FILESDIR}/upstream/undici-6.29.1.patch:-p1 \
+		${FILESDIR}/upstream/tls-spki-blocklist.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123875.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123865.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123863.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123864.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123867.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123866.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123872.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123868.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123828.patch:-p1 \
+		${FILESDIR}/upstream/CVE-2026-123874.patch:-p1
 
 # undici: deps/undici/undici.js of this release of Node.js 22 (see the top), a
 # distfile of its own; the framework puts the name of the distfile after the site,
