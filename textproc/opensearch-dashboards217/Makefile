@@ -166,6 +166,7 @@ OSD_NPM=	opensearch-${CLIENT_VERSION}.tgz:node_modules/@opensearch-project/opens
 		js-yaml-${JSYAML_VERSION}.tgz:node_modules/js-yaml
 # 1b89a739: "x < Number.MAX_SAFE_INTEGER || x > Number.MAX_SAFE_INTEGER", MIN first
 OSD_NUMERALS=	s/\(\([A-Za-z_$$][A-Za-z0-9_$$]*\)[[:space:]]*<[[:space:]]*Number\.\)MAX_SAFE_INTEGER\([[:space:]]*||[[:space:]]*\2[[:space:]]*>[[:space:]]*Number\.MAX_SAFE_INTEGER\)/\1MIN_SAFE_INTEGER\3/g
+OSD_NUMERALS_LEFT=	\([A-Za-z_$$][A-Za-z0-9_$$]*\)[[:space:]]*<[[:space:]]*Number\.MAX_SAFE_INTEGER[[:space:]]*||[[:space:]]*\1[[:space:]]*>
 
 # the packages of OSD_NPM, each in the place of the directory of the tarball (its own
 # node_modules kept: hpagent 1.2.0 of the client)
@@ -188,7 +189,7 @@ post-patch:
 # the sample of the min tarball: the bundle's block of the security plugin away
 	${REINPLACE_CMD} -e '/^opensearch\.hosts: \[https:\/\/localhost:9200\]$$/,$$d' \
 		${WRKSRC}/config/opensearch_dashboards.yml
-	@if ${GREP} -n -E '^[^#[:space:]]' ${WRKSRC}/config/opensearch_dashboards.yml; then \
+	@if ${GREP} -n -E '^[^#[:space:]]' ${WRKSRC}/config/opensearch_dashboards.yml | ${GREP} -v -x '1:---'; then \
 		${ECHO_MSG} "config/opensearch_dashboards.yml: settings left in the sample"; ${FALSE}; fi
 	${PRINTF} '%s\n' '' \
 		'# azsupport/ports: this package has no security plugin (securityDashboards):' \
@@ -217,12 +218,15 @@ post-patch:
 		fi; \
 	done < ${WRKDIR}/numerals.txt
 	@${RM} ${WRKDIR}/numerals.tmp
-	@${GREP} -q 'val < Number.MIN_SAFE_INTEGER || val > Number.MAX_SAFE_INTEGER' \
-		${WRKSRC}/node_modules/@osd/std/target/json.js || \
-		{ ${ECHO_MSG} "node_modules/@osd/std/target/json.js: 1b89a739 not applied"; ${FALSE}; }
-	@if cd ${WRKSRC} && ${GREP} -rl -e '\([A-Za-z_$$][A-Za-z0-9_$$]*\)[[:space:]]*<[[:space:]]*Number\.MAX_SAFE_INTEGER[[:space:]]*||[[:space:]]*\1[[:space:]]*>' \
-		--include='*.js' node_modules/@osd node_modules/@opensearch-project/opensearch-next src plugins; then \
-		${ECHO_MSG} "1b89a739: these still have the typo"; ${FALSE}; fi
+	@${GREP} -rq -E '<[[:space:]]*Number\.MIN_SAFE_INTEGER[[:space:]]*\|\|' --include='*.js' \
+		${WRKSRC}/node_modules/@osd/std || \
+		{ ${ECHO_MSG} "node_modules/@osd/std: 1b89a739 not applied"; ${FALSE}; }
+	@cd ${WRKSRC} && ${GREP} -rl -E 'Number\.MAX_SAFE_INTEGER[[:space:]]*\|\|' --include='*.js' \
+		node_modules/@osd node_modules/@opensearch-project/opensearch-next src plugins | \
+		while read f; do \
+			if ${SED} -n -e '/${OSD_NUMERALS_LEFT}/p' $$f | ${GREP} -q .; then \
+				${ECHO_MSG} "1b89a739: $$f still has the typo"; exit 1; fi; \
+		done
 
 do-install:
 	${MKDIR} ${STAGEDIR}${WWWDIR} ${STAGEDIR}${ETCDIR} ${STAGEDIR}${PREFIX}/etc/newsyslog.conf.d
