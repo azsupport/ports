@@ -33,9 +33,16 @@
 #    have CRLF line ends in the tarball: USES=dos2unix for the patches.
 #  - re2 (Timelion's .label() with a regular expression): the tarball has re2 1.14.0
 #    built for Node.js 10 of macOS (NODE_MODULE_VERSION 64; Node.js 24 has 137, and
-#    1.14.0 does not build for it): node-re2 1.27.1 in its place, built here with
-#    node-gyp of www/npm-node24 and nan, with the re2 and abseil it vendors (no
-#    library of the ports), as npm builds it.
+#    1.14.0 does not build for it): node-re2 1.27.1 in its place (the latest, that
+#    of the official kibana8), built here with node-gyp of www/npm-node24 and nan, as
+#    npm builds it: with the RE2 and abseil it vendors compiled into re2.node, no
+#    library of the ports (aZ, 12.11.2026: RE2 in this port, its only user, no port
+#    of RE2 or abseil). Those are the commits of their release tags: RE2 2025-11-05,
+#    the version of the official devel/re2, and abseil 20260817.0, an LTS release
+#    (absl::lts_20260817; the official devel/abseil has 20250127.1 with two patches,
+#    one in 20260817.0 already, one for PowerPC). RE2_VENDOR_RE2 and
+#    RE2_VENDOR_ABSEIL name them and post-extract checks them: a node-re2 that
+#    vendors others stops the build until they are written down.
 # Machine Learning and Reporting off, as the official port meant it (XPACK_ML_ENABLED
 # and XPACK_REPORTING_ENABLED in the environment of its rc script, which only the
 # Docker image of Kibana reads; the official kibana7 to kibana9x pass
@@ -120,6 +127,12 @@ REINPLACE_ARGS=	-i ''
 
 RE2_VERSION=	1.27.1
 NAN_VERSION=	2.30.0
+# the RE2 and abseil that node-re2 vendors and re2.node has (post-extract):
+# vendor/re2, the version of its MODULE.bazel; vendor/abseil-cpp, the LTS of the
+# inline namespace (absl/base/options.h) and its patch level (absl/base/config.h:
+# a patch release keeps the namespace)
+RE2_VENDOR_RE2=	2025-11-05
+RE2_VENDOR_ABSEIL=	20260817.0
 RE2_WRKSRC=	${WRKDIR}/re2
 NODE_GYP=	${LOCALBASE}/bin/node ${LOCALBASE}/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js
 
@@ -149,6 +162,14 @@ post-extract:
 	${MKDIR} ${RE2_WRKSRC}/node_modules/nan
 	${TAR} -xf ${DISTDIR}/re2-${RE2_VERSION}.tgz -C ${RE2_WRKSRC} --strip-components 1
 	${TAR} -xf ${DISTDIR}/nan-${NAN_VERSION}.tgz -C ${RE2_WRKSRC}/node_modules/nan --strip-components 1
+# the RE2 and abseil node-re2 vendors: those of RE2_VENDOR_RE2 and RE2_VENDOR_ABSEIL
+	@v="$$(${SED} -n '/^module(/,/^)/s/^ *version = "\(.*\)",$$/\1/p' ${RE2_WRKSRC}/vendor/re2/MODULE.bazel)"; \
+	[ "$$v" = "${RE2_VENDOR_RE2}" ] || \
+		{ ${ECHO_MSG} "node-re2 ${RE2_VERSION} vendors RE2 $${v:-of no version} (vendor/re2/MODULE.bazel), not ${RE2_VENDOR_RE2}: write it into RE2_VENDOR_RE2"; ${FALSE}; }
+	@n="$$(${SED} -n 's/^#define ABSL_OPTION_INLINE_NAMESPACE_NAME //p' ${RE2_WRKSRC}/vendor/abseil-cpp/absl/base/options.h)"; \
+	p="$$(${SED} -n 's/^#define ABSL_LTS_RELEASE_PATCH_LEVEL //p' ${RE2_WRKSRC}/vendor/abseil-cpp/absl/base/config.h)"; \
+	[ "$$n.$$p" = "lts_${RE2_VENDOR_ABSEIL}" ] || \
+		{ ${ECHO_MSG} "node-re2 ${RE2_VERSION} vendors abseil $${n:-of no namespace}, patch level $${p:-none} (vendor/abseil-cpp/absl/base/options.h, config.h), not ${RE2_VENDOR_ABSEIL}: write it into RE2_VENDOR_ABSEIL"; ${FALSE}; }
 # the tarball is what this port was made for: one native module, that of re2
 	@[ "$$(cd ${WRKSRC} && ${FIND} . -name '*.node' -not -path './node/*')" = ./node_modules/re2/build/Release/re2.node ] || \
 		{ ${ECHO_MSG} "the tarball has other native modules than that of re2:"; \
