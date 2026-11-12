@@ -1,14 +1,16 @@
 --- bin/elasticsearch.orig
 +++ bin/elasticsearch
-@@ -29,6 +29,32 @@
+@@ -29,6 +29,34 @@
  fi
  
  cd "$ES_HOME"
 +
-+# azsupport/ports: JDK 17 warns of System::setSecurityManager, which Elasticsearch
-+# calls at its start (4 lines on stderr); those lines go, the rest of stderr stays
-+es_jdk17_warnings() {
-+  grep --line-buffered -v -E '^WARNING: (A terminally deprecated method in java\.lang\.System has been called|System::setSecurityManager has been called by org\.elasticsearch\.|Please consider reporting this to the maintainers of org\.elasticsearch\.|System::setSecurityManager will be removed in a future release)' >&2
++# azsupport/ports: JDK 17 and later warn of System::setSecurityManager, which
++# Elasticsearch calls at its start (4 lines on stderr), and JDK 21 of the COMPAT
++# locale provider of jvm.options (2 lines: that of the logger, with the date, and
++# the warning); those lines go, the rest of stderr stays
++es_jdk_warnings() {
++  grep --line-buffered -v -E '^WARNING: (A terminally deprecated method in java\.lang\.System has been called|System::setSecurityManager has been called by org\.elasticsearch\.|Please consider reporting this to the maintainers of org\.elasticsearch\.|System::setSecurityManager will be removed in a future release|COMPAT locale provider will be removed in a future release)|^[^ ].* sun\.util\.locale\.provider\.LocaleProviderAdapter <clinit>$' >&2
 +}
 +# The temporary directory. The rc script makes it anew at each start and gives
 +# it to the user of Elasticsearch; started by hand, ES_TMPDIR is the same
@@ -33,22 +35,22 @@
  # manual parsing to find out, if process should be detached
  if ! echo $* | grep -E '(^-d |-d$| -d |--daemonize$|--daemonize )' > /dev/null; then
    exec \
-@@ -40,7 +66,8 @@
+@@ -40,7 +68,8 @@
      -Des.distribution.type="$ES_DISTRIBUTION_TYPE" \
      -cp "$ES_CLASSPATH" \
      org.elasticsearch.bootstrap.Elasticsearch \
 -    "$@"
 +    "$@" \
-+    2> >(es_jdk17_warnings)
++    2> >(es_jdk_warnings)
  else
    exec \
      "$JAVA" \
-@@ -52,7 +79,7 @@
+@@ -52,7 +81,7 @@
      -cp "$ES_CLASSPATH" \
      org.elasticsearch.bootstrap.Elasticsearch \
      "$@" \
 -    <&- &
-+    <&- 2> >(es_jdk17_warnings) &
++    <&- 2> >(es_jdk_warnings) &
    retval=$?
    pid=$!
    [ $retval -eq 0 ] || exit $retval

@@ -4,14 +4,19 @@
 # 2022Q4: the rc script with its profiles, the patch of elasticsearch.yml with the
 # paths and xpack.ml.enabled: false, pkg-message, pkg-descr). 6.8.23 has log4j
 # 2.17.1 (the fixes of Log4Shell and of its followers) and -Dlog4j2.formatMsgNoLookups.
-# On OpenJDK 17 of the ports (aZ: it ran on OpenJDK 17 for him; Java 18 and later
-# throw at System.setSecurityManager, which Elasticsearch 6 calls): the four lines
-# of the warning of JDK 17 about it are taken out of the stderr of
-# bin/elasticsearch, nothing else (aZ, 11.11.2026). The rc script runs it on
-# OpenJDK 17 without elasticsearch_java_home in rc.conf: USES=java with
-# JAVA_VERSION 17 gives it ${LOCALBASE}/openjdk17 (the official port had USE_JAVA,
+# On OpenJDK 21 of this tree, java/openjdk21 (aZ, 12.11.2026: one JDK for
+# Elasticsearch and OpenSearch; it was on OpenJDK 17 until then). Java 18 and
+# later throw at System.setSecurityManager, which Elasticsearch 6 calls, unless
+# the JVM has -Djava.security.manager=allow: jvm.options has it for 18 and later
+# (as Elasticsearch 7.17 on those); JDK 24 and later have no Security Manager at
+# all, so 21 is the last LTS it runs on. The four lines of the warning of the JDK
+# about setSecurityManager and the two of JDK 21 about the COMPAT locale provider
+# (which jvm.options keeps: the date formats of 6.x) are taken out of the stderr
+# of bin/elasticsearch, nothing else (aZ, 11.11.2026). The rc script runs it on
+# OpenJDK 21 without elasticsearch_java_home in rc.conf: USES=java with
+# JAVA_VERSION 21 gives it ${LOCALBASE}/openjdk21 (the official port had USE_JAVA,
 # which the framework of today no longer knows; aZ had to set
-# elasticsearch_java_home="/usr/local/openjdk17" in rc.conf). Without the module
+# elasticsearch_java_home in rc.conf). Without the module
 # x-pack-ml (its native programs are for Linux, macOS and Windows). JNA of
 # devel/jna, as the official port: lib/jna.jar a link to its jna.jar, the bundled
 # jna-4.5.1.jar out (aZ linked lib/jna.jar to it by hand after every install of
@@ -39,7 +44,7 @@
 # archives of old logs: the log files of the tarball stay as they are, each rolled
 # at its size alone and the rolled file deleted at once
 # (files/log4j2-rollover.properties; the tarball: every day, compressed, kept).
-# jvm.options for OpenJDK 17 (aZ, 11.11.2026; files/patch-config_jvm.options, each
+# jvm.options for OpenJDK 17 and later (aZ, 11.11.2026; files/patch-config_jvm.options, each
 # change with its source in a comment of the file): -XX:UseAVX=2 for JDK 10 alone
 # (Elastic dropped it in 7.1: fixed in JDK 11; on JDK 17 it warned at every start
 # on a CPU without AVX2), -XX:+ExitOnOutOfMemoryError (7.16), -XX:ReplayDataFile
@@ -100,7 +105,7 @@ CONFLICTS_INSTALL=	elasticsearch elasticsearch[0-9] elasticsearch[0-9][0-9]
 
 NO_ARCH=	yes
 NO_BUILD=	yes
-JAVA_VERSION=	17
+JAVA_VERSION=	21
 USE_RC_SUBR=	${PORTNAME}
 SHEBANG_FILES=	bin/elasticsearch \
 		bin/elasticsearch-certgen \
@@ -195,7 +200,7 @@ post-patch:
 		${GREP} -q '^-Djna\.nounpack=true$$' ${WRKSRC}/config/jvm.options && \
 		! ${GREP} -v '^#' ${WRKSRC}/config/jvm.options | ${GREP} -q -e 'jna\.nosys' -e '%%' || \
 		{ ${ECHO_MSG} "config/jvm.options: not the JNA of files/patch-config_jvm.options: $$(${GREP} -v '^#' ${WRKSRC}/config/jvm.options | ${GREP} -i -e 'jna' -e '%%' | ${TR} '\n' ' ')"; ${FALSE}; }
-	# files/patch-config_jvm.options: the paths, and what it sets for OpenJDK 17
+	# files/patch-config_jvm.options: the paths, and what it sets for OpenJDK 17 and later
 	@! ${GREP} -q '^[0-9:-]*-XX:[+]*HeapDump' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-XX:ErrorFile=/var/log/elasticsearch/hs_err_pid%p\.log$$' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-XX:ReplayDataFile=/var/log/elasticsearch/replay_pid%p\.log$$' ${WRKSRC}/config/jvm.options && \
@@ -210,7 +215,10 @@ post-patch:
 		${GREP} -q '^-Dlog4j2\.formatMsgNoLookups=true$$' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^-Xms31g$$' ${WRKSRC}/config/jvm.options && ${GREP} -q '^-Xmx31g$$' ${WRKSRC}/config/jvm.options || \
 		{ ${ECHO_MSG} "config/jvm.options: not the options of files/patch-config_jvm.options"; ${FALSE}; }
-	@${GREP} -q 'es_jdk17_warnings' ${WRKSRC}/bin/elasticsearch && \
+	@[ "$$(${GREP} -c 'es_jdk_warnings' ${WRKSRC}/bin/elasticsearch)" = 3 ] && \
+		${GREP} -q '^18-:-Djava\.security\.manager=allow$$' ${WRKSRC}/config/jvm.options && \
+		${GREP} -q '^9-:-Djava\.locale\.providers=COMPAT$$' ${WRKSRC}/config/jvm.options && \
+		! ${GREP} -q 'BiasedLocking' ${WRKSRC}/config/jvm.options && \
 		${GREP} -q '^  if ! mkdir -m 0700 "\$$ES_TMPDIR"; then$$' ${WRKSRC}/bin/elasticsearch && \
 		${GREP} -q '^export TMPDIR="\$$ES_TMPDIR"$$' ${WRKSRC}/bin/elasticsearch
 	# No JVM of the scripts leaves /tmp/hsperfdata_<user>: -XX:-UsePerfData for the
@@ -285,14 +293,14 @@ do-install-DOCS-on:
 
 post-install:
 	# JNA: a link to the jna.jar of devel/jna, no other JNA; the rc script on the
-	# OpenJDK 17 of the dependency (its file of the work directory: install-rc-script
+	# OpenJDK 21 of the dependency (its file of the work directory: install-rc-script
 	# puts it into the stage directory after post-install)
 	@[ "$$(readlink ${STAGEDIR}${PREFIX}/lib/elasticsearch/lib/jna.jar)" = "${JAVAJARDIR}/jna.jar" ] && \
 		! ls ${STAGEDIR}${PREFIX}/lib/elasticsearch/lib/jna-*.jar > /dev/null 2>&1 || \
 		{ ${ECHO_MSG} "lib/jna.jar is not the link to ${JAVAJARDIR}/jna.jar alone"; ${FALSE}; }
-	@[ "${JAVA_HOME}" = "${LOCALBASE}/openjdk17" ] && \
-		${GREP} -q 'elasticsearch_java_home="${LOCALBASE}/openjdk17"' ${WRKDIR}/elasticsearch || \
-		{ ${ECHO_MSG} "rc.d/elasticsearch: elasticsearch_java_home is not ${LOCALBASE}/openjdk17 (JAVA_HOME ${JAVA_HOME})"; ${FALSE}; }
+	@[ "${JAVA_HOME}" = "${LOCALBASE}/openjdk21" ] && \
+		${GREP} -q 'elasticsearch_java_home="${LOCALBASE}/openjdk21"' ${WRKDIR}/elasticsearch || \
+		{ ${ECHO_MSG} "rc.d/elasticsearch: elasticsearch_java_home is not ${LOCALBASE}/openjdk21 (JAVA_HOME ${JAVA_HOME})"; ${FALSE}; }
 	@${GREP} -q 'export ES_JAVA_OPTS="-Xms$${elasticsearch_heap} -Xmx$${elasticsearch_heap}"' ${WRKDIR}/elasticsearch && \
 		${GREP} -q '^export ES_TMPDIR="$${elasticsearch_tmpdir}"$$' ${WRKDIR}/elasticsearch && \
 		${SH} -n ${WRKDIR}/elasticsearch || \
