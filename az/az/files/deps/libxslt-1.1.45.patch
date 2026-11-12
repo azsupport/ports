@@ -1,5 +1,5 @@
-Description: CVE-2026-125350, use-after-free in the cache of direct pattern matches (xsltTestCompMatch, libxslt/pattern.c)
-Origin: Chromium third_party/libxslt/chromium/0008-Fix-use-after-free-in-direct-pattern-match-cache.patch (156.0.8078.96, Joey Arhar, 06.11.2026), as Gentoo carries it (dev-libs/libxslt files/libxslt-1.1.45-CVE-2026-125350.patch, bug 986081), -p0
+Description: CVE-2026-125350, use-after-free in the cache of direct pattern matches (xsltTestCompMatch, libxslt/pattern.c); and CVE-2026-9947, a double free of the text of an xsl:attribute that is only whitespace under xml:space="preserve" (xsltAttribute, libxslt/attributes.c: its content, not of the dictionary, aliased as if it were)
+Origin: Chromium third_party/libxslt/chromium/0008-Fix-use-after-free-in-direct-pattern-match-cache.patch (156.0.8078.96, Joey Arhar, 06.11.2026), as Gentoo carries it (dev-libs/libxslt files/libxslt-1.1.45-CVE-2026-125350.patch, bug 986081), -p0; CVE-2026-9947: Chromium (Andrew Paseltiner, 20.04.2026, bug 503627446), as Alpine carries it on 1.1.43 (main/libxslt CVE-2026-9947.patch, https://github.com/alpinelinux/aports/blob/master/main/libxslt/CVE-2026-9947.patch); libxslt master and Gentoo lack it
 
 --- libxslt/pattern.c
 +++ libxslt/pattern.c
@@ -20,3 +20,15 @@ Origin: Chromium third_party/libxslt/chromium/0008-Fix-use-after-free-in-direct-
  		xmlXPathFreeObject(list);
  	    list = newlist;
 --
+--- libxslt/attributes.c
++++ libxslt/attributes.c
+@@ -1038,7 +1038,8 @@ xsltAttribute(xsltTransformContextPtr ctxt, xmlNodePtr node,
+ 	*/
+ 	if (ctxt->internalized &&
+ 	    (ctxt->insert->doc != NULL) &&
+-	    (ctxt->insert->doc->dict == ctxt->dict))
++	    (ctxt->insert->doc->dict == ctxt->dict) &&
++	    xmlDictOwns(ctxt->dict, inst->children->content))
+ 	{
+ 	    copyTxt = xmlNewText(NULL);
+ 	    if (copyTxt == NULL) /* TODO: report error */

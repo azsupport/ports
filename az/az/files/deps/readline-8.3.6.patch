@@ -1,0 +1,18 @@
+Description: in a single-byte locale (C, POSIX) the prompt with escape sequences (PS1 with colours) is printed wrong once a short line of the history is recalled after one that wrapped: readline83-004 replaced the test whether to print the prompt again from column 0 by one for multibyte locales, where _rl_last_c_pos is a column; in a single-byte locale it is an index into the line, as the test before took it (the single-byte test as before, the multibyte one as readline83-004 has it); the readline of az is that of PHP readline (php -a) and of Python 3.12 of this tree
+Origin: the patch of Kerin Millar (23.10.2026), as Gentoo carries it on 8.3_p6 (sys-libs/readline files/readline-8.3_p6-single-byte-prompt-reprint.patch, bug 984299, https://github.com/gentoo/gentoo/blob/master/sys-libs/readline/files/readline-8.3_p6-single-byte-prompt-reprint.patch); the same line in the devel branch of bash (a4a9dbc, 30.10.2026) lacks the parentheses (C reads it as "(pmt_offset + (...)) ? ..."), so not that one; shells/bash carries this patch on its own readline, -p0
+
+--- display.c
++++ display.c
+@@ -1509,7 +1509,11 @@ rl_redisplay (void)
+ 	         on the current screen line begins in the buffer. It is a
+ 	         buffer position, an index into curline
+ 	         (local_prompt + pmt_offset) */
+-	      cursor_bufpos = pmt_offset + local_prompt_len;
++	      cursor_bufpos = pmt_offset;
++	      if (mb_cur_max == 1 || rl_byte_oriented)
++		cursor_bufpos += _rl_last_c_pos;
++	      else
++		cursor_bufpos += local_prompt_len;
+ 
+ 	      if (local_prompt && local_prompt_invis_chars[cursor_linenum] &&
+ 		    _rl_last_c_pos > 0 &&

@@ -1,0 +1,39 @@
+Description: undefined behaviour in libmcrypt: its rotations shifted by 32 and more (rotl32 of CAST-256 rotates by whole key words; the other side shifted by 32 on a rotation by 0, also in ROL of CAST-128), and the encryption of Twofish passed two uninitialised words; on amd64 the results stay those of before (the rotations by n mod 32, which the compilers made of them): every algorithm, 64 keys each, gave the same ciphertexts with and without it (clang -O3 -march=x86-64-v3 and -O0), and UBSan finds no shift by 32 or more after it
+Origin: Gentoo dev-libs/libmcrypt files/libmcrypt-2.5.8-rotate-mask.patch and libmcrypt-2.5.8-uninitialized.patch (https://github.com/gentoo/gentoo/tree/master/dev-libs/libmcrypt/files; Debian carries both since 2.5.8-3, from the trackers of libmcrypt on SourceForge, 2424445 and 1872801), the twofish.c one as it is; the masks of rotate-mask.patch extended to the other shift (with it alone a rotation by 0 or 32 still shifted by 32) and to ROL of cast-128.c, -p0
+
+--- lib/mcrypt_modules.h
++++ lib/mcrypt_modules.h
+@@ -1,7 +1,7 @@
+-#define rotl32(x,n)   (((x) << ((word32)(n))) | ((x) >> (32 - (word32)(n))))
+-#define rotr32(x,n)   (((x) >> ((word32)(n))) | ((x) << (32 - (word32)(n))))
+-#define rotl16(x,n)   (((x) << ((word16)(n))) | ((x) >> (16 - (word16)(n))))
+-#define rotr16(x,n)   (((x) >> ((word16)(n))) | ((x) << (16 - (word16)(n))))
++#define rotl32(x,n)   (((x) << ((word32)(n) & 31)) | ((x) >> ((32 - ((word32)(n) & 31)) & 31)))
++#define rotr32(x,n)   (((x) >> ((word32)(n) & 31)) | ((x) << ((32 - ((word32)(n) & 31)) & 31)))
++#define rotl16(x,n)   (((x) << ((word16)(n) & 15)) | ((x) >> ((16 - ((word16)(n) & 15)) & 15)))
++#define rotr16(x,n)   (((x) >> ((word16)(n) & 15)) | ((x) << ((16 - ((word16)(n) & 15)) & 15)))
+ 
+ /* Use hardware rotations.. when available */
+ #ifdef swap32
+--- modules/algorithms/cast-128.c
++++ modules/algorithms/cast-128.c
+@@ -44,7 +44,7 @@
+ #define U8d(x) ( (u8) ((x)&255) )
+ 
+ /* Circular left shift */
+-#define ROL(x, n) ( ((x)<<(n)) | ((x)>>(32-(n))) )
++#define ROL(x, n) ( ((x)<<(n)) | ((x)>>((32-(n))&31)) )
+ 
+ /* CAST-128 uses three different round functions */
+ #define F1(l, r, i) \
+--- modules/algorithms/twofish.c
++++ modules/algorithms/twofish.c
+@@ -499,7 +499,7 @@
+ /* encrypt a block of text  */
+ WIN32DLL_DEFINE void _mcrypt_encrypt(TWI * pkey, word32 * in_blk)
+ {
+-	word32 t0, t1, blk[4];
++	word32 t0 = 0, t1 = 0, blk[4];
+ #ifdef WORDS_BIGENDIAN
+ 	blk[0] = byteswap32(in_blk[0]) ^ pkey->l_key[0];
+ 	blk[1] = byteswap32(in_blk[1]) ^ pkey->l_key[1];
