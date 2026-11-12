@@ -157,12 +157,12 @@
 
 set -u
 
-# the official tree the overlay is built over: freebsd-ports main of 10.11.2026 21:19,
+# the official tree the overlay is built over: freebsd-ports main of 12.11.2026 16:53,
 # the commit of az/az/files/deps.conf too. The rule of aZ: the latest version of a
 # port, or a newer release for its security or a serious bug (a take line of
 # deps.conf), so before a build this goes to the latest commit of main (it had
 # stayed at 04.11.2026: apache24 2.4.69 for 2.4.70 of 07.11.2026, aZ 10.11.2026)
-ports_commit="6e4a386577aaa191a68b11865fcb18e02f98e525"
+ports_commit="9a69436ea72fbfab0e73e3f14d81ed3ef6322251"
 ports_url="https://github.com/freebsd/freebsd-ports"
 
 # The build tools a port gets from the official packages of FreeBSD even when this
