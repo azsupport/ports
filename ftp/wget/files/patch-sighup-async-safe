@@ -1,0 +1,90 @@
+The handler of SIGHUP (and SIGUSR1), which sends the output of wget to wget-log when
+its terminal goes away, called redirect_output(): malloc() and fopen() in a signal
+handler, which are not async-signal-safe (a signal during a malloc() of wget: a
+corrupted heap or a deadlock, rare). The handler now sets a flag, and the next
+output of the log does the redirection. Upstream commit e1f2559e of wget (Michal
+Ruprich, 14.07.2026; no release has it yet), as RHEL 10 and 9 carry it
+(wget-1.24.5-async-safe-signal-handler.patch); it applies on 1.25.0.
+
+--- src/log.c
++++ src/log.c
+@@ -37,11 +37,16 @@ as that of the covered work.  */
+ #include <unistd.h>
+ #include <assert.h>
+ #include <errno.h>
++#include <signal.h>
+ 
+ #include "utils.h"
+ #include "exits.h"
+ #include "log.h"
+ 
++#if defined(SIGHUP) || defined(SIGUSR1)
++extern volatile sig_atomic_t redirect_output_sig;
++#endif
++
+ /* 2005-10-25 SMS.
+    VMS log files are often VFC record format, not stream, so fputs() can
+    produce multiple records, even when there's no newline terminator in
+@@ -973,6 +978,27 @@ static void
+ check_redirect_output (void)
+ {
+ #if !defined(WINDOWS) && !defined(__VMS)
++#if defined(SIGHUP) || defined(SIGUSR1)
++  {
++    int sig = redirect_output_sig;
++    if (sig)
++      {
++        redirect_output_sig = 0;
++        const char *signal_name = "WTF?!";
++#ifdef SIGHUP
++        if (sig == SIGHUP)
++          signal_name = "SIGHUP";
++#endif
++#ifdef SIGUSR1
++        if (sig == SIGUSR1)
++          signal_name = "SIGUSR1";
++#endif
++        redirect_output (true, signal_name);
++        return;
++      }
++  }
++#endif /* defined(SIGHUP) || defined(SIGUSR1) */
++
+   /* If it was redirected already to log file by SIGHUP, SIGUSR1 or -o parameter,
+    * it was permanent.
+    * If there was no SIGHUP or SIGUSR1 and shell is interactive
+--- src/main.c
++++ src/main.c
+@@ -123,23 +123,18 @@ int numurls = 0;
+ #if defined(SIGHUP) || defined(SIGUSR1)
+ /* Hangup signal handler.  When wget receives SIGHUP or SIGUSR1, it
+    will proceed operation as usual, trying to write into a log file.
+-   If that is impossible, the output will be turned off.  */
++   If that is impossible, the output will be turned off.
++
++   Only async-signal-safe operations are performed here.  The actual
++   redirect (which needs malloc/fopen) is deferred to
++   check_redirect_output(), called from the logging functions.  */
++
++volatile sig_atomic_t redirect_output_sig = 0;
+ 
+ static void
+ redirect_output_signal (int sig)
+ {
+-  const char *signal_name = "WTF?!";
+-
+-#ifdef SIGHUP
+-  if (sig == SIGHUP)
+-    signal_name = "SIGHUP";
+-#endif
+-#ifdef SIGUSR1
+-  if (sig == SIGUSR1)
+-    signal_name = "SIGUSR1";
+-#endif
+-
+-  redirect_output (true,signal_name);
++  redirect_output_sig = sig;
+   progress_schedule_redirect ();
+   signal (sig, redirect_output_signal);
+ }
+

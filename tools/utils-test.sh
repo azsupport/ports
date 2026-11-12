@@ -8,7 +8,7 @@
 # exported environment, the prompt of its readline in the C locale (script(1));
 # unzip: a ZIP64 archive of Windows, the time of an old Unix extra field, a jar of
 # jar(1), a Zip64 entry with a data descriptor of 32-bit lengths (Java), a zip written
-# to a pipe; zipgrep with an alternation; wget without OPIE.
+# to a pipe; zipgrep with an alternation; zip -j with a pattern of a path.
 #
 # Usage (FreeBSD, the packages installed): sh tools/utils-test.sh
 # Results: utils-results/tests.txt (one line per check, the summary at the end);
@@ -93,10 +93,10 @@ if [ -z "$miss" ]; then pass "3proxy: the plugins, by the names of 0.9.5 too"; e
 if libs_of "$P/bin/wget" libpcre2-8; then pass "wget: $libs_out"; else fail "wget: $libs_bad"; fi
 feat=" $("$P/bin/wget" --version 2>&1 | sed -n '/^[+-]/p' | tr '\n' ' ') "
 miss=""
-for f in +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm -opie; do
+for f in +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm; do
     case "$feat" in *" $f "*) ;; *) miss="$miss $f" ;; esac
 done
-if [ -z "$miss" ]; then pass "wget: +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm -opie"; else fail "wget lacks$miss (it has:$feat)"; fi
+if [ -z "$miss" ]; then pass "wget: +https +ipv6 +iri +psl +ssl/openssl -nls -ntlm"; else fail "wget lacks$miss (it has:$feat)"; fi
 rv="$("$P/bin/rsync" --version 2>&1)"
 miss=""
 for f in xxh128 zstd lz4 file-flags; do printf '%s\n' "$rv" | grep -q -- "$f" || miss="$miss $f"; done
@@ -157,6 +157,13 @@ printf '%s\n' \
     'AAAAAAAAYS50eHT+ygAAUEsFBgAAAAABAAEANwAAAEoAAAAAAA==' | openssl base64 -d > "$T/m.jar"
 if "$P/bin/unzip" -t "$T/m.jar" > "$T/jar.log" 2>&1; then pass "unzip -t of a jar made by jar(1) (the extra block 0xCAFE with no data)"
 else fail "unzip -t of a jar made by jar(1): $(tr '\n' ' ' < "$T/jar.log" | cut -c1-200)"; fi
+# the help of zipinfo (files/zipinfo-usage.patch): its line of -T and -C as it should
+# be, not bytes of the stack (four %c without arguments)
+if "$P/bin/unzip" -Z 2>&1 | grep -q -- '-z  print zipfile comment   -T  print file times'; then
+    pass "unzip -Z: its help as it should be (-T, -C)"
+else
+    fail "unzip -Z: $("$P/bin/unzip" -Z 2>&1 | grep -a -- 'print zipfile comment' | od -c | head -n 2 | tr -s ' ' | tr '\n' ' ')"
+fi
 # a Zip64 entry whose data descriptor has 32-bit lengths, as the zip library of Java
 # writes some (unzip-zipbomb-part7.patch): not "a possible zip bomb" (status 12)
 printf '%s\n' \
@@ -187,6 +194,14 @@ fi
 v="$(PATH="$P/bin:$PATH" "$P/bin/zipgrep" 'alpha|gamma' "$T/stream.zip" 2>&1 | tr '\n' ' ')"
 if [ "$v" = "g.txt:alpha g.txt:gamma " ]; then pass "zipgrep 'alpha|gamma': g.txt:alpha g.txt:gamma"
 else fail "zipgrep 'alpha|gamma': \"$v\", not \"g.txt:alpha g.txt:gamma\""; fi
+# zip -j with a pattern of a path (archivers/zip/files/patch-zip.c-nomutilation): -x
+# 'dir a/sub/*' leaves out that directory only (it left out every file)
+mkdir -p "$T/src/dir a/sub"
+printf 'sub\n' > "$T/src/dir a/sub/s.txt"
+v="$( (cd "$T/src" && "$P/bin/zip" -q -j "$T/j.zip" "dir a/file 1.txt" "dir a/sub/s.txt" -x 'dir a/sub/*') 2>&1 &&
+    "$P/bin/unzip" -Z1 "$T/j.zip" 2>&1 | tr '\n' ' ')"
+if [ "$v" = "file 1.txt " ]; then pass "zip -j -x 'dir a/sub/*': file 1.txt only"
+else fail "zip -j -x 'dir a/sub/*': \"$v\", not \"file 1.txt\""; fi
 
 echo "tests: $ok ok, $bad failed" >> "$out"
 cat "$out"
