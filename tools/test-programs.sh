@@ -317,9 +317,10 @@ for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "ima
         : > "$res/test-programs-install-node18.log"
         r24_="$(pkg query '%rn' node24 2> /dev/null | grep -v -x -e npm-node24 -e yarn-node24 | tr '\n' ' ')"
         if [ -n "$r24_" ]; then
-            say "pkg delete $r24_(they need node24; their tests are done)"
+            # r24_ ends with a space (tr): "pkg delete kibana6 failed"
+            say "pkg delete ${r24_}(they need node24; their tests are done)"
             # shellcheck disable=SC2086
-            pkg delete -y $r24_ >> "$res/test-programs-install-node18.log" 2>&1 || say "pkg delete $r24_failed (test-programs-install-node18.log)"
+            pkg delete -y $r24_ >> "$res/test-programs-install-node18.log" 2>&1 || say "pkg delete ${r24_}failed (test-programs-install-node18.log)"
         fi
         say "pkg install -f$n18_ (in the place of$n_)"
         # shellcheck disable=SC2086
