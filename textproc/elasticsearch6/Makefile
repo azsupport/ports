@@ -19,7 +19,7 @@
 # elasticsearch_java_home in rc.conf). Without the module
 # x-pack-ml (its native programs are for Linux, macOS and Windows). JNA of
 # devel/jna, as the official port: lib/jna.jar a link to its jna.jar, the bundled
-# jna-4.5.1.jar out (aZ linked lib/jna.jar to it by hand after every install of
+# jna-5.5.0.jar out (aZ linked lib/jna.jar to it by hand after every install of
 # the old package); devel/jna is ours (no X11 and JAWT, the libffi of az), and
 # JNA loads its native library from the file of that package,
 # lib/jna/libjnidispatch.so (aZ, 12.11.2026; -Djna.boot.library.path and
