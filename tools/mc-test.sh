@@ -5,7 +5,8 @@
 # sftpfs and shell; no X11 and no translations, as misc/mc/files/mc.conf has it), its
 # libraries (the base system, the shared ones of az, glib and pcre2), the links mcedit, mcview and mcdiff, its paths
 # (mc -F), the extfs helper ubsdtar on a zip that tar of the base system makes (list,
-# as mc reads it, copyout) and on a hard link in ISO 9660, and mc itself in a
+# as mc reads it, copyout; an encrypted one fails at once, asking for no passphrase)
+# and on a hard link in ISO 9660, and mc itself in a
 # terminal (script(1)): the panels drawn and F10 quits;
 # mcview shows a file inside that zip (ubsdtar://, through extfs and the mc.ext.ini of
 # the package). The patches of misc/mc/files, through mc in that terminal: Enter on
@@ -128,6 +129,21 @@ if (cd "$T/src" && tar -a -cf "$T/t.zip" .) 2> "$T/zip.err"; then
             pass "ubsdtar copyout: dir a/file [1].txt"
         else
             fail "ubsdtar copyout: $(head -c 200 "$T/out.txt" 2>/dev/null)"
+        fi
+        # an encrypted zip (12.11.2026): copyout in a terminal fails at once, tar asks
+        # for no passphrase there (it did, and mc waited for the helper; ubsdtar gives
+        # it a wrong one)
+        if (cd "$T/src" && tar -a -cf "$T/enc.zip" --options zip:encryption=zipcrypt --passphrase secret b.txt) 2> "$T/enc.err"; then
+            (sleep 5) | timeout 60 script -q "$T/enc.typescript" sh "$h" copyout "$T/enc.zip" b.txt "$T/enc-out.txt" > /dev/null 2>&1
+            e=$?
+            strings "$T/enc.typescript" > "$T/enc.typescript.txt" 2>/dev/null
+            if [ "$e" != 0 ] && [ "$e" != 124 ] && ! grep -q 'Enter passphrase' "$T/enc.typescript.txt"; then
+                pass "ubsdtar copyout of an encrypted zip: failed at once (exit $e: $(grep -m 1 'passphrase' "$T/enc.typescript.txt")), no passphrase asked on the terminal"
+            else
+                fail "ubsdtar copyout of an encrypted zip: exit $e (124: it waited), $(tr '\n' ' ' < "$T/enc.typescript.txt" | cut -c1-200)"
+            fi
+        else
+            fail "tar -a -cf enc.zip with zip:encryption=zipcrypt: $(head -n 2 "$T/enc.err" | tr '\n' ' ')"
         fi
     fi
 else
