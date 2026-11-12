@@ -74,7 +74,7 @@
 | `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, программы с 6 на конце (`convert6`, `identify6`, ...); его библиотеки — в `/usr/local/az/lib` |
 | `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickCore-7.so` и `libMagickWand-7.so` в `/usr/local/az/lib`, с ними линкуются `magick` и модуль imagick |
 | `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) с форматами нашего ImageMagick; его библиотеки в `/usr/local/az/lib`, с ними линкуются `gm` и модуль gmagick |
-| `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib из `glib`, libssh2 из az, PCRE2 из `pcre2`; zip, 7z, rar и образы ISO — через `tar` базовой системы (имена zip из Windows — в CP866); исправления mc после 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), у каждого — источник): переполнение `%cd` длинным именем в архиве, Reget, портивший следующие файлы копирования, мышь при `TERM=xterm` (Gentoo) и падение при протаскивании, выход из subshell на FreeBSD (NetBSD), своё приглашение tcsh, приглашение с байтами не UTF-8, дескриптор канала subshell (Debian), строки «ls -l» с именами в один байт (Alpine), ftp: переподключение после простоя, пароль из `~/.netrc` |
+| `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib из `glib`, libssh2 из az, PCRE2 из `pcre2`; zip, 7z, rar и образы ISO — через `tar` базовой системы (имена zip из Windows — в CP866); исправления mc после 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), у каждого — источник): переполнение `%cd` длинным именем в архиве, Reget, портивший следующие файлы копирования, мышь при `TERM=xterm` (Gentoo) и падение при протаскивании, выход из subshell на FreeBSD (NetBSD), своё приглашение tcsh, приглашение с байтами не UTF-8, дескриптор канала subshell (Debian), строки «ls -l» с именами в один байт (Alpine), ftp: переподключение после простоя, пароль из `~/.netrc`; наши: ни одной своей строки mc (его cd, инициализация, меню пользователя) в истории subshell на tcsh, 1000 записей в каждом списке истории mc (а не 60) |
 | `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 и PCRE 8.45, официальные порты: PCRE всех пакетов (PHP, Apache, git, wget, mc, MariaDB; потом nginx) |
 | `git` | `devel/git` | git без Perl, Python, Tcl/Tk, gettext, man-страниц и git daemon; HTTPS через наш `curl`, `git grep -P` с `pcre2` |
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 только с prefork и модулями серверов (и cgi, env), без SSL; APR и libmaxminddb из az |
@@ -179,9 +179,16 @@
   ([`misc/mc/files/mc.conf`](misc/mc/files/mc.conf): что и почему), собирает его
   [`tools/mc-build.sh`](tools/mc-build.sh) на разделяемых GLib из `devel/glib20` и
   libssh2 из az, с исправлениями `files/*.patch` (из upstream после 4.8.33, из Gentoo,
-  Debian, NetBSD и Alpine: в каждом патче — откуда, что и зачем; проверяет
-  [`tools/mc-test.sh`](tools/mc-test.sh) — то, что видно в терминале script(1)). zip,
-  jar, 7z, rar и образы ISO открываются как
+  Debian, NetBSD и Alpine и два наших: в каждом патче — откуда, что и зачем; проверяет
+  [`tools/mc-test.sh`](tools/mc-test.sh) — то, что видно в терминале script(1)). В
+  subshell на tcsh в истории (стрелка вверх, `history`, `~/.history`) остаётся то, что
+  набрано там или в командной строке mc, и нет строк самого mc: cd вслед за панелью идёт
+  по клавише, привязанной через `bindkey -c`; каталоги остаются в истории самого mc
+  (Alt-Shift-H, Alt-Y, Alt-U). В каждом списке истории mc — 1000 записей: это значение по
+  умолчанию `num_history_items_recorded`, а уже существующий `~/.config/mc/ini` его
+  перекрывает (mc пишет туда значение при выходе, если включён `auto_save_setup`, — по
+  умолчанию включён: на сервере, где он уже есть, останется 60, пока не поменять там).
+  zip, jar, 7z, rar и образы ISO открываются как
   каталог через [`files/ubsdtar`](misc/mc/files/ubsdtar) на `tar` базовой системы
   (libarchive), без Perl, 7-Zip и unrar; Perl, zip и GNU diff, если поставлены, дают своё
   (запись в zip, хелперы deb и rpm, `mcdiff`).
