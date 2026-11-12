@@ -14,7 +14,9 @@
 # ports commit of az/az/files/deps.conf (the official tree PORTSDIR, at that commit),
 # checks them against its distinfo, extracts them and applies the port's patches
 # (make patch; those of misc/mc make mcdiff run gdiff), then those of files/ of
-# misc/mc (files/*.patch, in the order of their names); this script then builds mc
+# misc/mc (files/*.patch, in the order of their names), then autoreconf -fi (a patch
+# changes configure.ac: file cloning by copy_file_range of FreeBSD, whose defines the
+# build checks in config.h); this script then builds mc
 # (prefix /usr/local) against the shared libraries of our ports (aZ, 10.11.2026: our
 # ports link each other's shared libraries): GLib of devel/glib20 (libglib-2.0.so of
 # /usr/local/lib, itself on libintl, libiconv and libffi of az and PCRE2 of
@@ -23,7 +25,9 @@
 # GLib and libglib-2.0.so alone in a directory, nothing else of /usr/local), and
 # libssh2 of az (with the OpenSSL of the base system, which it was built with), with
 # the run path /usr/local/az/lib, into the stage AZ_STAGEDIR (default
-# AZ_WORK/stage/mc), with files/ubsdtar in libexec/mc/extfs.d, its VERSIONS in
+# AZ_WORK/stage/mc) and runs the unit test of upstream for file cloning
+# (tests/lib/vfs/vfs_clone_file.c, with check of devel/check, in a build of its own),
+# with files/ubsdtar in libexec/mc/extfs.d, its VERSIONS in
 # share/doc/mc and its licence in share/licenses/mc. So mc needs the packages az and
 # glib (with pcre2) and libraries of the base system (ncursesw, libutil, libz,
 # libthr, libc). The work directory is AZ_WORK/mc (default
@@ -164,6 +168,40 @@ glib_dir() {
 # happens to have (configure takes them from PATH): Perl and zip of the packages,
 # unzip of the base system, Python and Ruby from PATH; ncursesw of the base system
 # with its wide characters (NCURSES_WIDECHAR, as the port); PIE, RELRO, BIND_NOW
+# need_defines <config.h> <macro>...: each macro defined there (by configure)
+need_defines() {
+    _h="$1"; shift
+    for _d in "$@"; do
+        grep -q "^#define $_d 1" "$_h" || { echo "== configure: no $_d in config.h"; return 1; }
+    done
+    echo "== config.h: $*"
+}
+# the unit test of upstream for file cloning (tests/lib/vfs/vfs_clone_file.c of
+# files/copy-clone-1.patch) in a copy of the source of its own, configured with
+# --enable-tests and check of devel/check (its .pc is not among those of PKG_CONFIG_LIBDIR):
+# vfs_clone_file() has to call copy_file_range() with COPY_FILE_RANGE_CLONE
+clone_unit_test() {
+    (
+        cd "$1" || exit 1
+        # shellcheck disable=SC2046
+        CFLAGS="$cflags -DNCURSES_WIDECHAR" CHECK_CFLAGS="-I/usr/local/include" \
+            CHECK_LIBS="-L/usr/local/lib -lcheck" ./configure --disable-silent-rules --enable-tests \
+            PERL=/usr/local/bin/perl PERL_FOR_BUILD=/usr/local/bin/perl $(conf_opts) &&
+            grep -q "^#define HAVE_TESTS 1" config.h &&
+            gmake -j"$ncpu" -C lib && gmake -C tests/lib/vfs check TESTS=vfs_clone_file
+    ) > "$res/mc-unit-test.log" 2>&1
+    _rc=$?
+    cp "$1/tests/lib/vfs/vfs_clone_file.log" "$res/mc-unit-test-vfs_clone_file.log" 2>/dev/null
+    if [ "$_rc" = 0 ] && grep -q "^PASS: vfs_clone_file" "$res/mc-unit-test.log"; then
+        _c="$(grep -m 1 'Checks:' "$1/tests/lib/vfs/vfs_clone_file.log" 2>/dev/null)"
+        echo "== unit test vfs_clone_file: PASS ($_c)"
+        printf '%-8s PASS  the unit test vfs_clone_file of upstream (%s)\n' unit "$_c" >> "$res/summary.txt"
+        return 0
+    fi
+    echo "== unit test vfs_clone_file: FAIL (exit $_rc; mc-unit-test.log):"
+    tail -n 20 "$res/mc-unit-test.log"
+    return 1
+}
 b_mc() {
     rm -rf "$stage"
     for p in "$files"/*.patch; do
@@ -171,7 +209,15 @@ b_mc() {
         echo "== files/${p##*/}"
         patch -p0 -N -s -d "$1" < "$p" || { echo "== ${p##*/} does not apply"; return 1; }
     done
+    # files/copy-clone-1.patch changes configure.ac (copy_file_range of FreeBSD) and a
+    # Makefile.am: configure, config.h.in and the Makefile.in files anew with the
+    # autotools of the build dependencies of the port (autoconf, automake, libtool,
+    # autopoint of gettext-tools)
+    echo "== autoreconf -fi"
+    (cd "$1" && autoreconf -fi) || { echo "== autoreconf -fi failed"; return 1; }
     fix_guess "$1"
+    rm -rf "$1.tests"
+    cp -Rp "$1" "$1.tests" || { echo "== no copy of the source for the unit test"; return 1; }
     (
         cd "$1" || exit 1
         # shellcheck disable=SC2046
@@ -179,9 +225,11 @@ b_mc() {
             ./configure --prefix="$F" --localstatedir=/var --mandir="$F/share/man" --disable-silent-rules \
             PERL=/usr/local/bin/perl PERL_FOR_BUILD=/usr/local/bin/perl "PYTHON=/usr/bin/env python3" \
             "RUBY=/usr/bin/env ruby" ZIP=/usr/local/bin/zip UNZIP=/usr/bin/unzip $(conf_opts) &&
+            need_defines config.h HAVE_COPY_FILE_RANGE HAVE_FILE_CLONING_BY_RANGE &&
             gmake -j"$ncpu" && gmake install-strip DESTDIR="$stage"
     ) || { cp "$1/config.log" "$res/mc-config.log" 2>/dev/null; return 1; }
     cp "$1/config.log" "$res/mc-config.log" 2>/dev/null
+    clone_unit_test "$1.tests" || return 1
     # no manual pages, as in the other packages of this tree (MANPAGES is in the
     # OPTIONS_UNSET of the make.conf of the servers); the help of mc (F1) stays
     rm -rf "$stage$F/share/man"

@@ -1,0 +1,658 @@
+Description: copies of files clone their blocks where the file system can (FreeBSD: copy_file_range(2) with COPY_FILE_RANGE_CLONE, which ZFS does with block cloning), with an option to turn it off (file_cloning, "Use COW file cloning")
+Origin: upstream, https://github.com/MidnightCommander/mc/commit/aee540f8d4b8503ffd2a3925d5fefc2f33d086a5
+ (31.03.2026, after 4.8.33, by PR https://github.com/MidnightCommander/mc/pull/5083; no release has it), backported to the
+ code of 4.8.33. With it the fixes of upstream for the indices of the widgets of the
+ configuration dialog it moves (https://github.com/MidnightCommander/mc/commit/0792bcee45a0659f8a319ccdfd6ee323b6d07ec8,
+ https://github.com/MidnightCommander/mc/commit/198ec936cedd643c34f23a1a3e6a6de63f99fc1b)
+Bug: https://github.com/MidnightCommander/mc/issues/5082
+Why: aZ (12.11.2026): our servers run FreeBSD 15.1 or later, whose OpenZFS (2.4.2) has
+ block cloning on (vfs.zfs.bclone_enabled=1); the FreeBSD port of mc lacks this only
+ because no release of mc has come since. configure.ac checks copy_file_range on FreeBSD
+ (FICLONERANGE on Linux, clonefile on macOS, reflink on Solaris) and defines
+ HAVE_FILE_CLONING_BY_RANGE; mc-build.sh runs autoreconf for it and checks the defines.
+ copy_file_file() tries vfs_clone_file() first (not for an O_APPEND destination; for a
+ Reget from the end of the destination) and copies as before when the clone fails (other
+ file systems, another pool, cloning off). file_cloning (on by default) is in
+ [Midnight-Commander] of ~/.config/mc/ini and in Options, Configuration, "Use COW file
+ cloning". The unit test of upstream comes with it (tests/lib/vfs/vfs_clone_file.c).
+
+--- configure.ac.orig
++++ configure.ac
+@@ -390,12 +390,42 @@ case $host_os in
+     AC_DEFINE([PTY_ZEROREAD], [1], [read(1) can return 0 for a non-closed fd])
+ esac
+ 
+-dnl Check linux/fs.h for FICLONE to support BTRFS's file clone operation
++dnl Check for file cloning support
+ case $host_os in
+-linux*)
++darwin*) AC_CHECK_HEADERS([sys/clonefile.h]) ;;  # clonefile(2) (macOS 10.12+)
++freebsd*) AC_CHECK_FUNCS(copy_file_range) ;;     # copy_file_range(2) (FreeBSD 13+)
++solaris*) AC_CHECK_FUNCS(reflink) ;;             # reflink(3C) (Solaris 11.3+)
++linux*)                                          # FICLONERANGE (Linux 4.5+)
+     AC_CHECK_HEADERS([linux/fs.h])
++    AC_MSG_CHECKING([for FICLONERANGE])
++    AC_EGREP_CPP([FICLONERANGE_IS_DEFINED],
++        [
++            #include <linux/fs.h>
++            #ifdef FICLONERANGE
++            FICLONERANGE_IS_DEFINED
++            #endif
++        ],
++        [
++            have_ficlonerange=yes
++            AC_DEFINE(HAVE_FICLONERANGE, 1, [Define if FICLONERANGE is supported on Linux])
++            AC_MSG_RESULT(yes)
++        ],
++        [
++            AC_MSG_RESULT(no)
++        ])
++    ;;
+ esac
+ 
++if test "x$have_ficlonerange" = xyes || \
++   test "x$ac_cv_func_copy_file_range" = xyes; then
++    AC_DEFINE([HAVE_FILE_CLONING_BY_RANGE], [1], [Define if system can clone files by range])
++fi
++
++if test "x$ac_cv_header_sys_clonefile_h" = xyes || \
++   test "x$ac_cv_func_reflink" = xyes; then
++    AC_DEFINE([HAVE_FILE_CLONING_BY_PATH], [1], [Define if system can clone files by path])
++fi
++
+ dnl Check if the OS is supported by the console saver.
+ cons_saver=""
+ case $host_os in
+--- lib/global.c.orig
++++ lib/global.c
+@@ -118,6 +118,7 @@ mc_global_t mc_global =
+     {
+         .cd_symlinks = TRUE,
+         .preallocate_space = FALSE,
++        .file_cloning = TRUE,
+     }
+ 
+ };
+--- lib/global.h.orig
++++ lib/global.h
+@@ -217,6 +217,8 @@ typedef struct
+         /* Preallocate space before file copying */
+         gboolean preallocate_space;
+ 
++        /* Use COW file cloning on supported filesystems */
++        gboolean file_cloning;
+     } vfs;
+ } mc_global_t;
+ 
+--- lib/util.h.orig
++++ lib/util.h
+@@ -210,6 +210,9 @@ MC_MOCKABLE sighandler_t my_signal (int signum, sighandler_t handler);
+ MC_MOCKABLE int my_sigaction (int signum, const struct sigaction *act, struct sigaction *oldact);
+ MC_MOCKABLE pid_t my_fork (void);
+ MC_MOCKABLE int my_execvp (const char *file, char *const argv[]);
++#ifdef HAVE_SYS_CLONEFILE_H
++MC_MOCKABLE int my_clonefile (const char *src, const char *dst, uint32_t flags);
++#endif
+ MC_MOCKABLE char *my_get_current_dir (void);
+ 
+ /* Process spawning */
+--- lib/utilunix.c.orig
++++ lib/utilunix.c
+@@ -56,6 +56,9 @@
+ #include <sys/wait.h>
+ #include <pwd.h>
+ #include <grp.h>
++#ifdef HAVE_SYS_CLONEFILE_H
++#include <sys/clonefile.h>
++#endif
+ 
+ #include "lib/global.h"
+ 
+@@ -392,6 +395,19 @@ my_execvp (const char *file, char *const argv[])
+     return execvp (file, argv);
+ }
+ 
++#ifdef HAVE_SYS_CLONEFILE_H
++/* --------------------------------------------------------------------------------------------- */
++/**
++ * Wrapper for clonefile() system call on macOS.
++ */
++
++int
++my_clonefile (const char *src, const char *dst, uint32_t flags)
++{
++    return clonefile (src, dst, flags);
++}
++#endif
++
+ /* --------------------------------------------------------------------------------------------- */
+ /**
+  * Wrapper for g_get_current_dir() library function.
+--- lib/vfs/vfs.c.orig
++++ lib/vfs/vfs.c
+@@ -46,14 +46,16 @@
+ #include <errno.h>
+ #include <stdlib.h>
+ 
+-#ifdef __linux__
+-#ifdef HAVE_LINUX_FS_H
+-#include <linux/fs.h>
+-#endif /* HAVE_LINUX_FS_H */
+-#ifdef HAVE_SYS_IOCTL_H
+-#include <sys/ioctl.h>
+-#endif /* HAVE_SYS_IOCTL_H */
+-#endif /* __linux__ */
++#ifdef HAVE_FICLONERANGE
++#include <linux/fs.h>           /* FICLONERANGE */
++#include <sys/ioctl.h>          /* ioctl() */
++#elif defined(HAVE_COPY_FILE_RANGE)
++#include <unistd.h>             /* COPY_FILE_RANGE_CLONE */
++#elif defined(HAVE_SYS_CLONEFILE_H)
++#include <sys/clonefile.h>      /* CLONE_NOOWNERCOPY */
++#elif defined(HAVE_REFLINK)
++#include <unistd.h>             /* reflink() */
++#endif
+ 
+ #include "lib/global.h"
+ #include "lib/strutil.h"
+@@ -730,11 +732,12 @@ vfs_preallocate (int dest_vfs_fd, off_t src_fsize, off_t dest_fsize)
+ int
+ vfs_clone_file (int dest_vfs_fd, int src_vfs_fd)
+ {
+-#ifdef FICLONE
++#ifdef HAVE_FILE_CLONING_BY_RANGE
+     void *dest_fd = NULL;
+     void *src_fd = NULL;
+     struct vfs_class *dest_class;
+     struct vfs_class *src_class;
++    off_t in_offset, out_offset;
+ 
+     dest_class = vfs_class_find_by_handle (dest_vfs_fd, &dest_fd);
+     if ((dest_class->flags & VFSF_LOCAL) == 0)
+@@ -760,7 +763,38 @@ vfs_clone_file (int dest_vfs_fd, int src_vfs_fd)
+         return (-1);
+     }
+ 
+-    return ioctl (*(int *) dest_fd, FICLONE, *(int *) src_fd);
++    in_offset = mc_lseek (src_vfs_fd, 0, SEEK_CUR);
++    if (in_offset < 0)
++        return (-1);
++    out_offset = mc_lseek (dest_vfs_fd, 0, SEEK_CUR);
++    if (out_offset < 0)
++        return (-1);
++
++#if defined(FICLONERANGE)
++    {
++        struct file_clone_range fcr = {
++            .src_fd = *(int *) src_fd,
++            .src_offset = in_offset,
++            .src_length = 0,
++            .dest_offset = out_offset,
++        };
++
++        return ioctl (*(int *) dest_fd, FICLONERANGE, &fcr);
++    }
++#elif defined(COPY_FILE_RANGE_CLONE)
++    {
++        ssize_t result;
++
++        do
++        {
++            result = copy_file_range (*(int *) src_fd, &in_offset, *(int *) dest_fd, &out_offset,
++                                      SSIZE_MAX, COPY_FILE_RANGE_CLONE);
++        }
++        while (result > 0);
++        return result;
++    }
++#endif
++
+ #else
+     (void) dest_vfs_fd;
+     (void) src_vfs_fd;
+@@ -770,3 +804,40 @@ vfs_clone_file (int dest_vfs_fd, int src_vfs_fd)
+ }
+ 
+ /* --------------------------------------------------------------------------------------------- */
++
++int
++vfs_clone_file_by_path (const vfs_path_t *dest_vpath, const vfs_path_t *src_vpath,
++                        gboolean preserve_uidgid)
++{
++#ifdef HAVE_FILE_CLONING_BY_PATH
++    const char *src_path;
++    const char *dest_path;
++
++    if (!vfs_file_is_local (dest_vpath) || !vfs_file_is_local (src_vpath))
++    {
++        errno = ENOTSUP;
++        return (-1);
++    }
++
++    src_path = vfs_path_get_last_path_str (src_vpath);
++    dest_path = vfs_path_get_last_path_str (dest_vpath);
++
++#if defined(HAVE_SYS_CLONEFILE_H)
++#ifndef CLONE_NOOWNERCOPY       /* macOS 10.13+ */
++#define CLONE_NOOWNERCOPY 0
++#endif
++    return my_clonefile (src_path, dest_path, preserve_uidgid ? 0 : CLONE_NOOWNERCOPY);
++#elif defined(HAVE_REFLINK)
++    return reflink (src_path, dest_path, preserve_uidgid);
++#endif
++
++#else
++    (void) dest_vpath;
++    (void) src_vpath;
++    (void) preserve_uidgid;
++    errno = ENOTSUP;
++    return (-1);
++#endif
++}
++
++/* --------------------------------------------------------------------------------------------- */
+--- lib/vfs/vfs.h.orig
++++ lib/vfs/vfs.h
+@@ -305,6 +305,8 @@ char *vfs_get_cwd (void);
+ int vfs_preallocate (int dest_desc, off_t src_fsize, off_t dest_fsize);
+ 
+ int vfs_clone_file (int dest_vfs_fd, int src_vfs_fd);
++int vfs_clone_file_by_path (const vfs_path_t * dest_vpath, const vfs_path_t * src_vpath,
++                            gboolean preserve_uidgid);
+ 
+ /**
+  * Interface functions described in interface.c
+--- src/filemanager/boxes.c.orig
++++ src/filemanager/boxes.c
+@@ -555,6 +555,7 @@ configure_box (void)
+                     QUICK_CHECKBOX (N_("Mkdi&r autoname"), &auto_fill_mkdir_name, NULL),
+                     QUICK_CHECKBOX (N_("&Preallocate space"), &mc_global.vfs.preallocate_space,
+                                     NULL),
++                    QUICK_CHECKBOX (N_("Use COW file cloning"), &mc_global.vfs.file_cloning, NULL),
+                 QUICK_STOP_GROUPBOX,
+                 QUICK_START_GROUPBOX (N_("Esc key mode")),
+                     QUICK_CHECKBOX (N_("S&ingle press"), &old_esc_mode, &configure_old_esc_mode_id),
+@@ -601,14 +602,19 @@ configure_box (void)
+         g_snprintf (time_out, sizeof (time_out), "%d", old_esc_mode_timeout);
+ 
+ #ifndef USE_INTERNAL_EDIT
+-        quick_widgets[17].state = WST_DISABLED;
++        quick_widgets[18].state = WST_DISABLED;
+ #endif
+ 
+         if (!old_esc_mode)
+-            quick_widgets[10].state = quick_widgets[11].state = WST_DISABLED;
++            quick_widgets[11].state = WST_DISABLED;
+ 
+ #ifndef HAVE_POSIX_FALLOCATE
+         mc_global.vfs.preallocate_space = FALSE;
++        quick_widgets[6].state = WST_DISABLED;
++#endif
++
++#if !defined(HAVE_FILE_CLONING_BY_RANGE) && !defined(HAVE_FILE_CLONING_BY_PATH)
++        mc_global.vfs.file_cloning = FALSE;
+         quick_widgets[7].state = WST_DISABLED;
+ #endif
+ 
+--- src/filemanager/file.c.orig
++++ src/filemanager/file.c
+@@ -2618,14 +2618,47 @@ copy_file_file (file_op_context_t *ctx, const char *src_path, const char *dst_pa
+     src_gid = src_stat.st_gid;
+     file_size = src_stat.st_size;
+ 
++#ifdef HAVE_FILE_CLONING_BY_PATH
++    /* On macOS 10.12+ and Solaris 11.4+, the syscalls for file cloning respond for creation of the
++     * destination file, so try them before mc_open to avoid handling various races later.
++     * Full file cloning is not supported in append and reget modes. */
++    if (mc_global.vfs.file_cloning && !(dst_exists && ctx->do_append))
++    {
++        /* Destination file must not exist before the cloning syscall */
++        if (dst_exists)
++        {
++            if (!try_remove_file (ctx, dst_vpath, &return_status))
++                goto ret;
++            dst_exists = FALSE;
++        }
++        /* Passing preserve_uidgid to the syscall to reduce racing */
++        if (vfs_clone_file_by_path (dst_vpath, src_vpath, ctx->preserve_uidgid) == 0)
++        {
++            dst_status = DEST_FULL;
++            return_status = FILE_CONT;
++            goto ret;
++        }
++    }
++#endif
++
+     open_flags = O_WRONLY;
+     if (!dst_exists)
+         open_flags |= O_CREAT | O_EXCL;
+     else if (ctx->do_append)
++#ifdef HAVE_FILE_CLONING_BY_RANGE
++        /* FICLONERANGE on Linux and copy_file_range(2) on FreeBSD support block-aligned ranges for
++         * cloning, but for not in O_APPEND mode. Use O_WRONLY + mc_lseek instead as we don't care
++         * about atomicity in our use cases. */
++        open_flags |= mc_global.vfs.file_cloning ? O_WRONLY : O_APPEND;
++#else
+         open_flags |= O_APPEND;
++#endif
+     else
+         open_flags |= O_CREAT | O_TRUNC;
+ 
++#ifdef HAVE_FILE_CLONING_BY_RANGE
++  open_dest:
++#endif
+     while ((dest_desc = mc_open (dst_vpath, open_flags, src_mode)) < 0)
+     {
+         if (errno != EEXIST)
+@@ -2652,13 +2685,28 @@ copy_file_file (file_op_context_t *ctx, const char *src_path, const char *dst_pa
+     appending = ctx->do_append;
+     ctx->do_append = FALSE;
+ 
+-    /* Try clone the file first. */
+-    if (vfs_clone_file (dest_desc, src_desc) == 0)
++#ifdef HAVE_FILE_CLONING_BY_RANGE
++    /* Try clone the file first, but not if the file is in O_APPEND mode */
++    if (mc_global.vfs.file_cloning && (open_flags & O_APPEND) == 0)
+     {
+-        dst_status = DEST_FULL;
+-        return_status = FILE_CONT;
+-        goto ret;
++        if ((appending ? mc_lseek (dest_desc, 0, SEEK_END) >= 0 : TRUE)
++            && vfs_clone_file (dest_desc, src_desc) == 0)
++        {
++            dst_status = DEST_FULL;
++            return_status = FILE_CONT;
++            goto ret;
++        }
++        if (appending && (open_flags & O_APPEND) == 0)
++        {
++            /* Cloning append has failed, resort to normal append */
++            ctx->do_append = TRUE;
++            mc_close (dest_desc);
++            dst_status = DEST_NONE;
++            open_flags = (open_flags & ~O_WRONLY) | O_APPEND;
++            goto open_dest;
++        }
+     }
++#endif
+ 
+     /* Find out the optimal buffer size.  */
+     while (mc_fstat (dest_desc, &dst_stat) != 0)
+--- src/setup.c.orig
++++ src/setup.c
+@@ -291,6 +291,7 @@ static const struct
+     { "shell_patterns", &easy_patterns },
+     { "auto_save_setup", &auto_save_setup },
+     { "preallocate_space", &mc_global.vfs.preallocate_space },
++    { "file_cloning", &mc_global.vfs.file_cloning },
+     { "auto_menu", &auto_menu },
+     { "use_internal_view", &use_internal_view },
+     { "use_internal_edit", &use_internal_edit },
+--- tests/lib/vfs/Makefile.am.orig
++++ tests/lib/vfs/Makefile.am
+@@ -31,6 +31,7 @@ TESTS = \
+ 	relative_cd \
+ 	tempdir \
+ 	vfs_adjust_stat \
++	vfs_clone_file \
+ 	vfs_parse_ls_lga \
+ 	vfs_path_from_str_flags \
+ 	vfs_path_string_convert \
+@@ -76,6 +77,9 @@ tempdir_SOURCES = \
+ vfs_adjust_stat_SOURCES = \
+ 	vfs_adjust_stat.c
+ 
++vfs_clone_file_SOURCES = \
++	vfs_clone_file.c
++
+ vfs_get_encoding_SOURCES = \
+ 	vfs_get_encoding.c
+ 
+new file mode 100644
+--- /dev/null
++++ tests/lib/vfs/vfs_clone_file.c
+@@ -0,0 +1,245 @@
++/*
++   lib/vfs - test vfs_clone_file() functionality
++
++   Copyright (C) 2026
++   Free Software Foundation, Inc.
++
++   Written by:
++   Phil Krylov <phil@krylov.eu>, 2026
++
++   This file is part of the Midnight Commander.
++
++   The Midnight Commander is free software: you can redistribute it
++   and/or modify it under the terms of the GNU General Public License as
++   published by the Free Software Foundation, either version 3 of the License,
++   or (at your option) any later version.
++
++   The Midnight Commander is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#define TEST_SUITE_NAME "/lib/vfs"
++
++#include "tests/mctest.h"
++
++#include <stdarg.h>
++#include <stdlib.h>
++
++#ifdef HAVE_FICLONERANGE
++#include <linux/fs.h>   // FICLONERANGE
++#include <sys/ioctl.h>  // ioctl()
++#elif defined(HAVE_COPY_FILE_RANGE)
++#include <unistd.h>  // copy_file_range()
++#elif defined(HAVE_REFLINK)
++#include <unistd.h>  // reflink()
++#elif defined(HAVE_SYS_CLONEFILE_H)
++#include <sys/clonefile.h>  // clonefile()
++#endif
++
++#include "lib/strutil.h"
++#include "lib/util.h"
++#include "src/vfs/local/local.c"
++
++/* --------------------------------------------------------------------------------------------- */
++
++static int clone_syscall__call_count = 0;
++static gboolean clone_syscall__call_arguments_are_proper = FALSE;
++
++static const char test_filename1[] = "mctestclone1.tst";
++static const char test_filename2[] = "mctestclone2.tst";
++
++#ifdef HAVE_COPY_FILE_RANGE
++/* @Mock */
++ssize_t
++copy_file_range (int infd, off_t *inoffp, int outfd, off_t *outoffp, size_t len, unsigned int flags)
++{
++    (void) infd;
++    (void) inoffp;
++    (void) outfd;
++    (void) outoffp;
++    (void) len;
++
++    clone_syscall__call_count++;
++    clone_syscall__call_arguments_are_proper = (flags == COPY_FILE_RANGE_CLONE);
++
++    return -1;
++}
++#endif
++
++#ifdef HAVE_FICLONERANGE
++#ifdef __GLIBC__
++/* @Mock */
++int
++ioctl (int fd, unsigned long request, ...)
++#else  // POSIX, musl
++/* @Mock */
++int
++ioctl (int fd, int request, ...)
++#endif
++{
++    (void) fd;
++
++    clone_syscall__call_count++;
++    clone_syscall__call_arguments_are_proper = (request == FICLONERANGE);
++    return -1;
++}
++#endif
++
++#ifdef HAVE_SYS_CLONEFILE_H
++/* @Mock */
++int
++my_clonefile (const char *src, const char *dst, uint32_t flags)
++{
++    (void) src;
++    (void) dst;
++
++    clone_syscall__call_count++;
++    clone_syscall__call_arguments_are_proper = (flags == 0);
++    return -1;
++}
++#endif
++
++#ifdef HAVE_REFLINK
++/* @Mock */
++int
++reflink (const char *src, const char *dst, int preserve)
++{
++    (void) src;
++    (void) dst;
++
++    clone_syscall__call_count++;
++    clone_syscall__call_arguments_are_proper = (preserve != 0);
++    return -1;
++}
++#endif
++
++/* --------------------------------------------------------------------------------------------- */
++
++/* @Before */
++static void
++setup (void)
++{
++    str_init_strings (NULL);
++
++    vfs_init ();
++    vfs_init_localfs ();
++    vfs_setup_work_dir ();
++}
++
++/* --------------------------------------------------------------------------------------------- */
++
++/* @After */
++static void
++teardown (void)
++{
++    vfs_shut ();
++    str_uninit_strings ();
++}
++
++/* --------------------------------------------------------------------------------------------- */
++extern GPtrArray *vfs_openfiles;
++static void
++prepare_files (vfs_path_t **vpath1, vfs_path_t **vpath2)
++{
++    unlink (test_filename1);  // remove a possible leftover from a previous run
++    g_file_set_contents (test_filename1, "test", sizeof ("test") - 1, NULL);
++    unlink (test_filename2);  // remove a possible leftover from a previous run
++
++    *vpath1 = vfs_path_from_str (test_filename1);
++    *vpath2 = vfs_path_from_str (test_filename2);
++}
++
++static void
++cleanup_files (vfs_path_t *vpath1, vfs_path_t *vpath2)
++{
++    vfs_path_free (vpath1, TRUE);
++    vfs_path_free (vpath2, TRUE);
++    unlink (test_filename1);
++    unlink (test_filename2);
++}
++
++/* @Test */
++START_TEST (test_vfs_clone_file)
++{
++    vfs_path_t *vpath1;
++    vfs_path_t *vpath2;
++    int fdin;
++    int fdout;
++
++    // given
++    clone_syscall__call_count = 0;
++    clone_syscall__call_arguments_are_proper = FALSE;
++    prepare_files (&vpath1, &vpath2);
++    fdin = mc_open (vpath1, O_RDONLY | O_BINARY);
++    fdout = mc_open (vpath2, O_CREAT | O_WRONLY | O_TRUNC | O_BINARY, 0600);
++
++    // when
++    vfs_clone_file (fdout, fdin);
++
++    // then
++#ifdef HAVE_FILE_CLONING_BY_RANGE
++    ck_assert (clone_syscall__call_count > 0);
++    ck_assert (clone_syscall__call_arguments_are_proper);
++#else
++    ck_assert (errno == ENOTSUP);
++#endif
++
++    // cleanup
++    mc_close (fdout);
++    mc_close (fdin);
++    cleanup_files (vpath1, vpath2);
++}
++END_TEST
++
++/* --------------------------------------------------------------------------------------------- */
++
++/* @Test */
++START_TEST (test_vfs_clone_file_by_path)
++{
++    vfs_path_t *vpath1;
++    vfs_path_t *vpath2;
++
++    // given
++    clone_syscall__call_count = 0;
++    clone_syscall__call_arguments_are_proper = FALSE;
++    prepare_files (&vpath1, &vpath2);
++
++    // when
++    vfs_clone_file_by_path (vpath1, vpath2, TRUE);
++
++    // then
++#ifdef HAVE_FILE_CLONING_BY_PATH
++    ck_assert (clone_syscall__call_count > 0);
++    ck_assert (clone_syscall__call_arguments_are_proper);
++#else
++    ck_assert (errno == ENOTSUP);
++#endif
++
++    // cleanup
++    cleanup_files (vpath1, vpath2);
++}
++END_TEST
++
++/* --------------------------------------------------------------------------------------------- */
++
++int
++main (void)
++{
++    TCase *tc_core;
++
++    tc_core = tcase_create ("Core");
++
++    tcase_add_checked_fixture (tc_core, setup, teardown);
++
++    // Add new tests here: ***************
++    tcase_add_test (tc_core, test_vfs_clone_file);
++    tcase_add_test (tc_core, test_vfs_clone_file_by_path);
++    // ***********************************
++
++    return mctest_run_all (tc_core);
++}

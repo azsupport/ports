@@ -31,12 +31,15 @@ WWW=		https://midnight-commander.org/ \
 LICENSE=	GPLv3+
 
 # the shared tree of az (libssh2) and GLib of devel/glib20, to build and to run; the
-# tools of the build of mc (gmake, Perl for its help file)
+# tools of the build of mc (gmake, Perl for its help file; autoconf, automake, libtool
+# and autopoint for the autoreconf after files/copy-clone-1.patch, which changes
+# configure.ac; check for the unit test of that patch: tools/mc-build.sh)
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libssh2.so:az/az
 LIB_DEPENDS=	libglib-2.0.so:devel/glib20
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libssh2.so:az/az
+BUILD_DEPENDS=	${AZ_PREFIX}/lib/libssh2.so:az/az \
+		${LOCALBASE}/libdata/pkgconfig/check.pc:devel/check
 
-USES=		gmake perl5 pkgconfig
+USES=		autoreconf:build gettext-tools gmake libtool:build perl5 pkgconfig
 USE_PERL5=	build
 
 CONFLICTS_INSTALL=	mc6
