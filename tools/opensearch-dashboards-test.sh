@@ -9,20 +9,20 @@
 # opensearch.hosts http://localhost:8200, the settings of the security plugin
 # commented out) and node.options next to it:
 #   - the package: no ELF file, no native module, no node/ of the tarball; its node
-#     is that of www/node18; --version, the plugins (11 in, securityDashboards,
-#     mlCommonsDashboards and assistantDashboards out), the sample configuration, the
+#     is that of www/node18; --version, the plugins (13 in, securityDashboards
+#     out), the sample configuration, the
 #     default configuration of the rc script, newsyslog, the packages of the 2.17
 #     branch and of the security fixes;
-#   - the rc script refuses a configuration with a setting of a plugin the package
-#     does not have (opensearch_security.*, nested, quoted; ml_commons_dashboards),
-#     with its lines, and starts nothing;
+#   - the rc script refuses a configuration with a setting of the security plugin,
+#     which the package does not have (opensearch_security.*, nested, quoted), with its
+#     lines, and starts nothing;
 #   - /api/status green, its version, the statuses of the plugins in and none of
 #     those out, the heap of node.options; the process: node as www, FreeBSD ELF64,
 #     no file of the package mapped (no native module), listening on 127.0.0.1:5601;
 #   - the pages of the core and of each plugin in, the bundles served as the files
 #     (plain and with gzip), every .gz of the package the gzip of its file;
 #   - the server plugin behind each plugin in answers through Dashboards: alerting,
-#     anomaly detection, index management, notifications, observability and PPL,
+#     anomaly detection, ml-commons, index management, notifications, observability and PPL,
 #     the query workbench (SQL), reporting (a CSV and an XLSX of a saved search, made
 #     by the server), security analytics (its rules; a rule's YAML with a
 #     !!js/function made into nothing), search relevance;
@@ -66,8 +66,8 @@ os="http://127.0.0.1:8200"
 k="http://127.0.0.1:5601"
 node="$P/bin/node"
 pidfile=/var/run/opensearch_dashboards/opensearch_dashboards.pid
-IN="alertingDashboards anomalyDetectionDashboards customImportMapDashboards ganttChartDashboards indexManagementDashboards notificationsDashboards observabilityDashboards queryWorkbenchDashboards reportsDashboards searchRelevanceDashboards securityAnalyticsDashboards"
-OUT="securityDashboards mlCommonsDashboards assistantDashboards"
+IN="alertingDashboards anomalyDetectionDashboards assistantDashboards customImportMapDashboards ganttChartDashboards indexManagementDashboards mlCommonsDashboards notificationsDashboards observabilityDashboards queryWorkbenchDashboards reportsDashboards searchRelevanceDashboards securityAnalyticsDashboards"
+OUT="securityDashboards"
 # rq <name> <method> <path> [<data or @file> [<content type>]]: a request to Dashboards
 # with a time limit; the answer in $T/a/<name>, its status the output
 rq() {
@@ -113,7 +113,7 @@ x="$(cd /tmp && "$D/bin/opensearch-dashboards" --version 2>&1)"
 if [ "$x" = "$v" ]; then pass "bin/opensearch-dashboards --version: $x"; else fail "bin/opensearch-dashboards --version: $(printf '%s' "$x" | tail -n 2 | tr '\n' ' ' | cut -c1-200), the package is $v"; fi
 x="$(cd /tmp && "$D/bin/opensearch-dashboards-plugin" list 2>&1 | sed 's/@.*//' | sort | tr '\n' ' ' | sed 's/ $//')"
 w="$(printf '%s\n' $IN | sort | tr '\n' ' ' | sed 's/ $//')"
-if [ "$x" = "$w" ]; then pass "bin/opensearch-dashboards-plugin list: the 11 plugins in"; else fail "bin/opensearch-dashboards-plugin list: $x"; fi
+if [ "$x" = "$w" ]; then pass "bin/opensearch-dashboards-plugin list: the 13 plugins in"; else fail "bin/opensearch-dashboards-plugin list: $x"; fi
 x="$(ls "$D/plugins" | sort | tr '\n' ' ' | sed 's/ $//')"
 o=""; for p in $OUT; do [ -e "$D/plugins/$p" ] && o="$o $p"; done
 if [ "$x" = "$w" ] && [ -z "$o" ]; then pass "plugins: $(echo $IN | wc -w | tr -d ' ') in, not $OUT"; else fail "plugins: $x; out but there:$o"; fi
@@ -210,8 +210,7 @@ refuse() {
 }
 refuse "opensearch_security.multitenancy.enabled: true" 'opensearch_security.multitenancy.enabled: true'
 refuse "nested opensearch_security: cookie.secure" 'opensearch_security:' '  cookie.secure: false'
-refuse "\"assistant.chat.enabled\": true, quoted" '"assistant.chat.enabled": true'
-refuse "ml_commons_dashboards.enabled: true" 'ml_commons_dashboards.enabled: true'
+refuse "\"opensearch_security.cookie.secure\": false, quoted" '"opensearch_security.cookie.secure": false'
 rm -f "$T/conf/bad.yml"
 
 # --- Dashboards by its rc script ----------------------------------------------------------
@@ -242,7 +241,7 @@ x="$(sed -n 's/.*"version":{"number":"\([^"]*\)".*/\1/p' "$T/a/status")"
 if [ "$x" = "$v" ]; then pass "version $x"; else fail "version ${x:-not told}, the package is $v"; fi
 m=""; for p in $IN; do has status "\"id\":\"plugin:$p@" || m="$m $p"; done
 o=""; for p in $OUT; do has status "\"id\":\"plugin:$p@" && o="$o $p"; done
-if [ -z "$m$o" ]; then pass "the statuses of the 11 plugins in, none of those out"; else fail "statuses: missing$m; out but there:$o"; fi
+if [ -z "$m$o" ]; then pass "the statuses of the 13 plugins in, none of securityDashboards"; else fail "statuses: missing$m; out but there:$o"; fi
 if grep -o '"state":"[a-z]*"' "$T/a/status" | grep -v -q '"green"'; then fail "statuses not green: $(grep -o '"id":"[^"]*","message":"[^"]*","since":"[^"]*","state":"[a-z]*"' "$T/a/status" | grep -v green | head -n 3 | tr '\n' ' ' | cut -c1-300)"; else pass "every status green"; fi
 hl="$(sed -n 's/.*"size_limit":\([0-9]*\).*/\1/p' "$T/a/status")"
 if [ -n "$hl" ] && [ "$hl" -ge 734003200 ] && [ "$hl" -le 838860800 ]; then pass "the heap of node.options (--max-old-space-size=700): a limit of $((hl / 1048576)) MB"; else fail "the heap limit ${hl:-not told}: not that of node.options"; fi
@@ -285,6 +284,7 @@ if [ "$d" = 0 ] && [ "$n" -gt 20 ]; then pass "$n bundles of the page served as 
 # --- the server plugins behind the plugins in -----------------------------------------------
 want "alerting: the monitors" alerting 200 '"ok":' GET '/api/alerting/monitors?from=0&size=10&search=&sortField=name&sortDirection=desc&state=all'
 want "anomaly detection: the detectors" ad 200 '"ok":true' GET /api/anomaly_detectors/detectors/_list
+want "ml-commons: the models" ml 200 '"total_models"' GET '/api/ml-commons/model?from=0&size=10'
 want "index management: the policies" ism 200 '"ok":true' GET '/api/ism/policies?from=0&size=20&search=&sortField=id&sortDirection=desc'
 want "notifications: the channels" notif 200 'config_list' GET '/api/notifications/get_configs?from_index=0&max_items=10&config_type=slack&config_type=email&sort_field=name&sort_order=asc'
 want "observability: the operational panels" obs 200 'panels' GET /api/observability/operational_panels/panels

@@ -21,10 +21,10 @@
 # node.options next to the configuration, one per line, as bin/opensearch-dashboards
 # takes them.
 #
-# azsupport/ports: the package has no security plugin (securityDashboards) and not
-# these plugins either: %%OSD_PLUGINS_OUT%%. A configuration with a setting of one
-# of them is refused at the start (OpenSearch Dashboards would stop at its start with
-# "Unknown configuration key(s)"): %%OSD_CONFIG_OUT%%.
+# azsupport/ports: the package does not have %%OSD_PLUGINS_OUT%% (the security
+# plugin): a configuration with a setting of it (%%OSD_CONFIG_OUT%%) is refused at
+# the start, as OpenSearch Dashboards would stop at its start on it ("Unknown
+# configuration key(s)").
 
 . /etc/rc.subr
 
@@ -73,7 +73,7 @@ opensearch_dashboards_precmd()
 	# (opensearch_security:), quoted or not
 	_set="$(grep -n -E "^[[:space:]]*[\"']?(${_re})[.:\"']" "${opensearch_dashboards_config}")"
 	if [ -n "${_set}" ]; then
-		echo "${name}: ${opensearch_dashboards_config} has settings of plugins this package does not have (the security plugin: opensearch_security.*; the others: %%OSD_CONFIG_OUT%%), with which OpenSearch Dashboards stops at its start; comment them out:" >&2
+		echo "${name}: ${opensearch_dashboards_config} has settings of plugins this package does not have (%%OSD_PLUGINS_OUT%%: %%OSD_CONFIG_OUT%%), with which OpenSearch Dashboards stops at its start; comment them out:" >&2
 		echo "${_set}" >&2
 		return 1
 	fi
