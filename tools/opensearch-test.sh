@@ -4,10 +4,12 @@
 # a server starts it, on 127.0.0.1:19201 with a data and log directory of the test,
 # then with the opensearch.yml of aZ's node ko44:
 #   - the package: lib/jna.jar a link to the jna.jar of devel/jna, a whole zip; the
-#     plugins of the port and none of those it leaves out (no opensearch-security,
-#     its tools and demo certificates); the netty of modules/transport-netty4 the
-#     4.1.140.Final of the port, no other netty; the paths of opensearch.yml.sample
-#     /var/db/opensearch and /var/log/opensearch;
+#     19 plugins of the port (those of aZ's cluster that run on FreeBSD) and none
+#     of the four it leaves out (no opensearch-security, its tools and demo
+#     certificates; no opensearch-knn, -neural-search, -performance-analyzer); the
+#     netty of modules/transport-netty4 the 4.1.112.Final of the bundle, no other
+#     netty but that of the client of opensearch-ml; the paths of
+#     opensearch.yml.sample /var/db/opensearch and /var/log/opensearch;
 #   - its tools run by hand as root, without JAVA_HOME (bin/opensearch-env takes the
 #     JDK of the port) and without OPENSEARCH_TMPDIR (opensearch-keystore,
 #     -plugin, -node, -shard, opensearch -V): each does its job and leaves nothing in
@@ -37,7 +39,8 @@
 #     codec zstd of opensearch-custom-codecs (zstd-jni on FreeBSD); HTTP with
 #     Accept-Encoding gzip and zstd (2.17.1 hung on zstd on Linux: upstream #17408
 #     of 2.19.1) and request bodies with Content-Encoding gzip and zstd (#23324 of
-#     2.19.7), each answered within 15 s;
+#     2.19.7), each answered within 15 s (what they leave in /tmp/opensearch: a
+#     note);
 #   - nothing of OpenSearch in /tmp and /var/tmp from its start to its stop but its
 #     temporary directory /tmp/opensearch (OPENSEARCH_TMPDIR of the rc script),
 #     where only the named pipe of bash may be (nothing of JNA); no GC log; the log
@@ -81,9 +84,9 @@ send() { curl -s -m 30 -H 'Content-Type: application/json' -X "$1" "$os$2" ${3:+
 up() { _i=0; while [ "$_i" -lt "$2" ]; do fetch -q -o - "$1/" 2>/dev/null | grep -q '"number"' && return 0; sleep 2; _i=$((_i + 2)); done; return 1; }
 
 # the plugins of the port, and those it leaves out
-plugins_in="opensearch-alerting opensearch-anomaly-detection opensearch-asynchronous-search opensearch-cross-cluster-replication opensearch-custom-codecs opensearch-geospatial opensearch-index-management opensearch-job-scheduler opensearch-notifications opensearch-notifications-core opensearch-observability opensearch-reports-scheduler opensearch-security-analytics opensearch-sql opensearch-system-templates query-insights"
-plugins_out="opensearch-flow-framework opensearch-knn opensearch-ml opensearch-neural-search opensearch-performance-analyzer opensearch-security opensearch-skills"
-netty="4.1.140.Final"
+plugins_in="opensearch-alerting opensearch-anomaly-detection opensearch-asynchronous-search opensearch-cross-cluster-replication opensearch-custom-codecs opensearch-flow-framework opensearch-geospatial opensearch-index-management opensearch-job-scheduler opensearch-ml opensearch-notifications opensearch-notifications-core opensearch-observability opensearch-reports-scheduler opensearch-security-analytics opensearch-skills opensearch-sql opensearch-system-templates query-insights"
+plugins_out="opensearch-knn opensearch-neural-search opensearch-performance-analyzer opensearch-security"
+netty="4.1.112.Final"
 
 if ! pkg info -e opensearch217; then
     fail "opensearch217 is not installed"
@@ -114,9 +117,10 @@ if [ "$have" = "$want" ] && [ -z "$o" ] && ! pkg info -l opensearch217 | grep -q
 else
     fail "the plugins: $have; left out but there:${o:- none}; want: $want"
 fi
-n="$(cd "$P/lib/opensearch" && find . -name 'netty-*.jar' | LC_ALL=C sort | tr '\n' ' ')"
+n="$(cd "$P/lib/opensearch" && find . -name 'netty-*.jar' ! -path './plugins/opensearch-ml/*' | LC_ALL=C sort | tr '\n' ' ')"
 nw="$(for a in netty-buffer netty-codec netty-codec-http netty-common netty-handler netty-resolver netty-transport netty-transport-native-unix-common; do printf './modules/transport-netty4/%s-%s.jar ' "$a" "$netty"; done)"
-if [ "$n" = "$nw" ]; then pass "netty $netty in modules/transport-netty4 (8 jars), no other netty"; else fail "netty: $n"; fi
+nm="$(cd "$P/lib/opensearch/plugins/opensearch-ml" 2>/dev/null && ls netty-*.jar | tr '\n' ' ')"
+if [ "$n" = "$nw" ]; then pass "netty $netty of the bundle in modules/transport-netty4 (8 jars), no other netty but that of the client of opensearch-ml: $nm"; else fail "netty: $n"; fi
 if [ "$(grep -v -e '^#' -e '^$' "$P/etc/opensearch/opensearch.yml.sample" | tr '\n' ' ')" = "path.data: /var/db/opensearch path.logs: /var/log/opensearch " ]; then
     pass "opensearch.yml.sample: path.data /var/db/opensearch, path.logs /var/log/opensearch, nothing else"
 else

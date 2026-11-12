@@ -20,43 +20,43 @@
 # matter): nothing unpacked or listed in OPENSEARCH_TMPDIR at a start.
 #
 # The plugins (aZ, 12.11.2026): those of the bundle, as the official port has
-# them (its option PLUGINS, on by default), without the ones that cannot run
-# on FreeBSD and those that need them:
+# them (its option PLUGINS, on by default) and as aZ's cluster of 2.17.1 runs
+# them (all 23, on ko41, ko44, ko48, ko56), so that a node of this port can take
+# the place of one of his in the same cluster; out only the security plugin and
+# what cannot run on FreeBSD, with what needs it:
 #   out: opensearch-security (aZ: not needed, connections without TLS and
-#        without passwords; out of the package entirely, with its tools and the
-#        demo certificates of its installer: OpenSearch runs without it, and
-#        the rc script refuses a start with a setting of it in opensearch.yml,
-#        such as the plugins.security.disabled: true of aZ's nodes, which
-#        OpenSearch would stop at as unknown), opensearch-knn (its engines
-#        are native libraries of Linux, faiss and nmslib with libgomp),
-#        opensearch-neural-search (it extends opensearch-knn and calls
-#        opensearch-ml), opensearch-performance-analyzer (Linux only: /proc,
-#        its agent), opensearch-ml (its local models are native code of Linux
-#        and Windows: ONNX Runtime, the tokenizers of DJL, PyTorch fetched at
-#        run time; 356 MB of the bundle), opensearch-skills (it extends
-#        opensearch-ml), opensearch-flow-framework (its workflows are made of
-#        the steps of opensearch-ml: connectors, models, agents);
+#        without passwords; his nodes run it with plugins.security.disabled:
+#        true; out of the package entirely, with its tools and the demo
+#        certificates of its installer: OpenSearch runs without it, and the rc
+#        script refuses a start with a setting of it in opensearch.yml, which
+#        OpenSearch would stop at as unknown), opensearch-knn (its engines faiss
+#        and nmslib are libraries of Linux, with libgomp, loaded through JNI,
+#        which a JVM of FreeBSD cannot load: an index of them would fail with an
+#        Error, which stops a node of OpenSearch), opensearch-neural-search (it
+#        extends opensearch-knn), opensearch-performance-analyzer (Linux only:
+#        /proc, /dev/shm and its agent);
 #   in:  opensearch-alerting, opensearch-anomaly-detection,
 #        opensearch-asynchronous-search, opensearch-cross-cluster-replication,
 #        opensearch-custom-codecs (its zstd codecs on the zstd-jni of the
-#        server, which has a library for FreeBSD; its QAT codecs need Intel
-#        QuickAssist and Linux and are not offered here),
-#        opensearch-geospatial, opensearch-index-management,
-#        opensearch-job-scheduler, opensearch-notifications,
+#        server, which has a library for FreeBSD amd64; its QAT codecs need
+#        Intel QuickAssist and Linux and are not offered here),
+#        opensearch-flow-framework, opensearch-geospatial,
+#        opensearch-index-management, opensearch-job-scheduler, opensearch-ml
+#        (it loads without native code: its remote models, connectors to
+#        outside services, run; its local models need ONNX Runtime, the
+#        tokenizers of DJL or PyTorch, native code of Linux, macOS and Windows,
+#        and cannot be deployed here; with its own netty 4.1.108.Final, of the
+#        client of the AWS SDK of its connectors), opensearch-notifications,
 #        opensearch-notifications-core, opensearch-observability,
 #        opensearch-reports-scheduler, opensearch-security-analytics,
-#        opensearch-sql, opensearch-system-templates, query-insights;
-#        the modules of the server all.
-# The netty of the transport-netty4 module (the HTTP and transport ports) is
-# 4.1.140.Final instead of the 4.1.112.Final of the bundle, its eight jars
-# from Maven Central: the fixes of netty-codec-http (request smuggling,
-# CVE-2025-58056, CVE-2026-50020 and the later advisories of 4.1.132 to
-# 4.1.140; memory exhaustion and decompression bombs, CVE-2025-58057 and
-# others) and of netty-buffer (out-of-bounds reads, 4.1.140) are in the code
-# that parses every request; the same minor line as upstream took for its
-# 2.19.x releases (4.1.139.Final in 2.19.7). No other jar of the bundle is
-# changed: the code of OpenSearch and its plugins is that of 2.17.1 (the fixes
-# of 2.18 and later in it cannot be applied to the bundle).
+#        opensearch-skills (it extends opensearch-ml), opensearch-sql,
+#        opensearch-system-templates, query-insights; the modules of the server
+#        all.
+# No jar of the bundle is changed (aZ, 12.11.2026: the fixes that newer jars of
+# the same lines would bring go to him as a list first): the code of OpenSearch,
+# its plugins and their libraries is that of 2.17.1 (the fixes of 2.18 and
+# later in it cannot be applied to the bundle); post-patch checks that the jars
+# of netty are those of the bundle this port was written for.
 #
 # No writes that are of no use (aZ, 11.11.2026, as for elasticsearch6): no
 # heap dump at an OutOfMemoryError (-XX:+ExitOnOutOfMemoryError instead), no GC
@@ -87,13 +87,8 @@ DISTVERSION=	2.17.1
 DISTVERSIONSUFFIX=	-linux-x64
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	textproc java devel
-MASTER_SITES=	https://artifacts.opensearch.org/releases/bundle/${PORTNAME}/${DISTVERSION}/ \
-		https://repo1.maven.org/maven2/io/netty/:netty \
-		https://maven-central.storage-download.googleapis.com/maven2/io/netty/:netty
+MASTER_SITES=	https://artifacts.opensearch.org/releases/bundle/${PORTNAME}/${DISTVERSION}/
 PKGNAMESUFFIX=	217
-DISTFILES=	${DISTNAME}${EXTRACT_SUFX} \
-		${NETTY_JARS:@j@${j}/${NETTY_VERSION}/${j}-${NETTY_VERSION}.jar:netty@}
-EXTRACT_ONLY=	${DISTNAME}${EXTRACT_SUFX}
 
 MAINTAINER=	github@azsupport.com
 COMMENT=	Full-text search engine for Java (of azsupport/ports)
@@ -139,23 +134,32 @@ OPENSEARCH_PLUGINS= \
 		opensearch-alerting opensearch-anomaly-detection \
 		opensearch-asynchronous-search \
 		opensearch-cross-cluster-replication opensearch-custom-codecs \
-		opensearch-geospatial opensearch-index-management \
-		opensearch-job-scheduler opensearch-notifications \
+		opensearch-flow-framework opensearch-geospatial \
+		opensearch-index-management opensearch-job-scheduler \
+		opensearch-ml opensearch-notifications \
 		opensearch-notifications-core opensearch-observability \
 		opensearch-reports-scheduler opensearch-security-analytics \
-		opensearch-sql opensearch-system-templates query-insights
+		opensearch-skills opensearch-sql opensearch-system-templates \
+		query-insights
 OPENSEARCH_PLUGINS_OUT= \
-		opensearch-flow-framework opensearch-knn opensearch-ml \
-		opensearch-neural-search opensearch-performance-analyzer \
-		opensearch-security opensearch-skills
+		opensearch-knn opensearch-neural-search \
+		opensearch-performance-analyzer opensearch-security
 
-# the jars of netty in modules/transport-netty4: those of the bundle, and the
-# version of netty in their place (above)
+# the jars of netty of the bundle: those of modules/transport-netty4 (the HTTP
+# and transport ports), and those of opensearch-ml (the client of the AWS SDK of
+# its connectors)
 NETTY_JARS=	netty-buffer netty-codec netty-codec-http netty-common \
 		netty-handler netty-resolver netty-transport \
 		netty-transport-native-unix-common
 NETTY_BUNDLED=	4.1.112.Final
-NETTY_VERSION=	4.1.140.Final
+NETTY_ML=	netty-buffer-4.1.108.Final.jar netty-codec-4.1.108.Final.jar \
+		netty-codec-http-4.1.108.Final.jar \
+		netty-codec-http2-4.1.108.Final.jar \
+		netty-common-4.1.108.Final.jar netty-handler-4.1.108.Final.jar \
+		netty-nio-client-2.25.40.jar netty-resolver-4.1.108.Final.jar \
+		netty-transport-4.1.108.Final.jar \
+		netty-transport-classes-epoll-4.1.108.Final.jar \
+		netty-transport-native-unix-common-4.1.108.Final.jar
 
 # the appenders and loggers of the config/log4j2.properties of the tarball
 OS_LOG4J=	appender.console appender.deprecation_rolling \
@@ -193,19 +197,10 @@ post-patch:
 		[ "$$(cd ${WRKSRC}/config && ${FIND} . -type f ! -name '*.orig' ! -name '*.bak' | ${SED} 's|^\./||' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "$$(echo ${CONFIG_FILES} ${PLUGINS_CONFIG_FILES} | ${TR} ' ' '\n' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" ] && \
 		[ -z "$$(${FIND} ${WRKSRC}/lib ${WRKSRC}/modules ${WRKSRC}/plugins \( -name '*.so' -o -name '*.so.*' -o -name '*.dylib' -o -name '*.dll' -o -name '*.sh' -o -type l \) -print)" ] || \
 		{ ${ECHO_MSG} "plugins and config after the removal: not those of the port: $$(cd ${WRKSRC}/plugins && ls | ${TR} '\n' ' '); config: $$(cd ${WRKSRC}/config && ${FIND} . -type f | ${TR} '\n' ' ')"; ${FALSE}; }
-	# netty of modules/transport-netty4: the jars of the bundle out, those of
-	# NETTY_VERSION in their place (the distribution files of the group netty)
+	# netty: the jars of the bundle this port was written for (above)
 	@[ "$$(cd ${WRKSRC}/modules/transport-netty4 && LC_ALL=C ls netty-*.jar | ${TR} '\n' ' ')" = "${NETTY_JARS:O:S/$/-${NETTY_BUNDLED}.jar/} " ] && \
-		[ -z "$$(${FIND} ${WRKSRC}/lib ${WRKSRC}/plugins ${WRKSRC}/modules -name 'netty-*.jar' ! -path '*/modules/transport-netty4/*' -print)" ] || \
+		[ "$$(cd ${WRKSRC} && ${FIND} lib plugins modules -name 'netty-*.jar' ! -path 'modules/transport-netty4/*' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "${NETTY_ML:O:S|^|plugins/opensearch-ml/|} " ] || \
 		{ ${ECHO_MSG} "netty of the bundle: not the jars this port was written for: $$(${FIND} ${WRKSRC} -name 'netty-*.jar' | ${SED} 's|^${WRKSRC}/||' | ${TR} '\n' ' ')"; ${FALSE}; }
-.for j in ${NETTY_JARS}
-	@${RM} ${WRKSRC}/modules/transport-netty4/${j}-${NETTY_BUNDLED}.jar
-	@${CP} ${DISTDIR}/${j}/${NETTY_VERSION}/${j}-${NETTY_VERSION}.jar ${WRKSRC}/modules/transport-netty4/
-.endfor
-	@cd ${WRKSRC}/modules/transport-netty4 && bad="" && \
-		for j in netty-*.jar; do ${UNZIP_NATIVE_CMD} -t $$j > /dev/null 2>&1 || bad="$$bad $$j"; done && \
-		[ "$$(LC_ALL=C ls netty-*.jar | ${TR} '\n' ' ')" = "${NETTY_JARS:O:S/$/-${NETTY_VERSION}.jar/} " ] && [ -z "$$bad" ] || \
-		{ ${ECHO_MSG} "modules/transport-netty4: not the jars of netty ${NETTY_VERSION} alone ($$(ls ${WRKSRC}/modules/transport-netty4 | ${TR} '\n' ' ')), or not whole zips:$$bad"; ${FALSE}; }
 	# the JNA of devel/jna instead (do-install)
 	@[ "$$(cd ${WRKSRC}/lib && ls jna-*.jar)" = "jna-5.13.0.jar" ] || \
 		{ ${ECHO_MSG} "lib: not the jna-5.13.0.jar this port was written for: $$(cd ${WRKSRC}/lib && ls jna*)"; ${FALSE}; }
@@ -308,15 +303,15 @@ do-install:
 
 post-install:
 	# JNA: a link to the jna.jar of devel/jna, no other JNA; the plugins and the
-	# netty of the port; the rc script on the OpenJDK 17 of the dependency (its
+	# netty of the bundle; the rc script on the OpenJDK 17 of the dependency (its
 	# file of the work directory: install-rc-script puts it into the stage
 	# directory after post-install)
 	@[ "$$(readlink ${STAGEDIR}${PREFIX}/lib/opensearch/lib/jna.jar)" = "${JAVAJARDIR}/jna.jar" ] && \
 		! ls ${STAGEDIR}${PREFIX}/lib/opensearch/lib/jna-*.jar > /dev/null 2>&1 || \
 		{ ${ECHO_MSG} "lib/jna.jar is not the link to ${JAVAJARDIR}/jna.jar alone"; ${FALSE}; }
 	@[ "$$(cd ${STAGEDIR}${PREFIX}/lib/opensearch/plugins && ls | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "$$(echo ${OPENSEARCH_PLUGINS} | ${TR} ' ' '\n' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" ] && \
-		[ "$$(cd ${STAGEDIR}${PREFIX}/lib/opensearch && ${FIND} . -name 'netty-*.jar' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "$$(for j in ${NETTY_JARS:O}; do printf './modules/transport-netty4/%s-${NETTY_VERSION}.jar ' $$j; done)" ] || \
-		{ ${ECHO_MSG} "lib/opensearch: not the plugins or the netty of the port"; ${FALSE}; }
+		[ "$$(cd ${STAGEDIR}${PREFIX}/lib/opensearch && ${FIND} . -name 'netty-*.jar' | LC_ALL=C ${SORT} | ${TR} '\n' ' ')" = "$$(for j in ${NETTY_JARS:O}; do printf './modules/transport-netty4/%s-${NETTY_BUNDLED}.jar ' $$j; done)${NETTY_ML:O:S|^|./plugins/opensearch-ml/|} " ] || \
+		{ ${ECHO_MSG} "lib/opensearch: not the plugins of the port or the netty of the bundle"; ${FALSE}; }
 	@[ "${JAVA_HOME}" = "${LOCALBASE}/openjdk17" ] && \
 		${GREP} -q 'opensearch_java_home="${LOCALBASE}/openjdk17"' ${WRKDIR}/opensearch || \
 		{ ${ECHO_MSG} "rc.d/opensearch: opensearch_java_home is not ${LOCALBASE}/openjdk17 (JAVA_HOME ${JAVA_HOME})"; ${FALSE}; }
