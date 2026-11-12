@@ -1,0 +1,21 @@
+bash53-019 (commit 549639c) made legal_variable_starter() and legal_variable_char() of
+general.h index sh_syntaxtab[] directly, without the (unsigned char) cast of the
+macros of syntax.h: parameter_brace_expand() of subst.c passes a signed char, so a
+byte 0x80-0xFF in ${...} (a Cyrillic letter in UTF-8, say) read before the start of
+the table. The workaround of Abderrahmane Sebban (bug-bash, 07.10.2026) as openSUSE
+Tumbleweed carries it (bash-5.3.19-workaround.patch), until an official patch of
+bash 5.3 fixes it; bash53-020 does not touch general.h.
+
+--- general.h
++++ general.h	2026-10-07 09:20:53.702367002 +0000
+@@ -117,8 +117,8 @@ extern char *strcpy (char *, const char
+ #define legal_variable_starter(c) (c < 128 && (ISALPHA(c) || c == '_'))
+ #define legal_variable_char(c)	(c < 128 && (ISALNUM(c) || c == '_'))
+ #else
+-#define legal_variable_starter(c) (sh_syntaxtab[c] & CNAMESTART)
+-#define legal_variable_char(c)	(sh_syntaxtab[c] & CNAME)
++#define legal_variable_starter(c) (sh_syntaxtab[(unsigned char)(c)] & CNAMESTART)
++#define legal_variable_char(c)	(sh_syntaxtab[(unsigned char)(c)] & CNAME)
+ #endif
+ 
+ /* Definitions used in subst.c and by the `read' builtin for field
