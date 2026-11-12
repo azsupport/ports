@@ -18,7 +18,9 @@
 # cd of a panel, a command at mc's command line, the user menu and a command in Ctrl-O
 # (subshell-tcsh-quiet: only the typed commands in "history" and ~/.history, the
 # directories in the Dir Hist of mc's history file), num_history_items_recorded=1000 in
-# a new ~/.config/mc/ini (history-items-1000). Checked by hand only (no
+# a new ~/.config/mc/ini (history-items-1000), F5 inside a ZFS pool on an md device
+# clones the blocks, not with file_cloning=false, a copy to another file system is
+# whole (copy-clone-1). Checked by hand only (no
 # server or shell for them here): ftp-reconnect, ftp-netrc-password (an FTP server
 # with an idle timeout and ~/.netrc), subshell-fd (dash, ksh, mksh), mouse-drag-crash
 # (a drag below a panel that is not full); parse-ls-short-name has no visible effect.
@@ -359,6 +361,83 @@ if [ -x "$bash" ]; then
 else
     echo "skip  the prompt of bash with a byte that is not UTF-8: no $bash" >> "$out"
 fi
+# copy-clone-1.patch: F5 of a file of 40 MB inside a ZFS pool (on a file of 256 MB, an
+# md device; kldload zfs) clones its blocks (copy_file_range with COPY_FILE_RANGE_CLONE):
+# bcloneused of the pool grows by the copy, cmp finds it identical; with
+# file_cloning=false in ~/.config/mc/ini bcloneused stays, the copy identical; a copy to
+# another file system identical, mc without an error; a Reget onto a part of the file
+# that is not aligned to the blocks (copy-clone-2-reget). Pool and md device go after.
+# clone_copy <name> <to dir>: F5 of zp/s/src.bin into the dir (the other panel)
+clone_copy() {
+    keys_run "$T/$1.typescript" "sleep 3; printf '$down'; sleep 0.5; printf '\033[15~'; sleep 1.5; printf '$enter';
+        sleep 6; printf '$f10'; sleep 2" "$mc" -u "$T/zp/s" "$2"
+}
+# ini_cloning <true|false>: file_cloning in the ini of mc (written at its exits above)
+ini_cloning() {
+    _ini="$HOME/.config/mc/ini"
+    if grep -q '^file_cloning=' "$_ini" 2> /dev/null; then
+        sed -i '' "s/^file_cloning=.*/file_cloning=$1/" "$_ini"
+    else
+        mkdir -p "${_ini%/*}"
+        { echo "[Midnight-Commander]"; echo "file_cloning=$1"; } >> "$_ini"
+    fi
+}
+bclone() { zpool get -Hp -o value bcloneused "$pool" 2> /dev/null; }
+pool="mctest$$" md="" ctmp="/tmp/mc-test-clone.$$"
+if ! kldload -n zfs 2> "$T/zfs.err"; then
+    fail "file cloning: kldload zfs: $(head -n 1 "$T/zfs.err")"
+elif ! truncate -s 256m "$T/zpool.img" || ! md="$(mdconfig -a -t vnode -f "$T/zpool.img" 2> "$T/zfs.err")"; then
+    fail "file cloning: no md device on $T/zpool.img: $(head -n 1 "$T/zfs.err")"
+elif ! zpool create -f -O mountpoint="$T/zp" -O atime=off "$pool" "/dev/$md" 2> "$T/zfs.err"; then
+    fail "file cloning: zpool create on /dev/$md: $(head -n 1 "$T/zfs.err")"
+else
+    be="$(sysctl -n vfs.zfs.bclone_enabled 2> /dev/null)"
+    mkdir -p "$T/zp/s" "$T/zp/c1" "$T/zp/c2" "$ctmp"
+    dd if=/dev/random of="$T/zp/s/src.bin" bs=1m count=40 2> /dev/null
+    zpool sync "$pool"
+    ini_cloning true
+    b0="$(bclone)"
+    clone_copy cl1 "$T/zp/c1"
+    zpool sync "$pool"
+    b1="$(bclone)"
+    if [ "$keys_exit" = 0 ] && cmp -s "$T/zp/s/src.bin" "$T/zp/c1/src.bin" && [ $(( b1 - b0 )) -ge 40000000 ]; then
+        pass "file cloning on ZFS (vfs.zfs.bclone_enabled=$be): F5 cloned 40 MB, bcloneused +$(( b1 - b0 )), the copy identical"
+    else
+        fail "file cloning on ZFS (vfs.zfs.bclone_enabled=$be): exit $keys_exit, bcloneused $b0 -> $b1, cmp: $(cmp "$T/zp/s/src.bin" "$T/zp/c1/src.bin" 2>&1 | head -n 1)"
+    fi
+    # copy-clone-2-reget.patch: a Reget onto a part of 20 MB and 1000 bytes (not aligned to
+    # the blocks: the clone of the rest fails, mc appends instead, with O_WRONLY now)
+    mkdir -p "$T/zp/c3"
+    head -c 20972520 "$T/zp/s/src.bin" > "$T/zp/c3/src.bin"
+    keys_run "$T/cl-rg.typescript" "sleep 3; printf '$down'; sleep 0.5; printf '\033[15~'; sleep 1.5; printf '$enter';
+        sleep 2; printf r; sleep 6; printf '$f10'; sleep 2" "$mc" -u "$T/zp/s" "$T/zp/c3"
+    if [ "$keys_exit" = 0 ] && cmp -s "$T/zp/s/src.bin" "$T/zp/c3/src.bin"; then
+        pass "file cloning on: Reget onto 20 MB and 1000 bytes of the 40 MB, the copy identical"
+    else
+        fail "file cloning on, Reget onto a part that is not aligned: exit $keys_exit, size $(wc -c < "$T/zp/c3/src.bin" | tr -d ' '), cmp: $(cmp "$T/zp/s/src.bin" "$T/zp/c3/src.bin" 2>&1 | head -n 1): $(grep -m 1 -i -E 'cannot|bad file' "$T/cl-rg.typescript.txt")"
+    fi
+    zpool sync "$pool"
+    b1="$(bclone)"
+    ini_cloning false
+    clone_copy cl2 "$T/zp/c2"
+    zpool sync "$pool"
+    b2="$(bclone)"
+    if [ "$keys_exit" = 0 ] && cmp -s "$T/zp/s/src.bin" "$T/zp/c2/src.bin" && [ $(( b2 - b1 )) -lt 1000000 ]; then
+        pass "file_cloning=false: F5 copied 40 MB without cloning (bcloneused +$(( b2 - b1 ))), the copy identical"
+    else
+        fail "file_cloning=false: exit $keys_exit, bcloneused $b1 -> $b2, cmp: $(cmp "$T/zp/s/src.bin" "$T/zp/c2/src.bin" 2>&1 | head -n 1)"
+    fi
+    ini_cloning true
+    clone_copy cl3 "$ctmp"
+    if [ "$keys_exit" = 0 ] && cmp -s "$T/zp/s/src.bin" "$ctmp/src.bin" && ! grep -q -i 'cannot' "$T/cl3.typescript.txt"; then
+        pass "file cloning on: F5 from the pool to $ctmp (another file system) copied 40 MB, identical, no error"
+    else
+        fail "file cloning on, F5 to another file system: exit $keys_exit, cmp: $(cmp "$T/zp/s/src.bin" "$ctmp/src.bin" 2>&1 | head -n 1): $(grep -m 1 -i 'cannot' "$T/cl3.typescript.txt")"
+    fi
+fi
+zpool destroy -f "$pool" 2> /dev/null
+[ -n "$md" ] && mdconfig -d -u "$md" 2> /dev/null
+rm -rf "$T/zpool.img" "$T/zp" "$ctmp"
 # history-items-1000.patch: the ini of mc, written at its exits above into a new HOME
 if grep -q -x 'num_history_items_recorded=1000' "$HOME/.config/mc/ini" 2> /dev/null; then
     pass "a new ~/.config/mc/ini has num_history_items_recorded=1000"
