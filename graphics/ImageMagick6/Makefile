@@ -51,6 +51,12 @@ EXTRACT_ONLY=
 .include "${.CURDIR:H:H}/az/az/Makefile.common"
 
 AZ_IM_ENV=	AZ_IM_CONF=${.CURDIR:H}/ImageMagick7/files/imagemagick.conf
+# the conf (im, take and configure lines of both) and the policy of
+# graphics/ImageMagick7, one copy for both, which tools/imagemagick-build.sh reads
+# for ImageMagick 6 too: in its az_hash (tools/build.sh), so that a change of them
+# builds it again
+AZ_HASH_FILES=	${.CURDIR:H}/ImageMagick7/files/imagemagick.conf \
+		${.CURDIR:H}/ImageMagick7/files/policy.xml
 
 post-fetch:
 	@${SETENV} ${AZ_ENV} ${AZ_IM_ENV} ${SH} ${AZ_TOOLS}/imagemagick-build.sh --fetch imagemagick6

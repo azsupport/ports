@@ -640,7 +640,10 @@ As poudriere: each port that a run builds gets `AZ_STAMP` (the hour of the start
 the run, `yymmddhh` UTC) as its `PORTREVISION`, so that each build is an upgrade for
 pkg (`php74-7.4.33_26110817`), and `AZ_HASH`, which goes into the package as the
 annotation `az_hash` (`pkg info -A php74`): the SHA-256 of the files of the port (with
-those of its `MASTERDIR`), of the makefiles of `Mk/` of this tree it reads
+those of its `MASTERDIR`, of its `EXTRA_PATCHES` and `AZ_HASH_FILES` in this tree: the
+files of the directory of another port its build reads, `graphics/ImageMagick6` the
+`imagemagick.conf` and `policy.xml` of `graphics/ImageMagick7`), of the makefiles of
+`Mk/` of this tree it reads
 (`Mk/bsd.overlay.mk`; `Mk/Uses/php.mk` only for the PHP ports), of the official commit,
 the level, `tools/make.conf.in` and the way the builder builds (`builder chroot`: each
 port in a chroot of its own; every port was built again once for it, 11.11.2026), and
@@ -689,6 +692,20 @@ names them in `AZ_STATIC_LIBS` (the content hash of those libraries, archives to
 into its `az_hash`); [`tools/check-tree.sh`](tools/check-tree.sh) asks for
 `AZ_STATIC_LIBS` of a port whose dependencies name a file of the static tree, and
 `tools/build.sh` builds every other port without the archives of az in its chroot.
+
+The files of the directory of another port that a build reads:
+[`tools/check-tree.sh`](tools/check-tree.sh) evaluates with `make` the paths the
+makefiles of this tree a port reads name from its directory upward (`${.CURDIR:H}...`,
+`${.CURDIR}/..`: the value of the variable of such a line, so that a branch not taken does
+not count, or the expression of a line of a target); one outside its directory, `Mk/`
+and `tools/`, and not in its hash (its `MASTERDIR`, `FILESDIR`, `PATCHDIR`, `PKGDIR`,
+`DISTINFO_FILE`, `EXTRA_PATCHES`, the makefiles it reads, `AZ_HASH_FILES`) is a FAIL: the
+port names it in `AZ_HASH_FILES`. Two such reads go into no package and stay out of the
+hashes: `az/az/files/deps.conf` (`AZ_DEPS_CONF` of `az/az/Makefile.common`: its line
+`ports` only, the official commit, in the base of every hash) and the `pkg-plist` of
+`databases/mariadb1011-client`, which the server takes as `@comment` lines. A path a script
+of `tools/` makes itself is not seen there (the `policy.xml` next to the conf of
+`imagemagick-build.sh`): the port names it too.
 
 Nothing slips by unseen:
 

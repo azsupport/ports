@@ -58,7 +58,9 @@
 #   and the other makefiles of Mk/ of this tree it reads: Mk/Uses/php.mk for the PHP
 #   ports, not for az/az; the files of tools/ its makefiles name outside their
 #   comments, and those these name: tools/az-build.sh of az/az; the files of this tree
-#   its EXTRA_PATCHES name), of the official commit, the level and tools/make.conf.in,
+#   its EXTRA_PATCHES and AZ_HASH_FILES name: files of the directory of another port its
+#   build reads, tools/check-tree.sh), of the official commit, the level and
+#   tools/make.conf.in,
 #   and of the hash of each port of this tree it needs (so a change of a port builds
 #   again what needs it), but of az/az the interface hashes of the libraries of az the
 #   port uses and of those they need (aZ, 12.11.2026: the manifests of the package of
@@ -526,7 +528,7 @@ tool_official() {
 # (lines: 1 PKGNAME, 2 IGNORE, 3-9 FETCH_ EXTRACT_ PATCH_ BUILD_ LIB_ RUN_ PKG_DEPENDS,
 # 10 NEED_ROOT, 11 MASTERDIR, 12 FILESDIR, 13 PATCHDIR, 14 PKGDIR, 15 DISTINFO_FILE,
 # 16 .MAKE.MAKEFILES, 17 AZ_HASH_NOT_FOR_DEPENDENTS, 18 AZ_HASH_LIBS, 19 FLAVOR,
-# 20 AZ_STATIC_LIBS, 21 EXTRA_PATCHES, 22 AZ_PREFIX, 23 AZ_STATIC); our
+# 20 AZ_STATIC_LIBS, 21 EXTRA_PATCHES, 22 AZ_PREFIX, 23 AZ_STATIC, 24 AZ_HASH_FILES); our
 # dependencies into $q/deps/<key> (all kinds) and
 # $q/rdeps/<key> (LIB_ and RUN_DEPENDS: what pkg add of its package needs), the
 # official ones into $q/odeps/<key> and $q/orun/<key>; the origins of this tree it gets
@@ -541,7 +543,7 @@ port_info() {
             -V PATCH_DEPENDS -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS -V NEED_ROOT \
             -V MASTERDIR -V FILESDIR -V PATCHDIR -V PKGDIR -V DISTINFO_FILE -V .MAKE.MAKEFILES \
             -V AZ_HASH_NOT_FOR_DEPENDENTS -V AZ_HASH_LIBS -V FLAVOR -V AZ_STATIC_LIBS -V EXTRA_PATCHES \
-            -V AZ_PREFIX -V AZ_STATIC > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
+            -V AZ_PREFIX -V AZ_STATIC -V AZ_HASH_FILES > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
         echo "make -V failed: $(grep . "$q/info/$_k.err" | head -n 1)" > "$q/info/$_k.bad"
         return 1
     fi
@@ -572,7 +574,10 @@ port_info() {
 # port_files <origin>: the files of this tree a port is built from, "f <path relative
 # to the tree> <sha256>" a line each: those of its directory, of its MASTERDIR,
 # FILESDIR, PATCHDIR, PKGDIR and DISTINFO_FILE, the files of this tree its EXTRA_PATCHES
-# name, and the makefiles of this tree it reads
+# name and those of AZ_HASH_FILES (files, or directories: their files; the files of
+# the directory of another port its build reads, which tools/check-tree.sh asks for:
+# graphics/ImageMagick6 the conf and policy of graphics/ImageMagick7), and the
+# makefiles of this tree it reads
 # (.MAKE.MAKEFILES: Mk/bsd.overlay.mk, which every port reads, taken also when make
 # does not say; Mk/Uses/php.mk only by the ports that read it); and the files of
 # tools/ that the lines of those makefiles name outside their comments
@@ -590,10 +595,13 @@ tree_file() {
 # tools_named <file>...: the files of tools/ of this tree that the files name
 # (tools/<name>, ${AZ_TOOLS}/<name>; a dot that ends a sentence is not of the name);
 # tools_named_mk the same for makefiles, their comments (from # to the end of the
-# line) left out
+# line) left out. Never tools/build.sh, the builder itself, which no build of a port
+# runs (what of it can change a package is the line "builder ..." of the base of every
+# hash): a script that names it, in a comment too (tools/mc-build.sh, 12.11.2026), put
+# it into the hash of its port, which every change of the builder then built again
 tools_names() {
     grep -o -E '(tools|AZ_TOOLS[})]?)/[A-Za-z0-9_.-]+' | sed -E 's#^[^/]*/#tools/#; s/\.+$//' | LC_ALL=C sort -u |
-        while read -r _n; do [ -f "$topr/$_n" ] && echo "$topr/$_n"; done
+        grep -v -x 'tools/build\.sh' | while read -r _n; do [ -f "$topr/$_n" ] && echo "$topr/$_n"; done
 }
 tools_named() {
     [ $# -gt 0 ] || return 0
@@ -621,6 +629,10 @@ port_files() {
         for _p in $(sed -n 21p "$q/info/$_k"); do
             _p="${_p%%:*}"
             [ -f "$_p" ] && echo "$_p"
+        done
+        # AZ_HASH_FILES: files of the directory of another port its build reads
+        for _p in $(sed -n 24p "$q/info/$_k"); do
+            if [ -d "$_p" ]; then files_in "$_p"; elif [ -f "$_p" ]; then echo "$_p"; fi
         done
     } 2> /dev/null | while read -r _f; do realpath "$_f" 2> /dev/null; done | LC_ALL=C sort -u |
         while read -r _f; do tree_file "$_f" && echo "$_f"; done > "$q/files-$_k"

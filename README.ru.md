@@ -615,7 +615,10 @@ env AZ_CONFIGURE_CHECK=1 sh tools/build.sh --force
 прогона, `yymmddhh` UTC) как `PORTREVISION`, чтобы каждая сборка была для pkg
 обновлением (`php74-7.4.33_26110817`), и `AZ_HASH`, который попадает в пакет
 аннотацией `az_hash` (`pkg info -A php74`): SHA-256 файлов порта (с файлами его
-`MASTERDIR`), makefile из `Mk/` этого дерева, которые он читает (`Mk/bsd.overlay.mk`;
+`MASTERDIR`, его `EXTRA_PATCHES` и `AZ_HASH_FILES` в этом дереве: файлы каталога другого
+порта, которые читает его сборка, — у `graphics/ImageMagick6` это `imagemagick.conf` и
+`policy.xml` из `graphics/ImageMagick7`), makefile из `Mk/` этого дерева, которые он
+читает (`Mk/bsd.overlay.mk`;
 `Mk/Uses/php.mk` — только у портов PHP), официального коммита, уровня,
 `tools/make.conf.in` и способа сборки (`builder chroot`: каждый порт в своём chroot; ради
 этого все порты один раз пересобраны, 11.11.2026), и `az_hash` каждого порта этого
@@ -663,6 +666,20 @@ SONAME, версия и опции) пересобирает только az; н
 библиотек, с архивами); [`tools/check-tree.sh`](tools/check-tree.sh) требует
 `AZ_STATIC_LIBS` от порта, чьи зависимости называют файл статического дерева, а
 `tools/build.sh` собирает все остальные порты без архивов az в их chroot.
+
+Файлы каталога другого порта, которые читает сборка:
+[`tools/check-tree.sh`](tools/check-tree.sh) вычисляет через `make` пути, которые
+makefile этого дерева, читаемые портом, называют от его каталога вверх
+(`${.CURDIR:H}...`, `${.CURDIR}/..`: значение переменной такой строки, чтобы не считалась
+ветка, которая не выполняется, или выражение строки цели); путь вне его каталога, `Mk/` и
+`tools/`, которого нет в его хеше (его `MASTERDIR`, `FILESDIR`, `PATCHDIR`, `PKGDIR`,
+`DISTINFO_FILE`, `EXTRA_PATCHES`, makefile, которые он читает, `AZ_HASH_FILES`), — FAIL:
+порт называет его в `AZ_HASH_FILES`. Два таких чтения не попадают ни в какой пакет и в хеши
+не входят: `az/az/files/deps.conf` (`AZ_DEPS_CONF` из `az/az/Makefile.common`: только его
+строка `ports`, официальный коммит, — он в основе каждого хеша) и `pkg-plist` порта
+`databases/mariadb1011-client`, который сервер берёт строками `@comment`. Путь, который
+скрипт из `tools/` строит сам, там не виден (`policy.xml` рядом с конфигом у
+`imagemagick-build.sh`): его порт называет тоже.
 
 Ничего не проходит незамеченным:
 
