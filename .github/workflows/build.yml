@@ -381,8 +381,12 @@ jobs:
           path: repo
           key: repo-${{ matrix.cputype }}-${{ github.run_id }}-${{ github.run_attempt }}
 
+      # by a run of main alone: a branch reads those of main and fetches what it adds, while
+      # a copy of its own (3.5 GB, its distinfo differs) pushed the repository of packages of
+      # main out of the 10 GB of the caches of the repository (13.11.2026: the run of a
+      # branch then found no packages of main and built its ports from nothing)
       - name: The distribution files, kept for the next run
-        if: ${{ always() && steps.build.outcome != 'skipped' && steps.dist.outputs.cache-hit != 'true' && hashFiles('distfiles/**') != '' }}
+        if: ${{ always() && github.ref_name == github.event.repository.default_branch && steps.build.outcome != 'skipped' && steps.dist.outputs.cache-hit != 'true' && hashFiles('distfiles/**') != '' }}
         continue-on-error: true
         uses: actions/cache/save@v4
         with:
