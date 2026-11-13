@@ -1677,9 +1677,11 @@ lib/node_modules/npm/node_modules/postcss-selector-parser/dist/selectors/univers
 lib/node_modules/npm/node_modules/postcss-selector-parser/dist/sortAscending.js
 lib/node_modules/npm/node_modules/postcss-selector-parser/dist/tokenTypes.js
 lib/node_modules/npm/node_modules/postcss-selector-parser/dist/tokenize.js
+lib/node_modules/npm/node_modules/postcss-selector-parser/dist/util/cssesc.js
 lib/node_modules/npm/node_modules/postcss-selector-parser/dist/util/ensureObject.js
 lib/node_modules/npm/node_modules/postcss-selector-parser/dist/util/getProp.js
 lib/node_modules/npm/node_modules/postcss-selector-parser/dist/util/index.js
+lib/node_modules/npm/node_modules/postcss-selector-parser/dist/util/maxNestingDepth.js
 lib/node_modules/npm/node_modules/postcss-selector-parser/dist/util/stripComments.js
 lib/node_modules/npm/node_modules/postcss-selector-parser/dist/util/unesc.js
 lib/node_modules/npm/node_modules/postcss-selector-parser/package.json

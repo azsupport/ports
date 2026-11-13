@@ -14,18 +14,42 @@
 # The vulnerabilities of what npm 10.9.10 bundles (the audit database of the
 # registry, 13.11.2026; no npm 10.x release has their fixes): CVE-2026-9496 of its
 # pacote 19.0.3 and of the pacote 20.0.1 of @npmcli/metavuln-calculator (fixed in
-# pacote 21.5.1) by files/patch-CVE-2026-9496; brace-expansion 2.0.2
-# (CVE-2026-33750, CVE-2026-13149, CVE-2026-14257, CVE-2026-69152, CVE-2026-102276,
-# CVE-2026-102277, CVE-2026-102278; fixed in 2.1.7) and ip-address 10.1.0
-# (CVE-2026-42338, CVE-2026-69192, CVE-2026-101911, CVE-2026-101912,
-# CVE-2026-101913, CVE-2026-111997; fixed in 10.7.4) replaced by the newest of their
-# major versions, of the registry: brace-expansion 2.1.8 (what the minimatch 9.0.9
-# of npm takes, ^2.0.2; it also bounds the work of one expansion, which 2.1.7 does
-# not) and ip-address 10.7.6 (what socks 2.8.7 takes, ^10.0.1), with the files npm
-# keeps of a bundled dependency (the node_modules/.gitignore of npm/cli: no README*,
-# *.ts, *.map), which are the files of those npm bundles: the plist is the same.
-# npm 12.2.2 of npm-node24 has none of them (pacote 22.0.1, brace-expansion 5.0.12,
-# ip-address 10.7.5).
+# pacote 21.5.1) by files/patch-CVE-2026-9496; four bundled dependencies replaced
+# by a newer release of the same major version, of the registry, which the
+# packages of npm that take them take by their ranges, with the files npm keeps of
+# a bundled dependency (the node_modules/.gitignore of npm/cli: no README*,
+# CHANGELOG*, *.ts, *.map):
+#   brace-expansion 2.0.2 (CVE-2026-33750, CVE-2026-13149, CVE-2026-14257,
+#     CVE-2026-69152, CVE-2026-102276, CVE-2026-102277, CVE-2026-102278; fixed in
+#     2.1.7): 2.1.8, the newest 2.x, for minimatch 9.0.9 (^2.0.2); it also bounds
+#     the work of one expansion, which 2.1.7 does not
+#   ip-address 10.1.0 (CVE-2026-42338, CVE-2026-69192, CVE-2026-101911,
+#     CVE-2026-101912, CVE-2026-101913, CVE-2026-111997; fixed in 10.7.4): 10.7.6,
+#     the newest 10.x, for socks 2.8.7 (^10.0.1)
+#   picomatch 4.0.3 (CVE-2026-33671, CVE-2026-33672; fixed in 4.0.4): 4.0.7, the
+#     newest 4.x, for tinyglobby 0.2.15 (^4.0.3; the globs of node-gyp) and fdir
+#     6.5.0; 4.0.5 gives back the branches that the ReDoS fix of 4.0.4 dropped
+#     from a repeated extglob (+(*(a)|*(b)) matched no b)
+#   postcss-selector-parser 7.1.1 (CVE-2026-9358, CVE-2026-104844; fixed in 7.1.6):
+#     7.1.8, the newest 7.1.x, for @npmcli/query 4.0.1 (^7.0.0; npm query): it
+#     closes one more CPU exhaustion (GHSA-67xj-gfww-g738 of its changelog, not in
+#     the audit database yet) and has its own copy of cssesc (the cssesc npm
+#     bundles stays, with its bin); not 7.2.x, which adds features and changes
+#     behaviour (7.2.0 escaped class and id values, which 7.2.1 took back)
+# The plist is that of npm 10.9.10 with the two files postcss-selector-parser 7.1.8
+# adds (dist/util/cssesc.js, dist/util/maxNestingDepth.js).
+# Not taken: what has its fix only in a new major version, outside the ranges of
+# the packages of npm that take it: glob 10.5.0 (CVE-2026-118773, fixed in 14.0.2,
+# which takes minimatch 11 and path-scurry 3; npm ^10.5.0, cacache,
+# @npmcli/package-json and @npmcli/map-workspaces ^10.2.2), minimatch 9.0.9
+# (CVE-2026-118764, fixed in 11.0.1, which takes brace-expansion 5; npm ^9.0.9, its
+# glob, @npmcli/arborist, ignore-walk, libnpmdiff and the others ^9), sigstore
+# 3.1.0 (CVE-2026-48815, fixed in 4.1.1, which needs Node ^20.17.0 || >=22.9.0;
+# pacote and libnpmpublish ^3.0.0) and @sigstore/core 2.0.0 (CVE-2026-48758, fixed
+# in 3.2.1, the same Node; sigstore 3, @sigstore/sign and @sigstore/verify ^2.0.0).
+# npm 12.2.2 of npm-node24 has none of these but glob and minimatch (pacote 22.0.1,
+# brace-expansion 5.0.12, ip-address 10.7.5, picomatch and postcss-selector-parser
+# without an advisory).
 
 PORTNAME=	npm
 PORTVERSION=	10.9.10
@@ -33,11 +57,15 @@ PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	www
 MASTER_SITES=	https://registry.npmjs.org/${PORTNAME}/-/ \
 		https://registry.npmjs.org/brace-expansion/-/:brace \
-		https://registry.npmjs.org/ip-address/-/:ipaddress
+		https://registry.npmjs.org/ip-address/-/:ipaddress \
+		https://registry.npmjs.org/picomatch/-/:picomatch \
+		https://registry.npmjs.org/postcss-selector-parser/-/:postcss
 PKGNAMESUFFIX=	-node18
 DISTFILES=	${DISTNAME}${EXTRACT_SUFX} \
 		brace-expansion-${BRACE_EXPANSION_VERSION}.tgz:brace \
-		ip-address-${IP_ADDRESS_VERSION}.tgz:ipaddress
+		ip-address-${IP_ADDRESS_VERSION}.tgz:ipaddress \
+		picomatch-${PICOMATCH_VERSION}.tgz:picomatch \
+		postcss-selector-parser-${POSTCSS_SELECTOR_PARSER_VERSION}.tgz:postcss
 EXTRACT_ONLY=	${DISTNAME}${EXTRACT_SUFX}
 
 MAINTAINER=	github@azsupport.com
@@ -69,6 +97,8 @@ WRKSRC=		${WRKDIR}/package
 # the bundled dependencies of the registry in the place of those of npm (see the top)
 BRACE_EXPANSION_VERSION=	2.1.8
 IP_ADDRESS_VERSION=	10.7.6
+PICOMATCH_VERSION=	4.0.7
+POSTCSS_SELECTOR_PARSER_VERSION=	7.1.8
 
 NPM_DIR=	lib/node_modules/npm
 # Executables of the bundled dependencies, as linked by "npm install"
@@ -80,11 +110,12 @@ NPM_BINS=	arborist:@npmcli/arborist/bin/index.js cssesc:cssesc/bin/cssesc \
 		semver:semver/bin/semver.js
 
 post-extract:
-.for p v in brace-expansion ${BRACE_EXPANSION_VERSION} ip-address ${IP_ADDRESS_VERSION}
+.for p v in brace-expansion ${BRACE_EXPANSION_VERSION} ip-address ${IP_ADDRESS_VERSION} \
+	picomatch ${PICOMATCH_VERSION} postcss-selector-parser ${POSTCSS_SELECTOR_PARSER_VERSION}
 	${RM} -r ${WRKSRC}/node_modules/${p}
 	${MKDIR} ${WRKSRC}/node_modules/${p}
 	${TAR} -xf ${DISTDIR}/${p}-${v}.tgz -C ${WRKSRC}/node_modules/${p} --strip-components 1 \
-		--exclude 'README*' --exclude '*.ts' --exclude '*.map'
+		--exclude 'README*' --exclude 'CHANGELOG*' --exclude '*.ts' --exclude '*.map'
 .endfor
 
 post-patch:

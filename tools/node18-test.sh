@@ -58,12 +58,16 @@
 #             Node 18 bundles, on the libuv of az)
 #   url       an IDN host in Punycode (the ada Node 18 bundles)
 #   npm       npm and npx, npm pack of a package made here and npm install of it
-#             offline; node-gyp; the brace-expansion 2.1.8 and ip-address 10.7.6 of
-#             the registry in the place of those npm 10.9.10 bundles, at work through
-#             its minimatch and socks (and an IPv4 address with a leading zero
-#             refused, CVE-2026-69192); addGitSha() of both its pacote on the spec of
-#             the upstream test of CVE-2026-9496 (100000 # and a newline: seconds,
-#             and the committish kept, without the fix)
+#             offline; node-gyp; the brace-expansion 2.1.8, ip-address 10.7.6,
+#             picomatch 4.0.7 and postcss-selector-parser 7.1.8 of the registry in
+#             the place of those npm 10.9.10 bundles, at work through its minimatch,
+#             socks and @npmcli/query, each with a behaviour of its fixes: an IPv4
+#             address with a leading zero refused (CVE-2026-69192), [[:constructor:]]
+#             no class of the source of Object (CVE-2026-33672), +(*(a)) in linear
+#             time (CVE-2026-33671), a selector nested 1000 deep refused by the
+#             parser, not a stack overflow (CVE-2026-9358); addGitSha() of both its
+#             pacote on the spec of the upstream test of CVE-2026-9496 (100000 # and
+#             a newline: seconds, and the committish kept, without the fix)
 #   yarn      yarn init; corepack enable into a directory of its own
 #
 # Usage (FreeBSD, as root, the packages installed): sh tools/node18-test.sh
@@ -991,12 +995,18 @@ if pkg info -e npm-node18; then
     fi
     cat > "$T/npm-deps.js" <<'EOF'
 'use strict';
-// brace-expansion and ip-address of www/npm-node18 (BRACE_EXPANSION_VERSION and
-// IP_ADDRESS_VERSION) in the place of the 2.0.2 and 10.1.0 of npm 10.9.10, at work
-// through what takes them in npm (minimatch, socks); ip-address refuses an IPv4
-// address with a leading zero, which 10.1.0 took as decimal (CVE-2026-69192)
+// brace-expansion, ip-address, picomatch and postcss-selector-parser of
+// www/npm-node18 (its *_VERSION) in the place of the 2.0.2, 10.1.0, 4.0.3 and 7.1.1
+// of npm 10.9.10, at work through what takes them in npm (minimatch, socks,
+// @npmcli/query), each with a behaviour of its fixes: ip-address refuses an IPv4
+// address with a leading zero, which 10.1.0 took as decimal (CVE-2026-69192);
+// picomatch makes no class of the source of Object for [[:constructor:]], which
+// 4.0.3 matched "f }]" with (CVE-2026-33672), and matches +(*(a)) in linear time,
+// which took 4.0.3 seconds on 26 a and a b (CVE-2026-33671); the parser of npm query
+// refuses a selector nested 1000 deep, on which 7.1.1 overflowed the stack
+// (CVE-2026-9358)
 const m = `${process.env.NPM_ROOT}/node_modules/`;
-const want = { 'brace-expansion': '2.1.8', 'ip-address': '10.7.6' };
+const want = { 'brace-expansion': '2.1.8', 'ip-address': '10.7.6', picomatch: '4.0.7', 'postcss-selector-parser': '7.1.8' };
 const r = [], bad = [];
 for (const [n, v] of Object.entries(want)) {
   let h;
@@ -1020,6 +1030,25 @@ try {
   try { x = new Address4('010.0.0.1').correctForm(); } catch (e) { x = e.name; }
   if (x === 'AddressError') r.push('010.0.0.1 refused'); else bad.push(`010.0.0.1 taken as ${x} (CVE-2026-69192)`);
 } catch (e) { bad.push(`ip-address: ${e.message}`); }
+try {
+  const pm = require(`${m}picomatch`);
+  if (pm.isMatch('f }]', '[[:constructor:]]')) bad.push('[[:constructor:]] matches "f }]" (CVE-2026-33672)');
+  else r.push('[[:constructor:]] no class of Object');
+  const t = process.hrtime.bigint();
+  const x = pm.isMatch(`${'a'.repeat(26)}b`, '+(*(a))');
+  const ms = Number(process.hrtime.bigint() - t) / 1e6;
+  if (!x && ms < 1000) r.push(`+(*(a)) in ${ms.toFixed(2)} ms`);
+  else bad.push(`+(*(a)) on 26 a and a b: ${x} in ${ms.toFixed(0)} ms (CVE-2026-33671)`);
+} catch (e) { bad.push(`picomatch: ${e.message}`); }
+try {
+  const { parser: query } = require(`${m}@npmcli/query`);
+  const q = String(query(':root > .prod'));
+  if (q !== ':root>.prod') bad.push(`npm query :root > .prod parsed as "${q}"`);
+  let x;
+  try { query(`${':not('.repeat(1000)}.prod${')'.repeat(1000)}`); x = 'parsed'; } catch (e) { x = `${e.name}: ${e.message}`; }
+  if (/nesting depth/.test(x)) r.push('npm query :root > .prod, a selector nested 1000 deep refused');
+  else bad.push(`a selector nested 1000 deep: ${x.slice(0, 80)} (CVE-2026-9358)`);
+} catch (e) { bad.push(`@npmcli/query: ${e.message}`); }
 console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK ${r.join(', ')}`);
 EOF
     cat > "$T/npm-gitsha.js" <<'EOF'
@@ -1052,7 +1081,7 @@ for (const p of ['pacote', '@npmcli/metavuln-calculator/node_modules/pacote']) {
 console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK the spec of 100000 # and a newline stripped by ${r.join(', ')}; two committishes stripped`);
 EOF
     jsenv="NPM_ROOT=$P/lib/node_modules/npm"
-    js "npm: brace-expansion and ip-address of the registry" "$T/npm-deps.js"
+    js "npm: brace-expansion, ip-address, picomatch, postcss-selector-parser of the registry" "$T/npm-deps.js"
     js "npm: addGitSha() of both pacote (CVE-2026-9496)" "$T/npm-gitsha.js"
     jsenv=""
 else
