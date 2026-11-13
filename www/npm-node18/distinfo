@@ -1,7 +1,11 @@
-TIMESTAMP = 1794532539
+TIMESTAMP = 1794558707
 SHA256 (npm-10.9.10.tgz) = 85c03f7b5f268caef87476e11ea3ce49635e8f16cc967aa48d66684ca6516aae
 SIZE (npm-10.9.10.tgz) = 2670940
 SHA256 (brace-expansion-2.1.8.tgz) = eb26e9fe6cb6d92d79fe866c567552d5a052749c5438f2eda737639605c7ab5a
 SIZE (brace-expansion-2.1.8.tgz) = 10390
 SHA256 (ip-address-10.7.6.tgz) = d593a65a5ffa85e704ffd4b2c7220d2c5c3ff879264416f694b2a15d124be7ca
 SIZE (ip-address-10.7.6.tgz) = 85558
+SHA256 (picomatch-4.0.7.tgz) = 697b463be3cdbd9ffc8f4194fd5019a69ddf95875fb703d78b2b115cc9e740a8
+SIZE (picomatch-4.0.7.tgz) = 24326
+SHA256 (postcss-selector-parser-7.1.8.tgz) = be2f20b744f4324c5b28d83cdc31d1ea3560e9202a14e9e50253d40380d309ff
+SIZE (postcss-selector-parser-7.1.8.tgz) = 51144
