@@ -58,7 +58,12 @@
 #             Node 18 bundles, on the libuv of az)
 #   url       an IDN host in Punycode (the ada Node 18 bundles)
 #   npm       npm and npx, npm pack of a package made here and npm install of it
-#             offline; node-gyp
+#             offline; node-gyp; the brace-expansion 2.1.8 and ip-address 10.7.6 of
+#             the registry in the place of those npm 10.9.10 bundles, at work through
+#             its minimatch and socks (and an IPv4 address with a leading zero
+#             refused, CVE-2026-69192); addGitSha() of both its pacote on the spec of
+#             the upstream test of CVE-2026-9496 (100000 # and a newline: seconds,
+#             and the committish kept, without the fix)
 #   yarn      yarn init; corepack enable into a directory of its own
 #
 # Usage (FreeBSD, as root, the packages installed): sh tools/node18-test.sh
@@ -984,6 +989,72 @@ if pkg info -e npm-node18; then
     else
         fail "npm pack and install: $(tail -n 2 "$T/npm.log" | tr '\n' ' ')"
     fi
+    cat > "$T/npm-deps.js" <<'EOF'
+'use strict';
+// brace-expansion and ip-address of www/npm-node18 (BRACE_EXPANSION_VERSION and
+// IP_ADDRESS_VERSION) in the place of the 2.0.2 and 10.1.0 of npm 10.9.10, at work
+// through what takes them in npm (minimatch, socks); ip-address refuses an IPv4
+// address with a leading zero, which 10.1.0 took as decimal (CVE-2026-69192)
+const m = `${process.env.NPM_ROOT}/node_modules/`;
+const want = { 'brace-expansion': '2.1.8', 'ip-address': '10.7.6' };
+const r = [], bad = [];
+for (const [n, v] of Object.entries(want)) {
+  let h;
+  try { h = require(`${m}${n}/package.json`).version; } catch (e) { h = e.code || e.message; }
+  if (h === v) r.push(`${n} ${h}`); else bad.push(`${n} ${h}, not ${v}`);
+}
+try {
+  const { minimatch } = require(`${m}minimatch`);
+  if (minimatch('lib/b.js', 'lib/{a,b}.js') && !minimatch('lib/c.js', 'lib/{a,b}.js')) r.push('minimatch lib/{a,b}.js');
+  else bad.push('minimatch lib/{a,b}.js: not as it should match');
+} catch (e) { bad.push(`minimatch: ${e.message}`); }
+try {
+  const { ipToBuffer } = require(`${m}socks/build/common/helpers.js`);
+  const a = ipToBuffer('127.0.0.1').toString('hex'), b = ipToBuffer('::1').toString('hex');
+  if (a === '7f000001' && b === `${'0'.repeat(31)}1`) r.push('socks 127.0.0.1 and ::1');
+  else bad.push(`socks: 127.0.0.1 ${a}, ::1 ${b}`);
+} catch (e) { bad.push(`socks: ${e.message}`); }
+try {
+  const { Address4 } = require(`${m}ip-address`);
+  let x;
+  try { x = new Address4('010.0.0.1').correctForm(); } catch (e) { x = e.name; }
+  if (x === 'AddressError') r.push('010.0.0.1 refused'); else bad.push(`010.0.0.1 taken as ${x} (CVE-2026-69192)`);
+} catch (e) { bad.push(`ip-address: ${e.message}`); }
+console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK ${r.join(', ')}`);
+EOF
+    cat > "$T/npm-gitsha.js" <<'EOF'
+'use strict';
+// CVE-2026-9496 (files/patch-CVE-2026-9496 of www/npm-node18): addGitSha() of both
+// pacote of npm on the spec of the upstream test, a git URL of a host hosted-git-info
+// does not know with 100000 # and a newline after them, which /#.*$/ took seconds
+// over and kept whole; and a spec of npm-package-arg with two committishes, which
+// both strip as before
+const m = `${process.env.NPM_ROOT}/node_modules/`;
+const base = 'git+ssh://git@some-host/user/repo';
+const evil = { hosted: null, rawSpec: `${base}${'#'.repeat(1e5)}\nx` };
+const plain = 'git+ssh://git@some-host:user/repo';
+const r = [], bad = [];
+let npa;
+try { npa = require(`${m}npm-package-arg`); } catch (e) { console.log(`FAIL npm-package-arg: ${e.message}`); process.exit(0); }
+for (const p of ['pacote', '@npmcli/metavuln-calculator/node_modules/pacote']) {
+  let v, addGitSha;
+  try {
+    v = require(`${m}${p}/package.json`).version;
+    addGitSha = require(`${m}${p}/lib/util/add-git-sha.js`);
+  } catch (e) { bad.push(`${p}: ${e.message}`); continue; }
+  const t = process.hrtime.bigint();
+  const got = addGitSha(evil, 'sha');
+  const ms = Number(process.hrtime.bigint() - t) / 1e6;
+  const two = addGitSha(npa(`${plain}#othersha#otherothersha`), 'sha');
+  if (got === `${base}#sha` && ms < 1000 && two === `${plain}#sha`) r.push(`pacote ${v} in ${ms.toFixed(2)} ms`);
+  else bad.push(`pacote ${v}: ${got === `${base}#sha` ? 'stripped' : `${got.length - base.length - 4} characters of the committish kept`} in ${ms.toFixed(0)} ms, two committishes: ${two}`);
+}
+console.log(bad.length ? `FAIL ${bad.join('; ')}` : `OK the spec of 100000 # and a newline stripped by ${r.join(', ')}; two committishes stripped`);
+EOF
+    jsenv="NPM_ROOT=$P/lib/node_modules/npm"
+    js "npm: brace-expansion and ip-address of the registry" "$T/npm-deps.js"
+    js "npm: addGitSha() of both pacote (CVE-2026-9496)" "$T/npm-gitsha.js"
+    jsenv=""
 else
     note "npm-node18 is not installed: not tested"
 fi
