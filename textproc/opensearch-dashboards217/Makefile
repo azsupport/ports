@@ -79,14 +79,30 @@
 # with its source): CVE-2026-75897, POST /api/core/capabilities without a bound
 # (cf92fa6d, #12292, 3.8.0); //host/ paths redirected off-site (05be93b, #12193,
 # 2.19.6); __proto__ keys in an import (e4d78b4, #12085, 2.19.6); @hapi/content, the
-# parser of every request's Content-Type, with that of 6.0.3 (GHSA-36hh-x5p5-jgc8,
-# GHSA-8494-f6mr-cjpv, GHSA-jg4p-7fhp-p32p); @hapi/inert, the confinement of
+# parser of every request's Content-Type, with that of 6.0.3 (GHSA-36hh-x5p5-jgc8;
+# GHSA-8494-f6mr-cjpv, the quadratic parsing of Content-Disposition, CVE-2026-119202
+# in the advisory database, for which the main branch of OpenSearch Dashboards took
+# 6.0.3, 44216f89, #13093; GHSA-jg4p-7fhp-p32p); @hapi/inert, the confinement of
 # 7.1.1 (GHSA-rcvq-m9j9-6f4g); js-yaml 3.15.2 in the place of 3.14.1 (the 3.x line
 # with its security fixes only: GHSA-mh29-5h37-fv8m, GHSA-h67p-54hq-rp68,
 # GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj, GHSA-2883-xcg3-v3hh): the YAML of the
 # rules a request gives securityAnalyticsDashboards goes through its load() (the
 # functions js-yaml 3 load() makes of !!js/function there are never called:
 # safeDump() throws on them before the rule is sent; azsupport/ports, 12.11.2026).
+# And three fixes of the main branch (3.x) that no 2.x release has, the same patches
+# as in textproc/opensearch-dashboards219 (the files of the bundles of 2.17.1 and
+# 2.19.7 they change are the same; aZ, 13.11.2026): Timeline (1a09720a, #12217,
+# 15.06.2026): a datasource function chained after another one (.es().es()) starts
+# a series of its own instead of being given the series before it (a DoS of chained
+# datasource functions); the counts of saved objects (23a4a157, #12191,
+# 10.06.2026): at most 100 entries in each array of POST
+# /api/opensearch-dashboards/management/saved_objects/scroll/counts, where a
+# request of less than 1 MiB with 40000 of them ran the heap of the process out;
+# the imports of saved objects (50c470c0, #12189, 10.06.2026): no Content-Encoding
+# on _import and _resolve_import_errors (400), whose body hapi decompresses before
+# the maxBytes of the multipart parser applies (a gzip of a few MiB took the memory
+# of the process). Each is reached by everyone who reaches Dashboards: without the
+# security plugin there is no authentication.
 # Not taken, and why: the fixes of 2.18 to 2.19.6 and 3.x in the code of the browser
 # (CVE-2026-84942 of Vega, the sanitizing of axis labels, URL and image labels,
 # VEGA_DEBUG, less in Markdown panels, field formats in the document table) and
@@ -177,8 +193,11 @@ OSD_PATCHED=	bin/use_node \
 		src/core/server/capabilities/resolve_capabilities.js \
 		src/core/server/capabilities/routes/resolve_capabilities.js \
 		src/core/server/http/https_redirect_server.js \
+		src/core/server/saved_objects/routes/index.js \
 		src/core/server/saved_objects/routes/utils.js \
-		src/legacy/server/http/index.js
+		src/legacy/server/http/index.js \
+		src/plugins/saved_objects_management/server/routes/scroll_count.js \
+		src/plugins/vis_type_timeline/server/handlers/chain_runner.js
 # npm packages in the place of those of the tarball: <tarball>:<directory>
 OSD_NPM=	opensearch-${CLIENT_VERSION}.tgz:node_modules/@opensearch-project/opensearch-next \
 		json11-${JSON11_VERSION}.tgz:node_modules/json11 \
