@@ -1,7 +1,15 @@
-ICU 70 and later (ICU 76 of the package az) declare BreakIterator::operator==
-with the return type bool, so the override of PHP 5.6 (UBool) does not compile
-("conflicting return type"): bool with ICU 70 and later, as ext/intl of PHP
-7.4.33 has it.
+ICU 70 and later (ICU 76 of the package az), as ext/intl of PHP 7.4.33 has
+it (php-src 81b3f95622 and 52cda6fc43, Ben Ramsey, PHP 7.4.26; Gentoo carried
+both for its PHP 7.3 as php-icu-70.patch until 05.04.2022):
+- BreakIterator::operator== returns bool, so the override of PHP 5.6 (UBool)
+  does not compile ("conflicting return type"): bool with ICU 70 and later
+  (81b3f95622);
+- uloc_canonicalize() makes keywords of the extensions of a tag
+  (sl_IT_nedis-a-kirti-x-xyz: sl_IT_NEDIS@a=kirti;x=xyz), so
+  locale_filter_matches() with canonicalization takes an '@' after the range
+  for a separator too (52cda6fc43): without it
+  locale_filter_matches('sl_IT_nedis-a-kirti-x-xyz', 'sl_IT_Nedis', true) is
+  false.
 
 --- breakiterator/codepointiterator_internal.cpp.orig
 +++ breakiterator/codepointiterator_internal.cpp
@@ -31,3 +39,14 @@ with the return type bool, so the override of PHP 5.6 (UBool) does not compile
  
  		virtual CodePointBreakIterator* clone(void) const;
  
+--- locale/locale_methods.c.orig
++++ locale/locale_methods.c
+@@ -1324,7 +1324,7 @@
+ 		if( token && (token==cur_lang_tag) ){
+ 			/* check if the char. after match is SEPARATOR */
+ 			chrcheck = token + (strlen(cur_loc_range));
+-			if( isIDSeparator(*chrcheck) || isEndOfTag(*chrcheck) ){
++			if( isIDSeparator(*chrcheck) || isKeywordSeparator(*chrcheck) || isEndOfTag(*chrcheck) ){
+ 				if( cur_lang_tag){
+ 					efree( cur_lang_tag );
+ 				}
