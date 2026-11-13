@@ -90,11 +90,14 @@ want() {
     _c="$(rq "$_n" "$@")"
     if [ "$_c" = "$_s" ] && has "$_n" "$_t"; then pass "$_w"; else fail "$_w: $_c $(ans "$_n")"; fi
 }
-# green <seconds>: wait for /api/status green; its answer in $T/a/status
+# green <seconds>: wait for /api/status green; its answer in $T/a/status (the answer
+# of a Dashboards before is taken away first: curl keeps the file when nothing
+# answers, and the status of 2.17.1 was taken for that of 2.19.7, run 43417709821)
 state() { sed -n 's/.*"overall":{[^}]*"state":"\([a-z]*\)".*/\1/p' "$T/a/status" 2>/dev/null; }
 green() {
     _i=0
     while [ "$_i" -lt "$1" ]; do
+        rm -f "$T/a/status"
         rq status GET /api/status > /dev/null
         [ "$(state)" = green ] && return 0
         sleep 2; _i=$((_i + 2))
