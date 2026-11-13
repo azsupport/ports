@@ -807,7 +807,11 @@ a version from that repository, as a server does (the core, `mod_php74` and the
 modules, with `php74-openssl`), and [`tools/check-php.sh`](tools/check-php.sh)
 `<version>` checks them (`results/check-php-<version>.txt`); `install-php.sh --openssl`
 puts the variants with OpenSSL in the places of their modules, for
-`CHECK_TAG=openssl check-php.sh` (`check-php-<version>-openssl.txt`).
+`CHECK_TAG=openssl check-php.sh` (`check-php-<version>-openssl.txt`), and
+[`tools/check-variants.sh`](tools/check-variants.sh) `<version>` puts the other packages
+of a module with the same files in, one by one, and checks each: redis with compression,
+gd of 5.6 with T1lib, `php74-openssl-legacy` (RC4 with ssh2 in the same process)
+(`check-variants-<version>.txt`).
 
 ### The workflow
 

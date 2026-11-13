@@ -788,7 +788,10 @@ makefile этого дерева, читаемые портом, называю�
 этого репозитория, как сервер (ядро, `mod_php74` и модули, с `php74-openssl`), а
 [`tools/check-php.sh`](tools/check-php.sh) `<версия>` их проверяет
 (`results/check-php-<версия>.txt`); `install-php.sh --openssl` ставит варианты с OpenSSL
-на места их модулей, для `CHECK_TAG=openssl check-php.sh` (`check-php-<версия>-openssl.txt`).
+на места их модулей, для `CHECK_TAG=openssl check-php.sh` (`check-php-<версия>-openssl.txt`),
+а [`tools/check-variants.sh`](tools/check-variants.sh) `<версия>` ставит по одному другие
+пакеты модуля с теми же файлами и проверяет каждый: redis со сжатием, gd 5.6 с T1lib,
+`php74-openssl-legacy` (RC4 вместе с ssh2 в одном процессе) (`check-variants-<версия>.txt`).
 
 ### Workflow
 
