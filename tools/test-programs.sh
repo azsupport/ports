@@ -17,7 +17,11 @@
 # opensearch-dashboards-test.sh, the way of aZ's nodes from opensearch217 to
 # opensearch219 by opensearch-upgrade-test.sh (pkg install opensearch219, which takes
 # opensearch217 away: the same files), then OpenSearch 2.19 (opensearch219) by
-# opensearch-test.sh, Node.js 18 (node18, npm-node18, yarn-node18, corepack-node18)
+# opensearch-test.sh, the way of aZ's Dashboards from 2.17 to 2.19 on its saved
+# objects by opensearch-dashboards-upgrade-test.sh (pkg install
+# opensearch-dashboards219, which takes opensearch-dashboards217 away), then OpenSearch
+# Dashboards 2.19 (opensearch-dashboards219, on our node24, against opensearch219) by
+# opensearch-dashboards-test.sh, Node.js 18 (node18, npm-node18, yarn-node18, corepack-node18)
 # by node18-test.sh after the tests on node24, installed in the place of node24 (one
 # of the two: pkg takes node24 and its npm, yarn and corepack away), and Perl (perl5,
 # under the name of FreeBSD's) by perl-test.sh, with the XS modules of FreeBSD's
@@ -308,6 +312,20 @@ os219_=""
 if in_repo opensearch219; then os219_=" opensearch219"; else say "opensearch219: not in the repository, its tests are skipped"; fi
 osu_=""
 [ -n "$os_" ] && [ -n "$os219_" ] && osu_=" opensearch217"
+# OpenSearch Dashboards 2.19 (aZ, 12.11.2026: with his cluster on 2.19) on our node24,
+# against opensearch219: one of opensearch-dashboards217 and opensearch-dashboards219
+# (the same files), so installed only for its tests, after the test of opensearch219
+# and before the test of node18 takes node24 away (3. below):
+# opensearch-dashboards-upgrade-test.sh installs it over opensearch-dashboards217, as
+# aZ will, on the saved objects of 2.17.1
+osd219_=""
+if in_repo opensearch-dashboards219 && [ -n "$os219_" ]; then
+    osd219_=" opensearch-dashboards219"
+else
+    say "opensearch-dashboards219 (or opensearch219): not in the repository, its tests are skipped"
+fi
+osdu_=""
+[ -n "$osd_" ] && [ -n "$osd219_" ] && in_repo opensearch217 && osdu_=" opensearch-dashboards217"
 # Perl (aZ, 11.11.2026: under the name of FreeBSD's, so that its p5-* packages work
 # with it) as the server packages: perl5; perl-test.sh installs the official p5-*
 # packages with XS over it (as a server does) and takes them away again
@@ -350,15 +368,17 @@ for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "ima
         ${s_:+"servers$s_"} ${n_:+"node$n_"} ${j_:+"java$j_"} ${e_:+"elastic$e_"} \
         ${k_:+"kibana$k_ elasticsearch6 node24"} ${os_:+"opensearch$os_"} \
         ${osd_:+"opensearch-dashboards$osd_ opensearch217 node24"} ${osu_:+"opensearch-upgrade$osu_"} \
-        ${os219_:+"opensearch219$os219_"} ${n18_:+"node18$n18_"} ${l_:+"perl$l_"}; do
+        ${os219_:+"opensearch219$os219_"} ${osdu_:+"opensearch-dashboards-upgrade$osdu_ opensearch219 node24"} \
+        ${osd219_:+"opensearch-dashboards219$osd219_ opensearch219 node24"} ${n18_:+"node18$n18_"} ${l_:+"perl$l_"}; do
     # shellcheck disable=SC2086
     set -- $spec
     t="$1"; shift
     if [ "$t" = node18 ]; then
         # node18 and its npm, yarn and corepack in the place of node24 and its own:
         # pkg install as on a server, which removes those of node24 (their files).
-        # What needs node24 besides its npm and yarn (kibana6, opensearch-dashboards217,
-        # tested before) goes first, as on a server, where node18 cannot come under it
+        # What needs node24 besides its npm and yarn (kibana6, opensearch-dashboards217
+        # or 219, tested before) goes first, as on a server, where node18 cannot come
+        # under it
         : > "$res/test-programs-install-node18.log"
         r24_="$(pkg query '%rn' node24 2> /dev/null | grep -v -x -e npm-node24 -e yarn-node24 | tr '\n' ' ')"
         if [ -n "$r24_" ]; then
@@ -397,10 +417,30 @@ for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "ima
         cat "$res/test-programs-install-osd.log" >> "$res/test-programs-install.log"
         cat "$res/test-programs-install-osd.log" >> "$log"
     fi
+    if [ "$t" = opensearch-dashboards219 ] && ! { inst opensearch-dashboards219 && inst opensearch219; }; then
+        # opensearch-dashboards219 in the place of opensearch-dashboards217, when the
+        # test of the upgrade did not put it there (pkg install, which takes
+        # opensearch-dashboards217 away: their files), with opensearch219 when the
+        # tests before did not install it
+        o_="opensearch-dashboards219"
+        inst opensearch219 || o_="$o_ opensearch219"
+        say "pkg install -f $o_ (in the place of opensearch-dashboards217)"
+        # shellcheck disable=SC2086
+        CONSERVATIVE_UPGRADE=no pkg install -y -f $o_ > "$res/test-programs-install-osd219.log" 2>&1 || say "pkg install of $o_ says it failed (test-programs-install-osd219.log)"
+        # shellcheck disable=SC2086
+        again "$res/test-programs-install-osd219.log" $o_
+        cat "$res/test-programs-install-osd219.log" >> "$res/test-programs-install.log"
+        cat "$res/test-programs-install-osd219.log" >> "$log"
+    fi
     miss=""
     for p in "$@"; do inst "$p" || miss="$miss $p"; done
     if [ -n "$miss" ] && [ "$t" = opensearch219 ]; then
         line "$t: FAIL (not installed from the repository in the place of opensearch217:$miss)"
+        rc=1
+        continue
+    fi
+    if [ -n "$miss" ] && [ "$t" = opensearch-dashboards219 ]; then
+        line "$t: FAIL (not installed from the repository in the place of opensearch-dashboards217:$miss)"
         rc=1
         continue
     fi
@@ -413,10 +453,12 @@ for spec in "az az ImageMagick7 GraphicsMagick" "curl curl" "ffmpeg ffmpeg" "ima
         line "$t: SKIP (not installed from the repository:$miss)"
         continue
     fi
-    # the script: <test>-test.sh, but opensearch219, which opensearch-test.sh
-    # tests as it tests opensearch217
+    # the script: <test>-test.sh, but opensearch219 and opensearch-dashboards219,
+    # which opensearch-test.sh and opensearch-dashboards-test.sh test as they test
+    # opensearch217 and opensearch-dashboards217
     ts="$t"
     [ "$t" = opensearch219 ] && ts=opensearch
+    [ "$t" = opensearch-dashboards219 ] && ts=opensearch-dashboards
     if [ ! -f "$top/tools/$ts-test.sh" ]; then
         line "$t: SKIP (no tools/$ts-test.sh)"
         continue

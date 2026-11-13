@@ -1,18 +1,22 @@
 #!/bin/sh
-# opensearch-dashboards-test.sh - test OpenSearch Dashboards 2.17.1 of the repository
-# az (textproc/opensearch-dashboards217; aZ, 12.11.2026: a legacy project), installed
-# from it, on the Node.js 24 of www/node24, against OpenSearch 2.17.1 of
-# textproc/opensearch217: both started by their rc scripts, as a server starts them,
+# opensearch-dashboards-test.sh - test OpenSearch Dashboards of the repository az,
+# installed from it, on the Node.js 24 of www/node24: 2.17.1
+# (textproc/opensearch-dashboards217; aZ, 12.11.2026: a legacy project) against
+# OpenSearch 2.17.1 of textproc/opensearch217, or 2.19.7
+# (textproc/opensearch-dashboards219; aZ, 12.11.2026: his cluster moves to 2.19)
+# against OpenSearch 2.19.7 of textproc/opensearch219, whichever of the two is
+# installed (the same files): both started by their rc scripts, as a server starts them,
 # OpenSearch with the heap of opensearch_heap (512m) on its port 8200 with its
 # network.host of the sample (both loopback addresses), as on aZ's nodes, Dashboards
 # with the configuration of aZ's ko44 (server.host on 127.0.0.1 here,
 # opensearch.hosts http://localhost:8200, the settings of the security plugin
 # commented out) and node.options next to it:
 #   - the package: no ELF file, no native module, no node/ of the tarball; its node
-#     is that of www/node24; --version, the plugins (13 in, securityDashboards
-#     out), the sample configuration, the
-#     default configuration of the rc script, newsyslog, the packages of the 2.17
-#     branch and of the security fixes;
+#     is that of www/node24; --version, the plugins (2.17.1: 13 in, 2.19.7: 15 in,
+#     securityDashboards out), the sample configuration, the
+#     default configuration of the rc script, newsyslog, the npm packages of the
+#     port (2.17.1: those of the 2.17 branch and of the security fixes; 2.19.7:
+#     @hapi/content 6.0.3) and its patched files;
 #   - the rc script refuses a configuration with a setting of the security plugin,
 #     which the package does not have (opensearch_security.*, nested, quoted), with its
 #     lines, and starts nothing;
@@ -26,14 +30,19 @@
 #     anomaly detection, ml-commons, index management, notifications, observability and PPL,
 #     the query workbench (SQL), reporting (a CSV and an XLSX of a saved search, made
 #     by the server), security analytics (its rules; a rule's YAML with a
-#     !!js/function made into nothing), search relevance;
+#     !!js/function made into nothing), search relevance; 2.19.7: flow framework
+#     (a workflow made, read, found, provisioned, deprovisioned and deleted, its
+#     presets) and query insights (the top queries, the settings of the cluster);
 #   - saved objects: an index pattern (with the fields of its index, as the page
 #     makes it), a visualization and a dashboard made, exported
 #     with their references, deleted, imported and read back (.kibana -> .kibana_1);
 #     an import with __proto__ refused;
 #   - the security fixes over HTTP: //host/ not redirected off-site, the bounds of
 #     POST /api/core/capabilities, a Content-Type with two boundaries refused, a
-#     Content-Disposition of 200000 characters answered at once;
+#     Content-Disposition of 200000 characters answered at once; 2.19.7: those of 3.x
+#     it takes, 101 types of the counts of saved objects refused (#12191), a
+#     Content-Encoding on the routes of the import refused (#12189), a datasource
+#     function chained in Timeline a series of its own (#12217);
 #   - the console proxy, Timeline, TSVB with a math metric, the sample data flights
 #     installed and removed, requests at once;
 #   - reload by the rc script (the log file opened again), the rotation of newsyslog
@@ -68,7 +77,15 @@ os="http://127.0.0.1:8200"
 k="http://127.0.0.1:5601"
 node="$P/bin/node"
 pidfile=/var/run/opensearch_dashboards/opensearch_dashboards.pid
-IN="alertingDashboards anomalyDetectionDashboards assistantDashboards customImportMapDashboards ganttChartDashboards indexManagementDashboards mlCommonsDashboards notificationsDashboards observabilityDashboards queryWorkbenchDashboards reportsDashboards searchRelevanceDashboards securityAnalyticsDashboards"
+# the package installed (one of the two), the OpenSearch it goes with, its plugins
+if pkg info -e opensearch-dashboards219; then
+    osd=opensearch-dashboards219; ospkg=opensearch219
+    IN="alertingDashboards anomalyDetectionDashboards assistantDashboards customImportMapDashboards flowFrameworkDashboards ganttChartDashboards indexManagementDashboards mlCommonsDashboards notificationsDashboards observabilityDashboards queryInsightsDashboards queryWorkbenchDashboards reportsDashboards searchRelevanceDashboards securityAnalyticsDashboards"
+else
+    osd=opensearch-dashboards217; ospkg=opensearch217
+    IN="alertingDashboards anomalyDetectionDashboards assistantDashboards customImportMapDashboards ganttChartDashboards indexManagementDashboards mlCommonsDashboards notificationsDashboards observabilityDashboards queryWorkbenchDashboards reportsDashboards searchRelevanceDashboards securityAnalyticsDashboards"
+fi
+nin="$(echo $IN | wc -w | tr -d ' ')"
 OUT="securityDashboards"
 # rq <name> <method> <path> [<data or @file> [<content type>]]: a request to Dashboards
 # with a time limit; the answer in $T/a/<name>, its status the output
@@ -96,10 +113,11 @@ finish() {
 }
 running() { pgrep -f "$D/src/cli/dist serve" > /dev/null 2>&1; }
 
-for p in opensearch-dashboards217 opensearch217 node24; do
+for p in "$osd" "$ospkg" node24; do
     pkg info -e "$p" || { fail "$p is not installed"; finish; }
 done
-v="$(pkgv opensearch-dashboards217)"
+v="$(pkgv "$osd")"
+note "$osd $v against $ospkg $(pkgv "$ospkg")"
 
 # --- the package ---------------------------------------------------------------------
 b="$(find "$D" -type f -exec file {} + 2>/dev/null | grep -E ': .*(ELF|Mach-O|PE32)' | head -n 3 | tr '\n' ' ')"
@@ -119,10 +137,10 @@ if [ "$x" = "$v" ]; then pass "bin/opensearch-dashboards --version --allow-root:
 # (list prints the id of each plugin, then an empty line)
 x="$(cd /tmp && "$D/bin/opensearch-dashboards-plugin" list --allow-root 2>&1 | sed -e 's/@.*//' -e '/^$/d' | sort | tr '\n' ' ' | sed 's/ $//')"
 w="$(printf '%s\n' $IN | sort | tr '\n' ' ' | sed 's/ $//')"
-if [ "$x" = "$w" ]; then pass "bin/opensearch-dashboards-plugin list: the 13 plugins in"; else fail "bin/opensearch-dashboards-plugin list: $x"; fi
+if [ "$x" = "$w" ]; then pass "bin/opensearch-dashboards-plugin list: the $nin plugins in"; else fail "bin/opensearch-dashboards-plugin list: $x"; fi
 x="$(ls "$D/plugins" | sort | tr '\n' ' ' | sed 's/ $//')"
 o=""; for p in $OUT; do [ -e "$D/plugins/$p" ] && o="$o $p"; done
-if [ "$x" = "$w" ] && [ -z "$o" ]; then pass "plugins: $(echo $IN | wc -w | tr -d ' ') in, not $OUT"; else fail "plugins: $x; out but there:$o"; fi
+if [ "$x" = "$w" ] && [ -z "$o" ]; then pass "plugins: $nin in, not $OUT"; else fail "plugins: $x; out but there:$o"; fi
 # (--help prints the usage and exits 64: defaultHelp of src/cli/command.js)
 (cd /tmp && "$D/bin/opensearch-dashboards-keystore" --help --allow-root > "$T/ks.out" 2>&1); r=$?
 if [ "$r" = 64 ] && grep -q 'Usage: bin/opensearch-dashboards-keystore' "$T/ks.out" && grep -q -w create "$T/ks.out"; then
@@ -141,16 +159,32 @@ else
     fail "newsyslog: $ns: $(head -n 2 "$T/ns.out" 2>/dev/null | tr '\n' ' ')"
 fi
 pv() { "$node" -p 'require(process.argv[1]).version' "$D/$1/package.json" 2>/dev/null; }
-x="$(pv node_modules/@opensearch-project/opensearch-next) $(pv node_modules/json11) $(pv node_modules/js-yaml)"
-if [ "$x" = "2.13.0 2.0.0 3.15.2" ]; then pass "the client 2.13.0 and json11 2.0.0 of the 2.17 branch, js-yaml 3.15.2"; else fail "client, json11, js-yaml: $x"; fi
 m=0
-for f in src/legacy/server/http/index.js src/core/server/http/https_redirect_server.js src/core/server/saved_objects/routes/utils.js \
-    src/core/server/capabilities/resolve_capabilities.js src/core/server/capabilities/routes/resolve_capabilities.js; do
-    grep -q 'azsupport/ports' "$D/$f" || { fail "$f: not patched"; m=1; }
-done
-grep -q 'internals.boundaryParamRegex' "$D/node_modules/@hapi/content/lib/index.js" || { fail "@hapi/content: not the parser of 6.0.3"; m=1; }
-grep -q 'path.startsWith(confineDir + Path.sep)' "$D/node_modules/@hapi/inert/lib/file.js" || { fail "@hapi/inert: not the confinement of 7.1.1"; m=1; }
-[ "$m" = 0 ] && pass "the security fixes in their files (capabilities, redirects, import, @hapi/content, @hapi/inert)"
+if [ "$osd" = opensearch-dashboards219 ]; then
+    x="$(pv node_modules/@hapi/content) $(pv node_modules/@hapi/inert) $(pv node_modules/js-yaml) $(pv node_modules/@opensearch-project/opensearch-next) $(pv node_modules/json11)"
+    if [ "$x" = "6.0.3 7.1.2 4.3.2 2.13.0 2.0.0" ]; then pass "@hapi/content 6.0.3 of the port; @hapi/inert 7.1.2, js-yaml 4.3.2, the client 2.13.0 and json11 2.0.0 of the tarball"; else fail "@hapi/content, @hapi/inert, js-yaml, client, json11: $x"; fi
+    for f in src/core/server/saved_objects/routes/index.js src/plugins/saved_objects_management/server/routes/scroll_count.js \
+        src/plugins/vis_type_timeline/server/handlers/chain_runner.js; do
+        grep -q 'azsupport/ports' "$D/$f" || { fail "$f: not patched"; m=1; }
+    done
+    # (those of textproc/opensearch-dashboards217 that 2.19.7 has: its own code)
+    grep -q 'MAX_APPLICATIONS = 1000' "$D/src/core/server/capabilities/routes/resolve_capabilities.js" || { fail "capabilities: not the bounds of #12563"; m=1; }
+    grep -q "path.charAt(1) === '/'" "$D/src/legacy/server/http/index.js" || { fail "src/legacy/server/http/index.js: not the redirect of #12193"; m=1; }
+    grep -q 'validateObject' "$D/src/core/server/saved_objects/routes/utils.js" || { fail "src/core/server/saved_objects/routes/utils.js: not the check of #12085"; m=1; }
+    grep -q 'The trailing alternative consumes a name' "$D/node_modules/@hapi/content/lib/index.js" || { fail "@hapi/content: not the parser of Content-Disposition of 6.0.3"; m=1; }
+    grep -q 'path.startsWith(confineDir + Path.sep)' "$D/node_modules/@hapi/inert/lib/file.js" || { fail "@hapi/inert: not the confinement of 7.1.1"; m=1; }
+    [ "$m" = 0 ] && pass "the security fixes in their files (import with Content-Encoding, counts of saved objects, Timeline, @hapi/content; capabilities, redirects, import, @hapi/inert of 2.19.7)"
+else
+    x="$(pv node_modules/@opensearch-project/opensearch-next) $(pv node_modules/json11) $(pv node_modules/js-yaml)"
+    if [ "$x" = "2.13.0 2.0.0 3.15.2" ]; then pass "the client 2.13.0 and json11 2.0.0 of the 2.17 branch, js-yaml 3.15.2"; else fail "client, json11, js-yaml: $x"; fi
+    for f in src/legacy/server/http/index.js src/core/server/http/https_redirect_server.js src/core/server/saved_objects/routes/utils.js \
+        src/core/server/capabilities/resolve_capabilities.js src/core/server/capabilities/routes/resolve_capabilities.js; do
+        grep -q 'azsupport/ports' "$D/$f" || { fail "$f: not patched"; m=1; }
+    done
+    grep -q 'internals.boundaryParamRegex' "$D/node_modules/@hapi/content/lib/index.js" || { fail "@hapi/content: not the parser of 6.0.3"; m=1; }
+    grep -q 'path.startsWith(confineDir + Path.sep)' "$D/node_modules/@hapi/inert/lib/file.js" || { fail "@hapi/inert: not the confinement of 7.1.1"; m=1; }
+    [ "$m" = 0 ] && pass "the security fixes in their files (capabilities, redirects, import, @hapi/content, @hapi/inert)"
+fi
 t="$(grep -rl -E 'Number\.MAX_SAFE_INTEGER[[:space:]]*\|\|' --include='*.js' "$D/node_modules/@osd" "$D/src" "$D/plugins" 2>/dev/null | while read -r f; do
     sed -n -e '/\([A-Za-z_$][A-Za-z0-9_$]*\)[[:space:]]*<[[:space:]]*Number\.MAX_SAFE_INTEGER[[:space:]]*||[[:space:]]*\1[[:space:]]*>/p' "$f" | grep -q . && echo "$f"
 done | head -n 3 | tr '\n' ' ')"
@@ -166,12 +200,16 @@ for f in $(find "$D" -name '*.js.br'); do
 done
 if [ "$g" = 0 ] && [ "$c" -gt 10 ]; then pass "each of the $c .gz and .br of the bundles is that of its file"; else fail "$g of $c .gz and .br differ from their files"; fi
 
-# --- OpenSearch of textproc/opensearch217, by its rc script ---------------------------------
+# --- OpenSearch of textproc/opensearch217 or opensearch219, by its rc script ------------------
 osc="$T/osconf"
 mkdir -p "$osc" "$T/osdata" "$T/oslogs"
 (cd "$P/etc/opensearch" && find . -name '*.sample') | while read -r f; do
     mkdir -p "$osc/$(dirname "$f")"; cp "$P/etc/opensearch/$f" "$osc/${f%.sample}"
 done
+# (opensearch219: the prepackaged rules of opensearch-security-analytics, which 2.19
+# reads from the directory of the configuration, as its pkg-message says for a
+# configuration of its own)
+[ -d "$P/etc/opensearch/opensearch-security-analytics" ] && cp -Rp "$P/etc/opensearch/opensearch-security-analytics" "$osc/"
 sed -i '' -e "s|^path.data: .*|path.data: $T/osdata|" -e "s|^path.logs: .*|path.logs: $T/oslogs|" "$osc/opensearch.yml"
 # no network.host: the default _local_ of the sample, ::1 and 127.0.0.1
 { echo "http.port: 8200"; echo "transport.port: 8300"; echo "cluster.name: az-test"; } >> "$osc/opensearch.yml"
@@ -261,7 +299,7 @@ x="$(sed -n 's/.*"version":{"number":"\([^"]*\)".*/\1/p' "$T/a/status")"
 if [ "$x" = "$v" ]; then pass "version $x"; else fail "version ${x:-not told}, the package is $v"; fi
 m=""; for p in $IN; do has status "\"id\":\"plugin:$p@" || m="$m $p"; done
 o=""; for p in $OUT; do has status "\"id\":\"plugin:$p@" && o="$o $p"; done
-if [ -z "$m$o" ]; then pass "the statuses of the 13 plugins in, none of securityDashboards"; else fail "statuses: missing$m; out but there:$o"; fi
+if [ -z "$m$o" ]; then pass "the statuses of the $nin plugins in, none of securityDashboards"; else fail "statuses: missing$m; out but there:$o"; fi
 if grep -o '"state":"[a-z]*"' "$T/a/status" | grep -v -q '"green"'; then fail "statuses not green: $(grep -o '"id":"[^"]*","message":"[^"]*","since":"[^"]*","state":"[a-z]*"' "$T/a/status" | grep -v green | head -n 3 | tr '\n' ' ' | cut -c1-300)"; else pass "every status green"; fi
 hl="$(sed -n 's/.*"size_limit":\([0-9]*\).*/\1/p' "$T/a/status")"
 if [ -n "$hl" ] && [ "$hl" -ge 734003200 ] && [ "$hl" -le 943718400 ]; then pass "the heap of node.options (--max-old-space-size=700): a limit of $((hl / 1048576)) MB"; else fail "the heap limit ${hl:-not told}: not that of node.options"; fi
@@ -280,9 +318,11 @@ note "its connections to OpenSearch: $(sockstat -4 -6 -c 2>/dev/null | awk -v p=
 
 # --- the pages, the bundles -----------------------------------------------------------------
 pg=""
+apps=""
+[ "$osd" = opensearch-dashboards219 ] && apps="opensearch-flow query-insights-dashboards"
 for a in home dashboards data-explorer/discover visualize dev_tools management alerting anomaly-detection-dashboards \
     opensearch_index_management_dashboards notifications-dashboards observability-logs opensearch-query-workbench \
-    reports-dashboards searchRelevance opensearch_security_analytics_dashboards maps-dashboards; do
+    reports-dashboards searchRelevance opensearch_security_analytics_dashboards maps-dashboards $apps; do
     c="$(rq page GET "/app/$a")"
     if [ "$c" != 200 ] || ! has page '<title>OpenSearch Dashboards</title>'; then pg="$pg $a:$c"; fi
 done
@@ -291,7 +331,7 @@ rq bootstrap GET /bootstrap.js > /dev/null
 # (any /app/<id> is the same page; the bundle of each plugin makes the difference)
 m=""; for p in $IN; do grep -q "/bundles/plugin/$p/$p.plugin.js" "$T/a/bootstrap" || m="$m $p"; done
 o=""; for p in $OUT; do grep -q "/bundles/plugin/$p/" "$T/a/bootstrap" && o="$o $p"; done
-if [ -z "$m$o" ]; then pass "the page loads the bundle of each of the 13 plugins in, none of $OUT"; else fail "the bundles of the plugins in the page: missing$m; out but there:$o"; fi
+if [ -z "$m$o" ]; then pass "the page loads the bundle of each of the $nin plugins in, none of $OUT"; else fail "the bundles of the plugins in the page: missing$m; out but there:$o"; fi
 grep -o "/[0-9]*/bundles/[^\"' ]*\\.js" "$T/a/bootstrap" | sort -u > "$T/bundles.txt"
 n=0; d=0
 while read -r u; do
@@ -325,6 +365,42 @@ c="$(rq probe POST '/_plugins/_security_analytics/rules?category=windows' "@$T/p
 if [ ! -e /tmp/osd-yaml-probe ] && ! has probe '"ok":true'; then pass "security analytics: a rule with !!js/function refused ($c, ok false), its function never run"; else fail "security analytics: the !!js/function rule: $c $(ans probe), /tmp/osd-yaml-probe: $(cat /tmp/osd-yaml-probe 2>/dev/null)"; rm -f /tmp/osd-yaml-probe; fi
 c="$(rq rel POST /api/relevancy/search '{"query1":{"index":"az-test","pipeline":"","size":1,"query":{"match_all":{}}},"query2":{"index":"az-test","pipeline":"","size":1,"query":{"match":{"title":"doc"}}}}')"
 if [ "$c" = 200 ] && has rel '"result1":' && has rel '"result2":' && ! has rel 'errorMessage'; then pass "search relevance: two queries compared"; else fail "search relevance: two queries compared: $c $(ans rel)"; fi
+if [ "$osd" = opensearch-dashboards219 ]; then
+    # flow framework: its presets (files of the plugin), then a workflow of one noop
+    # step through opensearch-flow-framework, from its making to its deletion
+    c="$(rq ffpresets GET /api/flow_framework/workflow/presets)"
+    if [ "$c" = 200 ] && has ffpresets '"name":"Custom Search"' && has ffpresets '"name":"RAG with Lexical Retrieval"'; then pass "flow framework: the presets of workflows"; else fail "flow framework: the presets: $c $(ans ffpresets)"; fi
+    c="$(rq ffcreate POST /api/flow_framework/workflow/create '{"name":"az-test-workflow","description":"azsupport","use_case":"CUSTOM","version":{"template":"1.0.0","compatibility":["2.19.0","3.0.0"]},"workflows":{"provision":{"nodes":[{"id":"az_noop","type":"noop","user_inputs":{}}]}}}')"
+    fid="$(sed -n 's/.*"id":"\([^"]*\)".*/\1/p' "$T/a/ffcreate" | head -n 1)"
+    s_="$c"
+    c="$(rq ffget GET "/api/flow_framework/workflow/${fid:-none}")"; s_="$s_ $c"
+    has ffget '"name":"az-test-workflow"' || s_="$s_ (not read)"
+    c="$(rq ffsearch POST /api/flow_framework/workflow/search '{"query":{"match_all":{}},"size":1000}')"; s_="$s_ $c"
+    has ffsearch "\"${fid:-none}\":" || s_="$s_ (not found)"
+    c="$(rq ffprov POST "/api/flow_framework/workflow/provision/${fid:-none}")"; s_="$s_ $c"
+    i=0; while [ "$i" -lt 15 ]; do rq ffstate GET "/api/flow_framework/workflow/state/${fid:-none}" > /dev/null; has ffstate '"workflowState":"Completed"' && break; sleep 2; i=$((i + 1)); done
+    has ffstate '"workflowState":"Completed"' || s_="$s_ (state: $(ans ffstate))"
+    c="$(rq ffdeprov POST "/api/flow_framework/workflow/deprovision/${fid:-none}")"; s_="$s_ $c"
+    c="$(rq ffdelete DELETE "/api/flow_framework/workflow/delete/${fid:-none}")"; s_="$s_ $c"
+    c="$(rq ffgone GET "/api/flow_framework/workflow/${fid:-none}")"; s_="$s_ $c"
+    if [ -n "$fid" ] && [ "$s_" = "200 200 200 200 200 200 404" ]; then
+        pass "flow framework: a workflow made ($fid), read, found, provisioned (Completed), deprovisioned and deleted"
+    else
+        fail "flow framework: the workflow ${fid:-not made}: $s_ $(ans ffcreate)"
+    fi
+    # query insights: the top queries of query-insights (latency is on by default in
+    # 2.19), the settings of the cluster, a change of them
+    want "query insights: the top queries" qitop 200 '"ok":true,"response":{"top_queries":[' GET /api/top_queries
+    want "query insights: the top queries by latency of a time range" qilat 200 '"ok":true,"response":{"top_queries":[' GET \
+        '/api/top_queries/latency?from=2026-11-12T00:00:00.000Z&to=2099-01-01T00:00:00.000Z&verbose=false'
+    want "query insights: the settings of the cluster" qiset 200 '"ok":true,"response":{"persistent":' GET /api/settings
+    c="$(rq qiupd PUT '/api/update_settings?metric=latency&enabled=true&top_n_size=10&window_size=1m&group_by=none&exporterType=none')"
+    x="$(curl -s -m 30 "$os/_cluster/settings?flat_settings=true")"
+    case "$c $x" in
+        200*'"search.insights.top_queries.latency.top_n_size":"10"'*'"search.insights.top_queries.latency.window_size":"1m"'*) pass "query insights: its settings changed through it (latency: top 10, window 1m)" ;;
+        *) fail "query insights: the settings changed: $c $(ans qiupd); the cluster: $(printf '%s' "$x" | cut -c1-200)" ;;
+    esac
+fi
 
 # --- saved objects: made, exported, deleted, imported, read back -----------------------------
 SS='{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}'
@@ -342,7 +418,7 @@ want "an index pattern made" ip 200 '"title":"az-test*"' POST /api/saved_objects
 want "a visualization made" vis 200 '"title":"az vis"' POST /api/saved_objects/visualization/az-vis \
     "{\"attributes\":{\"title\":\"az vis\",\"visState\":\"{\\\"title\\\":\\\"az vis\\\",\\\"type\\\":\\\"metric\\\",\\\"aggs\\\":[{\\\"id\\\":\\\"1\\\",\\\"enabled\\\":true,\\\"type\\\":\\\"count\\\",\\\"params\\\":{},\\\"schema\\\":\\\"metric\\\"}],\\\"params\\\":{}}\",\"uiStateJSON\":\"{}\",\"description\":\"\",\"version\":1,\"kibanaSavedObjectMeta\":{\"searchSourceJSON\":\"$SS\"}},\"references\":[{\"name\":\"kibanaSavedObjectMeta.searchSourceJSON.index\",\"type\":\"index-pattern\",\"id\":\"az-ip\"}]}"
 want "a dashboard made" dash 200 '"title":"az dashboard"' POST /api/saved_objects/dashboard/az-dash \
-    '{"attributes":{"title":"az dashboard","hits":0,"description":"","panelsJSON":"[{\"embeddableConfig\":{},\"gridData\":{\"h\":15,\"i\":\"1\",\"w\":24,\"x\":0,\"y\":0},\"panelIndex\":\"1\",\"version\":\"2.17.1\",\"panelRefName\":\"panel_0\"}]","optionsJSON":"{\"hidePanelTitles\":false,\"useMargins\":true}","version":1,"timeRestore":false,"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[]}"}},"references":[{"name":"panel_0","type":"visualization","id":"az-vis"}]}'
+    '{"attributes":{"title":"az dashboard","hits":0,"description":"","panelsJSON":"[{\"embeddableConfig\":{},\"gridData\":{\"h\":15,\"i\":\"1\",\"w\":24,\"x\":0,\"y\":0},\"panelIndex\":\"1\",\"version\":\"'"$v"'\",\"panelRefName\":\"panel_0\"}]","optionsJSON":"{\"hidePanelTitles\":false,\"useMargins\":true}","version":1,"timeRestore":false,"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[]}"}},"references":[{"name":"panel_0","type":"visualization","id":"az-vis"}]}'
 c="$(curl -s -m 60 -o "$T/export.ndjson" -w '%{http_code}' -H 'osd-xsrf: t' -H 'Content-Type: application/json' -X POST "$k/api/saved_objects/_export" -d '{"objects":[{"type":"dashboard","id":"az-dash"}],"includeReferencesDeep":true}')"
 if [ "$c" = 200 ] && [ "$(grep -c '"type":"\(index-pattern\|visualization\|dashboard\)"' "$T/export.ndjson")" = 3 ]; then pass "the dashboard exported with its references: 3 objects"; else fail "export: $c $(head -c 200 "$T/export.ndjson")"; fi
 for o in dashboard/az-dash visualization/az-vis index-pattern/az-ip; do rq del DELETE "/api/saved_objects/$o" > /dev/null; done
@@ -393,6 +469,35 @@ if [ "$c" = 400 ]; then pass "a Content-Type with two boundaries: 400 (@hapi/con
 "$node" -e 'process.stdout.write("--b\r\nContent-Disposition: form-data; " + "a".repeat(200000) + "\r\n\r\nx\r\n--b--\r\n")' > "$T/disp.bin"
 t0="$(date +%s)"; c="$(curl -s -m 30 -o "$T/a/disp" -w '%{http_code}' -H 'osd-xsrf: t' -H 'Content-Type: multipart/form-data; boundary=b' -X POST "$k/api/saved_objects/_import" --data-binary "@$T/disp.bin")"; t1="$(date +%s)"
 if [ "$c" != 000 ] && [ $((t1 - t0)) -le 3 ]; then pass "a Content-Disposition of 200000 characters: $c in $((t1 - t0)) s (@hapi/content 6.0.3)"; else fail "a Content-Disposition of 200000 characters: $c in $((t1 - t0)) s"; fi
+if [ "$osd" = opensearch-dashboards219 ]; then
+    # the fixes of 3.x that textproc/opensearch-dashboards219 takes (files/patch-*)
+    "$node" -e 'console.log(JSON.stringify({ typesToInclude: Array.from({ length: 101 }, (_, i) => "t" + i) }))' > "$T/sc101.json"
+    "$node" -e 'console.log(JSON.stringify({ typesToInclude: Array.from({ length: 100 }, (_, i) => i ? "t" + i : "dashboard") }))' > "$T/sc100.json"
+    c1="$(rq sc101 POST /api/opensearch-dashboards/management/saved_objects/scroll/counts "@$T/sc101.json")"
+    c2="$(rq sc100 POST /api/opensearch-dashboards/management/saved_objects/scroll/counts "@$T/sc100.json")"
+    if [ "$c1" = 400 ] && has sc101 'cannot be greater than [100]' && [ "$c2" = 200 ] && has sc100 '"dashboard":1'; then
+        pass "the counts of saved objects: 101 types 400, 100 types 200 (#12191)"
+    else
+        fail "the counts of saved objects: 101 types $c1 $(ans sc101); 100 types $c2 $(ans sc100)"
+    fi
+    gzip -c "$T/export.ndjson" > "$T/export.ndjson.gz"
+    c1="$(curl -s -m 30 -o "$T/a/gz1" -w '%{http_code}' -H 'osd-xsrf: t' -H 'Content-Type: application/octet-stream' -H 'Content-Encoding: gzip' -X POST "$k/api/saved_objects/_import" --data-binary "@$T/export.ndjson.gz")"
+    c2="$(curl -s -m 30 -o "$T/a/gz2" -w '%{http_code}' -H 'osd-xsrf: t' -H 'Content-Encoding: gzip' -X POST "$k/api/saved_objects/_resolve_import_errors" -F "file=@$T/export.ndjson" -F 'retries=[]')"
+    if [ "$c1" = 400 ] && has gz1 'Content-Encoding is not supported' && [ "$c2" = 400 ] && has gz2 'Content-Encoding is not supported'; then
+        pass "a Content-Encoding on _import and _resolve_import_errors: 400 (#12189)"
+    else
+        fail "a Content-Encoding on the routes of the import: _import $c1 $(ans gz1); _resolve_import_errors $c2 $(ans gz2)"
+    fi
+    # (.es() chained after .es(): a series of its own, that of its q, with the label
+    # after it; one series)
+    TL='"time":{"from":"2026-11-12T00:00:00Z","to":"2026-11-13T00:00:00Z","interval":"1h","timezone":"UTC"}'
+    c="$(rq tlchain POST /api/timeline/run "{\"sheet\":[\".es(index=az-test*, timefield=t).es(index=az-test*, timefield=t, q=n:1).label(second)\"],$TL}")"
+    if [ "$c" = 200 ] && has tlchain '"label":"second","split":"n:1"' && [ "$(grep -o '"type":"series"' "$T/a/tlchain" | wc -l | tr -d ' ')" = 1 ]; then
+        pass "Timeline: .es() chained after .es() makes a series of its own (#12217)"
+    else
+        fail "Timeline: .es() chained after .es(): $c $(ans tlchain)"
+    fi
+fi
 
 # --- the core: console, Timeline, TSVB, sample data, requests at once --------------------------
 # (the console asks OpenSearch with pretty=true, but parses its JSON answer and gives
