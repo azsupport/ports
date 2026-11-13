@@ -372,12 +372,12 @@ if [ -x "$bash" ]; then
     # 43217797075), y for "The shell is still active. Quit anyway?" of an mc that still
     # waits for it
     # DIAGNOSTICS (wip-mc-cp1251, 13.11.2026): bash -i alone in the directory, then mc
-    # under ktrace; at 12 s without the prompt the processes, their kernel stacks and
-    # files into $res/cp-diag.txt; the typescript and the end of the kdump of bash and
-    # mc into $res
+    # under ktrace up to 6 times; in the first that has no prompt at 12 s, the
+    # processes, their kernel stacks and files into $res/cp-diag.txt, its typescript
+    # and the kdump of bash and mc into $res
     cp_diag() {
         {
-            echo "== ps at ${1}s"
+            echo "== iteration $2: ps at ${1}s"
             ps -axww -o pid,ppid,pgid,tpgid,stat,etime,time,wchan,command
             for p in $(pgrep -x bash) $(pgrep -x mc); do
                 echo "== procstat -kk $p"; procstat -kk "$p"
@@ -393,21 +393,32 @@ if [ -x "$bash" ]; then
     (sleep 2; printf 'echo BASH-READY\n'; sleep 2; printf 'exit\n') |
         timeout 40 script -q "$T/cpb.typescript" env SHELL="$bash" sh -c 'cd "$1" && exec "$2" -i' sh "$cpd" "$bash" > /dev/null 2>&1
     echo "== bash -i alone in the directory: exit $? after $(( $(date +%s) - _b0 ))s; BASH-READY $(grep -a -c BASH-READY "$T/cpb.typescript") times; $(cat -v "$T/cpb.typescript" | tr '\n' ' ' | cut -c1-300)" >> "$res/cp-diag.txt"
-    keys_run "$T/cp.typescript" "i=0; while [ \$i -lt 40 ] && ! grep -a -q -F '$T/cp/d> ' '$T/cp.typescript';
-        do sleep 1; i=\$((i + 1)); [ \$i = 12 ] && cp_diag 12; done; sleep 1; printf '$f10'; sleep 2; printf y; sleep 2" \
-        ktrace -i -f "$T/cp.ktrace" env SHELL="$bash" sh -c 'cd "$1" && exec "$2"' sh "$cpd" "$mc"
+    for it in 1 2 3 4 5 6; do
+        keys_run "$T/cp$it.typescript" "i=0; while [ \$i -lt 40 ] && ! grep -a -q -F '$T/cp/d> ' '$T/cp$it.typescript';
+            do sleep 1; i=\$((i + 1)); [ \$i = 12 ] && cp_diag 12 $it; done; sleep 1; printf '$f10'; sleep 2; printf y; sleep 2" \
+            ktrace -i -f "$T/cp$it.ktrace" env SHELL="$bash" sh -c 'cd "$1" && exec "$2"' sh "$cpd" "$mc"
+        _got=missing
+        grep -q "$T/cp/d> " "$T/cp$it.typescript.txt" && _got=there
+        echo "== iteration $it: exit $keys_exit after ${keys_secs}s, the prompt $_got" >> "$res/cp-diag.txt"
+        [ "$it" = 1 ] && cp "$T/cp1.typescript" "$T/cp.typescript" && cp "$T/cp1.typescript.txt" "$T/cp.typescript.txt"
+        if [ "$_got" = missing ]; then
+            cat -v "$T/cp$it.typescript" > "$res/cp-typescript.txt" 2>&1
+            kdump -f "$T/cp$it.ktrace" > "$T/cp.kdump" 2>&1
+            {
+                echo "== iteration $it, kdump: the commands"; awk '{ print $2 }' "$T/cp.kdump" | sort | uniq -c | sort -rn | head -n 20
+                echo "== kdump: bash (the first 300 and the last 200 lines)"
+                awk '$2 == "bash"' "$T/cp.kdump" | head -n 300
+                echo "..."
+                awk '$2 == "bash"' "$T/cp.kdump" | tail -n 200
+                echo "== kdump: mc (the first 200 and the last 150 lines)"
+                awk '$2 == "mc"' "$T/cp.kdump" | head -n 200
+                echo "..."
+                awk '$2 == "mc"' "$T/cp.kdump" | tail -n 150
+            } > "$res/cp-kdump.txt" 2>&1
+            break
+        fi
+    done
     rm -f "$HOME/.bashrc"
-    cat -v "$T/cp.typescript" > "$res/cp-typescript.txt" 2>&1
-    kdump -f "$T/cp.ktrace" > "$T/cp.kdump" 2>&1
-    {
-        echo "== kdump: the commands"; awk '{ print $2 }' "$T/cp.kdump" | sort | uniq -c | sort -rn | head -n 20
-        echo "== kdump: bash (the first 300 and the last 200 lines)"
-        awk '$2 == "bash"' "$T/cp.kdump" | head -n 300
-        echo "..."
-        awk '$2 == "bash"' "$T/cp.kdump" | tail -n 200
-        echo "== kdump: mc (the last 150 lines)"
-        awk '$2 == "mc"' "$T/cp.kdump" | tail -n 150
-    } > "$res/cp-kdump.txt" 2>&1
     if [ "$keys_exit" = 0 ] && grep -q "$T/cp/d> " "$T/cp.typescript.txt"; then
         pass "bash subshell in a directory named in CP1251: the prompt on the command line \"$T/cp/d> \" (mc quit after ${keys_secs}s)"
     else
