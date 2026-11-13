@@ -4,6 +4,9 @@
 # GitHub, with the token of this workflow. A branch is deleted only when every commit of
 # it is in main by its patch (git cherry); force skips that check, for a branch whose
 # commits went into main changed (conflicts solved in the rebase), compared by hand first.
+# The caches of the Actions of a deleted branch go with it (13.11.2026): no run reads
+# them any more, and in the 10 GB of the caches of the repository they pushed out
+# those of main (caches.yml lists them).
 name: Delete merged branches
 
 on:
@@ -20,6 +23,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   delete:
@@ -30,6 +34,7 @@ jobs:
           fetch-depth: 0
       - name: Delete the branches merged into main
         env:
+          GH_TOKEN: ${{ github.token }}
           BRANCHES: ${{ inputs.branches }}
           FORCE: ${{ inputs.force }}
         run: |
@@ -53,6 +58,15 @@ jobs:
             fi
             if git push -q origin --delete "$b"; then
               echo "$b: deleted (commits not in main by their patch: $left; force: $FORCE)" | tee -a "$GITHUB_STEP_SUMMARY"
+              # its caches
+              gh api --paginate "repos/$GITHUB_REPOSITORY/actions/caches?ref=refs/heads/$b&per_page=100" --jq '.actions_caches[] | "\(.id) \(.key)"' |
+              while read -r id key; do
+                if gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/caches/$id" > /dev/null; then
+                  echo "$b: its cache $key deleted" | tee -a "$GITHUB_STEP_SUMMARY"
+                else
+                  echo "::warning title=$b::its cache $key not deleted"
+                fi
+              done
             else
               echo "::error title=$b::not deleted"
               rc=1
