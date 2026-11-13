@@ -371,10 +371,43 @@ if [ -x "$bash" ]; then
     # waits for the start of a subshell in some runs: 43210253159, 43213822115,
     # 43217797075), y for "The shell is still active. Quit anyway?" of an mc that still
     # waits for it
+    # DIAGNOSTICS (wip-mc-cp1251, 13.11.2026): bash -i alone in the directory, then mc
+    # under ktrace; at 12 s without the prompt the processes, their kernel stacks and
+    # files into $res/cp-diag.txt; the typescript and the end of the kdump of bash and
+    # mc into $res
+    cp_diag() {
+        {
+            echo "== ps at ${1}s"
+            ps -axww -o pid,ppid,pgid,tpgid,stat,etime,time,wchan,command
+            for p in $(pgrep -x bash) $(pgrep -x mc); do
+                echo "== procstat -kk $p"; procstat -kk "$p"
+                echo "== procstat -f $p"; procstat -f "$p"
+            done
+            echo "== mount -p"; mount -p | awk '{ print $3 }' | sort | uniq -c
+            echo "== ls -la /usr/local/etc"; ls -la /usr/local/etc
+            echo "== env of the test"; env | sort
+        } >> "$res/cp-diag.txt" 2>&1
+    }
+    : > "$res/cp-diag.txt"
+    _b0=$(date +%s)
+    (sleep 2; printf 'echo BASH-READY\n'; sleep 2; printf 'exit\n') |
+        timeout 40 script -q "$T/cpb.typescript" env SHELL="$bash" sh -c 'cd "$1" && exec "$2" -i' sh "$cpd" "$bash" > /dev/null 2>&1
+    echo "== bash -i alone in the directory: exit $? after $(( $(date +%s) - _b0 ))s; BASH-READY $(grep -a -c BASH-READY "$T/cpb.typescript") times; $(cat -v "$T/cpb.typescript" | tr '\n' ' ' | cut -c1-300)" >> "$res/cp-diag.txt"
     keys_run "$T/cp.typescript" "i=0; while [ \$i -lt 40 ] && ! grep -a -q -F '$T/cp/d> ' '$T/cp.typescript';
-        do sleep 1; i=\$((i + 1)); done; sleep 1; printf '$f10'; sleep 2; printf y; sleep 2" \
-        env SHELL="$bash" sh -c 'cd "$1" && exec "$2"' sh "$cpd" "$mc"
+        do sleep 1; i=\$((i + 1)); [ \$i = 12 ] && cp_diag 12; done; sleep 1; printf '$f10'; sleep 2; printf y; sleep 2" \
+        ktrace -i -f "$T/cp.ktrace" env SHELL="$bash" sh -c 'cd "$1" && exec "$2"' sh "$cpd" "$mc"
     rm -f "$HOME/.bashrc"
+    cat -v "$T/cp.typescript" > "$res/cp-typescript.txt" 2>&1
+    kdump -f "$T/cp.ktrace" > "$T/cp.kdump" 2>&1
+    {
+        echo "== kdump: the commands"; awk '{ print $2 }' "$T/cp.kdump" | sort | uniq -c | sort -rn | head -n 20
+        echo "== kdump: bash (the first 300 and the last 200 lines)"
+        awk '$2 == "bash"' "$T/cp.kdump" | head -n 300
+        echo "..."
+        awk '$2 == "bash"' "$T/cp.kdump" | tail -n 200
+        echo "== kdump: mc (the last 150 lines)"
+        awk '$2 == "mc"' "$T/cp.kdump" | tail -n 150
+    } > "$res/cp-kdump.txt" 2>&1
     if [ "$keys_exit" = 0 ] && grep -q "$T/cp/d> " "$T/cp.typescript.txt"; then
         pass "bash subshell in a directory named in CP1251: the prompt on the command line \"$T/cp/d> \" (mc quit after ${keys_secs}s)"
     else
