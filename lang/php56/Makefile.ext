@@ -61,7 +61,8 @@
 #   it). The slaves are those of d2c06ef5efae with a pkg-descr (the official
 #   slaves of 2019 took that of lang/php56).
 # - ours, for the libraries of az and for building alone (phpize): the patch
-#   of intl for ICU 70 and later (files/patch-icu70), that of tidy for
+#   of intl for ICU 70 and later (files/patch-icu70: the build and
+#   locale_filter_matches()), that of tidy for
 #   tidy-html5 (tidybuffio.h), that of imagick for its m4 path (as for 7.4),
 #   that of mysqlnd for its include of its own header; see their rules.
 # - libxml2 by xml2-config, which PHP 5.6 takes (PHP_SETUP_LIBXML): that of az
@@ -303,7 +304,12 @@ CONFIGURE_ARGS+=--with-iconv=${AZ_PREFIX}
 # refuses), so -Wno-register for the headers of PHP 5.6 (register, an error
 # of clang in C++17); U_DEFINE_FALSE_AND_TRUE for the TRUE and FALSE of the
 # sources of 5.6, which ICU 68 and later define only on request;
-# files/patch-icu70
+# files/patch-icu70. Not the workaround of bug #74484 (php-src 45a05f3841 and
+# 534684d104 of PHP 7.1: MessageFormatter with more than 10 arguments, heap
+# corruption; Gentoo's php-patches 00060 for 5.6): the overflow was ICU's
+# MessageFormat::getFormats() with its 10 places, which ICU 64 sizes to the
+# arguments (ICU-12584), and with ICU 76 the workaround would only leave the
+# time zone of the formatter out of the dates of such a message
 AZ_LIBS=	libicui18n.so
 
 CONFIGURE_ARGS+=--enable-intl \
