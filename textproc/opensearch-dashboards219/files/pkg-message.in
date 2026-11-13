@@ -1,0 +1,36 @@
+[
+{ type: install
+  message: <<EOM
+OpenSearch Dashboards 2.19.7 runs here on the Node.js 24 of the package node24,
+not on the Node.js 18 it was made for (at its end of life since 30.04.2025). It
+is for OpenSearch 2.19 (the package opensearch219).
+
+There is no security plugin (%%OSD_PLUGINS_OUT%%) in this package: OpenSearch
+Dashboards talks to OpenSearch over plain http without credentials
+(opensearch.hosts, default http://localhost:9200). The rc script refuses to start
+with a setting of that plugin in %%ETCDIR%%/opensearch_dashboards.yml
+(%%OSD_CONFIG_OUT%%): OpenSearch Dashboards would stop at its start on it. Without
+the security plugin everyone who reaches its port can do everything: keep it
+behind a firewall or a proxy with authentication.
+
+The options of Node.js (--max-old-space-size and the like) go into
+%%ETCDIR%%/node.options, one per line. Its log is rolled at 10 MB without
+archives by newsyslog (%%PREFIX%%/etc/newsyslog.conf.d/opensearch_dashboards.conf);
+service opensearch-dashboards reload opens it again. Its tools
+(bin/opensearch-dashboards-plugin and -keystore in %%WWWDIR%%) stop as root
+without --allow-root, as upstream.
+
+From opensearch-dashboards217: upgrade OpenSearch to 2.19 first (opensearch219),
+stop the service, then pkg install opensearch-dashboards219, which takes
+opensearch-dashboards217 away (the same files): your configuration, node.options
+and rc.conf stay, the rc script is the same. At its first start it migrates the
+saved objects of 2.17 into a new index of OpenSearch, to which it moves the alias
+.kibana (the old index stays).
+
+Stop the service before this package replaces the official one: this rc script
+keeps its pid file in /var/run/opensearch_dashboards/, the official one in
+/var/run/opensearch_dashboards.pid (if that one still runs:
+kill `cat /var/run/opensearch_dashboards.pid`).
+EOM
+}
+]
