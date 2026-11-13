@@ -1,0 +1,100 @@
+# The caches of the Actions of this repository (aZ, 13.11.2026): their keys,
+# branches, sizes and dates, against the limit of 10 GB per repository, over which
+# GitHub evicts the caches used least recently. A run reads the caches of its own
+# branch and those of main; the caches of a branch that is merged and deleted are
+# of use to no run, yet they can push out those of main (the repository of
+# packages of build.yml, its distfiles), which every run reads. The sandbox of
+# Claude reads no cache API of GitHub (its proxy refuses the path), so the list
+# goes into the summary of the run and, as a report, into the branch runs of the
+# private azsupport/azsupport (tools/runs-report.sh: ports-caches/<date>/...).
+# Started by hand: Actions, "The caches of the Actions", "Run workflow", or
+#   gh api -X POST repos/azsupport/ports/actions/workflows/caches.yml/dispatches -f ref=main
+#   ... -f 'inputs[delete]=gone'   the caches of branches that no longer exist deleted too
+name: The caches of the Actions
+
+on:
+  workflow_dispatch:
+    inputs:
+      delete:
+        description: 'gone: delete the caches of branches that no longer exist (merged and deleted); empty: the list only'
+        required: false
+        default: ''
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  caches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The caches, and those of gone branches deleted
+        id: caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DELETE: ${{ inputs.delete }}
+        run: |
+          set -eu
+          repo="$GITHUB_REPOSITORY"
+          gh api --paginate "repos/$repo/actions/caches?per_page=100" \
+              --jq '.actions_caches[] | [.id, .ref, .size_in_bytes, .created_at, .last_accessed_at, .key] | @tsv' > caches.tsv
+          gh api --paginate "repos/$repo/branches?per_page=100" --jq '.[].name' > branches.txt
+          mb() { awk -v b="$1" 'BEGIN { printf "%.0f", b / 1048576 }'; }
+          total="$(awk -F '\t' '{ s += $3 } END { printf "%.0f", s }' caches.tsv)"
+          {
+            echo "# The caches of the Actions of $repo"
+            echo
+            echo "- run: $GITHUB_SERVER_URL/$repo/actions/runs/$GITHUB_RUN_ID"
+            echo "- caches: $(wc -l < caches.tsv), $(mb "$total") MB of the limit of 10240 MB"
+            echo "- delete: ${DELETE:-no}"
+            echo
+            echo "## By branch"
+            echo
+            echo '```'
+            awk -F '\t' '{ s[$2] += $3; n[$2]++ } END { for (r in s) printf "%8.0f MB %3d  %s\n", s[r] / 1048576, n[r], r }' caches.tsv | sort -rn
+            echo '```'
+            echo
+            echo "## Each cache (newest use first)"
+            echo
+            echo '```'
+            sort -t "$(printf '\t')" -k5,5r caches.tsv | awk -F '\t' '{ printf "%-12s %6.0f MB  created %s  used %s  %s  %s\n", $1, $3 / 1048576, substr($4, 1, 16), substr($5, 1, 16), $2, $6 }'
+            echo '```'
+          } > report.md
+          if [ "${DELETE:-}" = gone ]; then
+            : > deleted.txt
+            while IFS="$(printf '\t')" read -r id ref size created used key; do
+              case "$ref" in
+                refs/heads/*) b="${ref#refs/heads/}" ;;
+                *) continue ;;
+              esac
+              if grep -qxF "$b" branches.txt; then continue; fi
+              if gh api -X DELETE "repos/$repo/actions/caches/$id" > /dev/null; then
+                printf '%s %s MB %s %s\n' "$id" "$(mb "$size")" "$ref" "$key" >> deleted.txt
+              else
+                printf 'FAIL %s %s %s (not deleted)\n' "$id" "$ref" "$key" >> deleted.txt
+              fi
+            done < caches.tsv
+            freed="$(grep -v '^FAIL' deleted.txt | awk '{ s += $2 } END { printf "%.0f", s }')"
+            {
+              echo
+              echo "## Deleted: the caches of branches that no longer exist ($freed MB)"
+              echo
+              echo '```'
+              cat deleted.txt
+              echo '```'
+            } >> report.md
+          fi
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # the report into the branch runs of the private azsupport/azsupport (secret RUNS_TOKEN)
+      - name: Report to azsupport/azsupport
+        if: always()
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: delete=${{ inputs.delete }}
+          RUNS_STEPS: caches=${{ steps.caches.outcome }}
+        run: sh tools/runs-report.sh report.md caches
