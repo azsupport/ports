@@ -25,10 +25,36 @@
 #     on, a line each: Normalizer::normalize (the NFC of a decomposed letter),
 #     NumberFormatter, IntlDateFormatter (a fixed time, a pattern and UTC) and
 #     Collator (a German list) of de_DE, each against the exact string of ICU
-#     76 (the ICU of az);
+#     76 (the ICU of az); the time zone data: the version of
+#     IntlTimeZone::getTZDataVersion() that of the ICU patch of az
+#     (az/az/files/deps/icu-*.patch, its TZVersion) and America/Asuncion on
+#     -03:00 in July 2026 (tz 2025a and later); locale_filter_matches() of a tag
+#     whose extensions ICU 70 and later canonicalize to keywords (5.6:
+#     devel/php56-intl/files/patch-icu70); MessageFormatter with 12 arguments
+#     (bug #74484);
 #   - ssh2 (phpXY-ssh2): ssh2_connect() to the sshd of this machine, the key
-#     exchange (libssh2 of az); curl (phpXY-curl): SCP and SFTP among the protocols
-#     of curl_version() (libcurl.so.4 of the package curl, with libssh2 of az);
+#     exchange (libssh2 of az); SFTP against an sshd of the check (/usr/sbin/sshd
+#     on 127.0.0.1, a port, keys and a config of its own in the temporary
+#     directory: root by its key only; stopped at the end): a file written and
+#     one read through ssh2.sftp:// with the SFTP resource in the URL (5.6, ssh2
+#     0.13: "ssh2.sftp://$sftp/...", its "Resource id #N", which
+#     freebsd/pecl/ssh2-0.13.patch of the fork parses; 7.4 and later the number,
+#     intval($sftp)) and ssh2_sftp_stat(); curl (phpXY-curl): SCP and SFTP among
+#     the protocols of curl_version() (libcurl.so.4 of the package curl, with
+#     libssh2 of az);
+#   - gd (phpXY-gd): the libgd of az, imageantialias(), no XPM, a PNG; imagerotate()
+#     of a palette image by 0, 180 and, with IMG_NEAREST_NEIGHBOUR, 45 degrees
+#     (libgd #810 and #929, az/az/files/deps/gd-2.3.3.patch): truecolor images
+#     of the right sizes and pixels, the image of the caller still there;
+#   - xsl (phpXY-xsl): a stylesheet with result tree fragments in variables,
+#     exsl:node-set() of them, a fragment per call of a template and key() on a
+#     fragment, 50 transformations in a row (libxslt of az, whose fragments are
+#     in lists of their own since CVE-2025-10911);
+#   - openssl (phpXY-openssl): https:// from a server of the same php on
+#     127.0.0.1 that answers and closes without close_notify (a TCP shutdown):
+#     the body and no warning (OpenSSL 3 calls that "unexpected eof while
+#     reading": SSL_OP_IGNORE_UNEXPECTED_EOF, bug #79589; 5.6 and 7.4 by
+#     backport-openssl3-unexpected-eof.patch of the fork);
 #   - the modules with a variant with OpenSSL, the same way: OpenSSL in
 #     phpXY-<module>-openssl, none in phpXY-<module> (swoole 6.2 of 8.2 and later:
 #     in phpXY-swoole, the only one: it has no build without it): ftp by
@@ -95,8 +121,11 @@ sum="$res/check-php-$ver${CHECK_TAG:+-$CHECK_TAG}.txt"
 : > "$sum" || { echo "check-php: cannot write $sum" >&2; exit 2; }
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/check-php.XXXXXX")" || { echo "check-php: no temporary directory" >&2; exit 2; }
 apconf=""
+sshd_pidf="$tmp/sshd/sshd.pid"; tls_pid=""
 cleanup() {
     [ -n "$apconf" ] && rm -f "$apconf"
+    [ -s "$sshd_pidf" ] && kill "$(cat "$sshd_pidf")" 2> /dev/null
+    [ -n "$tls_pid" ] && kill "$tls_pid" 2> /dev/null
     rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -307,6 +336,160 @@ intl_checks() {
         $s = implode(" ", $a);
         $w = "Apfel \xC3\x84pfel Bar B\xC3\xA4r Ofen \xC3\x96sterreich Zebra";
         echo $s === $w ? "OK $s" : "FAIL $s, not $w";' "$@"
+    # the time zone data: that of the ICU patch of az (its TZVersion), and an offset
+    # that changed after the data of ICU 76.1 (tz 2024b): Paraguay on -03 all year
+    _tzv="$(sed -n 's/^+ *TZVersion { "\([0-9a-z]*\)" }.*$/\1/p' "$top"/az/az/files/deps/icu-*.patch 2> /dev/null | head -n 1)"
+    if [ -z "$_tzv" ]; then
+        skip "intl: the time zone data" "no TZVersion in $top/az/az/files/deps/icu-*.patch"
+    else
+        intl_check "intl: the time zone data" '
+            $v = IntlTimeZone::getTZDataVersion();
+            $f = new IntlDateFormatter("en_US", IntlDateFormatter::NONE, IntlDateFormatter::NONE,
+                "America/Asuncion", IntlDateFormatter::GREGORIAN, "xxx");
+            $o = $f->format(1782907200);
+            echo ($v === "'"$_tzv"'" && $o === "-03:00")
+                ? "OK tz $v (the ICU patch of az), America/Asuncion on 01.07.2026: $o"
+                : "FAIL tz $v (the ICU patch of az: '"$_tzv"'), America/Asuncion on 01.07.2026: "
+                    . var_export($o, true) . " (-03:00 since tz 2025a)";' "$@"
+    fi
+    # ICU 70 and later canonicalize the extensions of a tag to keywords
+    # (sl_IT_NEDIS@a=kirti;x=xyz): a range matches it with an "@" after it
+    intl_check "intl: locale_filter_matches() with keywords" '
+        $c = locale_canonicalize("sl_IT_nedis-a-kirti-x-xyz");
+        $r = locale_filter_matches("sl_IT_nedis-a-kirti-x-xyz", "sl_IT_Nedis", true);
+        echo $r === true ? "OK sl_IT_Nedis matches $c (canonicalized)"
+            : "FAIL sl_IT_Nedis does not match $c (canonicalized): " . var_export($r, true);' "$@"
+    # bug #74484: MessageFormatter with more than 10 arguments
+    intl_check "intl: MessageFormatter, 12 arguments" '
+        $t = "{a} {b} {c} {d} {e} {f} {g} {h} {i} {j} {k} {l}";
+        $s = MessageFormatter::formatMessage("en_US", $t, array_combine(str_split("abcdefghijkl"), range(1, 12)));
+        $w = "1 2 3 4 5 6 7 8 9 10 11 12";
+        echo $s === $w ? "OK \"$t\" -> \"$s\"" : "FAIL \"$t\" -> " . var_export($s, true) . ", not \"$w\"";' "$@"
+}
+
+# sshd_up: an sshd of the checks on 127.0.0.1 (/usr/sbin/sshd of the base system, a
+# port, the host key, the key of root and the config of its own in $tmp/sshd: root
+# by that key only, SFTP of sshd itself), started once, stopped by cleanup;
+# sshd_port its port, sshd_why why there is none
+sshd_port=""; sshd_why=""; sshd_tried=""
+sshd_up() {
+    if [ -n "$sshd_tried" ]; then [ -n "$sshd_port" ]; return; fi
+    sshd_tried=1
+    _d="$tmp/sshd"
+    if [ ! -x /usr/sbin/sshd ] || ! command -v ssh-keygen > /dev/null 2>&1; then
+        sshd_why="no /usr/sbin/sshd or ssh-keygen"; return 1
+    fi
+    if ! mkdir -p "$_d" || ! chmod 700 "$_d"; then sshd_why="cannot make $_d"; return 1; fi
+    if ! ssh-keygen -q -t ed25519 -N "" -f "$_d/host_ed25519" > "$_d/keygen.log" 2>&1 < /dev/null ||
+        ! ssh-keygen -q -t ecdsa -b 256 -m PEM -N "" -f "$_d/id_ecdsa" >> "$_d/keygen.log" 2>&1 < /dev/null ||
+        ! cp "$_d/id_ecdsa.pub" "$_d/authorized_keys"; then
+        sshd_why="ssh-keygen: $(last3 "$(cat "$_d/keygen.log")")"; return 1
+    fi
+    _p=$((20000 + $$ % 20000))
+    while nc -z 127.0.0.1 "$_p" 2> /dev/null; do _p=$((_p + 1)); done
+    cat > "$_d/sshd_config" <<EOF
+Port $_p
+ListenAddress 127.0.0.1
+HostKey $_d/host_ed25519
+AuthorizedKeysFile $_d/authorized_keys
+PidFile $sshd_pidf
+PermitRootLogin prohibit-password
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+UsePAM no
+StrictModes no
+Subsystem sftp internal-sftp
+EOF
+    if ! /usr/sbin/sshd -f "$_d/sshd_config" -E "$_d/sshd.log" < /dev/null > /dev/null 2>&1; then
+        sshd_why="sshd did not start: $(last3 "$(cat "$_d/sshd.log" 2> /dev/null)")"; return 1
+    fi
+    _i=0
+    while ! nc -z 127.0.0.1 "$_p" 2> /dev/null; do
+        _i=$((_i + 1))
+        if [ "$_i" -gt 50 ]; then
+            sshd_why="no sshd on 127.0.0.1:$_p after 10 s: $(last3 "$(cat "$_d/sshd.log" 2> /dev/null)")"; return 1
+        fi
+        sleep 0.2
+    done
+    sshd_port="$_p"
+}
+
+# sftp_check [<arguments of php>]: SFTP of ssh2 against the sshd of sshd_up, the
+# SFTP resource in the URL: "ssh2.sftp://$sftp/..." with ssh2 0.13 (5.6; its
+# "Resource id #N"), ssh2.sftp://<number>/... with 1.x: a file written, one read,
+# ssh2_sftp_stat()
+sftp_check() {
+    _n="ssh2: SFTP, the resource in the URL"
+    if ! sshd_up; then skip "$_n" "$sshd_why"; return; fi
+    intl_check "$_n" '
+        $d = "'"$tmp/sshd"'";
+        $c = @ssh2_connect("127.0.0.1", '"$sshd_port"');
+        if (!$c) { $e = error_get_last(); echo "FAIL ssh2_connect() to 127.0.0.1:'"$sshd_port"': " . ($e ? $e["message"] : "false"); exit; }
+        if (!@ssh2_auth_pubkey_file($c, "root", "$d/id_ecdsa.pub", "$d/id_ecdsa")) {
+            $e = error_get_last(); echo "FAIL ssh2_auth_pubkey_file() of root: " . ($e ? $e["message"] : "false"); exit;
+        }
+        $s = @ssh2_sftp($c);
+        if (!$s) { echo "FAIL ssh2_sftp()"; exit; }
+        $old = version_compare(phpversion("ssh2"), "1", "<");
+        $u = $old ? "ssh2.sftp://$s" : "ssh2.sftp://" . intval($s);
+        $w = "a file of check-php over SFTP\n";
+        file_put_contents("$d/get.txt", $w);
+        $n = @file_put_contents("$u$d/put.txt", $w);
+        $r = @file_get_contents("$u$d/get.txt");
+        $b = @file_get_contents("$d/put.txt");
+        $t = @ssh2_sftp_stat($s, "$d/get.txt");
+        $m = ssh2_methods_negotiated($c);
+        $how = $old ? "ssh2.sftp://\$sftp/... (" . (string)$s . ")" : "ssh2.sftp://<number>/...";
+        echo ($n === strlen($w) && $r === $w && $b === $w && $t && $t["size"] == strlen($w))
+            ? "OK ssh2 " . phpversion("ssh2") . ", $how: written, read, stat; " . $m["kex"] . ", "
+                . $m["client_to_server"]["crypt"] . ", " . $m["client_to_server"]["mac"]
+            : "FAIL ssh2 " . phpversion("ssh2") . ", $how: written " . var_export($n, true) . ", read "
+                . var_export($r, true) . ", the file written " . var_export($b, true) . ", stat " . var_export($t, true);' "$@"
+}
+
+# tls_check [<arguments of php>]: https:// from a server of the same php on
+# 127.0.0.1 (a certificate of openssl req of the base system) that answers and
+# closes without close_notify (stream_socket_shutdown(): a TCP shutdown); the
+# client must get the body and no warning
+tls_check() {
+    _n="openssl: https:// from a server that closes without close_notify"
+    _d="$tmp/tls"
+    if ! mkdir -p "$_d"; then fail "$_n" "cannot make $_d"; return; fi
+    if ! openssl req -x509 -newkey rsa:2048 -nodes -keyout "$_d/key.pem" -out "$_d/cert.pem" \
+            -subj /CN=127.0.0.1 -days 2 > "$_d/req.log" 2>&1 < /dev/null; then
+        skip "$_n" "openssl req of the base system: $(last3 "$(cat "$_d/req.log")")"; return
+    fi
+    "$php" -n -d "extension_dir=$extdir" "$@" -r '
+        $d = "'"$_d"'";
+        $x = stream_context_create(array("ssl" => array("local_cert" => "$d/cert.pem", "local_pk" => "$d/key.pem")));
+        $s = stream_socket_server("tls://127.0.0.1:0", $no, $str, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $x);
+        if (!$s) { echo "no server: $str\n"; exit(1); }
+        $a = stream_socket_get_name($s, false);
+        file_put_contents("$d/port.new", substr($a, strrpos($a, ":") + 1));
+        rename("$d/port.new", "$d/port");
+        $c = @stream_socket_accept($s, 30);
+        if (!$c) { echo "no client in 30 s\n"; exit(1); }
+        while (($l = fgets($c)) !== false && rtrim($l) !== "") {}
+        fwrite($c, "HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\nno close_notify\n");
+        stream_socket_shutdown($c, STREAM_SHUT_RDWR);
+        sleep(1);' > "$_d/server.log" 2>&1 < /dev/null &
+    tls_pid=$!
+    _i=0
+    while [ ! -s "$_d/port" ] && [ "$_i" -lt 50 ]; do sleep 0.2; _i=$((_i + 1)); done
+    if [ -s "$_d/port" ]; then
+        intl_check "$_n" '
+            $p = trim(file_get_contents("'"$_d"'/port"));
+            $x = stream_context_create(array("ssl" => array("verify_peer" => false, "verify_peer_name" => false)));
+            $r = file_get_contents("https://127.0.0.1:$p/", false, $x);
+            echo $r === "no close_notify\n" ? "OK the body from 127.0.0.1:$p, no warning"
+                : "FAIL the body from 127.0.0.1:$p: " . var_export($r, true);' "$@"
+    else
+        fail "$_n" "the server of php$short did not start: $(last3 "$(cat "$_d/server.log")")"
+    fi
+    kill "$tls_pid" 2> /dev/null
+    wait "$tls_pid" 2> /dev/null
+    tls_pid=""
 }
 
 # the packages: the core, not the static PHP of az-menu.sh in its place
@@ -460,6 +643,7 @@ while read -r p; do
         else
             skip "ssh2: the handshake with the sshd here" "no sshd on 127.0.0.1:22"
         fi
+        sftp_check "$@"
     fi
     # gd: the libgd of az in every version (5.6 too, aZ 11.11.2026: not the bundled
     # one), imageantialias() with it (5.6: compat-gd-external.patch of the fork): a
@@ -478,6 +662,63 @@ while read -r p; do
                 ? "OK GD " . $i["GD Version"] . " (GD_BUNDLED 0), antialiased (pixel 16,10: " . $c["red"] . "), no XPM, a PNG of " . strlen($p) . " bytes"
                 : "FAIL GD " . $i["GD Version"] . ", GD_BUNDLED " . $b . ", imageantialias " . ($aa ? "yes" : "no")
                     . ", pixel 16,10: " . $c["red"] . ", XPM " . ($x ? "yes" : "no") . ", PNG " . bin2hex(substr($p, 0, 8));' "$@"
+        # imagerotate() of a palette image (libgd #810: by 180 degrees libgd destroyed
+        # the image of the caller and rotated it then; #929: by 45 degrees with
+        # IMG_NEAREST_NEIGHBOUR it read the truecolor pixels of a palette image): by 0
+        # its truecolor copy, by 180 the red corner at the other end, by 45 with
+        # IMG_NEAREST_NEIGHBOUR a truecolor 36x36, the image of the caller unchanged
+        intl_check "gd: imagerotate() of a palette image" '
+            $p = imagecreate(30, 20);
+            $bg = imagecolorallocate($p, 255, 255, 255);
+            $fg = imagecolorallocate($p, 255, 0, 0);
+            imagefilledrectangle($p, 0, 0, 9, 4, $fg);
+            $z = imagerotate($p, 0, $bg);
+            $a = imagerotate($p, 180, $bg);
+            imagesetinterpolation($p, IMG_NEAREST_NEIGHBOUR);
+            $n = imagerotate($p, 45, $bg);
+            $c = $a ? imagecolorsforindex($a, imagecolorat($a, 29, 19)) : array("red" => -1, "green" => -1);
+            $s = imagecolorsforindex($p, imagecolorat($p, 0, 0));
+            $g = array(
+                "0" => $z ? (imageistruecolor($z) ? "truecolor " : "palette ") . imagesx($z) . "x" . imagesy($z) : "false",
+                "180" => $a ? imagesx($a) . "x" . imagesy($a) . ", 29,19 " . $c["red"] . "/" . $c["green"] : "false",
+                "45 NN" => $n ? (imageistruecolor($n) ? "truecolor " : "palette ") . imagesx($n) . "x" . imagesy($n) : "false",
+                "the source 0,0" => $s["red"] . "/" . $s["green"]);
+            $w = array("0" => "truecolor 30x20", "180" => "30x20, 29,19 255/0", "45 NN" => "truecolor 36x36",
+                "the source 0,0" => "255/0");
+            $t = array();
+            foreach ($g as $k => $v) { $t[] = "$k: $v"; }
+            echo $g === $w ? "OK " . implode("; ", $t)
+                : "FAIL " . implode("; ", $t) . " (wanted 0: truecolor 30x20; 180: 30x20, 29,19 255/0; 45 NN: truecolor 36x36; the source 0,0: 255/0)";' "$@"
+    fi
+    # xsl: fragments of results in variables, exsl:node-set() of them, a local fragment
+    # per call of a template, key() on a fragment, 50 times (libxslt of az: its
+    # fragments in lists of their own since CVE-2025-10911)
+    if [ "$mod" = xsl ]; then
+        intl_check "xsl: result tree fragments, exsl:node-set(), key()" '
+            $x = new DOMDocument();
+            $x->loadXML("<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\""
+                . " xmlns:exsl=\"http://exslt.org/common\" exclude-result-prefixes=\"exsl\">"
+                . "<xsl:output method=\"text\"/><xsl:key name=\"k\" match=\"i\" use=\"@k\"/>"
+                . "<xsl:variable name=\"g\"><i k=\"b\">2</i><i k=\"a\">1</i><i k=\"c\">3</i></xsl:variable>"
+                . "<xsl:template name=\"sq\"><xsl:param name=\"n\"/><xsl:variable name=\"t\"><v>"
+                . "<xsl:value-of select=\"\$n * \$n\"/></v></xsl:variable><xsl:value-of select=\"exsl:node-set(\$t)/v\"/></xsl:template>"
+                . "<xsl:template match=\"/\"><xsl:for-each select=\"exsl:node-set(\$g)/i\"><xsl:sort select=\"@k\"/>"
+                . "<xsl:call-template name=\"sq\"><xsl:with-param name=\"n\" select=\".\"/></xsl:call-template>"
+                . "<xsl:text> </xsl:text></xsl:for-each><xsl:for-each select=\"exsl:node-set(\$g)\">"
+                . "<xsl:value-of select=\"key(&apos;k&apos;, &apos;c&apos;)\"/></xsl:for-each></xsl:template></xsl:stylesheet>");
+            $p = new XSLTProcessor();
+            $p->importStylesheet($x);
+            $d = new DOMDocument();
+            $d->loadXML("<r/>");
+            $o = array();
+            for ($i = 0; $i < 50; $i++) { $o[(string)$p->transformToXML($d)] = 1; }
+            $o = array_keys($o);
+            echo $o === array("1 4 9 3") ? "OK 50 transformations: \"1 4 9 3\", libxslt " . LIBXSLT_DOTTED_VERSION
+                : "FAIL " . var_export($o, true) . ", not \"1 4 9 3\"";' "$@"
+    fi
+    # openssl: a peer that closes without close_notify
+    if [ "$mod" = openssl ]; then
+        tls_check "$@"
     fi
     if [ "$mod" = curl ]; then
         intl_check "curl: SCP and SFTP" '

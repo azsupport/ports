@@ -5,14 +5,23 @@
 #     phpXY-redis-zstd and phpXY-redis-lz4-zstd (with liblz4 and libzstd of az);
 #     5.6 has only the first (phpredis 4.3.0 knows neither lz4 nor zstd);
 #   - gd of 5.6 (aZ, 11.11.2026): php56-gd, and php56-gd-t1lib with T1lib (libt1 of
-#     devel/t1lib).
+#     devel/t1lib);
+#   - openssl: phpXY-openssl-legacy (the legacy provider of OpenSSL: RC4,
+#     Blowfish, DES, CAST5, MD4), and phpXY-openssl, with ssh2 (phpXY-ssh2) in the
+#     same process: libssh2 of az is built without RC4, 3DES, Blowfish, CAST and
+#     the MD5 MACs of SSH (az/az/files/curl/build-libcurl.sh), which must not take
+#     them from the openssl of PHP.
 # Each goes in by pkg install -f from the repository azbuild that tools/install-php.sh
 # wrote (the others of its group out first: pkg refuses the same files), then:
 #   - php -n with the module and those of the packages it depends on: redis the
 #     constants Redis::COMPRESSION_LZ4 and Redis::COMPRESSION_ZSTD there or not as
 #     the name of the package says, and with each compression it has a round trip of
 #     Redis::_compress() and Redis::_uncompress() (no server needed); gd
-#     imagepstext() and "T1Lib Support" of gd_info() there or not;
+#     imagepstext() and "T1Lib Support" of gd_info() there or not; openssl with
+#     ssh2, each loaded first in turn: a round trip of RC4 with openssl_encrypt()
+#     and openssl_decrypt() (phpXY-openssl-legacy: it must work; phpXY-openssl:
+#     said), one of AES-256-CBC, and ssh2_connect() to the sshd of this machine
+#     (the key exchange; ssh2 loaded only, when there is no sshd on 127.0.0.1:22);
 #   - readelf -d of the module: liblz4, libzstd or libt1 named (NEEDED) or not, as
 #     the package says.
 # The first of each group goes in again at the end.
@@ -180,6 +189,52 @@ if in_repo "php$short-gd-t1lib"; then
                 ? "OK imagepstext " . ($f ? "there" : "not there") . ", T1Lib Support " . ($s ? "yes" : "no") . ", GD " . $i["GD Version"]
                 : "FAIL imagepstext " . ($f ? "there" : "not there") . ", T1Lib Support " . ($s ? "yes" : "no") . ", T1lib '"$t"' wanted";'
         libs "gd: $p, the libraries" "$extdir/gd.so" libt1.so "$([ "$t" = true ] && echo yes || echo no)"
+    done
+fi
+
+# --- openssl and openssl-legacy, with ssh2 in the same process ---
+if in_repo "php$short-openssl-legacy"; then
+    ssh2=""
+    if pkg info -e "php$short-ssh2" && [ -n "$(mod_of "php$short-ssh2")" ]; then
+        ssh2="$(mod_of "php$short-ssh2")"
+    fi
+    sshd=false
+    nc -z -w 5 127.0.0.1 22 2> /dev/null && sshd=true
+    for p in "php$short-openssl-legacy" "php$short-openssl"; do
+        o="php$short-openssl"; [ "$p" = "php$short-openssl" ] && o="php$short-openssl-legacy"
+        if ! put "$p" "$o"; then
+            fail "openssl: $p" "did not install ($log)"
+            continue
+        fi
+        l=false; [ "$p" = "php$short-openssl-legacy" ] && l=true
+        for lead in openssl ${ssh2:+ssh2}; do
+            if [ "$lead" = openssl ]; then args="-d extension=openssl.so${ssh2:+ -d extension=$ssh2.so}"
+            else args="-d extension=$ssh2.so -d extension=openssl.so"; fi
+            # shellcheck disable=SC2086
+            o2="$("$php" -n -d "extension_dir=$extdir" $args -r '
+                $k = "0123456789abcdef";
+                $m = "RC4 and ssh2 in one process of PHP";
+                $e = @openssl_encrypt($m, "rc4", $k, OPENSSL_RAW_DATA);
+                $d = (is_string($e) && $e !== "") ? @openssl_decrypt($e, "rc4", $k, OPENSSL_RAW_DATA) : false;
+                $rc4 = is_string($e) && strlen($e) === strlen($m) && $e !== $m && $d === $m;
+                $iv = str_repeat("\1", 16);
+                $a = openssl_encrypt($m, "aes-256-cbc", $k . $k, OPENSSL_RAW_DATA, $iv);
+                $aes = is_string($a) && openssl_decrypt($a, "aes-256-cbc", $k . $k, OPENSSL_RAW_DATA, $iv) === $m;
+                $h = "no ssh2"; $hs = true;
+                if (extension_loaded("ssh2")) {
+                    $h = "ssh2 " . phpversion("ssh2") . " loaded";
+                    if ('"$sshd"') {
+                        $c = @ssh2_connect("127.0.0.1", 22);
+                        $hs = (bool)$c;
+                        $h = "ssh2 " . phpversion("ssh2") . ($c ? ": the handshake with the sshd here, "
+                            . implode(", ", array_slice(ssh2_methods_negotiated($c), 0, 2))
+                            : ": no handshake with the sshd on 127.0.0.1:22");
+                    }
+                }
+                $r = "RC4 " . ($rc4 ? "yes" : "no") . ", AES-256-CBC " . ($aes ? "yes" : "no") . ", $h";
+                echo ($aes && $hs && (!'"$l"' || $rc4)) ? "OK $r" : "FAIL $r" . ('"$l"' && !$rc4 ? " (RC4 wanted)" : "");' 2>&1 < /dev/null)"
+            verdict "openssl: $p, $lead loaded first" "$?" "$o2"
+        done
     done
 fi
 
