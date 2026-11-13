@@ -218,10 +218,16 @@
   установки: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
   [`az-test.sh`](tools/az-test.sh), [`mc-test.sh`](tools/mc-test.sh).
-- **`devel/pcre2`** и **`devel/pcre`**: официальные порты как есть
+- **`devel/pcre2`** и **`devel/pcre`**: официальные порты
   ([`Mk/az-official.mk`](Mk/az-official.mk)), PCRE2 10.49 и PCRE 8.45 (его последний
   релиз): PCRE для PHP (7.4–8.4 `--with-external-pcre`, 5.6 `--with-pcre-regex`), Apache,
-  git, wget, mc (GLib) и MariaDB, потом и nginx (aZ, 10.11.2026).
+  git, wget, mc (GLib) и MariaDB, потом и nginx (aZ, 10.11.2026). С исправлением у каждого,
+  которого нет в выпусках (в `EXTRA_PATCHES`, не в хэше зависящих портов: исправление
+  внутри разделяемой библиотеки, как у az): у PCRE2 обратный проход `pcre2_dfa_match()` и
+  `\X` в JIT ограничен проверенной частью строки UTF (GHSA-9qww-pwc4-77qq, патчи SUSE,
+  [`files/patch-GHSA-9qww-pwc4-77qq`](devel/pcre2/files/patch-GHSA-9qww-pwc4-77qq)), у PCRE
+  таблица имён скомпилированного шаблона инициализируется (Fedora,
+  [`files/patch-name-table`](devel/pcre/files/patch-name-table)).
 - **`devel/git`**: git без Perl (send-email, svn, скрипты cvs), Python, Tcl/Tk, gettext,
   expat (`git http-push`), man-страниц, пользователя и скрипта rc.d git daemon; HTTPS через
   наш `curl`, PCRE2 (`git grep -P`) из `pcre2`, iconv из libc.

@@ -220,11 +220,17 @@ Names and origins as the ports, files at the paths of the ports:
   phase; tests after the install: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
   [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
   [`az-test.sh`](tools/az-test.sh), [`mc-test.sh`](tools/mc-test.sh).
-- **`devel/pcre2`** and **`devel/pcre`**: the official ports as they are
+- **`devel/pcre2`** and **`devel/pcre`**: the official ports
   ([`Mk/az-official.mk`](Mk/az-official.mk)), PCRE2 10.49 and PCRE 8.45 (its last
   release): the PCRE of PHP (7.4 to 8.4 `--with-external-pcre`, 5.6
   `--with-pcre-regex`), Apache, git, wget, mc (GLib) and MariaDB, and nginx later (aZ,
-  10.11.2026).
+  10.11.2026). With a fix each that the releases lack (in `EXTRA_PATCHES`, not in the
+  hash of the ports that need them: a fix inside a shared library, as for az): PCRE2
+  the backward scans of `pcre2_dfa_match()` and of the JIT `\X` bounded by the checked
+  part of a UTF subject (GHSA-9qww-pwc4-77qq, the patches of SUSE,
+  [`files/patch-GHSA-9qww-pwc4-77qq`](devel/pcre2/files/patch-GHSA-9qww-pwc4-77qq)),
+  PCRE the name table of a compiled pattern initialised (Fedora,
+  [`files/patch-name-table`](devel/pcre/files/patch-name-table)).
 - **`devel/git`**: git without Perl (send-email, svn, the cvs scripts), Python, Tcl/Tk,
   gettext, expat (`git http-push`), the manual pages and the user and rc.d script of git
   daemon; HTTPS through our `curl`, PCRE2 (`git grep -P`) of `pcre2`, iconv of libc.
