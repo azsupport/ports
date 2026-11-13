@@ -39,8 +39,8 @@
 #     an import with __proto__ refused;
 #   - the security fixes over HTTP: //host/ not redirected off-site, the bounds of
 #     POST /api/core/capabilities, a Content-Type with two boundaries refused, a
-#     Content-Disposition of 200000 characters answered at once; 2.19.7: those of 3.x
-#     it takes, 101 types of the counts of saved objects refused (#12191), a
+#     Content-Disposition of 200000 characters answered at once, and those of 3.x
+#     both ports take: 101 types of the counts of saved objects refused (#12191), a
 #     Content-Encoding on the routes of the import refused (#12189), a datasource
 #     function chained in Timeline a series of its own (#12217);
 #   - the console proxy, Timeline, TSVB with a math metric, the sample data flights
@@ -178,12 +178,15 @@ else
     x="$(pv node_modules/@opensearch-project/opensearch-next) $(pv node_modules/json11) $(pv node_modules/js-yaml)"
     if [ "$x" = "2.13.0 2.0.0 3.15.2" ]; then pass "the client 2.13.0 and json11 2.0.0 of the 2.17 branch, js-yaml 3.15.2"; else fail "client, json11, js-yaml: $x"; fi
     for f in src/legacy/server/http/index.js src/core/server/http/https_redirect_server.js src/core/server/saved_objects/routes/utils.js \
-        src/core/server/capabilities/resolve_capabilities.js src/core/server/capabilities/routes/resolve_capabilities.js; do
+        src/core/server/capabilities/resolve_capabilities.js src/core/server/capabilities/routes/resolve_capabilities.js \
+        src/core/server/saved_objects/routes/index.js src/plugins/saved_objects_management/server/routes/scroll_count.js \
+        src/plugins/vis_type_timeline/server/handlers/chain_runner.js; do
         grep -q 'azsupport/ports' "$D/$f" || { fail "$f: not patched"; m=1; }
     done
     grep -q 'internals.boundaryParamRegex' "$D/node_modules/@hapi/content/lib/index.js" || { fail "@hapi/content: not the parser of 6.0.3"; m=1; }
+    grep -q 'The trailing alternative consumes a name' "$D/node_modules/@hapi/content/lib/index.js" || { fail "@hapi/content: not the parser of Content-Disposition of 6.0.3"; m=1; }
     grep -q 'path.startsWith(confineDir + Path.sep)' "$D/node_modules/@hapi/inert/lib/file.js" || { fail "@hapi/inert: not the confinement of 7.1.1"; m=1; }
-    [ "$m" = 0 ] && pass "the security fixes in their files (capabilities, redirects, import, @hapi/content, @hapi/inert)"
+    [ "$m" = 0 ] && pass "the security fixes in their files (capabilities, redirects, import, import with Content-Encoding, counts of saved objects, Timeline, @hapi/content, @hapi/inert)"
 fi
 t="$(grep -rl -E 'Number\.MAX_SAFE_INTEGER[[:space:]]*\|\|' --include='*.js' "$D/node_modules/@osd" "$D/src" "$D/plugins" 2>/dev/null | while read -r f; do
     sed -n -e '/\([A-Za-z_$][A-Za-z0-9_$]*\)[[:space:]]*<[[:space:]]*Number\.MAX_SAFE_INTEGER[[:space:]]*||[[:space:]]*\1[[:space:]]*>/p' "$f" | grep -q . && echo "$f"
@@ -469,34 +472,32 @@ if [ "$c" = 400 ]; then pass "a Content-Type with two boundaries: 400 (@hapi/con
 "$node" -e 'process.stdout.write("--b\r\nContent-Disposition: form-data; " + "a".repeat(200000) + "\r\n\r\nx\r\n--b--\r\n")' > "$T/disp.bin"
 t0="$(date +%s)"; c="$(curl -s -m 30 -o "$T/a/disp" -w '%{http_code}' -H 'osd-xsrf: t' -H 'Content-Type: multipart/form-data; boundary=b' -X POST "$k/api/saved_objects/_import" --data-binary "@$T/disp.bin")"; t1="$(date +%s)"
 if [ "$c" != 000 ] && [ $((t1 - t0)) -le 3 ]; then pass "a Content-Disposition of 200000 characters: $c in $((t1 - t0)) s (@hapi/content 6.0.3)"; else fail "a Content-Disposition of 200000 characters: $c in $((t1 - t0)) s"; fi
-if [ "$osd" = opensearch-dashboards219 ]; then
-    # the fixes of 3.x that textproc/opensearch-dashboards219 takes (files/patch-*)
-    "$node" -e 'console.log(JSON.stringify({ typesToInclude: Array.from({ length: 101 }, (_, i) => "t" + i) }))' > "$T/sc101.json"
-    "$node" -e 'console.log(JSON.stringify({ typesToInclude: Array.from({ length: 100 }, (_, i) => i ? "t" + i : "dashboard") }))' > "$T/sc100.json"
-    c1="$(rq sc101 POST /api/opensearch-dashboards/management/saved_objects/scroll/counts "@$T/sc101.json")"
-    c2="$(rq sc100 POST /api/opensearch-dashboards/management/saved_objects/scroll/counts "@$T/sc100.json")"
-    if [ "$c1" = 400 ] && has sc101 'cannot be greater than [100]' && [ "$c2" = 200 ] && has sc100 '"dashboard":1'; then
-        pass "the counts of saved objects: 101 types 400, 100 types 200 (#12191)"
-    else
-        fail "the counts of saved objects: 101 types $c1 $(ans sc101); 100 types $c2 $(ans sc100)"
-    fi
-    gzip -c "$T/export.ndjson" > "$T/export.ndjson.gz"
-    c1="$(curl -s -m 30 -o "$T/a/gz1" -w '%{http_code}' -H 'osd-xsrf: t' -H 'Content-Type: application/octet-stream' -H 'Content-Encoding: gzip' -X POST "$k/api/saved_objects/_import" --data-binary "@$T/export.ndjson.gz")"
-    c2="$(curl -s -m 30 -o "$T/a/gz2" -w '%{http_code}' -H 'osd-xsrf: t' -H 'Content-Encoding: gzip' -X POST "$k/api/saved_objects/_resolve_import_errors" -F "file=@$T/export.ndjson" -F 'retries=[]')"
-    if [ "$c1" = 400 ] && has gz1 'Content-Encoding is not supported' && [ "$c2" = 400 ] && has gz2 'Content-Encoding is not supported'; then
-        pass "a Content-Encoding on _import and _resolve_import_errors: 400 (#12189)"
-    else
-        fail "a Content-Encoding on the routes of the import: _import $c1 $(ans gz1); _resolve_import_errors $c2 $(ans gz2)"
-    fi
-    # (.es() chained after .es(): a series of its own, that of its q, with the label
-    # after it; one series)
-    TL='"time":{"from":"2026-11-12T00:00:00Z","to":"2026-11-13T00:00:00Z","interval":"1h","timezone":"UTC"}'
-    c="$(rq tlchain POST /api/timeline/run "{\"sheet\":[\".es(index=az-test*, timefield=t).es(index=az-test*, timefield=t, q=n:1).label(second)\"],$TL}")"
-    if [ "$c" = 200 ] && has tlchain '"label":"second","split":"n:1"' && [ "$(grep -o '"type":"series"' "$T/a/tlchain" | wc -l | tr -d ' ')" = 1 ]; then
-        pass "Timeline: .es() chained after .es() makes a series of its own (#12217)"
-    else
-        fail "Timeline: .es() chained after .es(): $c $(ans tlchain)"
-    fi
+# the fixes of 3.x that both ports take (files/patch-*)
+"$node" -e 'console.log(JSON.stringify({ typesToInclude: Array.from({ length: 101 }, (_, i) => "t" + i) }))' > "$T/sc101.json"
+"$node" -e 'console.log(JSON.stringify({ typesToInclude: Array.from({ length: 100 }, (_, i) => i ? "t" + i : "dashboard") }))' > "$T/sc100.json"
+c1="$(rq sc101 POST /api/opensearch-dashboards/management/saved_objects/scroll/counts "@$T/sc101.json")"
+c2="$(rq sc100 POST /api/opensearch-dashboards/management/saved_objects/scroll/counts "@$T/sc100.json")"
+if [ "$c1" = 400 ] && has sc101 'cannot be greater than [100]' && [ "$c2" = 200 ] && has sc100 '"dashboard":1'; then
+    pass "the counts of saved objects: 101 types 400, 100 types 200 (#12191)"
+else
+    fail "the counts of saved objects: 101 types $c1 $(ans sc101); 100 types $c2 $(ans sc100)"
+fi
+gzip -c "$T/export.ndjson" > "$T/export.ndjson.gz"
+c1="$(curl -s -m 30 -o "$T/a/gz1" -w '%{http_code}' -H 'osd-xsrf: t' -H 'Content-Type: application/octet-stream' -H 'Content-Encoding: gzip' -X POST "$k/api/saved_objects/_import" --data-binary "@$T/export.ndjson.gz")"
+c2="$(curl -s -m 30 -o "$T/a/gz2" -w '%{http_code}' -H 'osd-xsrf: t' -H 'Content-Encoding: gzip' -X POST "$k/api/saved_objects/_resolve_import_errors" -F "file=@$T/export.ndjson" -F 'retries=[]')"
+if [ "$c1" = 400 ] && has gz1 'Content-Encoding is not supported' && [ "$c2" = 400 ] && has gz2 'Content-Encoding is not supported'; then
+    pass "a Content-Encoding on _import and _resolve_import_errors: 400 (#12189)"
+else
+    fail "a Content-Encoding on the routes of the import: _import $c1 $(ans gz1); _resolve_import_errors $c2 $(ans gz2)"
+fi
+# (.es() chained after .es(): a series of its own, that of its q, with the label
+# after it; one series)
+TL='"time":{"from":"2026-11-12T00:00:00Z","to":"2026-11-13T00:00:00Z","interval":"1h","timezone":"UTC"}'
+c="$(rq tlchain POST /api/timeline/run "{\"sheet\":[\".es(index=az-test*, timefield=t).es(index=az-test*, timefield=t, q=n:1).label(second)\"],$TL}")"
+if [ "$c" = 200 ] && has tlchain '"label":"second","split":"n:1"' && [ "$(grep -o '"type":"series"' "$T/a/tlchain" | wc -l | tr -d ' ')" = 1 ]; then
+    pass "Timeline: .es() chained after .es() makes a series of its own (#12217)"
+else
+    fail "Timeline: .es() chained after .es(): $c $(ans tlchain)"
 fi
 
 # --- the core: console, Timeline, TSVB, sample data, requests at once --------------------------
