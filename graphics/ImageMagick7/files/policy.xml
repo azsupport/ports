@@ -59,7 +59,11 @@
   <policy domain="path" rights="none" pattern="*../*"/>
   <policy domain="path" rights="none" pattern="@*"/>
   <policy domain="module" rights="none" pattern="*"/>
-  <policy domain="module" rights="read | write" pattern="{BMP,GIF,JPEG,PNG,WEBP,HEIC,XC,LABEL,CAPTION,INFO,JSON}"/>
+  <!-- the names of the modules in lower case too: ImageMagick matches them case by
+       case, and the format a program gives MagickWand (imagick of PHP:
+       setImageFormat("png"), "jpeg") is the name of the module it asks for, as
+       given (check-variants.sh, 14.11.2026); the command line asks in upper case -->
+  <policy domain="module" rights="read | write" pattern="{BMP,GIF,JPEG,PNG,WEBP,HEIC,XC,LABEL,CAPTION,INFO,JSON,bmp,gif,jpeg,png,webp,heic,xc,label,caption,info,json}"/>
   <policy domain="module" rights="read | write" pattern="{MPC}" stealth="true"/>
   <policy domain="coder" rights="none" pattern="{MNG,JNG}"/>
   <policy domain="system" name="shred" value="1"/>
