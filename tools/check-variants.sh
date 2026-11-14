@@ -218,6 +218,30 @@ if in_repo "php$short-imagick6" && in_repo "php$short-imagick7"; then
             echo (strpos($s, "ImageMagick '"$w"'.") !== false && strlen($b) > 0 && strlen($c) > 0)
                 ? "OK " . $s . ", a PNG (\"png\") of " . strlen($b) . " and a JPEG (\"Jpeg\") of " . strlen($c) . " bytes"
                 : "FAIL " . $s . " (ImageMagick '"$w"' wanted), PNG " . strlen($b) . ", JPEG " . strlen($c) . " bytes";'
+        # the names of formats in any case (the policy, aZ 14.11.2026): those allowed
+        # written, the aliases too (jpg is the module JPEG); those refused not written
+        # (MNG and JNG are in the module PNG, refused as coders)
+        phpcheck "imagick: $p, the names of formats" "$p" '
+            $ok = array(); $bad = array();
+            foreach (array("jpg", "JPG", "Jpg", "jpeg", "PNG", "Webp", "gif") as $f) {
+                try {
+                    $k = new Imagick();
+                    $k->newImage(8, 8, "green");
+                    $k->setImageFormat($f);
+                    $d = $k->getImageBlob();
+                    if (strlen($d) > 0) { $ok[] = $f; } else { $bad[] = $f . " (empty)"; }
+                } catch (Exception $e) { $bad[] = $f . " (" . $e->getMessage() . ")"; }
+            }
+            foreach (array("mng", "Mng", "MNG", "jng", "svg", "Pdf") as $f) {
+                try {
+                    $k = new Imagick();
+                    $k->newImage(8, 8, "green");
+                    $k->setImageFormat($f);
+                    $d = $k->getImageBlob();
+                    $bad[] = $f . " written (" . strlen($d) . " bytes)";
+                } catch (Exception $e) { $ok[] = "no " . $f; }
+            }
+            echo count($bad) == 0 ? "OK " . implode(" ", $ok) : "FAIL " . implode("; ", $bad);'
         if [ "$w" = 6 ]; then
             libs "imagick: $p, the libraries" "$extdir/imagick.so" libMagickWand-6.so yes libMagickWand-7.so no
         else

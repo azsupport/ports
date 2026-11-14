@@ -76,7 +76,10 @@
   <policy domain="module" rights="read | write" pattern="[Ii][Nn][Ff][Oo]"/>
   <policy domain="module" rights="read | write" pattern="[Jj][Ss][Oo][Nn]"/>
   <policy domain="module" rights="read | write" pattern="{MPC}" stealth="true"/>
-  <policy domain="coder" rights="none" pattern="{MNG,JNG}"/>
+  <!-- MNG and JNG (in the module PNG, which is allowed) in any case too (14.11.2026):
+       the names of coders are matched case by case as well -->
+  <policy domain="coder" rights="none" pattern="[Mm][Nn][Gg]"/>
+  <policy domain="coder" rights="none" pattern="[Jj][Nn][Gg]"/>
   <policy domain="system" name="shred" value="1"/>
   <policy domain="system" name="memory-map" value="anonymous"/>
   <policy domain="system" name="max-memory-request" value="512MiB"/>
