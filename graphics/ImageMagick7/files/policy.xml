@@ -59,11 +59,22 @@
   <policy domain="path" rights="none" pattern="*../*"/>
   <policy domain="path" rights="none" pattern="@*"/>
   <policy domain="module" rights="none" pattern="*"/>
-  <!-- the names of the modules in lower case too: ImageMagick matches them case by
-       case, and the format a program gives MagickWand (imagick of PHP:
-       setImageFormat("png"), "jpeg") is the name of the module it asks for, as
-       given (check-variants.sh, 14.11.2026); the command line asks in upper case -->
-  <policy domain="module" rights="read | write" pattern="{BMP,GIF,JPEG,PNG,WEBP,HEIC,XC,LABEL,CAPTION,INFO,JSON,bmp,gif,jpeg,png,webp,heic,xc,label,caption,info,json}"/>
+  <!-- the allowed modules, each in any case (aZ, 14.11.2026): ImageMagick matches the
+       names of modules case by case, and the format a program gives MagickWand
+       (imagick of PHP: setImageFormat("png"), "Jpeg") is the name of the module it
+       asks for, as given (check-variants.sh, 14.11.2026); the command line asks in
+       upper case. One line each: an alternative of {} takes no class [..] -->
+  <policy domain="module" rights="read | write" pattern="[Bb][Mm][Pp]"/>
+  <policy domain="module" rights="read | write" pattern="[Gg][Ii][Ff]"/>
+  <policy domain="module" rights="read | write" pattern="[Jj][Pp][Ee][Gg]"/>
+  <policy domain="module" rights="read | write" pattern="[Pp][Nn][Gg]"/>
+  <policy domain="module" rights="read | write" pattern="[Ww][Ee][Bb][Pp]"/>
+  <policy domain="module" rights="read | write" pattern="[Hh][Ee][Ii][Cc]"/>
+  <policy domain="module" rights="read | write" pattern="[Xx][Cc]"/>
+  <policy domain="module" rights="read | write" pattern="[Ll][Aa][Bb][Ee][Ll]"/>
+  <policy domain="module" rights="read | write" pattern="[Cc][Aa][Pp][Tt][Ii][Oo][Nn]"/>
+  <policy domain="module" rights="read | write" pattern="[Ii][Nn][Ff][Oo]"/>
+  <policy domain="module" rights="read | write" pattern="[Jj][Ss][Oo][Nn]"/>
   <policy domain="module" rights="read | write" pattern="{MPC}" stealth="true"/>
   <policy domain="coder" rights="none" pattern="{MNG,JNG}"/>
   <policy domain="system" name="shred" value="1"/>

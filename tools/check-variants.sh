@@ -211,9 +211,13 @@ if in_repo "php$short-imagick6" && in_repo "php$short-imagick7"; then
             $i->newImage(8, 8, "red");
             $i->setImageFormat("png");
             $b = $i->getImageBlob();
-            echo (strpos($s, "ImageMagick '"$w"'.") !== false && strlen($b) > 0)
-                ? "OK " . $s . ", a PNG of " . strlen($b) . " bytes"
-                : "FAIL " . $s . " (ImageMagick '"$w"' wanted), a PNG of " . strlen($b) . " bytes";'
+            $j = new Imagick();
+            $j->newImage(8, 8, "blue");
+            $j->setImageFormat("Jpeg");
+            $c = $j->getImageBlob();
+            echo (strpos($s, "ImageMagick '"$w"'.") !== false && strlen($b) > 0 && strlen($c) > 0)
+                ? "OK " . $s . ", a PNG (\"png\") of " . strlen($b) . " and a JPEG (\"Jpeg\") of " . strlen($c) . " bytes"
+                : "FAIL " . $s . " (ImageMagick '"$w"' wanted), PNG " . strlen($b) . ", JPEG " . strlen($c) . " bytes";'
         if [ "$w" = 6 ]; then
             libs "imagick: $p, the libraries" "$extdir/imagick.so" libMagickWand-6.so yes libMagickWand-7.so no
         else
