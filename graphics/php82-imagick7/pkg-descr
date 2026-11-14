@@ -1,5 +1,6 @@
 Provides a wrapper to the ImageMagick/GraphicsMagick library; here with
-ImageMagick 7 (the package ImageMagick7).
+ImageMagick 7 (the package libimagemagick7;
+php82-imagick6 has ImageMagick 6, and the two conflict).
 
 PECL imagick for php82 of azsupport/ports, built from ext/imagick of
 the release tarball of azsupport/php-src, which bundles it:

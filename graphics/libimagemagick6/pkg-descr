@@ -1,0 +1,8 @@
+The libraries of ImageMagick 6 of azsupport/ports (JPEG, PNG, WebP, GIF, HEIC
+and AVIF only): libMagickCore-6.Q16 and libMagickWand-6.Q16 in /usr/local/az/lib
+with their headers, .pc files and MagickWand-config
+(/usr/local/az/libexec/ImageMagick-6/bin), and etc/ImageMagick-6 with the
+policy of graphics/ImageMagick7/files/policy.xml, which the libraries read.
+The programs are ImageMagick6 (convert, identify, ...) or ImageMagick67
+(convert6, identify6, ...); imagick6 of PHP links these libraries. Versions
+and options: share/doc/ImageMagick6/VERSIONS.

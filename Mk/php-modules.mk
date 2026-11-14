@@ -39,7 +39,9 @@ gmp_DEPENDS=		math/php${PHP_VER}-gmp
 hash_DEPENDS=		security/php${PHP_VER}-hash
 iconv_DEPENDS=		converters/php${PHP_VER}-iconv
 igbinary_DEPENDS=	converters/php${PHP_VER}-igbinary
-imagick_DEPENDS=	graphics/php${PHP_VER}-imagick
+# imagick: phpXY-imagick7 (ImageMagick 7); phpXY-imagick6 (ImageMagick 6) has the
+# same imagick.so (they conflict, aZ 14.11.2026), so USE_PHP=imagick takes it as well
+imagick_DEPENDS=	graphics/php${PHP_VER}-imagick7
 intl_DEPENDS=		devel/php${PHP_VER}-intl
 json_DEPENDS=		devel/php${PHP_VER}-json
 mbstring_DEPENDS=	converters/php${PHP_VER}-mbstring

@@ -1,0 +1,9 @@
+The programs of ImageMagick 7 and ImageMagick 6 in one package, with JPEG, PNG,
+WebP, GIF, HEIC and AVIF only and the policy of
+graphics/ImageMagick7/files/policy.xml of azsupport/ports: bin/magick and the
+usual names linked to it (convert, identify, ...), as in ImageMagick7, and
+ImageMagick 6 as bin/convert6, identify6, mogrify6, composite6 and the others.
+Their libraries, headers, configuration and policy are the packages
+libimagemagick6 and libimagemagick7. It conflicts with ImageMagick6 and
+ImageMagick7. Versions and options: share/doc/ImageMagick6/VERSIONS and
+share/doc/ImageMagick7/VERSIONS of those.

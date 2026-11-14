@@ -71,8 +71,11 @@
 | `az` | `az/az` | библиотеки сборок в `/usr/local/az`: `lib` (разделяемые, с run path `/usr/local/az/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`), с ними линкуется каждый пакет; статические — в `/usr/local/az/static`, только для особых сборок `az-menu.sh`. OpenSSL, zlib и bzip2 — из базовой системы |
 | `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта, с SCP и SFTP (libssh2 из az, без старых алгоритмов SSH: MAC на MD5, 3DES, RC4, Blowfish, CAST; так же у `ssh2` PHP и SFTP в `mc`); его `libcurl.so.4` — libcurl всех пакетов (модуль curl PHP, git) |
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` и `ffprobe` только с теми форматами, что нужны видеосайтам |
-| `ImageMagick6` | `graphics/ImageMagick6` | ImageMagick 6, программы с 6 на конце (`convert6`, `identify6`, ...); его библиотеки — в `/usr/local/az/lib` |
-| `ImageMagick7` | `graphics/ImageMagick7` | ImageMagick 7 (`magick`); его `libMagickCore-7.so` и `libMagickWand-7.so` в `/usr/local/az/lib`, с ними линкуются `magick` и модуль imagick |
+| `ImageMagick6` | `graphics/ImageMagick6` | программы ImageMagick 6 под обычными именами (`convert`, `identify`, ...); конфликтует с `ImageMagick7` и `ImageMagick67` |
+| `ImageMagick7` | `graphics/ImageMagick7` | программы ImageMagick 7 (`magick` и обычные имена ссылками на него); конфликтует с `ImageMagick6` и `ImageMagick67` |
+| `ImageMagick67` | `graphics/ImageMagick67` | программы обоих: ImageMagick 7 как в `ImageMagick7` и ImageMagick 6 с 6 на конце (`convert6`, `identify6`, ...); конфликтует с `ImageMagick6` и `ImageMagick7` |
+| `libimagemagick6` | `graphics/libimagemagick6` | библиотеки ImageMagick 6 (`libMagickCore-6.Q16`, `libMagickWand-6.Q16` в `/usr/local/az/lib`), их заголовки, `.pc`, `MagickWand-config` (`/usr/local/az/libexec/ImageMagick-6/bin`) и `etc/ImageMagick-6` с нашей политикой; зависимость `ImageMagick6`, `ImageMagick67` и модуля imagick6 |
+| `libimagemagick7` | `graphics/libimagemagick7` | библиотеки ImageMagick 7 (`libMagickCore-7.so`, `libMagickWand-7.so` в `/usr/local/az/lib`), их заголовки, `.pc`, `MagickWand-config` и статическая сборка, и `etc/ImageMagick-7` с нашей политикой; зависимость `ImageMagick7`, `ImageMagick67` и модуля imagick7 |
 | `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) с форматами нашего ImageMagick; его библиотеки в `/usr/local/az/lib`, с ними линкуются `gm` и модуль gmagick |
 | `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib из `glib`, libssh2 из az, PCRE2 из `pcre2`; zip, 7z, rar и образы ISO — через `tar` базовой системы (имена zip из Windows — в CP866); исправления mc после 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), у каждого — источник): переполнение `%cd` длинным именем в архиве, Reget, портивший следующие файлы копирования, мышь при `TERM=xterm` (Gentoo) и падение при протаскивании, выход из subshell на FreeBSD (NetBSD), своё приглашение tcsh, приглашение с байтами не UTF-8, дескриптор канала subshell (Debian), строки «ls -l» с именами в один байт (Alpine), ftp: переподключение после простоя, пароль из `~/.netrc`; копии, клонирующие блоки на ZFS (`copy_file_range`, upstream #5082); наши: ни одной своей строки mc (его cd, инициализация, меню пользователя) в истории subshell на tcsh |
 | `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 и PCRE 8.45, официальные порты: PCRE всех пакетов (PHP, Apache, git, wget, mc, MariaDB; потом nginx) |
@@ -130,7 +133,7 @@
   CVE-2011-0764, CVE-2011-1552, CVE-2011-1553, CVE-2011-1554).
 - `phpXY-swoole` и `phpXY-openswoole` ставятся оба; ini у openswoole выключен (у них
   одни и те же классы), его сообщение пакета говорит, как переключить.
-- `phpXY-imagick` и `phpXY-gmagick` ставятся оба, но в один PHP их грузить нельзя (у
+- `phpXY-imagick7` (или `phpXY-imagick6`) и `phpXY-gmagick` ставятся оба, но в один PHP их грузить нельзя (у
   GraphicsMagick и ImageMagick одинаковые имена функций): ini у gmagick выключен, а при
   установке создаётся CLI-профиль gmagick (`/usr/local/etc/php74-gmagick`: gmagick включён,
   imagick выключен; `php74-profile gmagick script.php`); при удалении пакета профиль остаётся.
@@ -168,18 +171,27 @@
   WebP, aac_adtstoasc, Dolby Vision для SVT-AV1), и для ошибок памяти mov/mp4, IAMF,
   AAC USAC, многослойного HEVC и MJPEG Avid, найденных в октябре 2026.
   Сборка и работа: az.
-- **`graphics/ImageMagick6`**: `bin/convert6`, `identify6`, `mogrify6`, `composite6` и
-  остальные, рядом с ImageMagick 7, линкуются со своими библиотеками в
-  `/usr/local/az/lib`: только JPEG, PNG, WebP, GIF, HEIC и AVIF, с нашей policy; с
+- **`graphics/libimagemagick6`** и **`graphics/libimagemagick7`** (aZ, 14.11.2026):
+  библиотеки ImageMagick 6 и 7 отдельными пакетами, чтобы модулю imagick PHP не нужны были
+  программы: `libMagickCore-6.Q16`, `libMagickWand-6.Q16` и `libMagickCore-7.so`,
+  `libMagickWand-7.so` в `/usr/local/az/lib`, их заголовки, `.pc` и `MagickWand-config`
+  (у ImageMagick 7 в `/usr/local/az/bin`, у ImageMagick 6 в
+  `/usr/local/az/libexec/ImageMagick-6/bin`: имена те же), `etc/ImageMagick-6` и
+  `etc/ImageMagick-7` с нашей policy, которую читают библиотеки; у ImageMagick 7 ещё его
+  статические библиотеки и `MagickWand-config` в `/usr/local/az/static`, для статического
+  imagick из `az-menu.sh`. Только JPEG, PNG, WebP, GIF, HEIC и AVIF; ImageMagick 6 с
   исправлением, которое несёт OpenBSD, для картинки с испорченным профилем EXIF или
   8BIM: 6.9.13-60 её вовсе не записывал
   ([`files/imagemagick6-write-profiles.patch`](graphics/ImageMagick6/files/imagemagick6-write-profiles.patch),
   issue 427 ImageMagick6). Сборка и работа: az.
-- **`graphics/ImageMagick7`**: пакет `ImageMagick7` вместо официального: `bin/magick` и
-  его имена, те же форматы и policy, линкуются с его разделяемыми `libMagickCore-7.so` и
-  `libMagickWand-7.so` в `/usr/local/az/lib`, с ними же линкуется imagick из PHP
-  (`MagickWand-config` там же); его статические библиотеки и `MagickWand-config` — в
-  `/usr/local/az/static`, для статического imagick из `az-menu.sh`. Сборка и работа: az.
+- **`graphics/ImageMagick6`**, **`graphics/ImageMagick7`** и
+  **`graphics/ImageMagick67`** (aZ, 14.11.2026): программы, друг с другом они
+  конфликтуют: в `ImageMagick6` — `bin/convert`, `identify`, `mogrify`, `composite` и
+  остальные программы ImageMagick 6, в `ImageMagick7` — `bin/magick` и обычные имена
+  ссылками на него, в `ImageMagick67` — оба, ImageMagick 6 с 6 на конце (`convert6`,
+  `identify6`, ...); каждый зависит от библиотек своего ImageMagick (`ImageMagick67` — от
+  обеих). Модули `phpXY-imagick7` и `phpXY-imagick6` (одинаковый `imagick.so`, поэтому
+  тоже конфликтуют) зависят от `libimagemagick7` и `libimagemagick6`. Сборка и работа: az.
 - **`graphics/GraphicsMagick`**: пакет `GraphicsMagick` вместо официального: `bin/gm`,
   собран как наш ImageMagick, только JPEG, PNG, WebP, GIF, BMP, HEIC и AVIF; файла
   политики у него нет — её заменяют зарегистрированные кодеки и пустой `delegates.mgk`
@@ -496,7 +508,7 @@ pkg update -r az
 
 `priority: 100`: для пакета, который есть в обоих (`curl`), pkg предпочитает az
 репозиторию FreeBSD. `pkg update -r az` отказывается от каталога, подпись которого не
-проверяется. В `ffmpeg`, `ImageMagick6`, `ImageMagick7` и `GraphicsMagick` из az нет
+проверяется. В `ffmpeg`, `libimagemagick6`, `libimagemagick7` и `GraphicsMagick` из az нет
 разделяемых библиотек официальных пакетов (`libavcodec.so`, `libMagickWand-7.so` в
 `/usr/local/lib`, …): если они нужны другому пакету (`pkg info -r ffmpeg`), оставьте
 официальный пакет.
@@ -540,7 +552,7 @@ pkg install -r az php84 mod_php84 php84-opcache php84-gd php84-mbstring php84-op
 Программы:
 
 ```sh
-pkg install -r az curl ffmpeg ImageMagick6 ImageMagick7 mc
+pkg install -r az curl ffmpeg ImageMagick67 mc
 ```
 
 yt-dlp — без `-r az`: его пакеты Python есть в репозитории FreeBSD, а `yt-dlp`,

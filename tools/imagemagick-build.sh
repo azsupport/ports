@@ -2,7 +2,10 @@
 # imagemagick-build.sh - build ImageMagick 6 and 7 for the video sites (the "im"
 # lines of graphics/ImageMagick7/files/imagemagick.conf; the packages ImageMagick6
 # and ImageMagick7 of the ports graphics/ImageMagick6 and graphics/ImageMagick7, in
-# the place of the official ones): programs side by side in /usr/local/bin,
+# the place of the official ones, and ImageMagick67 of graphics/ImageMagick67 with
+# both, which conflict with each other): programs in /usr/local/bin, those of
+# ImageMagick 6 with the suffix AZ_IM6_SUFFIX (none in ImageMagick6, 6 in
+# ImageMagick67, next to ImageMagick 7: convert6, identify6...),
 # with only the formats listed there (see the head of that file for which and why),
 # linking their own shared libraries and those of the package az, /usr/local/az/lib
 # (installed: the port az/az first), with that run path: our ports link each
@@ -12,7 +15,8 @@
 # (08.11.2026); here each ImageMagick is built by its own port.
 #
 # Usage (FreeBSD; the ports graphics/ImageMagick6 and graphics/ImageMagick7 run
-# it in their post-fetch and do-build, each with its name):
+# it in their post-fetch and do-build, each with its name, graphics/ImageMagick67
+# with each name, AZ_IM6_SUFFIX=6 and a stage of each, AZ_STAGEDIR):
 #   sh tools/imagemagick-build.sh --tools             install the build tools (pkg)
 #   sh tools/imagemagick-build.sh --fetch [<name>]    fetch the distfiles of the
 #                                                     official port into AZ_DISTDIR
@@ -38,8 +42,8 @@
 # libdir AZ_PREFIX/lib, and installed into a stage directory first; what it keeps
 # then goes to the stage of its package, AZ_STAGE/ImageMagick<6|7> (default
 # AZ_WORK/stage/...): its programs (PIE) in /usr/local/bin (ImageMagick 7: magick
-# and the usual names linked to it; ImageMagick 6: every name with a 6 at the end,
-# convert6, identify6...), etc/ImageMagick-<6|7>/ (its configuration, with the
+# and the usual names linked to it; ImageMagick 6: the usual names with
+# AZ_IM6_SUFFIX at the end, convert6, identify6... in ImageMagick67), etc/ImageMagick-<6|7>/ (its configuration, with the
 # policy graphics/ImageMagick7/files/policy.xml), share/ImageMagick-<6|7>/ and
 # share/licenses/ImageMagick<6|7>/ of /usr/local, and its libraries
 # (libMagickCore, libMagickWand) with lib/ImageMagick-<version>/ (configure.xml) in
@@ -98,6 +102,20 @@ distdir="${AZ_DISTDIR:-$work/distfiles}"
 takedist="${AZ_TAKE_DISTFILES:-$(pwd)/distfiles}"
 # root_of <6|7>: the stage of that ImageMagick (its files at their paths)
 root_of() { if [ -n "${AZ_STAGEDIR:-}" ]; then echo "$AZ_STAGEDIR"; else echo "$stage/ImageMagick$1"; fi; }
+# the suffix of the programs of ImageMagick 6 (--program-suffix): none for the
+# package ImageMagick6 (convert, identify...), 6 for ImageMagick67, where they are
+# next to those of ImageMagick 7 (convert6, identify6...; aZ, 14.11.2026)
+s6="${AZ_IM6_SUFFIX:-}"
+case "$s6" in *[!0-9A-Za-z_-]*) echo "imagemagick-build: AZ_IM6_SUFFIX=$s6: letters, digits, - and _ only" >&2; exit 2 ;; esac
+# AZ_IM_PART: what of the build goes into the stage (aZ, 14.11.2026: the libraries in
+# packages of their own, which the programs and imagick of PHP depend on): lib, the
+# libraries with their headers, .pc files, config scripts, configuration (the policy),
+# share files, licences and VERSIONS, ImageMagick 7 also its static build (the ports
+# graphics/libimagemagick6 and graphics/libimagemagick7); bin, the programs only (the
+# ports graphics/ImageMagick6, ImageMagick7 and ImageMagick67, which depend on those);
+# all (default), both
+part="${AZ_IM_PART:-all}"
+case "$part" in lib|bin|all) ;; *) echo "imagemagick-build: AZ_IM_PART=$part: lib, bin or all" >&2; exit 2 ;; esac
 ncpu="$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 major="$(uname -r | cut -d. -f1)"
 
@@ -199,12 +217,12 @@ pc_add() {
     ' "$pc" > "$pc.new" && mv "$pc.new" "$pc"
 }
 
-# config_wrap <name> <pc module> <tree> <static|shared>: <tree>/bin/<name> of
-# ImageMagick 7 (in the stage of the package), printing the link line from the .pc
-# files of that tree: static, the static link line; shared, the libraries with
-# their run path <tree>/lib. The scripts of ImageMagick give neither (they read the
-# .pc files where make install put them, and print no run path); imagick of PHP
-# runs MagickWand-config.
+# config_wrap <name> <pc module> <tree> <static|shared> [<bin directory>]:
+# <tree>/bin/<name> (or <bin directory>/<name>) of ImageMagick (in the stage of the
+# package), printing the link line from the .pc files of that tree: static, the
+# static link line; shared, the libraries with their run path <tree>/lib. The scripts
+# of ImageMagick give neither (they read the .pc files where make install put them,
+# and print no run path); imagick of PHP runs MagickWand-config.
 config_wrap() {
     if [ "$4" = static ]; then
         what='static libraries, so --libs gives the static link line'
@@ -213,9 +231,10 @@ config_wrap() {
         what="shared libraries, so --libs gives them with the run path $3/lib"
         libs="l=\"\$(/usr/local/bin/pkgconf --libs $2)\" || exit 1; echo \"\$l -Wl,-rpath,$3/lib\""
     fi
-    cat > "$root$3/bin/$1" <<EOF
+    cb_="${5:-$3/bin}"
+    cat > "$root$cb_/$1" <<EOF
 #!/bin/sh
-# $1 of ImageMagick 7 in $3 (tools/imagemagick-build.sh of
+# $1 of ImageMagick ($2) in $3 (tools/imagemagick-build.sh of
 # https://github.com/azsupport/ports): $what, from the .pc files of $3.
 PKG_CONFIG_LIBDIR='$3/lib/pkgconfig:/usr/libdata/pkgconfig'
 export PKG_CONFIG_LIBDIR
@@ -228,7 +247,7 @@ case "\${1:-}" in
     *) echo "Usage: $1 [--cflags] [--cppflags] [--exec-prefix] [--ldflags] [--libs] [--prefix] [--version]" >&2; exit 1 ;;
 esac
 EOF
-    chmod 755 "$root$3/bin/$1"
+    chmod 755 "$root$cb_/$1"
 }
 
 # b_im_shared <name> <source> <6|7>: ImageMagick with shared libraries, the build of
@@ -238,7 +257,7 @@ EOF
 # each other's shared libraries: aZ, 10.11.2026; the compiler leaves -pie out of the
 # link of a library, as with the PIE of the ports). Installed into a stage directory
 # of its own; into the stage of the package: the programs (ImageMagick 7: magick and
-# the usual names linked to it; ImageMagick 6: every name with a 6 at the end),
+# the usual names linked to it; ImageMagick 6: the usual names, with AZ_IM6_SUFFIX at the end),
 # etc/ImageMagick-<6|7>/ with our policy, share/ImageMagick-<6|7>/ in /usr/local, and
 # the libraries with lib/ImageMagick-<version>/ (configure.xml) in $A/lib;
 # ImageMagick 7 also its headers, .pc files and config scripts there, for imagick
@@ -264,6 +283,7 @@ b_im_shared() {
         # shellcheck disable=SC2046
         ./configure --prefix="$I" --libdir="$A/lib" --includedir="$A/include" LIBS="-lc++ -lpthread -lm" \
             PTHREAD_LIBS=-lpthread $(conf_opts configure) $(conf_opts "configure$v") \
+            $(if [ "$v" = 6 ] && [ -n "$s6" ]; then echo "--program-suffix=$s6"; fi) \
             --enable-shared --disable-static --without-modules &&
             gmake -j"$ncpu" && gmake install-strip DESTDIR="$sst"
     ) || { echo "== shared: configure, gmake or gmake install-strip failed ($(df -h "$work" | awk 'NR == 2 { print $4 " free" }'))"; return 1; }
@@ -273,44 +293,61 @@ b_im_shared() {
     ls "$l"/libMagickCore-"$v"*.so* "$l"/libMagickWand-"$v"*.so* > /dev/null 2>&1 ||
         { echo "== shared: no libMagickCore-$v or libMagickWand-$v .so in $l: $(ls "$l" 2>/dev/null | tr '\n' ' ')"; return 1; }
     [ -d "$s/bin" ] || { echo "== shared: no programs in $s/bin"; return 1; }
-    if [ "$v" = 6 ]; then
-        progs="$(cd "$s/bin" && ls | grep '6$' | grep -v -e '-config6$' -e '^conjure6$')"
+    if [ "$v" = 6 ] && [ -n "$s6" ]; then
+        progs="$(cd "$s/bin" && ls | grep -e "$s6\$" | grep -v -e "-config$s6\$" -e "^conjure$s6\$")"
     else
         progs="$(cd "$s/bin" && ls | grep -v -e '-config$' -e '^conjure$')"
     fi
     [ -n "$progs" ] || { echo "== no programs in $s/bin"; return 1; }
-    keep="$(for p in $progs; do echo "bin/$p"; done; cd "$s" && ls -d "etc/ImageMagick-$v" "share/ImageMagick-$v" 2>/dev/null)"
-    echo "== into $root$I:" $keep
-    mkdir -p "$root$I" || return 1
-    # shellcheck disable=SC2086
-    (cd "$s" && tar -cf - $keep) | (cd "$root$I" && tar -xpf -) || return 1
-    cp "$policy" "$root$I/etc/ImageMagick-$v/policy.xml" || return 1
-    mkdir -p "$root$A/lib" || return 1
-    keep="$(cd "$l" && ls -d libMagickCore-"$v"*.so* libMagickWand-"$v"*.so* ImageMagick-"$v".* 2>/dev/null)"
-    echo "== into $root$A/lib:" $keep
-    # shellcheck disable=SC2086
-    (cd "$l" && tar -cf - $keep) | (cd "$root$A/lib" && tar -xpf -) || return 1
-    if [ "$v" = 7 ]; then
-        [ -d "$sst$A/include/ImageMagick-7" ] || { echo "== shared: no headers in $sst$A/include/ImageMagick-7"; return 1; }
+    # AZ_IM_PART bin or all: the programs
+    if [ "$part" != lib ]; then
+        keep="$(for p in $progs; do echo "bin/$p"; done)"
+        echo "== into $root$I:" $keep
+        mkdir -p "$root$I" || return 1
+        # shellcheck disable=SC2086
+        (cd "$s" && tar -cf - $keep) | (cd "$root$I" && tar -xpf -) || return 1
+    fi
+    # AZ_IM_PART lib or all: the rest
+    if [ "$part" != bin ]; then
+        keep="$(cd "$s" && ls -d "etc/ImageMagick-$v" "share/ImageMagick-$v" 2>/dev/null)"
+        echo "== into $root$I:" $keep
+        mkdir -p "$root$I" || return 1
+        # shellcheck disable=SC2086
+        (cd "$s" && tar -cf - $keep) | (cd "$root$I" && tar -xpf -) || return 1
+        cp "$policy" "$root$I/etc/ImageMagick-$v/policy.xml" || return 1
+        mkdir -p "$root$A/lib" || return 1
+        keep="$(cd "$l" && ls -d libMagickCore-"$v"*.so* libMagickWand-"$v"*.so* ImageMagick-"$v".* 2>/dev/null)"
+        echo "== into $root$A/lib:" $keep
+        # shellcheck disable=SC2086
+        (cd "$l" && tar -cf - $keep) | (cd "$root$A/lib" && tar -xpf -) || return 1
+        [ -d "$sst$A/include/ImageMagick-$v" ] || { echo "== shared: no headers in $sst$A/include/ImageMagick-$v"; return 1; }
         # the .pc files: in libdata/pkgconfig of the prefix (USES=pathfix of the port), or in lib/pkgconfig
         pcd=""
         for d in "$sst$I/libdata/pkgconfig" "$l/pkgconfig" "$sst$I/lib/pkgconfig"; do
-            if ls "$d"/MagickWand-7*.pc > /dev/null 2>&1; then pcd="$d"; break; fi
+            if ls "$d"/MagickWand-"$v"*.pc > /dev/null 2>&1; then pcd="$d"; break; fi
         done
-        [ -n "$pcd" ] || { echo "== shared: no MagickWand-7 .pc in $sst$I/libdata/pkgconfig, $l/pkgconfig or $sst$I/lib/pkgconfig"; return 1; }
-        mkdir -p "$root$A/lib/pkgconfig" "$root$A/include" "$root$A/bin" || return 1
-        cp -R "$sst$A/include/ImageMagick-7" "$root$A/include/" || return 1
-        # libdir and includedir are those of $A already (configure was given them)
+        [ -n "$pcd" ] || { echo "== shared: no MagickWand-$v .pc in $sst$I/libdata/pkgconfig, $l/pkgconfig or $sst$I/lib/pkgconfig"; return 1; }
+        mkdir -p "$root$A/lib/pkgconfig" "$root$A/include" || return 1
+        cp -R "$sst$A/include/ImageMagick-$v" "$root$A/include/" || return 1
+        # libdir and includedir are those of $A already (configure was given them);
+        # of ImageMagick 6 only those with its version in the name (MagickWand-6.Q16.pc):
+        # those without it (MagickWand.pc, ImageMagick.pc) are those of ImageMagick 7
         for pc in "$pcd"/*.pc; do
+            if [ "$v" = 6 ]; then case "${pc##*/}" in *-6.*) ;; *) continue ;; esac; fi
             cp "$pc" "$root$A/lib/pkgconfig/${pc##*/}" || return 1
         done
         echo "== .pc files into $root$A/lib/pkgconfig: $(cd "$root$A/lib/pkgconfig" && ls | tr '\n' ' ')"
-        mc="$(cd "$root$A/lib/pkgconfig" && ls MagickCore-7*.pc 2>/dev/null | head -n 1)"
-        mw="$(cd "$root$A/lib/pkgconfig" && ls MagickWand-7*.pc 2>/dev/null | head -n 1)"
+        mc="$(cd "$root$A/lib/pkgconfig" && ls MagickCore-"$v"*.pc 2>/dev/null | head -n 1)"
+        mw="$(cd "$root$A/lib/pkgconfig" && ls MagickWand-"$v"*.pc 2>/dev/null | head -n 1)"
         [ -n "$mc" ] && [ -n "$mw" ] ||
-            { echo "== shared: no MagickCore-7 or MagickWand-7 .pc: $(ls "$root$A/lib/pkgconfig" | tr '\n' ' ')"; return 1; }
-        config_wrap MagickCore-config "${mc%.pc}" "$A" shared
-        config_wrap MagickWand-config "${mw%.pc}" "$A" shared
+            { echo "== shared: no MagickCore-$v or MagickWand-$v .pc: $(ls "$root$A/lib/pkgconfig" | tr '\n' ' ')"; return 1; }
+        # the config scripts imagick of PHP runs, of the same names: ImageMagick 7 in
+        # $A/bin (imagick7: --with-imagick=$A), ImageMagick 6 in
+        # $A/libexec/ImageMagick-6/bin (imagick6: --with-imagick=$A/libexec/ImageMagick-6)
+        if [ "$v" = 7 ]; then cb="$A/bin"; else cb="$A/libexec/ImageMagick-6/bin"; fi
+        mkdir -p "$root$cb" || return 1
+        config_wrap MagickCore-config "${mc%.pc}" "$A" shared "$cb"
+        config_wrap MagickWand-config "${mw%.pc}" "$A" shared "$cb"
     fi
     rm -rf "$sst"
     return 0
@@ -384,11 +421,13 @@ b_im() {
         rm -rf "$shsrc"
         cp -Rp "$src" "$shsrc" ||
             { echo "== cannot copy $src to $shsrc ($(df -h "$work" | awk 'NR == 2 { print $4 " free" }'))"; return 1; }
-        b_im7_static "$n" "$src" || return 1
+        # the static libraries go with the shared ones (AZ_IM_PART lib or all)
+        if [ "$part" != bin ]; then b_im7_static "$n" "$src" || return 1; fi
         b_im_shared "$n" "$shsrc" 7 || return 1
     else
         b_im_shared "$n" "$src" 6 || return 1
     fi
+    [ "$part" != bin ] || return 0
     mkdir -p "$root$I/share/licenses/ImageMagick$v"
     for f in LICENSE NOTICE; do [ -f "$src/$f" ] && cp "$src/$f" "$root$I/share/licenses/ImageMagick$v/$f"; done
     return 0
@@ -531,7 +570,7 @@ manifest() {
         { conf_opts configure; conf_opts "configure$v"; } | sed 's/^/    /'
         echo
         if [ "$v" = 6 ]; then
-            echo "Programs: $I/bin/*6 (convert6, identify6, mogrify6, composite6, ...), linking the shared libraries"
+            echo "Programs: $I/bin/*$s6 (convert$s6, identify$s6, mogrify$s6, composite$s6, ...), linking the shared libraries"
             echo "$(sonames "$(root_of 6)$A/lib" 6 | tr "\n" " " | sed "s/ *$//") in $A/lib (the options above with --enable-shared"
             echo "--disable-static, against the shared libraries of $A, run path $A/lib)."
         else
@@ -605,7 +644,7 @@ check_shared() {
 # own in the stage, those of az) and of the base system only.
 check_bins() {
     im="$1"; r="$(root_of "${im#imagemagick}")$I"; sl="$(root_of "${im#imagemagick}")$A/lib"
-    case "$im" in imagemagick6) progs="convert6 identify6 mogrify6 composite6" ;; *) progs="magick" ;; esac
+    case "$im" in imagemagick6) progs="convert$s6 identify$s6 mogrify$s6 composite$s6" ;; *) progs="magick" ;; esac
     for b in $progs; do
         f="$r/bin/$b"
         [ -x "$f" ] || { echo "$im $b: missing" >> "$res/bins-bad.txt"; continue; }
@@ -627,7 +666,7 @@ check_bins() {
         [ "$relro" -gt 0 ] || echo "$im $b: no RELRO" >> "$res/bins-bad.txt"
         [ "$now" -gt 0 ] || echo "$im $b: no BIND_NOW" >> "$res/bins-bad.txt"
     done
-    case "$im" in imagemagick6) LD_LIBRARY_PATH="$sl" "$r/bin/convert6" -version ;; *) LD_LIBRARY_PATH="$sl" "$r/bin/magick" -version ;; esac > "$res/$im-version.txt" 2>&1
+    case "$im" in imagemagick6) LD_LIBRARY_PATH="$sl" "$r/bin/convert$s6" -version ;; *) LD_LIBRARY_PATH="$sl" "$r/bin/magick" -version ;; esac > "$res/$im-version.txt" 2>&1
 }
 
 mkdir -p "$res" "$work"
@@ -693,12 +732,15 @@ for im in $ims; do
     if build_one "$im"; then
         manifest "$im"
         : > "$res/shared.txt"
-        check_bins "$im"
-        check_shared "${im#imagemagick}"
+        # the programs of AZ_IM_PART bin (they run with the libraries of the package
+        # libimagemagick<6|7> the port builds with) or all, the libraries of lib or all
+        [ "$part" = lib ] || check_bins "$im"
+        [ "$part" = bin ] || check_shared "${im#imagemagick}"
         if ! grep -q "^$im " "$res/bins-bad.txt" 2>/dev/null; then
             v="${im#imagemagick}"
-            mkdir -p "$(root_of "$v")$I/share/doc/ImageMagick$v" &&
-                cp "$res/$im.VERSIONS" "$(root_of "$v")$I/share/doc/ImageMagick$v/VERSIONS" || rc=1
+            # VERSIONS with the libraries: one package of the two has it
+            [ "$part" = bin ] || { mkdir -p "$(root_of "$v")$I/share/doc/ImageMagick$v" &&
+                cp "$res/$im.VERSIONS" "$(root_of "$v")$I/share/doc/ImageMagick$v/VERSIONS"; } || rc=1
             echo "installed: $im into the stage $(root_of "$v") ($(du -Ask "$(root_of "$v")" | cut -f1) KB)" >> "$res/summary.txt"
         else
             rc=1

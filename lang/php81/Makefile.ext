@@ -69,7 +69,7 @@ USES+=	php:ext,noflavors
 # openssl-legacy builds ext/openssl; <module>-openssl ext/<module> (the
 # variants with OpenSSL: AZ_OPENSSL below)
 # (redis-lz4, redis-zstd, redis-lz4-zstd: the packages of redis, AZ_REDIS below)
-PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//:C/^redis-.*/redis/}
+PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//:C/^redis-.*/redis/:C/^imagick[67]$/imagick/}
 PHP_VER=	81
 IGNORE_WITH_PHP=	82 83 84 85
 
@@ -539,7 +539,7 @@ USE_PHP=	session:build
 # graphics/pecl-imagick of 6002588334a9 (USES=magick: ImageMagick 7 by
 # default): ImageMagick 7 of the overlay in ${AZ_PREFIX} (libraries,
 # MagickWand-config) with its configuration in ${LOCALBASE}/etc/ImageMagick-7
-COMMENT=	PHP wrapper to the ImageMagick/GraphicsMagick library
+COMMENT=	PHP wrapper to the ImageMagick/GraphicsMagick library (ImageMagick ${AZ_IMAGICK})
 WWW=		https://pecl.php.net/package/imagick
 
 LICENSE=	PHP301
@@ -547,10 +547,28 @@ LICENSE=	PHP301
 CPE_VENDOR=	php
 CPE_PRODUCT=	imagick
 
-BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
-RUN_DEPENDS+=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/ImageMagick7
+# phpXY-imagick7 on ImageMagick 7, phpXY-imagick6 on ImageMagick 6 (aZ,
+# 14.11.2026): a dependency on the package of the libraries, libimagemagick7 or
+# libimagemagick6, not on the programs (ImageMagick7, ImageMagick6 or
+# ImageMagick67, which depend on those too); the same imagick.so and ini, so the
+# two conflict
+AZ_IMAGICK=	${PKGNAMESUFFIX:S/^-imagick//}
+.if ${AZ_IMAGICK} == 6
+AZ_IMAGICK_DEP=	${AZ_PREFIX}/lib/libMagickWand-6.Q16.so:graphics/libimagemagick6
+# MagickWand-config of ImageMagick 6 there (tools/imagemagick-build.sh)
+AZ_IMAGICK_WITH=	${AZ_PREFIX}/libexec/ImageMagick-6
+CONFLICTS_INSTALL=	php${PHP_VER}-imagick7
+# the patches of the module: those of phpXY-imagick7
+PATCHDIR=	${.CURDIR:S/-imagick6$/-imagick7/}/files
+.else
+AZ_IMAGICK_DEP=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/libimagemagick7
+AZ_IMAGICK_WITH=	${AZ_PREFIX}
+CONFLICTS_INSTALL=	php${PHP_VER}-imagick6
+.endif
+BUILD_DEPENDS+=	${AZ_IMAGICK_DEP}
+RUN_DEPENDS+=	${AZ_IMAGICK_DEP}
 
-CONFIGURE_ARGS+=--with-imagick=${AZ_PREFIX}
+CONFIGURE_ARGS+=--with-imagick=${AZ_IMAGICK_WITH}
 # the base clang, not GCC (Mk/Uses/azgcc.mk): its configure links the
 # OpenMP runtime of the compiler when omp.h builds (omp_pause_resource_all()
 # at shutdown), with GCC the libgomp of the gcc package, a library of it at

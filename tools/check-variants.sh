@@ -6,6 +6,9 @@
 #     5.6 has only the first (phpredis 4.3.0 knows neither lz4 nor zstd);
 #   - gd of 5.6 (aZ, 11.11.2026): php56-gd, and php56-gd-t1lib with T1lib (libt1 of
 #     devel/t1lib);
+#   - imagick (aZ, 14.11.2026): phpXY-imagick7 on ImageMagick 7 (libimagemagick7)
+#     and phpXY-imagick6 on ImageMagick 6 (libimagemagick6): Imagick::getVersion()
+#     of the one wanted, a PNG made, and libMagickWand of that one named (NEEDED);
 #   - openssl: phpXY-openssl-legacy (the legacy provider of OpenSSL: RC4,
 #     Blowfish, DES, CAST5, MD4), and phpXY-openssl, with ssh2 (phpXY-ssh2) in the
 #     same process: libssh2 of az is built without RC4, 3DES, Blowfish, CAST and
@@ -189,6 +192,33 @@ if in_repo "php$short-gd-t1lib"; then
                 ? "OK imagepstext " . ($f ? "there" : "not there") . ", T1Lib Support " . ($s ? "yes" : "no") . ", GD " . $i["GD Version"]
                 : "FAIL imagepstext " . ($f ? "there" : "not there") . ", T1Lib Support " . ($s ? "yes" : "no") . ", T1lib '"$t"' wanted";'
         libs "gd: $p, the libraries" "$extdir/gd.so" libt1.so "$([ "$t" = true ] && echo yes || echo no)"
+    done
+fi
+
+# --- imagick on ImageMagick 6 and 7 (aZ, 14.11.2026) ---
+if in_repo "php$short-imagick6" && in_repo "php$short-imagick7"; then
+    for p in "php$short-imagick6" "php$short-imagick7"; do
+        o="php$short-imagick7"; [ "$p" = "php$short-imagick7" ] && o="php$short-imagick6"
+        if ! put "$p" "$o"; then
+            fail "imagick: $p" "did not install ($log)"
+            continue
+        fi
+        w=6; [ "$p" = "php$short-imagick7" ] && w=7
+        phpcheck "imagick: $p, ImageMagick" "$p" '
+            $v = Imagick::getVersion();
+            $s = is_array($v) ? $v["versionString"] : "";
+            $i = new Imagick();
+            $i->newImage(8, 8, "red");
+            $i->setImageFormat("png");
+            $b = $i->getImageBlob();
+            echo (strpos($s, "ImageMagick '"$w"'.") !== false && strlen($b) > 0)
+                ? "OK " . $s . ", a PNG of " . strlen($b) . " bytes"
+                : "FAIL " . $s . " (ImageMagick '"$w"' wanted), a PNG of " . strlen($b) . " bytes";'
+        if [ "$w" = 6 ]; then
+            libs "imagick: $p, the libraries" "$extdir/imagick.so" libMagickWand-6.Q16.so yes libMagickWand-7.so no
+        else
+            libs "imagick: $p, the libraries" "$extdir/imagick.so" libMagickWand-7.so yes libMagickWand-6.Q16.so no
+        fi
     done
 fi
 
