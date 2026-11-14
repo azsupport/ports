@@ -74,7 +74,7 @@
 | `ImageMagick6` | `graphics/ImageMagick6` | программы ImageMagick 6 под обычными именами (`convert`, `identify`, ...); конфликтует с `ImageMagick7` и `ImageMagick67` |
 | `ImageMagick7` | `graphics/ImageMagick7` | программы ImageMagick 7 (`magick` и обычные имена ссылками на него); конфликтует с `ImageMagick6` и `ImageMagick67` |
 | `ImageMagick67` | `graphics/ImageMagick67` | программы обоих: ImageMagick 7 как в `ImageMagick7` и ImageMagick 6 с 6 на конце (`convert6`, `identify6`, ...); конфликтует с `ImageMagick6` и `ImageMagick7` |
-| `libimagemagick6` | `graphics/libimagemagick6` | библиотеки ImageMagick 6 (`libMagickCore-6.Q16`, `libMagickWand-6.Q16` в `/usr/local/az/lib`), их заголовки, `.pc`, `MagickWand-config` (`/usr/local/az/libexec/ImageMagick-6/bin`) и `etc/ImageMagick-6` с нашей политикой; зависимость `ImageMagick6`, `ImageMagick67` и модуля imagick6 |
+| `libimagemagick6` | `graphics/libimagemagick6` | библиотеки ImageMagick 6 (`libMagickCore-6`, `libMagickWand-6` в `/usr/local/az/lib`), их заголовки, `.pc`, `MagickWand-config` (`/usr/local/az/libexec/ImageMagick-6/bin`) и `etc/ImageMagick-6` с нашей политикой; зависимость `ImageMagick6`, `ImageMagick67` и модуля imagick6 |
 | `libimagemagick7` | `graphics/libimagemagick7` | библиотеки ImageMagick 7 (`libMagickCore-7.so`, `libMagickWand-7.so` в `/usr/local/az/lib`), их заголовки, `.pc`, `MagickWand-config` и статическая сборка, и `etc/ImageMagick-7` с нашей политикой; зависимость `ImageMagick7`, `ImageMagick67` и модуля imagick7 |
 | `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) с форматами нашего ImageMagick; его библиотеки в `/usr/local/az/lib`, с ними линкуются `gm` и модуль gmagick |
 | `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib из `glib`, libssh2 из az, PCRE2 из `pcre2`; zip, 7z, rar и образы ISO — через `tar` базовой системы (имена zip из Windows — в CP866); исправления mc после 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), у каждого — источник): переполнение `%cd` длинным именем в архиве, Reget, портивший следующие файлы копирования, мышь при `TERM=xterm` (Gentoo) и падение при протаскивании, выход из subshell на FreeBSD (NetBSD), своё приглашение tcsh, приглашение с байтами не UTF-8, дескриптор канала subshell (Debian), строки «ls -l» с именами в один байт (Alpine), ftp: переподключение после простоя, пароль из `~/.netrc`; копии, клонирующие блоки на ZFS (`copy_file_range`, upstream #5082); наши: ни одной своей строки mc (его cd, инициализация, меню пользователя) в истории subshell на tcsh |
@@ -173,7 +173,7 @@
   Сборка и работа: az.
 - **`graphics/libimagemagick6`** и **`graphics/libimagemagick7`** (aZ, 14.11.2026):
   библиотеки ImageMagick 6 и 7 отдельными пакетами, чтобы модулю imagick PHP не нужны были
-  программы: `libMagickCore-6.Q16`, `libMagickWand-6.Q16` и `libMagickCore-7.so`,
+  программы: `libMagickCore-6`, `libMagickWand-6` и `libMagickCore-7.so`,
   `libMagickWand-7.so` в `/usr/local/az/lib`, их заголовки, `.pc` и `MagickWand-config`
   (у ImageMagick 7 в `/usr/local/az/bin`, у ImageMagick 6 в
   `/usr/local/az/libexec/ImageMagick-6/bin`: имена те же), `etc/ImageMagick-6` и

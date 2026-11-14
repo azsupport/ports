@@ -38,10 +38,10 @@ LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 # the programs run with the libraries of libimagemagick6 and libimagemagick7 (also
 # when the build checks them)
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az \
-		${AZ_PREFIX}/lib/libMagickWand-6.Q16.so:graphics/libimagemagick6 \
+		${AZ_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6 \
 		${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/libimagemagick7
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az \
-		${AZ_PREFIX}/lib/libMagickWand-6.Q16.so:graphics/libimagemagick6 \
+		${AZ_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6 \
 		${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/libimagemagick7
 AZ_HASH_LIBS=	fontconfig freetype2 lcms2 mozjpeg png webp
 

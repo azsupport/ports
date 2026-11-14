@@ -215,9 +215,9 @@ if in_repo "php$short-imagick6" && in_repo "php$short-imagick7"; then
                 ? "OK " . $s . ", a PNG of " . strlen($b) . " bytes"
                 : "FAIL " . $s . " (ImageMagick '"$w"' wanted), a PNG of " . strlen($b) . " bytes";'
         if [ "$w" = 6 ]; then
-            libs "imagick: $p, the libraries" "$extdir/imagick.so" libMagickWand-6.Q16.so yes libMagickWand-7.so no
+            libs "imagick: $p, the libraries" "$extdir/imagick.so" libMagickWand-6.so yes libMagickWand-7.so no
         else
-            libs "imagick: $p, the libraries" "$extdir/imagick.so" libMagickWand-7.so yes libMagickWand-6.Q16.so no
+            libs "imagick: $p, the libraries" "$extdir/imagick.so" libMagickWand-7.so yes libMagickWand-6.so no
         fi
     done
 fi

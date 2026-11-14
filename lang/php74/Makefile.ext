@@ -599,7 +599,7 @@ CPE_PRODUCT=	imagick
 # two conflict
 AZ_IMAGICK=	${PKGNAMESUFFIX:S/^-imagick//}
 .if ${AZ_IMAGICK} == 6
-AZ_IMAGICK_DEP=	${AZ_PREFIX}/lib/libMagickWand-6.Q16.so:graphics/libimagemagick6
+AZ_IMAGICK_DEP=	${AZ_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6
 # MagickWand-config of ImageMagick 6 there (tools/imagemagick-build.sh)
 AZ_IMAGICK_WITH=	${AZ_PREFIX}/libexec/ImageMagick-6
 CONFLICTS_INSTALL=	php${PHP_VER}-imagick7

@@ -74,7 +74,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `ImageMagick6` | `graphics/ImageMagick6` | the programs of ImageMagick 6 by their usual names (`convert`, `identify`, ...); conflicts with `ImageMagick7` and `ImageMagick67` |
 | `ImageMagick7` | `graphics/ImageMagick7` | the programs of ImageMagick 7 (`magick` and the usual names linked to it); conflicts with `ImageMagick6` and `ImageMagick67` |
 | `ImageMagick67` | `graphics/ImageMagick67` | the programs of both: ImageMagick 7 as in `ImageMagick7` and ImageMagick 6 with 6 at the end (`convert6`, `identify6`, ...); conflicts with `ImageMagick6` and `ImageMagick7` |
-| `libimagemagick6` | `graphics/libimagemagick6` | the libraries of ImageMagick 6 (`libMagickCore-6.Q16`, `libMagickWand-6.Q16` in `/usr/local/az/lib`), their headers, `.pc` files, `MagickWand-config` (`/usr/local/az/libexec/ImageMagick-6/bin`) and `etc/ImageMagick-6` with our policy; a dependency of `ImageMagick6`, `ImageMagick67` and the module imagick6 |
+| `libimagemagick6` | `graphics/libimagemagick6` | the libraries of ImageMagick 6 (`libMagickCore-6`, `libMagickWand-6` in `/usr/local/az/lib`), their headers, `.pc` files, `MagickWand-config` (`/usr/local/az/libexec/ImageMagick-6/bin`) and `etc/ImageMagick-6` with our policy; a dependency of `ImageMagick6`, `ImageMagick67` and the module imagick6 |
 | `libimagemagick7` | `graphics/libimagemagick7` | the libraries of ImageMagick 7 (`libMagickCore-7.so`, `libMagickWand-7.so` in `/usr/local/az/lib`), their headers, `.pc` files, `MagickWand-config` and static build, and `etc/ImageMagick-7` with our policy; a dependency of `ImageMagick7`, `ImageMagick67` and the module imagick7 |
 | `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) with the formats of our ImageMagick; its libraries in `/usr/local/az/lib`, which `gm` and the module gmagick link |
 | `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; GLib of `glib`, libssh2 of az, PCRE2 of `pcre2`; zip, 7z, rar and ISO images through `tar` of the base system (the names of a zip of Windows in CP866); fixes of mc after 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), each with its source): the overflow of `%cd` with a long name in an archive, Reget spoiling the next files of a copy, the mouse with `TERM=xterm` (Gentoo) and a crash of a drag, the exit of the subshell on FreeBSD (NetBSD), the prompt of tcsh kept, a prompt with bytes not UTF-8, the descriptor of the subshell's pipe (Debian), "ls -l" lines with names of one byte (Alpine), ftp: reconnect after an idle timeout, the password of `~/.netrc`; copies that clone the blocks on ZFS (`copy_file_range`, upstream #5082); ours: none of mc's own lines (its cd, its init, the user menu) in the history of a tcsh subshell |
@@ -176,7 +176,7 @@ Names and origins as the ports, files at the paths of the ports:
   Build and run: az.
 - **`graphics/libimagemagick6`** and **`graphics/libimagemagick7`** (aZ, 14.11.2026): the
   libraries of ImageMagick 6 and 7 in packages of their own, so that the module imagick of
-  PHP needs no programs: `libMagickCore-6.Q16`, `libMagickWand-6.Q16` and
+  PHP needs no programs: `libMagickCore-6`, `libMagickWand-6` and
   `libMagickCore-7.so`, `libMagickWand-7.so` in `/usr/local/az/lib`, their headers, `.pc`
   files and `MagickWand-config` (ImageMagick 7 in `/usr/local/az/bin`, ImageMagick 6 in
   `/usr/local/az/libexec/ImageMagick-6/bin`: the same names), `etc/ImageMagick-6` and

@@ -330,7 +330,7 @@ b_im_shared() {
         mkdir -p "$root$A/lib/pkgconfig" "$root$A/include" || return 1
         cp -R "$sst$A/include/ImageMagick-$v" "$root$A/include/" || return 1
         # libdir and includedir are those of $A already (configure was given them);
-        # of ImageMagick 6 only those with its version in the name (MagickWand-6.Q16.pc):
+        # of ImageMagick 6 only those with its version in the name (MagickWand-6.pc):
         # those without it (MagickWand.pc, ImageMagick.pc) are those of ImageMagick 7
         for pc in "$pcd"/*.pc; do
             if [ "$v" = 6 ]; then case "${pc##*/}" in *-6.*) ;; *) continue ;; esac; fi

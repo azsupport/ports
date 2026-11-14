@@ -1,7 +1,7 @@
 # graphics/libimagemagick6: the libraries of the ImageMagick 6 of azsupport/ports in
 # a package of their own (aZ, 14.11.2026), which the programs (ImageMagick6,
 # ImageMagick67) and imagick6 of PHP depend on, so that PHP needs no programs: its
-# shared libMagickCore-6.Q16 and libMagickWand-6.Q16 with lib/ImageMagick-6.* in
+# shared libMagickCore-6 and libMagickWand-6 with lib/ImageMagick-6.* in
 # /usr/local/az/lib, its headers (include/ImageMagick-6) and the .pc files with its
 # version in the name there (those without it are of ImageMagick 7),
 # libexec/ImageMagick-6/bin/MagickWand-config and MagickCore-config (the link line
