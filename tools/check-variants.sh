@@ -242,6 +242,30 @@ if in_repo "php$short-imagick6" && in_repo "php$short-imagick7"; then
                 } catch (Exception $e) { $ok[] = "no " . $f; }
             }
             echo count($bad) == 0 ? "OK " . implode(" ", $ok) : "FAIL " . implode("; ", $bad);'
+        # every other format ImageMagick knows (tools/imagemagick-formats.txt, the
+        # modules the policy does not allow, and MNG and JNG), in upper, lower and mixed
+        # case: none written (aZ, 14.11.2026)
+        fmts_="$(cd "$(dirname "$0")" && pwd)/imagemagick-formats.txt"
+        if [ -f "$fmts_" ]; then
+            refused_="$(awk '!/^#/ && NF == 2 && ($1 !~ /^(BMP|GIF|JPEG|PNG|WEBP|HEIC|XC|LABEL|CAPTION|INFO|JSON|MPC)$/ || $2 ~ /^(MNG|JNG)$/) { print $2 }' "$fmts_" | tr '\n' ' ')"
+            phpcheck "imagick: $p, every other format" "$p" '
+                $bad = array(); $n = 0;
+                foreach (explode(" ", trim("'"$refused_"'")) as $f) {
+                    foreach (array_unique(array($f, strtolower($f), ucfirst(strtolower($f)))) as $c) {
+                        $n++;
+                        try {
+                            $k = new Imagick();
+                            $k->newImage(4, 4, "red");
+                            $k->setImageFormat($c);
+                            $d = $k->getImageBlob();
+                            if (strlen($d) > 0) { $bad[] = $c; }
+                        } catch (Exception $e) { }
+                    }
+                }
+                echo count($bad) == 0 ? "OK refused: " . $n . " names in upper, lower and mixed case" : "FAIL written: " . implode(" ", $bad);'
+        else
+            fail "imagick: $p, every other format" "no $fmts_"
+        fi
         if [ "$w" = 6 ]; then
             libs "imagick: $p, the libraries" "$extdir/imagick.so" libMagickWand-6.so yes libMagickWand-7.so no
         else
