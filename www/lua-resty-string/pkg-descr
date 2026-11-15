@@ -1,0 +1,3 @@
+lua-resty-string: string utilities and common hash functions (MD5, SHA-1,
+SHA-2, AES, random bytes, hex) for ngx_lua and LuaJIT, by the FFI on the
+OpenSSL of nginx.

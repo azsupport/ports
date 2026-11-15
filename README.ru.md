@@ -349,8 +349,9 @@
   `nginx-devel-lua` — ndk 0.3.6 и lua-nginx-module 0.10.31; `nginx-devel-stream-lua` —
   stream-lua-nginx-module 0.0.19rc4 с патчем официального порта, на stream из
   `nginx-devel-stream`. Исходники и суммы — официальных `www/nginx-module-ndk`, `-lua` и
-  `-lua-stream`. LuaJIT, lua-resty-core, lua-resty-lrucache и lua-resty-http — официальные
-  порты как есть (`Mk/az-official.mk`); lua-vips (`graphics/lua51-vips`, на libvips из
+  `-lua-stream`. LuaJIT, lua-resty-core и lua-resty-lrucache — официальные порты как есть
+  (`Mk/az-official.mk`); lua-resty-http — официальный порт с недостающей ему зависимостью
+  `www/lua-resty-string` (0.19, порт этого дерева); lua-vips (`graphics/lua51-vips`, на libvips из
   `graphics/vips`) и lbase64 (`converters/lua51-base64`) — порты этого дерева вместо
   luarocks; не собираются: inspect, patch, lua-fs-module, luasocket (скриптам aZ не
   нужны). Проверки в `servers-test.sh`: LuaJIT и resty.core в nginx, base64, resty.http,

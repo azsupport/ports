@@ -356,8 +356,9 @@ Names and origins as the ports, files at the paths of the ports:
   — ndk 0.3.6 and lua-nginx-module 0.10.31; `nginx-devel-stream-lua` —
   stream-lua-nginx-module 0.0.19rc4 with the patch of the official port, on the stream of
   `nginx-devel-stream`. The sources and sums those of the official `www/nginx-module-ndk`,
-  `-lua` and `-lua-stream`. LuaJIT, lua-resty-core, lua-resty-lrucache and lua-resty-http
-  the official ports as they are (`Mk/az-official.mk`); lua-vips
+  `-lua` and `-lua-stream`. LuaJIT, lua-resty-core and lua-resty-lrucache the official
+  ports as they are (`Mk/az-official.mk`); lua-resty-http the official port with the run
+  dependency on `www/lua-resty-string` (0.19, a port of this tree) it misses; lua-vips
   (`graphics/lua51-vips`, on the libvips of `graphics/vips`) and lbase64
   (`converters/lua51-base64`) ports of this tree in the place of luarocks; not built:
   inspect, patch, lua-fs-module, luasocket (the scripts of aZ do not need them). Tested by
