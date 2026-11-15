@@ -218,53 +218,59 @@ if in_repo "php$short-imagick6" && in_repo "php$short-imagick7"; then
             echo (strpos($s, "ImageMagick '"$w"'.") !== false && strlen($b) > 0 && strlen($c) > 0)
                 ? "OK " . $s . ", a PNG (\"png\") of " . strlen($b) . " and a JPEG (\"Jpeg\") of " . strlen($c) . " bytes"
                 : "FAIL " . $s . " (ImageMagick '"$w"' wanted), PNG " . strlen($b) . ", JPEG " . strlen($c) . " bytes";'
-        # the names of formats in any case (the policy, aZ 14.11.2026): those allowed
-        # written, the aliases too (jpg is the module JPEG); those refused not written
-        # (MNG and JNG are in the module PNG, refused as coders)
-        phpcheck "imagick: $p, the names of formats" "$p" '
-            $ok = array(); $bad = array();
-            foreach (array("jpg", "JPG", "Jpg", "jpeg", "PNG", "Webp", "gif") as $f) {
-                try {
-                    $k = new Imagick();
-                    $k->newImage(8, 8, "green");
-                    $k->setImageFormat($f);
-                    $d = $k->getImageBlob();
-                    if (strlen($d) > 0) { $ok[] = $f; } else { $bad[] = $f . " (empty)"; }
-                } catch (Exception $e) { $bad[] = $f . " (" . $e->getMessage() . ")"; }
-            }
-            foreach (array("mng", "Mng", "MNG", "jng", "svg", "Pdf") as $f) {
-                try {
-                    $k = new Imagick();
-                    $k->newImage(8, 8, "green");
-                    $k->setImageFormat($f);
-                    $d = $k->getImageBlob();
-                    $bad[] = $f . " written (" . strlen($d) . " bytes)";
-                } catch (Exception $e) { $ok[] = "no " . $f; }
-            }
-            echo count($bad) == 0 ? "OK " . implode(" ", $ok) : "FAIL " . implode("; ", $bad);'
-        # every other format ImageMagick knows (tools/imagemagick-formats.txt, the
-        # modules the policy does not allow, and MNG and JNG), in upper, lower and mixed
-        # case: none written (aZ, 14.11.2026)
+        # the names of formats in every spelling (aZ, 14.11.2026: «написаний больше …
+        # tIFF, tiFF»): imagick gives ImageMagick the name as given (the command line
+        # puts it in upper case first, MagickCore/image.c SetImageInfo), so here every
+        # combination of upper and lower case of each letter, 2^letters a name: those
+        # of jpg, jpeg, png, webp, gif and bmp written, those of every other format
+        # ImageMagick knows (tools/imagemagick-formats.txt: the modules the policy does
+        # not allow, and MNG and JNG) not
         fmts_="$(cd "$(dirname "$0")" && pwd)/imagemagick-formats.txt"
         if [ -f "$fmts_" ]; then
             refused_="$(awk '!/^#/ && NF == 2 && ($1 !~ /^(BMP|GIF|JPEG|PNG|WEBP|HEIC|XC|LABEL|CAPTION|INFO|JSON|MPC)$/ || $2 ~ /^(MNG|JNG)$/) { print $2 }' "$fmts_" | tr '\n' ' ')"
-            phpcheck "imagick: $p, every other format" "$p" '
-                $bad = array(); $n = 0;
-                foreach (explode(" ", trim("'"$refused_"'")) as $f) {
-                    foreach (array_unique(array($f, strtolower($f), ucfirst(strtolower($f)))) as $c) {
-                        $n++;
+            phpcheck "imagick: $p, the names of formats in every spelling" "$p" '
+                function spellings($f) {
+                    $f = strtolower($f);
+                    $pos = array();
+                    for ($i = 0; $i < strlen($f); $i++) { if ($f[$i] >= "a" && $f[$i] <= "z") { $pos[] = $i; } }
+                    $out = array();
+                    for ($m = 0; $m < (1 << count($pos)); $m++) {
+                        $v = $f;
+                        foreach ($pos as $k => $i) { if ($m & (1 << $k)) { $v[$i] = strtoupper($v[$i]); } }
+                        $out[] = $v;
+                    }
+                    return $out;
+                }
+                $bad = array(); $na = 0; $nr = 0; $nn = 0;
+                foreach (array("jpg", "jpeg", "png", "webp", "gif", "bmp") as $f) {
+                    foreach (spellings($f) as $c) {
+                        $na++;
                         try {
                             $k = new Imagick();
-                            $k->newImage(4, 4, "red");
+                            $k->newImage(4, 4, "green");
+                            $k->setImageFormat($c);
+                            if (strlen($k->getImageBlob()) == 0) { $bad[] = $c . " empty"; }
+                        } catch (Exception $e) { $bad[] = $c . " refused"; }
+                    }
+                }
+                $k = new Imagick();
+                $k->newImage(4, 4, "red");
+                foreach (explode(" ", trim("'"$refused_"'")) as $f) {
+                    $nn++;
+                    foreach (spellings($f) as $c) {
+                        $nr++;
+                        try {
                             $k->setImageFormat($c);
                             $d = $k->getImageBlob();
-                            if (strlen($d) > 0) { $bad[] = $c; }
+                            if (strlen($d) > 0) { $bad[] = $c . " written"; }
                         } catch (Exception $e) { }
                     }
                 }
-                echo count($bad) == 0 ? "OK refused: " . $n . " names in upper, lower and mixed case" : "FAIL written: " . implode(" ", $bad);'
+                echo count($bad) == 0
+                    ? "OK written: " . $na . " spellings of jpg, jpeg, png, webp, gif, bmp; refused: " . $nr . " spellings of " . $nn . " other formats"
+                    : "FAIL " . count($bad) . ": " . implode(" ", array_slice($bad, 0, 40));'
         else
-            fail "imagick: $p, every other format" "no $fmts_"
+            fail "imagick: $p, the names of formats in every spelling" "no $fmts_"
         fi
         if [ "$w" = 6 ]; then
             libs "imagick: $p, the libraries" "$extdir/imagick.so" libMagickWand-6.so yes libMagickWand-7.so no
