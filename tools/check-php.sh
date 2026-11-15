@@ -817,6 +817,25 @@ else
     if [ -n "$apconf" ]; then rm -f "$apconf"; apconf=""; fi
 fi
 
+# Composer (devel/phpXY-composer, 15.11.2026): bin/composerXY runs its phar with
+# bin/phpXY; its version, and an autoloader made offline for a project of its own,
+# loaded by phpXY
+cmp="$P/bin/composer$short"
+if [ -x "$cmp" ]; then
+    cw=2.11.2; [ "$short" = 56 ] && cw=2.2.32
+    o="$(COMPOSER_HOME="$tmp/composer-home" COMPOSER_ALLOW_SUPERUSER=1 "$cmp" --no-ansi --version 2>&1 < /dev/null)"
+    case "$o" in *"Composer version $cw "*) ok "composer$short" "$(first "$o")" ;; *) fail "composer$short" "$(last3 "$o")" ;; esac
+    mkdir -p "$tmp/composer-t/src"
+    printf '{"name": "az/t", "autoload": {"psr-4": {"Az\\\\T\\\\": "src/"}}}\n' > "$tmp/composer-t/composer.json"
+    printf '<?php\nnamespace Az\\T;\nclass A { const V = "composer of az"; }\n' > "$tmp/composer-t/src/A.php"
+    o="$(cd "$tmp/composer-t" && COMPOSER_HOME="$tmp/composer-home" COMPOSER_ALLOW_SUPERUSER=1 "$cmp" --no-ansi --no-interaction dump-autoload 2>&1 < /dev/null)"
+    r="$("$php" -r 'require $argv[1]; echo \Az\T\A::V;' "$tmp/composer-t/vendor/autoload.php" 2>&1 < /dev/null)"
+    if [ "$r" = "composer of az" ]; then ok "composer$short dump-autoload" "a class of PSR-4 loaded by its autoloader"
+    else fail "composer$short dump-autoload" "$(last3 "$o $r")"; fi
+else
+    skip "composer$short" "no $cmp"
+fi
+
 # The time of Zend/bench.php without OPcache, a note (no check): the script of
 # the release tarball of the version (the newest of distfiles/php), with php -n
 pv="$("$php" -n -r 'echo PHP_VERSION;' 2> /dev/null < /dev/null)"
