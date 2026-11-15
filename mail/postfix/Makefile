@@ -371,12 +371,20 @@ post-patch:
 	@${ECHO_CMD} '$$command_directory/posttls-finger:f:root:-:755' \
 		>> ${WRKSRC}/conf/postfix-files
 
+# makedefs takes EAI only when pkg-config gives it icu-uc and icu-i18n and a test of
+# uidna_openUTS46() built with them runs, else -DNO_EAI (run 43714775412:
+# smtputf8_enable = no): .pc files of their own for the headers and libraries of az
+# in the work, with the run path /usr/local/az/lib
 pre-configure-EAI-on:
-	@${MKDIR} ${WRKDIR}/az/lib
+	@${MKDIR} ${WRKDIR}/az/lib ${WRKDIR}/az/pc
 	@${LN} -sfh ${AZ_PREFIX}/include/unicode ${WRKDIR}/az/unicode
-	@${LN} -sf ${AZ_PREFIX}/lib/libicuuc.so ${AZ_PREFIX}/lib/libicudata.so ${WRKDIR}/az/lib/
+	@${LN} -sf ${AZ_PREFIX}/lib/libicuuc.so ${AZ_PREFIX}/lib/libicui18n.so ${AZ_PREFIX}/lib/libicudata.so ${WRKDIR}/az/lib/
+	@v=$$(${SED} -n 's/^Version: *//p' ${AZ_PREFIX}/lib/pkgconfig/icu-uc.pc); \
+	${PRINTF} 'Name: icu-uc\nDescription: ICU of az\nVersion: %s\nCflags: -I${WRKDIR}/az\nLibs: -L${WRKDIR}/az/lib -Wl,-rpath,${AZ_PREFIX}/lib -licuuc -licudata\n' "$$v" > ${WRKDIR}/az/pc/icu-uc.pc; \
+	${PRINTF} 'Name: icu-i18n\nDescription: ICU of az\nVersion: %s\nRequires: icu-uc\nLibs: -licui18n\n' "$$v" > ${WRKDIR}/az/pc/icu-i18n.pc
 
 do-configure:
+	${SETENV} PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc:${LOCALBASE}/libdata/pkgconfig:/usr/libdata/pkgconfig \
 	${MAKE} -C ${WRKSRC} -f Makefile.init makefiles \
 	${MAKEFILEFLAGS} CCARGS="${POSTFIX_CCARGS}" \
 	shared=yes shlib_directory=${SHLIB_DIRECTORY} \
