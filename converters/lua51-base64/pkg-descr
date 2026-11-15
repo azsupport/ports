@@ -1,0 +1,2 @@
+lbase64: base64 encoding and decoding in pure Lua, for LuaJIT and Lua 5.1
+to 5.4, with custom alphabets (URL-safe among them).

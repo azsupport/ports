@@ -1,0 +1,13 @@
+[
+{ type: install
+  message: <<EOM
+Load the modules in the main context of nginx.conf, in this order:
+
+load_module /usr/local/libexec/nginx/ndk_http_module.so;
+load_module /usr/local/libexec/nginx/ngx_http_lua_module.so;
+
+The Lua of nginx is LuaJIT (lang/luajit-openresty); its modules (lua51-*)
+are in /usr/local/share/lua/5.1 and /usr/local/lib/lua/5.1.
+EOM
+}
+]

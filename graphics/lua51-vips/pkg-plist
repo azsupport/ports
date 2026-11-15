@@ -1,0 +1,14 @@
+share/lua/5.1/vips.lua
+share/lua/5.1/vips/Connection.lua
+share/lua/5.1/vips/Image.lua
+share/lua/5.1/vips/Image_methods.lua
+share/lua/5.1/vips/Interpolate.lua
+share/lua/5.1/vips/Source.lua
+share/lua/5.1/vips/Target.lua
+share/lua/5.1/vips/cdefs.lua
+share/lua/5.1/vips/gvalue.lua
+share/lua/5.1/vips/log.lua
+share/lua/5.1/vips/verror.lua
+share/lua/5.1/vips/version.lua
+share/lua/5.1/vips/vobject.lua
+share/lua/5.1/vips/voperation.lua

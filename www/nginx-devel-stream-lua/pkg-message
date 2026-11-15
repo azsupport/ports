@@ -1,0 +1,11 @@
+[
+{ type: install
+  message: <<EOM
+Load the modules in the main context of nginx.conf, in this order:
+
+load_module /usr/local/libexec/nginx/ndk_http_module.so;
+load_module /usr/local/libexec/nginx/ngx_stream_module.so;
+load_module /usr/local/libexec/nginx/ngx_stream_lua_module.so;
+EOM
+}
+]

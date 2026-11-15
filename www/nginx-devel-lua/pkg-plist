@@ -1,0 +1,2 @@
+libexec/nginx/ndk_http_module.so
+libexec/nginx/ngx_http_lua_module.so

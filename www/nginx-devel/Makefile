@@ -12,7 +12,8 @@
 # sets NGINX_AZ_MODULE, builds the same nginx with only that module dynamic (make
 # modules) and installs only its objects, www/nginx-devel-stream (aZ, 15.11.2026:
 # «stream модулем, на 90% других серверов он не юзается») and
-# www/nginx-devel-image-filter; the Lua modules are to follow. The core is built
+# www/nginx-devel-image-filter, and on LuaJIT www/nginx-devel-lua (ndk and lua) and
+# www/nginx-devel-stream-lua (aZ, 15.11.2026: «давай luajit»). The core is built
 # --with-compat and with --modules-path, so that a module built apart from it loads into
 # it (nginx loads only a module of its own version: the slaves depend on the core of
 # the same version, and they change together, both reading version.mk).
@@ -56,6 +57,13 @@ USE_GITHUB=	nodefault
 GH_TUPLE=	google:ngx_brotli:a71f931:brotli \
 		openresty:headers-more-nginx-module:v0.41:headers_more \
 		leev:ngx_http_geoip2_module:445df24:geoip2
+.if ${NGINX_AZ_MODULE:U} == lua || ${NGINX_AZ_MODULE:U} == stream-lua
+# ndk, lua-nginx-module and stream-lua-nginx-module: the commits of the official
+# www/nginx-module-ndk, -lua and -lua-stream of the pinned commit
+GH_TUPLE+=	openresty:ngx_devel_kit:v0.3.6:ndk \
+		openresty:lua-nginx-module:v0.10.31:lua \
+		openresty:stream-lua-nginx-module:v0.0.19rc4:luastream
+.endif
 
 NGINX_VARDIR?=	/var
 NGINX_LOGDIR?=	${NGINX_VARDIR}/log/nginx
@@ -192,6 +200,29 @@ CONFIGURE_ARGS+=	--with-http_image_filter_module=dynamic
 BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libgd.so:az/az
 RUN_DEPENDS+=	${AZ_PREFIX}/lib/libgd.so:az/az
 NGINX_AZ_OBJS=	ngx_http_image_filter_module.so
+. elif ${NGINX_AZ_MODULE} == lua
+# ndk and the http lua module, on the LuaJIT of lang/luajit-openresty (lua-nginx-module
+# has no standard Lua), with lua-resty-core, without which it does not start (aZ,
+# 15.11.2026: «давай luajit»)
+CONFIGURE_ARGS+=	--add-dynamic-module=${WRKSRC_ndk} --add-dynamic-module=${WRKSRC_lua}
+CONFIGURE_ENV+=	LUAJIT_INC=${LOCALBASE}/include/luajit-2.1 LUAJIT_LIB=${LOCALBASE}/lib
+LIB_DEPENDS+=	libluajit-5.1.so:lang/luajit-openresty
+RUN_DEPENDS+=	lua-resty-core>0:www/lua-resty-core
+NGINX_AZ_OBJS=	ndk_http_module.so ngx_http_lua_module.so
+. elif ${NGINX_AZ_MODULE} == stream-lua
+# the stream lua module, built with the stream of nginx-devel-stream (realip, ssl,
+# ssl_preread) and ndk, which come from nginx-devel-stream and nginx-devel-lua
+CONFIGURE_ARGS+=	--with-stream=dynamic --with-stream_realip_module \
+			--with-stream_ssl_module --with-stream_ssl_preread_module \
+			--add-dynamic-module=${WRKSRC_ndk} \
+			--add-dynamic-module=${WRKSRC_luastream}
+CONFIGURE_ENV+=	LUAJIT_INC=${LOCALBASE}/include/luajit-2.1 LUAJIT_LIB=${LOCALBASE}/lib
+USES+=		ssl
+LIB_DEPENDS+=	libluajit-5.1.so:lang/luajit-openresty
+RUN_DEPENDS+=	lua-resty-core>0:www/lua-resty-core \
+		nginx-devel-lua>=${NGINX_VERSION}:www/nginx-devel-lua \
+		nginx-devel-stream>=${NGINX_VERSION}:www/nginx-devel-stream
+NGINX_AZ_OBJS=	ngx_stream_lua_module.so
 . else
 IGNORE=		NGINX_AZ_MODULE ${NGINX_AZ_MODULE}: no such module package
 . endif
@@ -243,6 +274,9 @@ post-patch:
 		${WRKSRC}/conf/nginx.conf
 	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-filter_config
 	@${REINPLACE_CMD} 's!%%PREFIX%%!${WRKDIR}/az!g' ${WRKSRC_brotli}/filter/config
+.if ${NGINX_AZ_MODULE:U} == stream-lua
+	@cd ${WRKSRC_luastream} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-lua-stream-src_ngx__stream__lua__module.c
+.endif
 
 .if defined(NGINX_AZ_MODULE)
 do-install:

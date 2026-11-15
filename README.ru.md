@@ -88,7 +88,8 @@
 | `postfix`, `postfix-mysql` | `mail/postfix`, `mail/postfix-mysql` | Postfix 3.11.7 с опциями aZ: EAI (SMTPUTF8, ICU из az), PCRE2 из `pcre2`, TLS (OpenSSL базы) и TLSRPT (`libtlsrpt`); без LMDB, CDB, blocklistd, LDAP, Cyrus SASL; вариант с таблицами MySQL (клиент из `mariadb1011-client`); ставится один из двух |
 | `dovecot`, `dovecot-mysql` | `mail/dovecot`, `mail/dovecot-mysql` | Dovecot 2.3.21.1, ветка 2.3, пока её поддерживает апстрим, с опциями aZ: без GSSAPI, LDAP, libwrap, FTS, Lua, LZ4; zstd из az; вариант с драйвером SQL для MySQL; ставится один из двух |
 | `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (ветка 8.x с долгой поддержкой апстрима), без модулей: JEMALLOC включён (свой jemalloc: активная дефрагментация), без TLS; вариант с TLS (OpenSSL базы); ставится один из двух; конфиги aZ: `redis.conf.sample` (основной кеш), `redis-session.conf.sample` (сессии PHP), на 127.0.0.1, без снимков |
-| `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter` | nginx 1.31.8, вкомпилены brotli, headers-more и geoip2 (`--with-compat`); stream и image_filter — отдельными пакетами (`load_module`) |
+| `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua` | nginx 1.31.8, вкомпилены brotli, headers-more и geoip2 (`--with-compat`); stream, image_filter и Lua (LuaJIT) — отдельными пакетами (`load_module`) |
+| `lua51-vips`, `lua51-base64` | `graphics/lua51-vips`, `converters/lua51-base64` | lua-vips 1.1-12 и lbase64 1.5.3 для LuaJIT nginx (`share/lua/5.1`) |
 | `aria2` | `www/aria2` | aria2 1.37.0: Metalink и XML-RPC (libxml2 из az), cookies браузеров (SQLite из az), асинхронный DNS (c-ares из az), SFTP (libssh2 из az), опрос событий через libuv (az), BitTorrent, HTTPS (OpenSSL базы); без NLS и статической сборки |
 | `php56-composer` … `php84-composer` | `devel/php56-composer` … `devel/php84-composer` | Composer 2.11.2 (для PHP 5.6 — 2.2.32, его LTS-линия) как `bin/composerXY`, который запускает его через `bin/phpXY`: по одному на каждый PHP, рядом друг с другом |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: DNS-сервер `named` с TCP Fast Open, без GSSAPI, DNSTAP, LMDB и каналов статистики; dig, host, nslookup, delv, nsupdate и утилиты DNSSEC, с IDN |
@@ -343,6 +344,17 @@
   базы, PCRE2 из `devel/pcre2`, zlib базы; brotli, libmaxminddb и libgd — из az.
   Проверки в `servers-test.sh`: brotli, gzip_static, headers-more, geoip2, прокси stream,
   image_filter.
+- **`www/nginx-devel-lua`** и **`www/nginx-devel-stream-lua`** (aZ, 15.11.2026): Lua для
+  nginx-devel, только на LuaJIT (стандартного Lua у lua-nginx-module нет):
+  `nginx-devel-lua` — ndk 0.3.6 и lua-nginx-module 0.10.31; `nginx-devel-stream-lua` —
+  stream-lua-nginx-module 0.0.19rc4 с патчем официального порта, на stream из
+  `nginx-devel-stream`. Исходники и суммы — официальных `www/nginx-module-ndk`, `-lua` и
+  `-lua-stream`. LuaJIT, lua-resty-core, lua-resty-lrucache и lua-resty-http — официальные
+  порты как есть (`Mk/az-official.mk`); lua-vips (`graphics/lua51-vips`, на libvips из
+  `graphics/vips`) и lbase64 (`converters/lua51-base64`) — порты этого дерева вместо
+  luarocks; не собираются: inspect, patch, lua-fs-module, luasocket (скриптам aZ не
+  нужны). Проверки в `servers-test.sh`: LuaJIT и resty.core в nginx, base64, resty.http,
+  vips с форматами и опциями resize.lua, Lua в сервере stream.
 - **`www/aria2`** (aZ, 15.11.2026): aria2 1.37.0, официальный порт с опциями по
   умолчанию, кроме STATIC, без NLS и документации, с CARES, LIBUV и SSH2: libxml2,
   SQLite, c-ares, libuv и libssh2 из az (expat из az — для другой опции XML), OpenSSL

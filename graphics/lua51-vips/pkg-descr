@@ -1,0 +1,2 @@
+lua-vips is a binding for the libvips image processing library for LuaJIT,
+by its FFI: fast, low-memory image processing in the Lua of nginx.
