@@ -523,8 +523,9 @@ for i in "$etc"/conf.d/*.ini; do
 done
 
 # Per module package: its ini, the module in php -m
-# the glob matches name-version too: php74-7.4.33_... is the core, not a module
-pkg query -g '%n' "php$short-*" 2>/dev/null | grep -v -x -e "php$short" -e "php$short-static" | sort -u > "$tmp/pkgs"
+# the glob matches name-version too: php74-7.4.33_... is the core, not a module;
+# php74-composer is Composer, not a module (its check is below)
+pkg query -g '%n' "php$short-*" 2>/dev/null | grep -v -x -e "php$short" -e "php$short-static" -e "php$short-composer" | sort -u > "$tmp/pkgs"
 [ -s "$tmp/pkgs" ] || skip "modules" "no package php$short-<module> installed"
 intl_done=""
 while read -r p; do

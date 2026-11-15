@@ -43,8 +43,9 @@ CONFIGURE_ENV=	ZSTD_CFLAGS="-I${WRKDIR}/az" \
 		ZSTD_LIBS="-L${WRKDIR}/az/lib -lzstd"
 
 # the MySQL client of USES=mysql: that of our MariaDB 10.11 (the default of the
-# ports is MySQL 8.4)
-MYSQL_DEFAULT=	10.11m
+# ports is MySQL 8.4); by DEFAULT_VERSIONS, as the framework wants it (MYSQL_DEFAULT
+# set by a port is an error of bsd.default-versions.mk)
+DEFAULT_VERSIONS+=	mysql=10.11m
 
 USES=		cpe iconv libtool pkgconfig ssl
 USE_LDCONFIG=	${PREFIX}/lib/${PORTNAME}

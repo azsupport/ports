@@ -7,13 +7,16 @@
 # script (always in the official one: linux-firmware has them split by family, so
 # there is nothing to split, unlike the files of Intel); /boot/firmware/amd-ucode.bin
 # for the loader always, as intel-ucode.bin. Its pkg-message of the official tree
-# after the pinned commit.
+# after the pinned commit. The files of the commit also from the repository of
+# linux-firmware on GitLab, where it is kept (git.kernel.org: "No route to host" from
+# the runners of GitHub, run 43708464894; distcache of FreeBSD: not found).
 
 PORTNAME=	microcode
 PORTVERSION=	20251202
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	sysutils
-MASTER_SITES=	https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/amd-ucode/
+MASTER_SITES=	https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/amd-ucode/ \
+		https://gitlab.com/kernel-firmware/linux-firmware/-/raw/${_REV}/amd-ucode/
 PKGNAMEPREFIX=	cpu-
 PKGNAMESUFFIX=	-amd
 DISTFILES=	microcode_amd.bin?id=${_REV} \
