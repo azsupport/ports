@@ -6,6 +6,11 @@
 
       To run redis from startup, add %%PORTNAME%%_enable="YES"
       in your /etc/rc.conf.
+
+      Two instances, the main cache and the PHP sessions:
+      %%PORTNAME%%_profiles="redis session" in /etc/rc.conf,
+      %%PREFIX%%/etc/redis-redis.conf (a copy of %%PREFIX%%/etc/redis.conf)
+      and %%PREFIX%%/etc/redis-session.conf.
 EOM
 }
 ]

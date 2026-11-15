@@ -7,7 +7,13 @@
 # official one has on (as databases/memcached of this tree); redis82-openssl
 # (PKGNAMESUFFIX 82-openssl, the same files) has it, on the OpenSSL of the base
 # system. No library of the ports: Redis bundles hiredis, linenoise, lua, fpconv,
-# hdr_histogram and jemalloc (deps/).
+# hdr_histogram and jemalloc (deps/). The configurations of aZ for Redis 8.2 in the
+# place of the redis.conf of Redis (aZ, 15.11.2026: «Составь из трёх конфигов
+# идеальный конфиг», «кеш по умолчанию не сохранять»): files/redis.conf, the main
+# cache, as etc/redis.conf.sample, and files/redis-session.conf, the PHP sessions
+# (the profile "session" of the rc script), as etc/redis-session.conf.sample; both on
+# 127.0.0.1 only (aZ, 15.11.2026: «не надо чтобы редис слушал на ipv6»), without
+# snapshots, with the variants of a snapshot commented out.
 
 PORTNAME=	redis
 DISTVERSION=	8.2.11
@@ -85,13 +91,10 @@ REDIS_LOGDIR?=	/var/log/redis
 post-patch-JEMALLOC-on:
 	@${REINPLACE_CMD} '78s!Linux!FreeBSD!g' ${WRKSRC}/src/Makefile
 
-post-build:
-	${SED} ${SUB_LIST:S/$/!g/:S/^/ -e s!%%/:S/=/%%!/} \
-		${WRKSRC}/redis.conf > ${WRKDIR}/redis.conf
-
 do-install:
 	${INSTALL_PROGRAM} ${BIN_FILES:C!^!${WRKSRC}/src/!} ${STAGEDIR}${PREFIX}/bin/
-	${INSTALL_DATA} ${WRKDIR}/redis.conf ${STAGEDIR}${PREFIX}/etc/redis.conf.sample
+	${INSTALL_DATA} ${FILESDIR}/redis.conf ${STAGEDIR}${PREFIX}/etc/redis.conf.sample
+	${INSTALL_DATA} ${FILESDIR}/redis-session.conf ${STAGEDIR}${PREFIX}/etc/redis-session.conf.sample
 	${INSTALL_DATA} ${WRKSRC}/sentinel.conf ${STAGEDIR}${PREFIX}/etc/sentinel.conf.sample
 	${MKDIR} ${STAGEDIR}${REDIS_LOGDIR} \
 		${STAGEDIR}${REDIS_DBDIR} \

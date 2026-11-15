@@ -87,7 +87,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `3proxy`, `3proxy-openssl` | `net/3proxy`, `net/3proxy-openssl` | 3proxy 0.9.9.3 of the LTS line, ahead of the official 0.9.5 for its security fixes, with the names and paths of the official port; PAM, PCRE2 of `pcre2`, no TLS; the variant with TLS; one of the two |
 | `postfix`, `postfix-mysql` | `mail/postfix`, `mail/postfix-mysql` | Postfix 3.11.7 with the options of aZ: EAI (SMTPUTF8, the ICU of az), PCRE2 of `pcre2`, TLS (the OpenSSL of the base system) and TLSRPT (`libtlsrpt`); no LMDB, CDB, blocklistd, LDAP, Cyrus SASL; the variant with the MySQL maps (the client of `mariadb1011-client`); one of the two |
 | `dovecot`, `dovecot-mysql` | `mail/dovecot`, `mail/dovecot-mysql` | Dovecot 2.3.21.1, the branch 2.3 as long as upstream supports it, with the options of aZ: no GSSAPI, LDAP, libwrap, FTS, Lua, LZ4; zstd of az; the variant with the SQL driver of MySQL; one of the two |
-| `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (the line of 8.x with the long support of upstream), without the modules: JEMALLOC on (its own jemalloc: active defragmentation), no TLS; the variant with TLS (the OpenSSL of the base system); one of the two |
+| `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (the line of 8.x with the long support of upstream), without the modules: JEMALLOC on (its own jemalloc: active defragmentation), no TLS; the variant with TLS (the OpenSSL of the base system); one of the two; the configurations of aZ: `redis.conf.sample` (the main cache), `redis-session.conf.sample` (PHP sessions), on 127.0.0.1, without snapshots |
 | `aria2` | `www/aria2` | aria2 1.37.0: Metalink and XML-RPC (libxml2 of az), the cookies of the browsers (SQLite of az), asynchronous DNS (c-ares of az), SFTP (libssh2 of az), the event poll libuv (az), BitTorrent, HTTPS (the OpenSSL of the base system); no NLS, no static build |
 | `php56-composer` … `php84-composer` | `devel/php56-composer` … `devel/php84-composer` | Composer 2.11.2 (for PHP 5.6 2.2.32, its LTS line) as `bin/composerXY`, which runs it with `bin/phpXY`: one for each PHP, side by side |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: the DNS server `named` with TCP Fast Open, no GSSAPI, DNSTAP, LMDB and statistics channels; dig, host, nslookup, delv, nsupdate and the DNSSEC tools, with IDN |
@@ -329,8 +329,13 @@ Names and origins as the ports, files at the paths of the ports:
 - **`databases/redis82`** and **`databases/redis82-openssl`** (aZ, 15.11.2026): Redis 8.2.11,
   the official port with JEMALLOC on (the jemalloc of Redis, for `activedefrag`) and
   without TLS; `redis82-openssl` with TLS on the OpenSSL of the base system, the same
-  files. No modules (JSON, search, time series, probabilistic). Tested by
-  `servers-test.sh`: jemalloc, PING, SET, GET, TLS on its port.
+  files. No modules (JSON, search, time series, probabilistic). The configurations of
+  aZ in the place of the redis.conf of Redis: `etc/redis.conf.sample`, the main cache,
+  and `etc/redis-session.conf.sample`, the PHP sessions (the profile `session` of the rc
+  script: `redis_profiles="redis session"`); on 127.0.0.1 only, without snapshots (the
+  variants of a snapshot commented out), lazy freeing on, `hide-user-data-from-log`.
+  Tested by `servers-test.sh`: jemalloc, PING, SET, GET, TLS on its port, both
+  configurations as they are: what they set, the socket 777, no snapshot on stop.
 - **`www/aria2`** (aZ, 15.11.2026): aria2 1.37.0, the official port with its default
   options but STATIC, without NLS and the docs, with CARES, LIBUV and SSH2: libxml2,
   SQLite, c-ares, libuv and libssh2 of az (expat of az for the other XML option),

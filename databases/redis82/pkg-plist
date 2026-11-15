@@ -5,6 +5,7 @@ bin/redis-cli
 bin/redis-sentinel
 bin/redis-server
 @sample etc/redis.conf.sample
+@sample etc/redis-session.conf.sample
 @sample(%%REDIS_USER%%,%%REDIS_GROUP%%,) etc/sentinel.conf.sample
 @dir(%%REDIS_USER%%,%%REDIS_GROUP%%,) %%REDIS_DBDIR%%
 @dir(%%REDIS_USER%%,%%REDIS_GROUP%%,) %%REDIS_LOGDIR%%
