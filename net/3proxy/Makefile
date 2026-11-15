@@ -3,11 +3,12 @@
 # its vulnerabilities (RADIUS replies and PTR answers past buffers on the stack, the
 # match data of pcre rules shared by connections, StringsPlugin past the lines of
 # its string tables ...). The official port has 0.9.5, which upstream no longer
-# supports (SECURITY.md: not before 0.9.8). With the two fixes of the 0.9 branch
+# supports (SECURITY.md: not before 0.9.8). With the three fixes of the 0.9 branch
 # after 0.9.9.3 (files/patch-src_pcre.c: a pcre rule without an ACL freed as the
 # match data of a connection; files/patch-src_tlspr.c: tlspr past a short
-# ServerHello) and users with NT passwords without TLS as in 0.9.5
-# (files/patch-src_auth.c, files/patch-src_conf.c).
+# ServerHello; files/patch-src_proxy.c: the credentials of an earlier request on a
+# keep-alive connection taken for the next) and users with NT passwords without TLS
+# as in 0.9.5 (files/patch-src_auth.c, files/patch-src_conf.c).
 #
 # Built with CMake, as upstream advises (README.md), with the names and paths of the
 # official port: the standalone servers without a prefix (-D3PROXY_BINARY_PREFIX=),
@@ -25,7 +26,8 @@
 # on the OpenSSL of the base system (aZ, 11.11.2026); no ODBC, no LDAP plugin. Not
 # the install of CMake: it puts files in /opt, an rc.d script and a config directory
 # of its own. Built with it on Linux: users with CL, CR ($1$, $3$) and NT passwords
-# and a pcre rule without an ACL.
+# and a pcre rule without an ACL; on a keep-alive connection a request without
+# credentials after one with them: 200 without files/patch-src_proxy.c, 407 with it.
 
 PORTNAME=	3proxy
 DISTVERSION=	0.9.9.3

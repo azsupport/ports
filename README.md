@@ -294,8 +294,9 @@ Names and origins as the ports, files at the paths of the ports:
   PAM, libwrap) went to the FTP client.
 - **`net/3proxy`** and **`net/3proxy-openssl`**: 3proxy 0.9.9.3, the LTS line of upstream
   (07.11.2026), for its security fixes: the official port has 0.9.5, which upstream no
-  longer supports. With the two fixes of the 0.9 branch after it (a pcre rule without an
-  ACL, tlspr and a short ServerHello), built with CMake with the names and paths of the
+  longer supports. With the three fixes of the 0.9 branch after it (a pcre rule without an
+  ACL, tlspr and a short ServerHello, the credentials of an earlier request on a
+  keep-alive connection taken for the next), built with CMake with the names and paths of the
   official port (`httppr`, `mycrypt`, `/var/log/3proxy`, its sample config and rc.d
   script) and links by the 0.9.5 names of the plugins (`StringsPlugin.so`,
   `TrafficPlugin.so`, `pamauth.so`; PCRE is inside 3proxy since 0.9.7, a
