@@ -1,13 +1,15 @@
 # www/aria2: the aria2 of azsupport/ports in the place of the official www/aria2
 # (aZ, 15.11.2026): the official port (its rc.d script, pkg-plist, pkg-descr) with
 # the options of its default but STATIC, without NLS and the docs (aZ, 15.11.2026:
-# we keep all its dependencies): libxml2 (Metalink, XML-RPC) and SQLite (the cookies
-# of Firefox and Chromium) the shared libraries of az with the run path
+# we keep all its dependencies), and with CARES (asynchronous DNS), LIBUV (the event
+# poll libuv, for --event-poll=libuv; kqueue stays the default) and SSH2 (SFTP),
+# whose libraries az has (aZ, 15.11.2026: «почему ssh2 и libuv вырубил если они у
+# нас есть?»): libxml2 (Metalink, XML-RPC), SQLite (the cookies of Firefox and
+# Chromium), c-ares, libuv and libssh2 the shared libraries of az with the run path
 # /usr/local/az/lib (our ports link each other's shared libraries: aZ, 10.11.2026),
 # given to configure by their FOO_CFLAGS and FOO_LIBS (no pkg-config, no other header
-# of az seen); c-ares, expat, libssh2 and libuv of az too, for the options that are
-# off; OpenSSL and zlib of the base system (the official one takes libxml2 and
-# sqlite3 of the ports).
+# of az seen); expat of az for the other XML option; OpenSSL and zlib of the base
+# system (the official one takes libxml2 and sqlite3 of the ports).
 
 PORTNAME=	aria2
 PORTVERSION=	1.37.0
@@ -62,7 +64,7 @@ CPE_VENDOR=	aria2_project
 OPTIONS_DEFINE=	CARES DOCS LIBUV NLS SQLITE SSH2 STATIC
 OPTIONS_SINGLE=	XML
 OPTIONS_SINGLE_XML=	EXPAT LIBXML2
-OPTIONS_DEFAULT=LIBXML2 SQLITE
+OPTIONS_DEFAULT=CARES LIBUV LIBXML2 SQLITE SSH2
 OPTIONS_EXCLUDE=NLS STATIC
 OPTIONS_SUB=	yes
 LIBUV_DESC=	Event polling via libuv
