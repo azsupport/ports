@@ -333,7 +333,7 @@
   на своём порту, оба конфига как есть: что задают, сокет 777, нет снимка при остановке.
 - **`www/nginx-devel`**, **`www/nginx-devel-stream`** и **`www/nginx-devel-image-filter`**
   (aZ, 15.11.2026): nginx 1.31.8, опции — объединение серверов aZ. Вкомпилены: модули
-  nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE, HTTP_MP4, HTTP_REALIP,
+  nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE, HTTP_GZIP_STATIC, HTTP_MP4, HTTP_REALIP,
   HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL, HTTP_SUB, HTTPV2, HTTPV3, а также brotli,
   headers-more и geoip2 (http) — они на всех серверах; выключены: остальные модули nginx
   (в том числе MAIL), NJS, OTEL, Perl, XSLT, GeoIP 1, GSSAPI, VOD и прочие сторонние.
@@ -341,7 +341,8 @@
   `nginx-devel-stream` (stream с realip, ssl и ssl_preread, geoip2 для stream) и
   `nginx-devel-image-filter` (image_filter), подключаются через `load_module`. OpenSSL
   базы, PCRE2 из `devel/pcre2`, zlib базы; brotli, libmaxminddb и libgd — из az.
-  Проверки в `servers-test.sh`: brotli, headers-more, geoip2, прокси stream, image_filter.
+  Проверки в `servers-test.sh`: brotli, gzip_static, headers-more, geoip2, прокси stream,
+  image_filter.
 - **`www/aria2`** (aZ, 15.11.2026): aria2 1.37.0, официальный порт с опциями по
   умолчанию, кроме STATIC, без NLS и документации, с CARES, LIBUV и SSH2: libxml2,
   SQLite, c-ares, libuv и libssh2 из az (expat из az — для другой опции XML), OpenSSL

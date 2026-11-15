@@ -340,16 +340,16 @@ Names and origins as the ports, files at the paths of the ports:
 - **`www/nginx-devel`**, **`www/nginx-devel-stream`** and **`www/nginx-devel-image-filter`**
   (aZ, 15.11.2026): nginx 1.31.8, the options the union of those of the servers of aZ.
   Built in: the modules of nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE,
-  HTTP_MP4, HTTP_REALIP, HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL, HTTP_SUB, HTTPV2, HTTPV3,
-  and brotli, headers-more and geoip2 (http), which every server uses; off: the other
+  HTTP_GZIP_STATIC, HTTP_MP4, HTTP_REALIP, HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL, HTTP_SUB,
+  HTTPV2, HTTPV3, and brotli, headers-more and geoip2 (http), which every server uses; off: the other
   modules of nginx (MAIL among them), NJS, OTEL, Perl, XSLT, GeoIP 1, GSSAPI, VOD and
   every other third-party module. `--with-compat`: the modules only some servers use
   are packages of their own, built from the same nginx: `nginx-devel-stream` (stream
   with realip, ssl and ssl_preread, and geoip2 for stream) and
   `nginx-devel-image-filter` (image_filter), loaded by `load_module`. OpenSSL of the base
   system, PCRE2 of `devel/pcre2`, zlib of the base system; brotli, libmaxminddb and
-  libgd of az. Tested by `servers-test.sh`: brotli, headers-more, geoip2, the stream
-  proxy, image_filter.
+  libgd of az. Tested by `servers-test.sh`: brotli, gzip_static, headers-more, geoip2, the
+  stream proxy, image_filter.
 - **`www/aria2`** (aZ, 15.11.2026): aria2 1.37.0, the official port with its default
   options but STATIC, without NLS and the docs, with CARES, LIBUV and SSH2: libxml2,
   SQLite, c-ares, libuv and libssh2 of az (expat of az for the other XML option),
