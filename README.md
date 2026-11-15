@@ -88,6 +88,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `postfix`, `postfix-mysql` | `mail/postfix`, `mail/postfix-mysql` | Postfix 3.11.7 with the options of aZ: EAI (SMTPUTF8, the ICU of az), PCRE2 of `pcre2`, TLS (the OpenSSL of the base system) and TLSRPT (`libtlsrpt`); no LMDB, CDB, blocklistd, LDAP, Cyrus SASL; the variant with the MySQL maps (the client of `mariadb1011-client`); one of the two |
 | `dovecot`, `dovecot-mysql` | `mail/dovecot`, `mail/dovecot-mysql` | Dovecot 2.3.21.1, the branch 2.3 as long as upstream supports it, with the options of aZ: no GSSAPI, LDAP, libwrap, FTS, Lua, LZ4; zstd of az; the variant with the SQL driver of MySQL; one of the two |
 | `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (the line of 8.x with the long support of upstream), without the modules: JEMALLOC on (its own jemalloc: active defragmentation), no TLS; the variant with TLS (the OpenSSL of the base system); one of the two; the configurations of aZ: `redis.conf.sample` (the main cache), `redis-session.conf.sample` (PHP sessions), on 127.0.0.1, without snapshots |
+| `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter` | nginx 1.31.8 with brotli, headers-more and geoip2 built in (`--with-compat`); stream and image_filter as packages of their own (`load_module`) |
 | `aria2` | `www/aria2` | aria2 1.37.0: Metalink and XML-RPC (libxml2 of az), the cookies of the browsers (SQLite of az), asynchronous DNS (c-ares of az), SFTP (libssh2 of az), the event poll libuv (az), BitTorrent, HTTPS (the OpenSSL of the base system); no NLS, no static build |
 | `php56-composer` … `php84-composer` | `devel/php56-composer` … `devel/php84-composer` | Composer 2.11.2 (for PHP 5.6 2.2.32, its LTS line) as `bin/composerXY`, which runs it with `bin/phpXY`: one for each PHP, side by side |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: the DNS server `named` with TCP Fast Open, no GSSAPI, DNSTAP, LMDB and statistics channels; dig, host, nslookup, delv, nsupdate and the DNSSEC tools, with IDN |
@@ -336,6 +337,19 @@ Names and origins as the ports, files at the paths of the ports:
   variants of a snapshot commented out), lazy freeing on, `hide-user-data-from-log`.
   Tested by `servers-test.sh`: jemalloc, PING, SET, GET, TLS on its port, both
   configurations as they are: what they set, the socket 777, no snapshot on stop.
+- **`www/nginx-devel`**, **`www/nginx-devel-stream`** and **`www/nginx-devel-image-filter`**
+  (aZ, 15.11.2026): nginx 1.31.8, the options the union of those of the servers of aZ.
+  Built in: the modules of nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE,
+  HTTP_MP4, HTTP_REALIP, HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL, HTTP_SUB, HTTPV2, HTTPV3,
+  and brotli, headers-more and geoip2 (http), which every server uses; off: the other
+  modules of nginx (MAIL among them), NJS, OTEL, Perl, XSLT, GeoIP 1, GSSAPI, VOD and
+  every other third-party module. `--with-compat`: the modules only some servers use
+  are packages of their own, built from the same nginx: `nginx-devel-stream` (stream
+  with realip, ssl and ssl_preread, and geoip2 for stream) and
+  `nginx-devel-image-filter` (image_filter), loaded by `load_module`. OpenSSL of the base
+  system, PCRE2 of `devel/pcre2`, zlib of the base system; brotli, libmaxminddb and
+  libgd of az. Tested by `servers-test.sh`: brotli, headers-more, geoip2, the stream
+  proxy, image_filter.
 - **`www/aria2`** (aZ, 15.11.2026): aria2 1.37.0, the official port with its default
   options but STATIC, without NLS and the docs, with CARES, LIBUV and SSH2: libxml2,
   SQLite, c-ares, libuv and libssh2 of az (expat of az for the other XML option),

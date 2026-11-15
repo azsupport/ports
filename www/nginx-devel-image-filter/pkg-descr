@@ -1,0 +1,2 @@
+The image_filter module of nginx-devel: transforms JPEG, GIF, PNG and WebP
+images (resize, crop, rotate) with libgd.

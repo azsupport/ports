@@ -1,0 +1,23 @@
+%%ETCDIR%%/koi-utf
+%%ETCDIR%%/koi-win
+%%ETCDIR%%/win-utf
+@sample %%ETCDIR%%/fastcgi_params-dist %%ETCDIR%%/fastcgi_params
+@sample %%ETCDIR%%/mime.types-dist %%ETCDIR%%/mime.types
+@sample %%ETCDIR%%/nginx.conf-dist %%ETCDIR%%/nginx.conf
+@sample %%ETCDIR%%/scgi_params-dist %%ETCDIR%%/scgi_params
+@sample %%ETCDIR%%/uwsgi_params-dist %%ETCDIR%%/uwsgi_params
+sbin/nginx
+share/vim/vimfiles/ftdetect/nginx.vim
+share/vim/vimfiles/ftplugin/nginx.vim
+share/vim/vimfiles/indent/nginx.vim
+share/vim/vimfiles/syntax/nginx.vim
+%%WWW%%@postexec mkdir -p -m 755 %D/www/nginx-dist
+%%WWW%%@postexec if [ ! -d %D/www/nginx/ ] ; then ln -fs %D/www/nginx-dist %D/www/nginx; fi
+%%WWW%%www/nginx-dist/EXAMPLE_DIRECTORY-DONT_ADD_OR_TOUCH_ANYTHING
+%%WWW%%www/nginx-dist/index.html
+%%WWW%%www/nginx-dist/50x.html
+%%WWW%%@postexec chmod a-w %D/www/nginx-dist
+%%WWW%%@postunexec if [ -L %D/www/nginx ]; then rm -f %D/www/nginx; fi
+@dir %%NGINX_TMPDIR%%
+@dir %%NGINX_LOGDIR%%
+share/man/man8/nginx.8.gz

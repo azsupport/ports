@@ -1,0 +1,16 @@
+[
+{ type: install
+  message: <<EOM
+This nginx-devel (of azsupport/ports) has brotli, headers-more and geoip2
+(for http) built in. The modules only some servers use are packages of
+their own, which install their objects in %%PREFIX%%/libexec/nginx:
+
+  nginx-devel-stream        stream (with realip, ssl, ssl_preread) and
+                            geoip2 for stream
+  nginx-devel-image-filter  image_filter
+
+Load such a module in the main context of nginx.conf with load_module and
+its full path; each package says its lines when it is installed.
+EOM
+}
+]

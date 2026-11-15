@@ -1,0 +1,2 @@
+libexec/nginx/ngx_stream_module.so
+libexec/nginx/ngx_stream_geoip2_module.so

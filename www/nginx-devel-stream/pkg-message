@@ -1,0 +1,13 @@
+[
+{ type: install
+  message: <<EOM
+Load the module in the main context of nginx.conf, before the stream block:
+
+load_module /usr/local/libexec/nginx/ngx_stream_module.so;
+
+and, for geoip2 in stream, after it:
+
+load_module /usr/local/libexec/nginx/ngx_stream_geoip2_module.so;
+EOM
+}
+]

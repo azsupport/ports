@@ -1,0 +1,2 @@
+The stream module of nginx-devel: stream with realip, ssl and ssl_preread,
+and geoip2 for stream (geoip2 for http is in nginx-devel).
