@@ -44,8 +44,8 @@
 # no SCP and SFTP, LDAP, RTMP, GSS-API. The wrappers curl_<browser> are POSIX sh
 # (#!/bin/sh): no bash. The layout of the official port (include/curl-impersonate,
 # lib/libcurl-impersonate.so, bin/curl-impersonate-config,
-# libdata/pkgconfig/libcurl-impersonate.pc), so that the official ftp/py-curl-cffi
-# builds on it unchanged.
+# libdata/pkgconfig/libcurl-impersonate.pc), so that ftp/py-curl-cffi, the official port
+# as it is (ours: Mk/az-official.mk), builds on it.
 
 PORTNAME=	curl-impersonate
 DISTVERSIONPREFIX=	v

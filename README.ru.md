@@ -71,6 +71,7 @@
 | `az` | `az/az` | библиотеки сборок в `/usr/local/az`: `lib` (разделяемые, с run path `/usr/local/az/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`), с ними линкуется каждый пакет; статические — в `/usr/local/az/static`, только для особых сборок `az-menu.sh`. OpenSSL, zlib и bzip2 — из базовой системы |
 | `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта, с SCP и SFTP (libssh2 из az, без старых алгоритмов SSH: MAC на MD5, 3DES, RC4, Blowfish, CAST; так же у `ssh2` PHP и SFTP в `mc`); его `libcurl.so.4` — libcurl всех пакетов (модуль curl PHP, git) |
 | `curl-impersonate` | `ftp/curl-impersonate` | curl-impersonate 2.3.2, сборка из исходников: `curl-impersonate` и обёртки `curl_<браузер>` (рукопожатия TLS, HTTP/2 и HTTP/3 Chrome, Edge, Firefox, Safari и Tor Browser), `libcurl-impersonate.so` (для `py-curl-cffi`; не libcurl остальных пакетов); BoringSSL, nghttp2 1.63.0, nghttp3 и ngtcp2 внутри неё (с патчами апстрима под браузеры), c-ares, brotli, zstd, libidn2 (IDN) и libpsl (PSL) из az, zlib базы |
+| `py312-curl-cffi` | `ftp/py-curl-cffi` | curl_cffi 0.17.0 для нашего `python312`, на `libcurl-impersonate.so` из `curl-impersonate`: имперсонация `yt-dlp` (`--impersonate`); официальный порт как есть |
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` и `ffprobe` только с теми форматами, что нужны видеосайтам |
 | `ImageMagick6` | `graphics/ImageMagick6` | программы ImageMagick 6 под обычными именами (`convert`, `identify`, ...); конфликтует с `ImageMagick7` и `ImageMagick67` |
 | `ImageMagick7` | `graphics/ImageMagick7` | программы ImageMagick 7 (`magick` и обычные имена ссылками на него); конфликтует с `ImageMagick6` и `ImageMagick67` |
@@ -177,7 +178,7 @@
   `bin/curl-impersonate`, 47 обёрток `curl_<браузер>` (POSIX sh, без bash),
   `lib/libcurl-impersonate.so.4` (программа связана с ней) с заголовками в
   `include/curl-impersonate`, `curl-impersonate-config` и её `.pc`: раскладка
-  официального порта, чтобы официальный `ftp/py-curl-cffi` собирался на ней. c-ares,
+  официального порта, чтобы `ftp/py-curl-cffi` (ниже) собирался на ней. c-ares,
   brotli, zstd, libidn2 (IDN) и libpsl (PSL; aZ, 16.11.2026: как в `ftp/curl`) из az и
   zlib базы — разделяемые; библиотека — curl 8.23.0 с патчем
   апстрима, и только в ней, статически, со скрытыми символами: BoringSSL с патчем
@@ -185,6 +186,12 @@
   nghttp3 1.15.0 и ngtcp2 1.20.0 с патчами апстрима (HTTP/3 браузеров); исправления
   CVE-2026-27135 (nghttp2), CVE-2026-40170 (ngtcp2) и conncache из `ftp/curl`; без
   статических библиотек; сертификаты CA базы. Сборка и работа: az.
+- **`ftp/py-curl-cffi`** (aZ, 16.11.2026): пакет `py312-curl-cffi` нашего `python312`,
+  официальный порт как есть ([`Mk/az-official.mk`](Mk/az-official.mk)): curl_cffi 0.17.0,
+  его расширение — на `libcurl-impersonate.so` из `ftp/curl-impersonate` (ничего не
+  скачивает), для `yt-dlp --impersonate` (yt-dlp 2026.10.26 берёт curl_cffi от 0.10.x до
+  0.17.x); `py312-cffi` и `py312-certifi` — официальные пакеты. Сборка и работа:
+  `curl-impersonate`, `python312`.
 - **`multimedia/ffmpeg`**: пакет `ffmpeg` вместо официального: `bin/ffmpeg` и
   `bin/ffprobe` (библиотеки FFmpeg внутри них), только с тем, что нужно видеосайтам
   ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
