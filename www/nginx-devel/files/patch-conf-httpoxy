@@ -1,0 +1,31 @@
+httpoxy (CVE-2016-5385): the Proxy header of a request not passed on as HTTP_PROXY to
+FastCGI, SCGI and uWSGI (Gentoo, www-servers/nginx/files/nginx-httpoxy-mitigation-r1.patch;
+aZ, 16.11.2026); conf/fastcgi.conf, which this port does not install, left out.
+
+--- conf/fastcgi_params.orig
++++ conf/fastcgi_params
+@@ -23,3 +23,6 @@ fastcgi_param  SERVER_NAME        $server_name;
+ 
+ # PHP only, required if PHP was built with --enable-force-cgi-redirect
+ fastcgi_param  REDIRECT_STATUS    200;
++
++# httpoxy mitigation (https://httpoxy.org/ https://www.nginx.com/blog/?p=41962)
++fastcgi_param  HTTP_PROXY         "";
+--- conf/scgi_params.orig
++++ conf/scgi_params
+@@ -15,3 +15,6 @@ scgi_param  REMOTE_ADDR        $remote_addr;
+ scgi_param  REMOTE_PORT        $remote_port;
+ scgi_param  SERVER_PORT        $server_port;
+ scgi_param  SERVER_NAME        $server_name;
++
++# httpoxy mitigation (https://httpoxy.org/ https://www.nginx.com/blog/?p=41962)
++scgi_param  HTTP_PROXY         "";
+--- conf/uwsgi_params.orig
++++ conf/uwsgi_params
+@@ -15,3 +15,6 @@ uwsgi_param  REMOTE_ADDR        $remote_addr;
+ uwsgi_param  REMOTE_PORT        $remote_port;
+ uwsgi_param  SERVER_PORT        $server_port;
+ uwsgi_param  SERVER_NAME        $server_name;
++
++# httpoxy mitigation (https://httpoxy.org/ https://www.nginx.com/blog/?p=41962)
++uwsgi_param  HTTP_PROXY         "";

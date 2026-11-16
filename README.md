@@ -360,7 +360,10 @@ Names and origins as the ports, files at the paths of the ports:
   libgd of az. Tested by `servers-test.sh`: brotli, gzip_static, headers-more, geoip2, the
   stream proxy, image_filter. Patches from Debian (aZ, 16.11.2026): `brotli_static` sets
   `Vary` only where a `.br` file is, as `gzip_static`; geoip2 takes no cached lookup
-  result of a database `auto_reload` has closed.
+  result of a database `auto_reload` has closed. From Gentoo (aZ, 16.11.2026): `HTTP_PROXY ""`
+  in `fastcgi_params`, `scgi_params` and `uwsgi_params` (httpoxy, CVE-2016-5385: the `Proxy`
+  header of a request not passed on to the application as `HTTP_PROXY`), checked by
+  `servers-test.sh`.
 - **`www/nginx-devel-lua`** and **`www/nginx-devel-stream-lua`** (aZ, 15.11.2026): Lua
   of nginx-devel, on LuaJIT alone (lua-nginx-module has no standard Lua): `nginx-devel-lua`
   — ndk 0.3.6 and lua-nginx-module 0.10.31; `nginx-devel-stream-lua` —
