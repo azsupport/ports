@@ -11,20 +11,20 @@
 # - Galera (replication: CREATE CLUSTER; aZ, 16.11.2026): the module
 #   share/manticore/modules/libgalera_manticore.so of the galera and wsrep-API of
 #   Manticore (it needs OpenSSL: that of the base system), Boost 1.89+ fixed;
-# - linked: ICU of az (with the run path /usr/local/az/lib), OpenSSL of the base system
-#   (HTTPS and SSL of the MySQL listener; not the static one upstream links),
-#   Boost.Context and Boost.Filesystem (the archives of the official devel/boost-libs, at
-#   build time, alone in a directory of the work); loaded when used (dlopen, as upstream
-#   builds it): zstd, libcurl (Buddy) and expat (xmlpipe2 of indexer) of az, the client
-#   of MariaDB (MySQL sources of indexer, databases/mariadb1011-client of this tree);
-# - in the build only, static (Manticore takes no system copy of them, or aZ's recipe
-#   wants it: WITH_RE2_FORCE_STATIC): RE2 (2015-06-01, patched by Manticore), libstemmer
-#   (Snowball 3.0.3 of Manticore, that of Manticore 31: the libstemmer_c.tgz of
-#   snowballstem.org 14.7.6 took is no longer there), cctz, CRoaring, uni-algo,
-#   nlohmann/json, xxHash (a header), cppjieba with limonp (its dictionaries in
-#   share/manticore/jieba), the API of columnar c27-s18-k9; all of them distfiles here
-#   (cmake downloads nothing: FETCHCONTENT_SOURCE_DIR_*, GALERA_SOURCE_DIR and
-#   COLUMNAR_LOCATOR);
+# - the libraries of az wherever az has them (aZ, 16.11.2026): ICU linked (with the run
+#   path /usr/local/az/lib), xxHash 0.8.4 (its header, inline), and loaded when used
+#   (dlopen, as upstream builds it): zstd, libcurl (Buddy), expat (xmlpipe2 of indexer);
+#   the client of MariaDB (MySQL sources of indexer) of databases/mariadb1011-client,
+#   loaded the same way; OpenSSL of the base system, shared (HTTPS and SSL of the MySQL
+#   listener; upstream links the static one); Boost.Context and Boost.Filesystem the
+#   archives of the official devel/boost-libs, at build time, alone in a directory of the
+#   work (as devel/gearmand);
+# - what az has not, in the build only, static, from distfiles (cmake downloads nothing:
+#   FETCHCONTENT_SOURCE_DIR_*, GALERA_SOURCE_DIR, COLUMNAR_LOCATOR): RE2 2015-06-01
+#   patched by Manticore (aZ's recipe: WITH_RE2_FORCE_STATIC), libstemmer (Snowball 3.0.3
+#   of Manticore, that of Manticore 31: the libstemmer_c.tgz of snowballstem.org 14.7.6
+#   took is no longer there), cctz, CRoaring, uni-algo, nlohmann/json, cppjieba with
+#   limonp (its dictionaries in share/manticore/jieba), the API of columnar c27-s18-k9;
 # - time zones: share/manticore/tzdata a link to /usr/share/zoneinfo (aZ);
 # - CMake 4: CMAKE_POLICY_VERSION_MINIMUM=3.5 in the environment, for the dependencies
 #   whose minimum is under 3.5 (cctz, nlohmann/json); the tree has CMake 3.31;
@@ -53,6 +53,7 @@ BUILD_DEPENDS=	${LOCALBASE}/lib/libboost_context.a:devel/boost-libs \
 		${AZ_PREFIX}/lib/libcurl.so:az/az \
 		${AZ_PREFIX}/lib/libexpat.so:az/az \
 		${AZ_PREFIX}/lib/libicuuc.so:az/az \
+		${AZ_PREFIX}/lib/libxxhash.so:az/az \
 		${AZ_PREFIX}/lib/libzstd.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libcurl.so:az/az \
 		${AZ_PREFIX}/lib/libexpat.so:az/az \
@@ -72,7 +73,6 @@ GH_TUPLE=	${MC_TUPLES} \
 		percona:wsrep-API:2c211e1aad315e3118969beada4d4767118be88f:wsrep/freebsd-deps/wsrep \
 		manticoresoftware:cppjieba:0fa3cb07232f5c144228c2e8e39521bfdc9d3bca:jieba/freebsd-deps/cppjieba \
 		yanyiwu:limonp:v0.9.0:limonp/freebsd-deps/cppjieba/deps/limonp \
-		manticoresoftware:xxHash:72997b0070a031c063f86a308aec77ae742706d3:xxhash/freebsd-deps/xxhash \
 		manticoresoftware:re2:2015-06-01:re2/freebsd-deps/re2 \
 		manticoresoftware:snowball:v3.0.3:stemmer/freebsd-deps/stemmer \
 		manticoresoftware:uni-algo:v0.7.2:unialgo/freebsd-deps/uni-algo \
@@ -105,8 +105,7 @@ CMAKE_ARGS=	-DBUILD_TESTING=OFF -DVERNUMBERS=${DISTVERSION} \
 		-DFETCHCONTENT_SOURCE_DIR_RE2=${MC_DEPS}/re2 \
 		-DFETCHCONTENT_SOURCE_DIR_ROARING=${MC_DEPS}/roaring \
 		-DFETCHCONTENT_SOURCE_DIR_STEMMER=${MC_DEPS}/stemmer \
-		-DFETCHCONTENT_SOURCE_DIR_UNI-ALGO=${MC_DEPS}/uni-algo \
-		-DFETCHCONTENT_SOURCE_DIR_XXHASH=${MC_DEPS}/xxhash
+		-DFETCHCONTENT_SOURCE_DIR_UNI-ALGO=${MC_DEPS}/uni-algo
 # the dependencies (cctz, RE2...) and galera are configured and built by cmake at
 # configure time in builds of their own: the minimum of CMake 4 through the
 # environment; the API of columnar: of the sources here (COLUMNAR_LOCATOR; the line 31
@@ -147,12 +146,19 @@ pre-configure:
 	@${LN} -sf ${LOCALBASE}/include/boost ${WRKDIR}/deps/include/boost
 	@${LN} -sf ${LOCALBASE}/lib/libboost_context.a ${LOCALBASE}/lib/libboost_filesystem.a \
 		${WRKDIR}/deps/lib/
-.for i in unicode curl expat.h expat_external.h expat_config.h zstd.h zdict.h zstd_errors.h
+.for i in unicode curl expat.h expat_external.h expat_config.h xxhash.h xxh3.h zstd.h zdict.h zstd_errors.h
 	@if [ -e ${AZ_PREFIX}/include/${i} ]; then ${LN} -sf ${AZ_PREFIX}/include/${i} ${WRKDIR}/az/include/${i}; fi
 .endfor
 .for l in libicuuc libicudata libicui18n libcurl libexpat libzstd
 	@${LN} -sf ${AZ_PREFIX}/lib/${l}.so ${WRKDIR}/az/lib/${l}.so
 .endfor
+# xxHash of az for cmake/GetxxHash.cmake (find_package CONFIG): its header only,
+# Manticore includes it with XXH_INLINE_ALL (nothing to link)
+	@${MKDIR} ${WRKDIR}/az/lib/cmake/xxHash
+	@${PRINTF} '%s\n' 'if (NOT TARGET xxHash::xxhash)' \
+		'	add_library ( xxHash::xxhash INTERFACE IMPORTED )' \
+		'	set_target_properties ( xxHash::xxhash PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${WRKDIR}/az/include" )' \
+		'endif ()' > ${WRKDIR}/az/lib/cmake/xxHash/xxHashConfig.cmake
 
 # what upstream installs for Debian and RPM only (no distr for FreeBSD): the module of
 # galera, the dictionaries of cppjieba, the manual pages; the config as the sample;

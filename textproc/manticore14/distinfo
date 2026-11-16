@@ -11,8 +11,6 @@ SHA256 (manticore/manticoresoftware-cppjieba-0fa3cb07232f5c144228c2e8e39521bfdc9
 SIZE (manticore/manticoresoftware-cppjieba-0fa3cb07232f5c144228c2e8e39521bfdc9d3bca_GH0.tar.gz) = 8098813
 SHA256 (manticore/yanyiwu-limonp-v0.9.0_GH0.tar.gz) = 92d90b262ab2e3375dd386731deeb028f88ee7d07d0695d53d10bef6887d2f5f
 SIZE (manticore/yanyiwu-limonp-v0.9.0_GH0.tar.gz) = 26597
-SHA256 (manticore/manticoresoftware-xxHash-72997b0070a031c063f86a308aec77ae742706d3_GH0.tar.gz) = a85714cf655d8b3d7019c504fda6be877314e342ba1a0d1598a33f5d9fe73901
-SIZE (manticore/manticoresoftware-xxHash-72997b0070a031c063f86a308aec77ae742706d3_GH0.tar.gz) = 1146247
 SHA256 (manticore/manticoresoftware-re2-2015-06-01_GH0.tar.gz) = 90b4f48c26b1f33f4df5f86406d8c663c8a44b103a5554387ce3c53228abf20e
 SIZE (manticore/manticoresoftware-re2-2015-06-01_GH0.tar.gz) = 385441
 SHA256 (manticore/manticoresoftware-snowball-v3.0.3_GH0.tar.gz) = e6127db8a7e4be394c75652b1e3486d88ec20bd2bbba5dea8c9017289aceecbe
