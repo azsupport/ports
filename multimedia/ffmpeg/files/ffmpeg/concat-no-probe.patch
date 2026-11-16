@@ -1,6 +1,6 @@
 concat demuxer only with -f concat: no read_probe, so that a file whose content
 is a concat script (an upload named video.mp4) is not taken for one and cannot
-make FFmpeg read the files it names. the conversion script of the video sites joins with -f concat.
+make FFmpeg read the files it names. The conversion script joins with -f concat.
 
 --- a/libavformat/concatdec.c
 +++ b/libavformat/concatdec.c

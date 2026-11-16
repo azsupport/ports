@@ -3,3 +3,10 @@
 /work/
 /packages/
 /distfiles/
+# the build tests live in the private azsupport/azsupport (tests/ports/); build.yml
+# fetches them into tools/ at run time. Never committed to this public repo.
+/tools/test-programs.sh
+/tools/*-test.sh
+/tools/lib-bench.sh
+/tools/lib-bench.c
+/tools/lib-bench.php

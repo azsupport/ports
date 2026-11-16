@@ -6,7 +6,7 @@ H.264: the direct prediction from a colocated field picture whose macroblocks
 were never decoded (a broken field) took the frame path with the field
 remapping and read the colocated motion vectors past the end of the picture, a
 heap read overflow (found by OSS-Fuzz with an mkv). Every upload in H.264
-reaches the decoder: ffmpeg -i, the screenshots and the conversion of the video sites.
+reaches the decoder: ffmpeg -i, the screenshots and the conversion of the sites.
 
 --- a/libavcodec/h264_direct.c
 +++ b/libavcodec/h264_direct.c

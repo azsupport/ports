@@ -222,6 +222,25 @@ jobs:
           nohup sh tools/runs-progress.sh "$PART" 10 > "$RUNNER_TEMP/runs-progress.log" 2>&1 &
           echo "tools/runs-progress.sh: pid $!, every 10 minutes"
 
+      # the build tests (tools/test-programs.sh and the *-test.sh) are kept in the
+      # private azsupport/azsupport (tests/ports/), not in this public repo; fetch them
+      # into tools/ with RUNS_TOKEN so the VM runs them (the workspace is synced into the
+      # VM). They are in .gitignore here. No token: the VM runs no tests.
+      - name: The build tests of azsupport/azsupport, into tools/
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+        run: |
+          if [ -z "$RUNS_TOKEN" ]; then
+            echo "::warning title=tests::no RUNS_TOKEN: the VM runs no tests"
+            exit 0
+          fi
+          t="$RUNNER_TEMP/az-tests.tgz"
+          curl -fsSL -H "Authorization: Bearer $RUNS_TOKEN" -H "Accept: application/vnd.github+json" \
+            -o "$t" "https://api.github.com/repos/azsupport/azsupport/tarball/main"
+          tar -xzf "$t" -C tools --strip-components=3 --wildcards '*/tests/ports/*'
+          rm -f "$t"
+          echo "tests in tools/: $(ls tools/test-programs.sh tools/*-test.sh 2>/dev/null | wc -l) scripts"
+
       - name: Build and check in FreeBSD ${{ inputs.release }}
         id: build
         uses: vmactions/freebsd-vm@v1
@@ -335,7 +354,11 @@ jobs:
             # installed from the repository and tested (the samples with the official
             # packages first); exit 2: no catalog, said in checks.txt
             r=0
-            sh tools/test-programs.sh --repo "$crepo" || r=$?
+            if [ -f tools/test-programs.sh ]; then
+              sh tools/test-programs.sh --repo "$crepo" || r=$?
+            else
+              echo "programs: SKIP (no tools/test-programs.sh: the tests of azsupport/azsupport were not fetched)" >> results/checks.txt
+            fi
             if [ "$r" = 1 ]; then rc=1; fi
             fi
             cat results/checks.txt

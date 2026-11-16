@@ -1,7 +1,7 @@
 # www/nginx-devel: the nginx-devel of azsupport/ports in the place of the official
 # www/nginx-devel (aZ, 15.11.2026: «давай еще свой nginx-devel добавим», «может
 # модулями его разбить»): nginx 1.31.8 of the official port of the pinned commit, its
-# options the union of those of the servers a server, a server and a server, and HTTP_GZIP_STATIC.
+# options the union of those of three of aZ's servers, and HTTP_GZIP_STATIC.
 #
 # The core has the modules of nginx itself built in (they cannot be dynamic), and
 # brotli, headers-more and geoip2 (its http part), which every server of aZ uses
@@ -103,7 +103,7 @@ OPTIONS_GROUP_MAILGRP=	MAIL MAIL_IMAP MAIL_POP3 MAIL_SMTP MAIL_SSL
 OPTIONS_GROUP_THIRDPARTYGRP=	BROTLI HEADERS_MORE HTTP_GEOIP2
 
 OPTIONS_DEFINE=		DEBUG DEBUGLOG FILE_AIO IPV6 THREADS WWW
-# the options of aZ: the union of a server, a server and a server, and HTTP_GZIP_STATIC (aZ,
+# the options of aZ: the union of three of his servers, and HTTP_GZIP_STATIC (aZ,
 # 15.11.2026: «вруби HTTP_GZIP_STATIC в сборке нгингс еще»)
 OPTIONS_DEFAULT=	BROTLI FILE_AIO HEADERS_MORE HTTP HTTP_CACHE HTTP_GEOIP2 \
 		HTTP_GZIP_STATIC HTTP_MP4 HTTP_REALIP HTTP_SECURE_LINK HTTP_SLICE \

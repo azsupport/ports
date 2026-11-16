@@ -25,7 +25,7 @@
 #
 # The plugins (aZ, 12.11.2026): those of the bundle, as the official port has
 # them (its option PLUGINS, on by default) and as aZ's cluster of 2.17.1 runs
-# them (all 23, on a server, a server, a server, a server), so that a node of this port can take
+# them (all 23, on each node), so that a node of this port can take
 # the place of one of his in the same cluster; out only the security plugin and
 # what cannot run on FreeBSD, with what needs it:
 #   out: opensearch-security (aZ: not needed, connections without TLS and

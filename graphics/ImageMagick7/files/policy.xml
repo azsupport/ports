@@ -20,7 +20,7 @@
   and 6.9.13-50, the same in both) with the formats of the video sites and room
   for the photos of phones:
   - read and write JPEG, PNG, WebP, GIF, HEIC and AVIF (module HEIC), and BMP (the
-    intermediate file the video sites writes and reads back for every screenshot and album
+    intermediate file the conversion writes and reads back for every screenshot and album
     image), nothing else from files (not TIFF of websafe; not MNG and JNG, which
     are in the module PNG); make images with xc:, canvas:, label: and caption: (text);
     write INFO and JSON (identify output), MPC (the pixel cache) unseen. A module

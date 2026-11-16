@@ -2,7 +2,7 @@
 # mail/dovecot (aZ, 15.11.2026: the branch 2.3, as long as upstream supports it; it
 # gets only critical security fixes now) and, by its slave port mail/dovecot-mysql,
 # of its flavor mysql (the SQL driver of MySQL). The official port with aZ's options
-# (those of his a server, without libwrap: no tcpwrap in his configurations, aZ
+# (those of his servers, without libwrap: no tcpwrap in his configurations, aZ
 # 15.11.2026): no GSSAPI, CDB, LDAP, PostgreSQL, SQLite, the FTS plugins (ICU,
 # CLucene, Solr, textcat), libsodium, libunwind, Lua, LZ4, the docs and the examples
 # (the official default has LDAP and libwrap too). zstd the shared library of az,

@@ -106,10 +106,10 @@ Names and origins as the ports, files at the paths of the ports:
 | `elasticsearch6` | `textproc/elasticsearch6` | Elasticsearch 6.8.23, the last 6.x, for the legacy sites, back in the ports (the official port went on 2023-01-01, at 6.8.16): its rc script with profiles; on our OpenJDK 21 (`java/openjdk21`; aZ, 12.11.2026: one JDK with OpenSearch; `-Djava.security.manager=allow` in `jvm.options`, without which JDK 18 and later refuse its Security Manager), the four lines of the warning of the JDK about `System::setSecurityManager` and the two about the COMPAT locale provider taken out of its start; without ML; the error files of a crash of the JVM in `/var/log/elasticsearch`; no writes of no use (aZ, 11.11.2026): no heap dump at an OutOfMemoryError, no GC log, nothing in `/tmp` but the one `/tmp/elasticsearch` (no `hsperfdata`; its temporary directory, `elasticsearch_tmpdir` of `rc.conf`, made anew at each start), no archives of old logs (the log files of Elastic's `log4j2.properties` as they are, each rolled at its size alone and the rolled file deleted at once: no dated files, no `.gz`); `xpack.ssl.cipher_suites` without the four suites OpenJDK 17 and 21 no longer have (no `[ERROR]` about unsupported ciphers at start); `jvm.options` for OpenJDK 17 and later, one file for every server (`-XX:UseAVX=2` for JDK 10 alone: on JDK 17 it warned at every start on a CPU without AVX2; `-XX:+ExitOnOutOfMemoryError`; each change with its source in the file); the heap of a server is `elasticsearch_heap="4g"` in `rc.conf` (`-Xms` and `-Xmx`), without it the 31g of `jvm.options` (below the cutoff of compressed oops; for a server with 64 GB of RAM and more: with less set `elasticsearch_heap`, at most half of the RAM); its tools run by hand (`elasticsearch-keystore`, `elasticsearch-plugin` and the others) leave nothing in `/tmp` either; licences: the default distribution with X-Pack, so Apache 2.0 and the Elastic License 1.0 (its `LICENSE.txt`), which allows the use at no charge and no redistribution |
 | `kibana6` | `textproc/kibana6` | Kibana 6.8.23, the last 6.x, for the legacy sites with `elasticsearch6`, back in the ports (the official port went on 2022-03-31, at 6.8.16, with Node.js 10): on our `node24`, with what it needs of Node.js 10 put back (`util.is*` and `util.log`, the MD4 of webpack 4 as MD5, a rejected promise nothing handles a warning, the IPv4 address of `localhost` first), the fixes of hapi for Node.js 11 and 16 in its hapi 17, and `re2` (Timelion's labels) as node-re2 1.27.1 built for this Node.js, with the RE2 2025-11-05 and abseil 20260817.0 it vendors compiled in (a node-re2 that vendors others stops the build); its rc script with daemon(8), as the user www, `reload` for the log; without Machine Learning and Reporting (no Chromium or PhantomJS for FreeBSD), the bundles of the browser built in the build for that set of plugins; licences: the default distribution with X-Pack, so Apache 2.0 and the Elastic License 1.0 (its `LICENSE.txt`), which allows the use at no charge and no redistribution |
 | `opensearch217` | `textproc/opensearch217` | OpenSearch 2.17.1, the last 2.17.x (2.17.2 was never released), for a legacy project: the bundle of OpenSearch that the official `textproc/opensearch` installed at 2.17.1 (the branch 2025Q1 of freebsd-ports), with its rc script with profiles, on OpenJDK 21 of ours (`java/openjdk21`, the JDK of its bundle and of 3.x; aZ, 12.11.2026) and the JNA of `devel/jna` (its library from `lib/jna`, nothing unpacked at a start); without `opensearch-security` (aZ, 12.11.2026: no TLS and no passwords; the rc script refuses a start with a `plugins.security.*` setting in `opensearch.yml`, such as `plugins.security.disabled: true`, and names its lines) and without the plugins that cannot run on FreeBSD or need one that cannot: k-NN (its engines are native code of Linux), Neural Search, Performance Analyzer (the other 19 plugins of the bundle and every module are in, as on aZ's cluster of 2.17.1, so that a node of this package can take the place of one of his; ML Commons runs its remote models only: its local ones need native code of Linux, and the two jars of that code, ONNX Runtime with CUDA and the tokenizers of DJL, 309 of the 357 MiB of the plugin, are left out: aZ, 12.11.2026); the jars of the bundle as they are; the decisions of `elasticsearch6`: the heap is `opensearch_heap` of `rc.conf`, without it the 31g of `jvm.options`, no heap dump, no GC log, nothing in `/tmp` but `/tmp/opensearch` (`opensearch_tmpdir`, made anew at each start), no archives of old logs, the warnings JDK 21 prints at each start for what OpenSearch sets itself taken out (`System::setSecurityManager`, the incubator module `jdk.incubator.vector`, the COMPAT locale provider); its tools run by hand without `JAVA_HOME` and leave nothing in `/tmp`; the paths of the official port, `/var/db/opensearch` and `/var/log/opensearch` |
-| `opensearch219` | `textproc/opensearch219` | OpenSearch 2.19.7, in the place of the official `textproc/opensearch219` and ahead of it (2.19.6 in freebsd-ports, 12.11.2026), for the migration of aZ's cluster of 2.17.1 to 3.x (aZ, 12.11.2026: 3.x upgrades from 2.19 alone): his sites give the text of their visitors to `query_string`, and up to 2.19.6 a `query_string` with deeply nested parentheses overflows the stack of Lucene's parser and halts the node, which 2.19.7 prevents (`search.query.max_query_nesting_depth`, 200; CVE-2025-9624, a `query_string` of nested clauses, is fixed since 2.19.4 by `search.query.max_query_string_length`, 32000), with the other fixes of 2.19.7 listed in the header of its Makefile; on OpenJDK 21 of ours (`java/openjdk21`: the JDK of its bundle and the least of 3.x; 2.x does not run on JDK 24 and later, which refuse its Security Manager) and the JNA of `devel/jna`; every decision of `opensearch217`: without `opensearch-security` (the rc script refuses a `plugins.security.*` setting), k-NN, Neural Search and Performance Analyzer, `opensearch-ml` without its two jars of native code, the other plugins of the bundle and every module in, and Learning to Rank (`opensearch-ltr`, the one plugin of the bundle of 2.19 that 2.17.1 lacks: Java); the jars of the bundle as they are; the heap `opensearch_heap` of `rc.conf` or the 31g of `jvm.options`; nothing written that is of no use, and the warnings JDK 21 prints at each start for what OpenSearch sets itself taken out; the tools without `JAVA_HOME`; the paths `/var/db/opensearch` and `/var/log/opensearch`; the prepackaged rules of Security Analytics, which 2.19 reads from the directory of the configuration, in `/usr/local/etc/opensearch/opensearch-security-analytics` (the official port leaves them out); `pkg install opensearch219` takes the place of `opensearch217` on its data ([`tools/opensearch-upgrade-test.sh`](tools/opensearch-upgrade-test.sh): aZ's node a server, of the cluster manager alone, and a data node of 2.17.1 come up as 2.19.7 with their indices, documents and objects of the plugins; of his cluster settings the five exporters of query-insights per metric of 2.17, which 2.19 does not have (it has one exporter of all), become `archived.*`, the rest is kept, and on a new cluster of 2.19 they are refused as not recognized; a cluster of a node of each version) |
+| `opensearch219` | `textproc/opensearch219` | OpenSearch 2.19.7, in the place of the official `textproc/opensearch219` and ahead of it (2.19.6 in freebsd-ports, 12.11.2026), for the migration of aZ's cluster of 2.17.1 to 3.x (aZ, 12.11.2026: 3.x upgrades from 2.19 alone): his sites give the text of their visitors to `query_string`, and up to 2.19.6 a `query_string` with deeply nested parentheses overflows the stack of Lucene's parser and halts the node, which 2.19.7 prevents (`search.query.max_query_nesting_depth`, 200; CVE-2025-9624, a `query_string` of nested clauses, is fixed since 2.19.4 by `search.query.max_query_string_length`, 32000), with the other fixes of 2.19.7 listed in the header of its Makefile; on OpenJDK 21 of ours (`java/openjdk21`: the JDK of its bundle and the least of 3.x; 2.x does not run on JDK 24 and later, which refuse its Security Manager) and the JNA of `devel/jna`; every decision of `opensearch217`: without `opensearch-security` (the rc script refuses a `plugins.security.*` setting), k-NN, Neural Search and Performance Analyzer, `opensearch-ml` without its two jars of native code, the other plugins of the bundle and every module in, and Learning to Rank (`opensearch-ltr`, the one plugin of the bundle of 2.19 that 2.17.1 lacks: Java); the jars of the bundle as they are; the heap `opensearch_heap` of `rc.conf` or the 31g of `jvm.options`; nothing written that is of no use, and the warnings JDK 21 prints at each start for what OpenSearch sets itself taken out; the tools without `JAVA_HOME`; the paths `/var/db/opensearch` and `/var/log/opensearch`; the prepackaged rules of Security Analytics, which 2.19 reads from the directory of the configuration, in `/usr/local/etc/opensearch/opensearch-security-analytics` (the official port leaves them out); `pkg install opensearch219` takes the place of `opensearch217` on its data (`tools/opensearch-upgrade-test.sh`: a node with the role of cluster manager alone, and a data node of 2.17.1 come up as 2.19.7 with their indices, documents and objects of the plugins; of his cluster settings the five exporters of query-insights per metric of 2.17, which 2.19 does not have (it has one exporter of all), become `archived.*`, the rest is kept, and on a new cluster of 2.19 they are refused as not recognized; a cluster of a node of each version) |
 | `opensearch-dashboards217` | `textproc/opensearch-dashboards217` | OpenSearch Dashboards 2.17.1, the last 2.17.x (2.17.2 was never released), for a legacy project with `opensearch217`: the bundle of the official port of 2.17.1 (branch 2025Q1) on our `node24`, not on the Node.js 18 it was made for (end of life since 30.04.2025; its version check takes the first comparator of `engines.node` only, `>=14.20.1`), without its Node.js for Linux, the only ELF files of the bundle (no native module: nothing built); 13 plugins, without `securityDashboards` (`opensearch217` has no security plugin: OpenSearch over plain http without credentials), `reportsDashboards` in (no Chromium in 2.17.1: CSV and XLSX made by the server, PDF and PNG by the browser); its rc script with daemon(8), as the user www, refuses a configuration with a setting of a plugin it does not have (`opensearch_security.*`), reads `node.options`, `reload` for the log, which newsyslog rolls at 10 MB without archives; the commits of the 2.17 branch after 2.17.1 that fit a binary build, and the security fixes after 2.17.1 that touch it (the DoS of `/api/core/capabilities`, CVE-2026-75897; redirects off-site; `__proto__` in imports; `@hapi/content`, `@hapi/inert`, js-yaml 3.15.2): the list, and what is not taken and why, in `textproc/opensearch-dashboards217/Makefile` |
-| `opensearch-dashboards219` | `textproc/opensearch-dashboards219` | OpenSearch Dashboards 2.19.7, in the place of the official `textproc/opensearch-dashboards219` and ahead of it (2.19.6 in freebsd-ports, 13.11.2026), with `opensearch219` (aZ's cluster moves from 2.17.1 to 2.19, and his Dashboards with it; Dashboards 2.19 is for OpenSearch 2.19 alone): 2.19.7 bounds `/api/core/capabilities` (CVE-2026-75897), which `opensearch-dashboards217` patches in, with the other fixes of its release notes; every decision of `opensearch-dashboards217`: the bundle on our `node24`, not on the Node.js 18 it was made for (its version check takes the first comparator of `engines.node` only, `>=14.20.1`), without its Node.js for Linux, the only ELF files of the bundle (no native module: nothing built); 15 plugins, without `securityDashboards` (`opensearch219` has no security plugin: OpenSearch over plain http without credentials), `flowFrameworkDashboards` and `queryInsightsDashboards` in (their server plugins are in `opensearch219`; the presets of Flow Framework for semantic, hybrid, multimodal and vector search need k-NN and Neural Search, which `opensearch219` leaves out); its rc script with daemon(8), as the user www, refuses a configuration with a setting of a plugin it does not have (`opensearch_security.*`), reads `node.options`, `reload` for the log, which newsyslog rolls at 10 MB without archives; the security fixes of 3.x that touch it (`@hapi/content` 6.0.3; the DoS of chained datasource functions of Timeline, of the counts of saved objects and of a compressed import): the list, and what is not taken and why, in `textproc/opensearch-dashboards219/Makefile`; `pkg install opensearch-dashboards219` takes the place of `opensearch-dashboards217` on its saved objects ([`tools/opensearch-dashboards-upgrade-test.sh`](tools/opensearch-dashboards-upgrade-test.sh): Dashboards 2.17.1 on OpenSearch 2.17.1, then OpenSearch 2.19.7 on its data and Dashboards 2.19.7 with aZ's configuration of a server: the saved objects migrated, read and exported, Advanced Settings kept) |
-| `perl5` | `lang/perl5.42` | Perl 5.42 under the name of FreeBSD's (aZ, 11.11.2026), so that the `p5-*` packages of the FreeBSD repository work with it: the official port as it is (threads, MULTIPLICITY, 64-bit integers, the shared libperl), without DTrace, as every build here (its probes are in the core of Perl only: the XS modules of FreeBSD's packages load and run with it, [`tools/perl-test.sh`](tools/perl-test.sh)) |
+| `opensearch-dashboards219` | `textproc/opensearch-dashboards219` | OpenSearch Dashboards 2.19.7, in the place of the official `textproc/opensearch-dashboards219` and ahead of it (2.19.6 in freebsd-ports, 13.11.2026), with `opensearch219` (aZ's cluster moves from 2.17.1 to 2.19, and his Dashboards with it; Dashboards 2.19 is for OpenSearch 2.19 alone): 2.19.7 bounds `/api/core/capabilities` (CVE-2026-75897), which `opensearch-dashboards217` patches in, with the other fixes of its release notes; every decision of `opensearch-dashboards217`: the bundle on our `node24`, not on the Node.js 18 it was made for (its version check takes the first comparator of `engines.node` only, `>=14.20.1`), without its Node.js for Linux, the only ELF files of the bundle (no native module: nothing built); 15 plugins, without `securityDashboards` (`opensearch219` has no security plugin: OpenSearch over plain http without credentials), `flowFrameworkDashboards` and `queryInsightsDashboards` in (their server plugins are in `opensearch219`; the presets of Flow Framework for semantic, hybrid, multimodal and vector search need k-NN and Neural Search, which `opensearch219` leaves out); its rc script with daemon(8), as the user www, refuses a configuration with a setting of a plugin it does not have (`opensearch_security.*`), reads `node.options`, `reload` for the log, which newsyslog rolls at 10 MB without archives; the security fixes of 3.x that touch it (`@hapi/content` 6.0.3; the DoS of chained datasource functions of Timeline, of the counts of saved objects and of a compressed import): the list, and what is not taken and why, in `textproc/opensearch-dashboards219/Makefile`; `pkg install opensearch-dashboards219` takes the place of `opensearch-dashboards217` on its saved objects (`tools/opensearch-dashboards-upgrade-test.sh`: Dashboards 2.17.1 on OpenSearch 2.17.1, then OpenSearch 2.19.7 on its data and Dashboards 2.19.7 with aZ's configuration: the saved objects migrated, read and exported, Advanced Settings kept) |
+| `perl5` | `lang/perl5.42` | Perl 5.42 under the name of FreeBSD's (aZ, 11.11.2026), so that the `p5-*` packages of the FreeBSD repository work with it: the official port as it is (threads, MULTIPLICITY, 64-bit integers, the shared libperl), without DTrace, as every build here (its probes are in the core of Perl only: the XS modules of FreeBSD's packages load and run with it, `tools/perl-test.sh`) |
 | `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | the JDK of `elasticsearch6`, `opensearch217` and `opensearch219`, and of OpenSearch 3.x later, ours (aZ, 11.11.2026: so that a server with Elasticsearch gets nothing of a desktop; 12.11.2026: one JDK for them all: OpenSearch 2.x and Elasticsearch 6 do not run on JDK 24 and later, where the Security Manager is disabled for good, and OpenSearch 3.x needs 21 at least): OpenJDK 21 headless in `/usr/local/openjdk21`, without X11, sound, fonts and javavmwrapper (no `/usr/local/bin/java`), on the libjpeg, FreeType and Little CMS of az; JNA without X11 and JAWT, on the libffi of az, its library also as `/usr/local/lib/jna/libjnidispatch.so`, which `elasticsearch6`, `opensearch217` and `opensearch219` load (`-Djna.boot.library.path`, `-Djna.nounpack`: nothing unpacked at a start), built on 21 for Java 8; Ant, the official port, on our JDK 21, to build JNA (aZ, 12.11.2026: JNA and Ant on 21). `openjdk21` and `jna` need `az` only |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives, and the fixes of the vulnerabilities the official port lacks, from Fedora: CVE-2014-8141 … CVE-2022-0530, zip bombs, and from Debian 6.0-31 and OpenBSD (`files/debian/`): CAN-2026-2034442 and CAN-2026-2034443 (a heap and a stack overflow), CVE-2022-1271 of zipgrep, the ZIP64 archives of Windows, the times of the Unix extra fields; and the patterns of zipgrep with `\|`, the error of closing an extracted file, an extra field cut short, the Zip64 data descriptors of Java (madler `af0d07f`), `memmove()` in the sliding window (OpenBSD, `files/openbsd/`), the fix of CVE-2014-8139 as Info-ZIP corrected it (`unzip -t` of a jar failed), `memmove()` for a backslash in `UNZIP` (Fedora) and the help of zipinfo (four `%c` of the ICONV patch of the official port without their arguments); `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR, and three fixes of Debian (a heap overflow on a resize, the padding of the status line, `defflow` after a reattach); `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS, with the fixes of CVE-2026-96512 (three upstream commits), CVE-2026-35535 (the mailer as root with the groups of the user) and of an `@includedir` file with `:` in its name (upstream `3e474c2`, `ff0b6be`, as Debian carries them); `yamdi` with the fix of Debian for `-c`; `zip` with three fixes: with `-j` the patterns of `-i` and `-x` lost their paths (openSUSE), `memmove()` for a backslash in `ZIP` (RHEL), the offsets after a name with the UTF-8 flag (`zipnote` hung; Gentoo); `bash` without NLS, with three fixes of 5.3 as Gentoo carries them: `wait` of an ended background job, command substitutions with a large environment, the prompt in a single-byte locale, and that of openSUSE for a byte 0x80–0xFF in `${…}` (bash53-019); `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL, the fixes of CVE-2026-15146, CVE-2026-58470, CVE-2026-58471 and CVE-2026-58472 as Ubuntu carries them, of CVE-2026-16599 (the S/KEY login, upstream `e9697d9`, as Fedora carries it), of CVE-2021-31879 (the `Authorization:` and `Cookie:` of `--header` go only to the origin of the first URL after a redirect: openSUSE's patch, as curl does it) and of the SIGHUP handler (upstream `e1f2559`, as RHEL carries it); `rsync` 3.5.2, ahead of the official 3.5.1 for its security fixes: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system |
 | `fcron` | `sysutils/fcron` | fcron 3.4.1 ahead of the official 3.2.1 (aZ, 16.11.2026): the official port on 3.4.1, without the docs and the examples |
@@ -220,7 +220,7 @@ Names and origins as the ports, files at the paths of the ports:
   [`tools/mc-build.sh`](tools/mc-build.sh) on GLib of `devel/glib20` and libssh2 of az,
   shared, with the fixes of `files/*.patch` (taken from upstream after 4.8.33, from
   Gentoo, Debian, NetBSD and Alpine, and two of ours: each patch says where from, what
-  and why; tested by [`tools/mc-test.sh`](tools/mc-test.sh) where a terminal in
+  and why; tested by `tools/mc-test.sh` where a terminal in
   script(1) can show them). In a subshell of tcsh the history (Up, `history`,
   `~/.history`) keeps what one types there or at mc's command line and none of mc's own
   lines: the cd that follows a panel runs by a key bound with `bindkey -c`; the
@@ -241,9 +241,9 @@ Names and origins as the ports, files at the paths of the ports:
   give (writing into zip, the deb and rpm helpers, `mcdiff`) once they are installed.
 - These seven: the version of the official port at the pinned commit (or of the take
   line of its conf) with the build stamp as `PORTREVISION`; every distfile in the fetch
-  phase; tests after the install: [`tools/ffmpeg-test.sh`](tools/ffmpeg-test.sh),
-  [`imagemagick-test.sh`](tools/imagemagick-test.sh), [`curl-test.sh`](tools/curl-test.sh),
-  [`az-test.sh`](tools/az-test.sh), [`mc-test.sh`](tools/mc-test.sh).
+  phase; tests after the install: `tools/ffmpeg-test.sh`,
+  `imagemagick-test.sh`, `curl-test.sh`,
+  `az-test.sh`, `mc-test.sh`.
 - **`devel/pcre2`** and **`devel/pcre`**: the official ports
   ([`Mk/az-official.mk`](Mk/az-official.mk)), PCRE2 10.49 and PCRE 8.45 (its last
   release): the PCRE of PHP (7.4 to 8.4 `--with-external-pcre`, 5.6
@@ -436,7 +436,7 @@ Names and origins as the ports, files at the paths of the ports:
   9.0.2 (public domain): the official port expired on 30.06.2022 (ffmpeg `-movflags
   +faststart` does the same); kept for compatibility until it is no longer needed (aZ,
   10.11.2026).
-- These: tests after the install, [`tools/servers-test.sh`](tools/servers-test.sh) (git
+- These: tests after the install, `tools/servers-test.sh` (git
   grep -P, Apache with the modules of the servers on a port of its own, memcached,
   MariaDB on its default socket `/tmp/mysql.sock`, named with a zone of its own asked by
   dig over UDP and TCP and by an IDN name, rndc, vips with JPEG, WebP, PNG and GIF,
@@ -450,7 +450,7 @@ Names and origins as the ports, files at the paths of the ports:
   the official ones, on our `python312` and `py312-sqlite3`. Its release follows those of
   GitHub, not the official port (aZ, 12.11.2026): a new one goes into the port, is built
   and is published by itself ([yt-dlp from GitHub](#yt-dlp-from-github)). Tests after the install:
-  [`tools/ytdlp-test.sh`](tools/ytdlp-test.sh) (an HLS stream from a local server, fixed by
+  `tools/ytdlp-test.sh` (an HLS stream from a local server, fixed by
   our ffmpeg into MP4, as the grabbers download).
 - **`lang/perl5.42`**: the package `perl5` (`/usr/local/bin/perl`) in the place of the
   official one (aZ, 11.11.2026: our Perl and Python under the package names of FreeBSD,
@@ -462,7 +462,7 @@ Names and origins as the ports, files at the paths of the ports:
   DTrace are compiled into the core of Perl only (`mydtrace.h`: `USE_DTRACE` and
   `PERL_CORE`), so an XS module takes nothing of DTrace, and those of FreeBSD's packages,
   built against its perl with DTrace, load and run with ours. Tests after the install:
-  [`tools/perl-test.sh`](tools/perl-test.sh) (the `Config` of ours against that of
+  `tools/perl-test.sh` (the `Config` of ours against that of
   FreeBSD's `perl5`, the libraries, every XS module of Perl; official `p5-*` packages with
   XS installed over it as on a server: JSON::XS, DBI with DBD::SQLite, Text::CSV_XS,
   YAML::XS, Net::SSLeay and IO::Socket::SSL with TLS on 127.0.0.1 and others, their
@@ -494,7 +494,7 @@ Names and origins as the ports, files at the paths of the ports:
   [upstream check](https://github.com/azsupport/php-src#upstream-check) of
   azsupport/php-src: the `py3XX-*` and `p5-*` packages of FreeBSD built after it need a
   Python or Perl of that version. Tests after the install:
-  [`tools/python-test.sh`](tools/python-test.sh) (`python3` and `python3.12`, the
+  `tools/python-test.sh` (`python3` and `python3.12`, the
   libraries of each module, TLS with the CA store of the base system, hashlib, ctypes,
   decimal, expat, sqlite3, gettext, readline, the compressions; `py312-six` and
   `py312-markupsafe` of FreeBSD over our `python312`).
@@ -528,7 +528,7 @@ Names and origins as the ports, files at the paths of the ports:
   at all (every use of a font throws `java.lang.InternalError` of
   `sun.font.FontManagerFactory`, a font file too; Elasticsearch draws no text), with
   the official `fontconfig` and fonts installed (`pkg install dejavu`) it takes those
-  (in [`tools/java-test.sh`](tools/java-test.sh): the families of DejaVu, text
+  (in `tools/java-test.sh`: the families of DejaVu, text
   drawn). `jna`: JNA of the official port the same way,
   without JAWT (`-DNO_JAWT` on FreeBSD, as JNA builds for Android and macOS) and X11,
   its `libjnidispatch.so` on the shared libffi of az instead of the static copy it
@@ -537,8 +537,8 @@ Names and origins as the ports, files at the paths of the ports:
   extracting it from the jar into a temporary directory at every start;
   `elasticsearch6` does so since 12.11.2026, with `-Djna.nounpack=true` and a
   dependency on that file: its process maps it, and its system call filter, set
-  through JNA, is on, [`tools/elastic-test.sh`](tools/elastic-test.sh); `opensearch217` and
-  `opensearch219` the same, [`tools/opensearch-test.sh`](tools/opensearch-test.sh)); built with
+  through JNA, is on, `tools/elastic-test.sh`; `opensearch217` and
+  `opensearch219` the same, `tools/opensearch-test.sh`); built with
   our `openjdk21` and `apache-ant` (aZ, 12.11.2026; Ant the official port with
   `JAVA_VERSION` 21, `bin/ant` on the `java` of `openjdk21`): one JDK in the build;
   JNA compiles for Java 8 (`javac --release 8`; the port checks the class file
@@ -546,7 +546,7 @@ Names and origins as the ports, files at the paths of the ports:
   what they build (every ELF of the JDK without the libraries of X11, ALSA, giflib,
   libpng, HarfBuzz and fontconfig; the libraries of az by their run path; the
   dependencies: az only). Tests after the install:
-  [`tools/java-test.sh`](tools/java-test.sh) (`openjdk21`: headless, ImageIO with
+  `tools/java-test.sh` (`openjdk21`: headless, ImageIO with
   JPEG and PNG, an ICC conversion, text, `AudioSystem`, TLS 1.3 on 127.0.0.1, the
   libraries of az in the process, `ldd` of every ELF file of the JDK (the libraries
   of the JDK, of the base system and of `/usr/local/az/lib` alone, nothing of X11),
@@ -680,23 +680,10 @@ takes `yt-dlp`, `python312`, `python3` and `py312-sqlite3` of az by `priority: 1
 pkg install yt-dlp
 ```
 
-The nonfree FFmpeg: `ffmpeg-nonfree` (multimedia/ffmpeg with the AAC encoder
-`libfdk_aac`, for the formats of old sites with `-c:a libfdk_aac`) may not be given to
-anyone (FFmpeg with `--enable-nonfree`), so it is never in the release. The workflow
-[`ffmpeg-nonfree.yml`](.github/workflows/ffmpeg-nonfree.yml) builds it from
-[`nonfree/ffmpeg/Makefile.in`](nonfree/ffmpeg/Makefile.in) and copies it with scp to
-`pkg.example.invalid`, a repository of pkg of its own behind a password (HTTP Basic auth),
-signed with the same key. A server reads it next to az (the password of the user `pkg`
-in the address; the file only for root):
-
-```sh
-printf '%s\n' 'az-nonfree: { url: "https://pkg:PASSWORD@pkg.example.invalid/az-nonfree/fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/az.pub", priority: 100, enabled: yes }' > /usr/local/etc/pkg/repos/az-nonfree.conf
-chmod 600 /usr/local/etc/pkg/repos/az-nonfree.conf
-pkg update -r az-nonfree
-pkg install -r az-nonfree ffmpeg-nonfree
-```
-
-`ffmpeg-nonfree` takes the place of `ffmpeg` (the same files: pkg removes `ffmpeg`).
+`ffmpeg` is built with the AAC encoder `libfdk_aac` (`--enable-nonfree`, for the
+formats of old sites with `-c:a libfdk_aac`; [`files/ffmpeg-nonfree.conf`](multimedia/ffmpeg/files/ffmpeg-nonfree.conf)).
+FFmpeg calls such a build unredistributable; its package is in the repository on the
+owner's responsibility, until the nonfree part goes (a move to open libraries).
 
 php-fpm of 7.4:
 
@@ -1034,38 +1021,10 @@ push and the build with the token of the run.
 
 ### The libraries with GCC
 
-[`lib-bench.yml`](.github/workflows/lib-bench.yml), "Libraries of az with the base clang and
-with GCC 16": https://github.com/azsupport/ports/actions/workflows/lib-bench.yml, the button
-**Run workflow**.
-
-| Input | |
-|---|---|
-| `repeat` | the rounds, default 9 (a verdict needs at least 7) |
-| `libs` | the libraries, separated by spaces; empty: all |
-
-Would the C libraries of `az` make PHP faster built with gcc16 of the packages instead of
-the base clang 19? (aZ 09.11.2026: a library goes to GCC 16 when it is at least 2% faster
-through what the sites do.) Measured: libxml2, libxslt, oniguruma, sqlite3, gd, freetype2,
-png, mozjpeg, expat, libzip and lcms2; not those with assembly or SIMD of their own (zstd,
-brotli, lz4, webp, dav1d, x264, OpenSSL, libsodium, gmp), the C++ ones (ICU, libheif,
-libde265, libmemcached), ImageMagick and GraphicsMagick (OpenMP). In a FreeBSD 15.1 VM
-([`tools/lib-bench.sh`](tools/lib-bench.sh)): PHP 8.3 and its modules from the repository
-az, each library built as `tools/az-build.sh` builds it (the source and patches of its
-port at the commit of `deps.conf`, its options, the CFLAGS of az) three times: with clang19,
-with gcc16 as it would be shipped (`-std=gnu17 -static-libgcc -fno-semantic-interposition`)
-and with gcc16-si, the same without `-fno-semantic-interposition` (GCC's default for
-`-fPIC`: the exported functions of a library are not inlined in it), then the benchmarks of
-[`tools/lib-bench.php`](tools/lib-bench.php) (DOM, SimpleXML, XMLReader, ext/xml, XSL,
-`mb_ereg*`, SQLite3 and PDO, GD JPEG, PNG, resampling and TrueType, ZipArchive) and of the
-programs (xmllint, speedtest1, cjpeg, djpeg, the drivers of
-[`tools/lib-bench.c`](tools/lib-bench.c) for expat and lcms2): each run with one build of
-one library in front of that of az (`LD_LIBRARY_PATH`, proved with ldd and the files the
-process maps), the library of the release as the control; runs of about 3 seconds, the
-variants interleaved, pinned to one CPU. The report (the log of the step Report, the job
-summary, the branch `runs` of azsupport/azsupport): per library and benchmark the median
-seconds of each variant, the change of gcc16 and of gcc16-si against clang19 with its
-interval of about 95%, the spread, and per library the verdict of gcc16 ">= 2% faster". It
-publishes nothing.
+Which C libraries of `az` are built with GCC 16 instead of the base clang, and why (a
+library goes to GCC 16 when it is at least 2% faster through what the sites do: aZ,
+09.11.2026), is in the head of `tools/az-build.sh`. The benchmark that measured it is kept
+in the private repository with the tests of the build.
 
 ## The rules of the ports
 

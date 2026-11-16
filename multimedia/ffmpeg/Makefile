@@ -8,11 +8,10 @@
 # files/ffmpeg/*.patch and builds it with the configure lines of ffmpeg.conf,
 # against the shared libraries of the package az (x264, dav1d, SVT-AV1, libwebp), with the
 # run path /usr/local/az/lib (our ports link each other's shared libraries: aZ,
-# 10.11.2026): az at run time too. Its nonfree variant, multimedia/ffmpeg-nonfree (with
-# libfdk_aac, files/ffmpeg-nonfree.conf), is nonfree/ffmpeg/Makefile.in: a slave of
-# this port that only the workflow ffmpeg-nonfree.yml puts in place (its package may
-# not be given to anyone, so it is never in a release); it sets the variables with ?=
-# below and AZ_FFMPEG_ENV.
+# 10.11.2026): az at run time too. Built with the AAC encoder libfdk_aac
+# (files/ffmpeg-nonfree.conf, --enable-nonfree; AZ_FFMPEG_ENV below), one ffmpeg in the
+# place of a separate nonfree port (aZ, 16.11.2026: the nonfree part goes when he moves
+# to open libraries, within a month); its package is published on his responsibility.
 
 PORTNAME=	ffmpeg
 DISTVERSION=	9.0.2
@@ -32,9 +31,10 @@ LICENSE=	GPLv2+
 # (their interfaces and those of the libraries they need), more than the files of its
 # dependency names
 AZ_HASH_LIBS=	x264 dav1d svtav1 webp
-# += : the nonfree variant (nonfree/ffmpeg/Makefile.in) has its own before it
-BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libx264.so:az/az \
+# cmake: fdk-aac of the nonfree build (tools/ffmpeg-build.sh, b_fdkaac)
+BUILD_DEPENDS=	${AZ_PREFIX}/lib/libx264.so:az/az \
 		${AZ_PREFIX}/lib/libSvtAv1Enc.so:az/az \
+		cmake:devel/cmake-core \
 		nasm:devel/nasm
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libx264.so:az/az \
 		${AZ_PREFIX}/lib/libSvtAv1Enc.so:az/az
@@ -42,13 +42,13 @@ RUN_DEPENDS=	${AZ_PREFIX}/lib/libx264.so:az/az \
 USES=		gmake perl5 pkgconfig
 USE_PERL5=	build
 
-# the official package in its other flavor has the same files, and the nonfree variant
-CONFLICTS_INSTALL?=	ffmpeg-nox11 ffmpeg-nonfree
+# the official package in its other flavor has the same files
+CONFLICTS_INSTALL=	ffmpeg-nox11
 
 NO_WRKSUBDIR=	yes
 
-# for ffmpeg-build.sh, after AZ_ENV (the nonfree variant: AZ_FFMPEG_NONFREE=yes)
-AZ_FFMPEG_ENV?=
+# for ffmpeg-build.sh, after AZ_ENV: the nonfree build with libfdk_aac (aZ, 16.11.2026)
+AZ_FFMPEG_ENV=	AZ_FFMPEG_NONFREE=yes
 
 .include "${.CURDIR:H:H}/az/az/Makefile.common"
 

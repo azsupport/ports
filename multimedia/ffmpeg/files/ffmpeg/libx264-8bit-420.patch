@@ -1,7 +1,7 @@
 libx264 takes 8-bit 4:2:0 in the limited range only (yuv420p, nv12, nv21), what
 browsers play. Without it, an upload in 10 bit (HEVC of a phone), in 4:2:2
 (MJPEG of a camera) or in 4:4:4 (a screen recording) becomes H.264 High 10,
-High 4:2:2 or High 4:4:4 when the command has no -pix_fmt yuv420p (the video sites puts it
+High 4:2:2 or High 4:4:4 when the command has no -pix_fmt yuv420p (the sites put it
 in front of the options of a format that have no -pix_fmt and no hwaccel):
 Safari and iPhones play none of these, other browsers not everywhere. With this
 list ffmpeg converts such input into 8-bit 4:2:0 itself (an explicit -pix_fmt

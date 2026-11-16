@@ -54,10 +54,10 @@ tools="$(cd "$(dirname "$0")" && pwd)"
 # the conf and patches: files/ of the port multimedia/ffmpeg; the ports commit: deps.conf of az/az
 files="${AZ_FILESDIR:-$tools/../multimedia/ffmpeg/files}"
 conf="$files/ffmpeg.conf"
-# AZ_FFMPEG_NONFREE=yes (the port multimedia/ffmpeg-nonfree, nonfree/ffmpeg/Makefile.in):
-# the lines of files/ffmpeg-nonfree.conf too, its programs before FFmpeg and its
-# configure lines after those of ffmpeg.conf (after --disable-everything). FFmpeg with
-# libfdk_aac and libx264 needs --enable-nonfree: its programs may not be given to anyone.
+# AZ_FFMPEG_NONFREE=yes (set by multimedia/ffmpeg, aZ 16.11.2026): the lines of
+# files/ffmpeg-nonfree.conf too, its programs before FFmpeg and its configure lines
+# after those of ffmpeg.conf (after --disable-everything). FFmpeg with libfdk_aac and
+# libx264 needs --enable-nonfree; the package is published on aZ's responsibility.
 nonfree="${AZ_FFMPEG_NONFREE:-}"
 case "$nonfree" in yes) ;; ""|no) nonfree="" ;; *) echo "ffmpeg-build: AZ_FFMPEG_NONFREE is yes or empty, not $nonfree" >&2; exit 2 ;; esac
 deps_conf="${AZ_DEPS_CONF:-$tools/../az/az/files/deps.conf}"

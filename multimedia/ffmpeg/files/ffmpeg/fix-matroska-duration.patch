@@ -4,7 +4,7 @@ https://github.com/FFmpeg/FFmpeg/commit/0ba284bbcbbefecfd110859acce36cbc8a4bdf82
 Matroska: a negative Duration of the segment became a negative duration of the
 file, and a huge one overflowed the conversion into microseconds (undefined
 behaviour). Such a duration is now ignored and the duration estimated as for a
-file without one: ffprobe and ffmpeg -i (what the video sites reads the duration from) no
+file without one: ffprobe and ffmpeg -i (what the sites read the duration from) no
 longer show a negative one. tools/ffmpeg-test.sh checks it.
 
 --- a/libavformat/matroskadec.c

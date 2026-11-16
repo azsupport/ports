@@ -1,7 +1,7 @@
 # www/yt-dlp: the yt-dlp of azsupport/ports in the place of the official
 # www/yt-dlp: the official port at the latest release of yt-dlp on GitHub, ahead
 # of the official tree (it takes a new release days or weeks later, and the
-# grabbers of the video sites need the extractors of the latest one), with ffprobe and ffmpeg
+# grabbers of the sites need the extractors of the latest one), with ffprobe and ffmpeg
 # of our multimedia/ffmpeg (FFMPEG, on by default as in the official port). The
 # rest is the official port as it is: its patches (no self-update, no pandoc; one
 # that a release lets apply only with fuzz made again), its dependencies (official

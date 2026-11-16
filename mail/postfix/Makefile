@@ -1,7 +1,7 @@
 # mail/postfix: the Postfix of azsupport/ports in the place of the official
 # mail/postfix (aZ, 15.11.2026) and, by its slave port mail/postfix-mysql, of its
 # flavor mysql (the MySQL maps). The official port with aZ's options (those of his
-# a server): EAI (SMTPUTF8), PCRE2, TLS and TLSRPT; no Berkeley DB of the ports,
+# servers): EAI (SMTPUTF8), PCRE2, TLS and TLSRPT; no Berkeley DB of the ports,
 # blocklistd, CDB, LDAP, LMDB (no lmdb: tables on his servers), MongoDB, NIS,
 # PostgreSQL, Cyrus SASL (Dovecot SASL is always built in), SQLite, the test
 # programs and the docs (the official default has blocklistd, CDB and LMDB too).
