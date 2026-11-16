@@ -4,13 +4,15 @@
 # it; a change of PYTHON_DEFAULT opens an issue of tools/upstream-check.py of
 # azsupport/php-src). The official port (its patches, Makefile.version, pkg-plist,
 # pkg-descr, pkg-message) with:
-# - the options of aZ: LTO, PYMALLOC, IPV6 and NLS on, LIBMPDEC (libmpdec of our
+# - the options of aZ: LTO, PYMALLOC and IPV6 on, LIBMPDEC (libmpdec of our
 #   math/mpdecimal, the official port as it is), DEBUG off, no hash of the radio
-#   (the SipHash13 of CPython). These are the defaults of the official port too
-#   (IPV6 and NLS by the framework), so the options of the two packages are the
-#   same; no DTrace either way (CPython only with --with-dtrace);
-# - libffi (_ctypes), expat (pyexpat), readline (readline) and libintl (the locale
-#   module of libpython, NLS) of az, with the run path /usr/local/az/lib, instead
+#   (the SipHash13 of CPython), the defaults of the official port (IPV6 by the
+#   framework); NLS off, as everywhere (aZ, 16.11.2026: the OPTIONS_UNSET of
+#   tools/make.conf.in; the official package has it): the locale module without
+#   bindtextdomain and gettext (the gettext module of Python reads .mo files
+#   itself); no DTrace either way (CPython only with --with-dtrace);
+# - libffi (_ctypes), expat (pyexpat) and readline (readline) of az, and libintl
+#   (the locale module of libpython) with NLS, with the run path /usr/local/az/lib, instead
 #   of devel/libffi, textproc/expat2, devel/readline and devel/gettext-runtime:
 #   the package takes no package but az and mpdecimal; OpenSSL (_ssl, _hashlib),
 #   ncurses, zlib, bzip2 and liblzma of the base system, as the official one;

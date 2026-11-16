@@ -8,7 +8,8 @@
 # (the official default has LDAP and libwrap too). zstd the shared library of az,
 # with the run path /usr/local/az/lib (our ports link each other's shared libraries:
 # aZ, 10.11.2026), its headers and library alone in a directory of the work; in
-# dovecot-mysql the client library of databases/mariadb1011-client (the official
+# dovecot-mysql the client library of databases/mariadb1011-client (mysql=10.11m of
+# tools/make.conf.in; the official
 # one takes the zstd and the MySQL 8.4 client of the ports); the OpenSSL, zlib,
 # bzip2, xz and iconv of the base system. No flavors: dovecot-mysql is a slave
 # port, as the variants of our other ports. The security fixes of 2.3 after 2.3.21.1
@@ -61,11 +62,6 @@ BUILD_DEPENDS=	${AZ_PREFIX}/lib/libzstd.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libzstd.so:az/az
 CONFIGURE_ENV=	ZSTD_CFLAGS="-I${WRKDIR}/az" \
 		ZSTD_LIBS="-L${WRKDIR}/az/lib -lzstd"
-
-# the MySQL client of USES=mysql: that of our MariaDB 10.11 (the default of the
-# ports is MySQL 8.4); by DEFAULT_VERSIONS, as the framework wants it (MYSQL_DEFAULT
-# set by a port is an error of bsd.default-versions.mk)
-DEFAULT_VERSIONS+=	mysql=10.11m
 
 USES=		cpe iconv libtool pkgconfig ssl
 USE_LDCONFIG=	${PREFIX}/lib/${PORTNAME}

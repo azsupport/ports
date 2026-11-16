@@ -9,7 +9,7 @@
 # other's shared libraries): ICU of az for EAI, with the run path /usr/local/az/lib
 # (its headers alone in a directory of the work), PCRE2 of devel/pcre2, libtlsrpt
 # of mail/libtlsrpt and, in postfix-mysql, the client library of
-# databases/mariadb1011-client (the official one takes icu, pcre2, libtlsrpt and
+# databases/mariadb1011-client (mysql=10.11m of tools/make.conf.in; the official one takes icu, pcre2, libtlsrpt and
 # the MySQL 8.4 client of the ports); the OpenSSL of the base system. No flavors:
 # postfix-mysql is a slave port, as the variants of our other ports.
 
@@ -55,11 +55,6 @@ CONFLICTS_INSTALL+=	postfix
 .else
 CONFLICTS_INSTALL+=	postfix-mysql
 .endif
-
-# the MySQL client of USES=mysql: that of our MariaDB 10.11 (the default of the
-# ports is MySQL 8.4); by DEFAULT_VERSIONS, as the framework wants it (MYSQL_DEFAULT
-# set by a port is an error of bsd.default-versions.mk)
-DEFAULT_VERSIONS+=	mysql=10.11m
 
 PORTSCOUT=	limit:^3\.11\.
 
