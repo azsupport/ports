@@ -23,7 +23,10 @@
 # TO PARTITION without the check of privileges), MDEV-40374, the crashes MDEV-40847,
 # MDEV-33843 and MDEV-41258, the fixes of the CONNECT engine; its Connector/C
 # (dfe23ed) has the fix of CONC-821 (ead038d), whose patch 10.11.19 needed; the test
-# plugins plugin_name_ascii and plugin_name_non_ascii are new.
+# plugins plugin_name_ascii and plugin_name_non_ascii are new; the PAM module of the
+# test suite (lib/mysql/plugin/test_pam_modules/pam_mariadb_mtr.so) is installed only
+# with INSTALL_MYSQLTESTDIR since 10.11.20 (plugin/auth_pam/testing/CMakeLists.txt),
+# which this port leaves empty, so it is out of the plist.
 
 PORTNAME?=	mariadb
 PORTVERSION=	10.11.20
