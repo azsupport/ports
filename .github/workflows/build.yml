@@ -571,6 +571,21 @@ jobs:
               gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null
           fi
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes "$notes"
+          # GitHub keeps at most 1000 files in a release (HTTP 422 "file_count limited to
+          # 1000 assets per release": run 43930987665, 16.11.2026, after a build of every
+          # port gave every package a new name): when the files of the release and those of
+          # this repository it lacks would pass 1000, away first with what this repository
+          # has no more (until the new catalog is up, the catalog of the release still names
+          # them: a pkg upgrade of a server in those minutes fails and is done again)
+          have="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')"
+          nhave="$(printf '%s\n' "$have" | grep -c . || :)"
+          nnew="$(ls "$dir" | while read -r f; do printf '%s\n' "$have" | grep -qxF "$f" || echo "$f"; done | grep -c . || :)"
+          if [ $((nhave + nnew)) -gt 1000 ]; then
+            echo "the release has $nhave files and lacks $nnew of this repository: over 1000, its old files away first"
+            for a in $have; do
+              [ -e "$dir/$a" ] || gh release delete-asset "$tag" "$a" --repo "$GITHUB_REPOSITORY" -y
+            done
+          fi
           # the packages first, the catalog of pkg repo last (the files that are not
           # <name>-<version>.pkg), then away with what the repository has no more
           pk="$(ls "$dir" | grep -E '^[^/]+-[0-9][^/]*\.pkg$' | sed "s#^#$dir/#")"
