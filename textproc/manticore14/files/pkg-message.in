@@ -1,7 +1,7 @@
 [
 { type: install
   message: <<EOM
-Manticore Search 14 (searchd):
+Manticore Search %%MC_LINE%% (searchd):
 
 - the config: %%PREFIX%%/etc/manticore.conf (a copy of manticore.conf.sample:
   RT mode, on 127.0.0.1 only; data /var/db/manticore);
@@ -9,7 +9,7 @@ Manticore Search 14 (searchd):
   (several searchd: manticore_profiles="a b", one config each,
   %%PREFIX%%/etc/manticore-a.conf ...);
 - the columnar storage, secondary indexes and vector search (KNN, auto
-  embeddings): pkg install manticore14-columnar;
+  embeddings): pkg install manticore%%MC_LINE%%-columnar;
 - Buddy (fuzzy search, autocomplete, SHOW QUERIES and more) is not packaged:
   searchd logs "[BUDDY] ... disabled" and works without it.
 EOM

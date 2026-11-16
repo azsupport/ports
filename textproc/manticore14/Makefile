@@ -33,14 +33,14 @@
 #   Buddy (aZ, 16.11.2026: after his check).
 
 PORTNAME=	manticore
-DISTVERSION=	14.7.6
+DISTVERSION?=	14.7.6
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	textproc
-PKGNAMESUFFIX=	14
+PKGNAMESUFFIX?=	14
 DIST_SUBDIR=	manticore
 
 MAINTAINER=	github@azsupport.com
-COMMENT=	Manticore Search 14, full-text search server (of azsupport/ports)
+COMMENT=	Manticore Search ${PKGNAMESUFFIX}, full-text search server (of azsupport/ports)
 WWW=		https://manticoresearch.com/ \
 		https://github.com/manticoresoftware/manticoresearch \
 		https://github.com/azsupport/ports
@@ -63,7 +63,11 @@ USES=		cmake compiler:c++17-lang mysql ssl
 USE_GITHUB=	yes
 GH_ACCOUNT=	manticoresoftware
 GH_PROJECT=	manticoresearch
-GH_TUPLE=	manticoresoftware:cctz:cf11f758e2532161c9e21c3ec2461b0fafb15853:cctz/freebsd-deps/cctz \
+# the line 14 (textproc/manticore31 sets its own): cctz, nlohmann/json and columnar
+MC_TUPLES?=	manticoresoftware:cctz:cf11f758e2532161c9e21c3ec2461b0fafb15853:cctz/freebsd-deps/cctz \
+		nlohmann:json:v3.10.5:nljson/freebsd-deps/nljson \
+		manticoresoftware:columnar:c27-s18-k9:columnar/freebsd-deps/columnar
+GH_TUPLE=	${MC_TUPLES} \
 		manticoresoftware:galera:dfce76623c63da32fe3154dc010bf22a399035e8:galera/freebsd-deps/galera \
 		percona:wsrep-API:2c211e1aad315e3118969beada4d4767118be88f:wsrep/freebsd-deps/wsrep \
 		manticoresoftware:cppjieba:0fa3cb07232f5c144228c2e8e39521bfdc9d3bca:jieba/freebsd-deps/cppjieba \
@@ -72,9 +76,7 @@ GH_TUPLE=	manticoresoftware:cctz:cf11f758e2532161c9e21c3ec2461b0fafb15853:cctz/f
 		manticoresoftware:re2:2015-06-01:re2/freebsd-deps/re2 \
 		manticoresoftware:snowball:v3.0.3:stemmer/freebsd-deps/stemmer \
 		manticoresoftware:uni-algo:v0.7.2:unialgo/freebsd-deps/uni-algo \
-		RoaringBitmap:CRoaring:v4.3.2:roaring/freebsd-deps/roaring \
-		nlohmann:json:v3.10.5:nljson/freebsd-deps/nljson \
-		manticoresoftware:columnar:c27-s18-k9:columnar/freebsd-deps/columnar
+		RoaringBitmap:CRoaring:v4.3.2:roaring/freebsd-deps/roaring
 USE_RC_SUBR=	manticore
 
 MC_DEPS=	${WRKSRC}/freebsd-deps
@@ -106,10 +108,13 @@ CMAKE_ARGS=	-DBUILD_TESTING=OFF \
 		-DFETCHCONTENT_SOURCE_DIR_UNI-ALGO=${MC_DEPS}/uni-algo \
 		-DFETCHCONTENT_SOURCE_DIR_XXHASH=${MC_DEPS}/xxhash
 # the dependencies (cctz, RE2...) and galera are configured and built by cmake at
-# configure time in builds of their own: the minimum of CMake 4 and the columnar API
-# (the sources here) through the environment
-CONFIGURE_ENV=	CMAKE_POLICY_VERSION_MINIMUM=3.5 \
-		COLUMNAR_LOCATOR="SOURCE_DIR ${MC_DEPS}/columnar"
+# configure time in builds of their own: the minimum of CMake 4 through the
+# environment; the API of columnar: of the sources here (COLUMNAR_LOCATOR; the line 31
+# has it in its submodule mcl, MCL_LOCAL_RUNTIME=OFF)
+CONFIGURE_ENV=	CMAKE_POLICY_VERSION_MINIMUM=3.5
+MC_COLUMNAR_ENV?=	COLUMNAR_LOCATOR="SOURCE_DIR ${MC_DEPS}/columnar"
+CONFIGURE_ENV+=	${MC_COLUMNAR_ENV}
+CMAKE_ARGS+=	${MC_COLUMNAR_ARGS}
 MAKE_ENV=	CMAKE_POLICY_VERSION_MINIMUM=3.5
 # ICU of az (and the libraries of az loaded at run time) by the run path of az
 LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
@@ -118,10 +123,10 @@ USERS=		manticore
 GROUPS=		manticore
 UID_FILES=	${PORTSDIR}/UIDs ${FILESDIR}/UIDs
 GID_FILES=	${PORTSDIR}/GIDs ${FILESDIR}/GIDs
-SUB_LIST=	USERS=${USERS} GROUPS=${GROUPS}
+SUB_LIST=	USERS=${USERS} GROUPS=${GROUPS} MC_LINE=${PKGNAMESUFFIX}
 SUB_FILES=	pkg-message
 
-CONFLICTS_INSTALL=	manticore31
+CONFLICTS_INSTALL?=	manticore31
 
 OPTIONS_DEFINE=	DOCS MANPAGES
 OPTIONS_DEFAULT=	MANPAGES
