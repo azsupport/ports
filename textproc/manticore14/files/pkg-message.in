@@ -1,0 +1,17 @@
+[
+{ type: install
+  message: <<EOM
+Manticore Search 14 (searchd):
+
+- the config: %%PREFIX%%/etc/manticore.conf (a copy of manticore.conf.sample:
+  RT mode, on 127.0.0.1 only; data /var/db/manticore);
+- the service: sysrc manticore_enable=YES; service manticore start
+  (several searchd: manticore_profiles="a b", one config each,
+  %%PREFIX%%/etc/manticore-a.conf ...);
+- the columnar storage, secondary indexes and vector search (KNN, auto
+  embeddings): pkg install manticore14-columnar;
+- Buddy (fuzzy search, autocomplete, SHOW QUERIES and more) is not packaged:
+  searchd logs "[BUDDY] ... disabled" and works without it.
+EOM
+}
+]
