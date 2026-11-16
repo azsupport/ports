@@ -82,6 +82,7 @@
 | `git` | `devel/git` | git без Perl, Python, Tcl/Tk, gettext, man-страниц и git daemon; HTTPS через наш `curl`, `git grep -P` с `pcre2` |
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 только с prefork и модулями серверов (и cgi, env), без SSL; APR и libmaxminddb из az |
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached без TLS, SASL и DTrace, libevent из az; вариант с TLS; ставится один из двух |
+| `gearmand`, `gearmand-openssl`, `libgearman` | `devel/gearmand`, `devel/gearmand-openssl`, `devel/libgearman` | Gearman 2.2.0 с исправлениями master после него: сервер очереди задач gearmand (постоянная очередь — в SQLite из az; libevent из az), его вариант с TLS, ставится один из двух; libgearman (клиентская библиотека, с TLS) и утилиты gearman и gearadmin — их берут оба сервера и модули `phpXY-gearman` |
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11.20 (новее официальной 10.11.19): из движков опций только InnoDB, без GSSAPI; сокет `/tmp/mysql.sock` вкомпилирован и прописан в `my.cnf` |
 | `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext со своим скриптом rc.d, исправлением CVE-2021-3618 (ALPACA) из vsftpd 3.0.5, нашими — CVE-2026-119567, CVE-2026-119568 и `deny_file`, и из Debian: `deny_file` по реальному пути (CVE-2015-1419), модули PAM, запускающие процессы, и из openSUSE: stderr сеанса не на соединении FTP; вариант с SSL; ставится один из двух |
 | `3proxy`, `3proxy-openssl` | `net/3proxy`, `net/3proxy-openssl` | 3proxy 0.9.9.3 LTS-линии, новее официальной 0.9.5 ради исправлений безопасности, с именами и путями официального порта; PAM, PCRE2 из `pcre2`, без TLS; вариант с TLS; ставится один из двух |
@@ -116,7 +117,7 @@
 | `cpu-microcode-amd` | `sysutils/cpu-microcode-amd` | микрокод процессоров AMD: официальный порт с опциями `cpu-microcode-intel`, RC (скрипт rc.d из `cpu-microcode-rc`) и SPLIT (файлы семейств в `share/cpucontrol`), обе включены; `/boot/firmware/amd-ucode.bin` всегда |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
-| `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). у 7.4 и 8.1 — 70, у 8.2–8.4 — 68, у 5.6 — 65 (с вариантами, ниже); список одной версии: `pkg search -r az '^php84-'` |
+| `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, `phpXY-gearman` (libgearman из `libgearman`), с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). у 7.4 и 8.1 — 71, у 8.2–8.4 — 69, у 5.6 — 66 (с вариантами, ниже); список одной версии: `pkg search -r az '^php84-'` |
 
 - openssl в двух видах, один из двух: `phpXY-openssl` и `phpXY-openssl-legacy` (с
   legacy-провайдером OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
@@ -261,6 +262,18 @@
 - **`databases/memcached`** и **`databases/memcached-openssl`**: memcached без TLS, SASL,
   DTrace и документации, libevent из az; вариант с TLS на OpenSSL базы; ставится один из
   двух.
+- **`devel/gearmand`** и **`devel/gearmand-openssl`** (aZ, 16.11.2026): Gearman 2.2.0 от
+  18.10.2026 — сервер очереди задач gearmand, клиентская библиотека libgearman (её берут
+  модули `phpXY-gearman`), утилиты gearman и gearadmin. В дереве FreeBSD его больше нет
+  (`devel/gearmand-devel` удалён 20.04.2021, `devel/gearmand`, там 1.0.6 2013 года, —
+  04.04.2024): порт этого дерева по последнему официальному. С исправлениями master после
+  2.2.0 (фоновые задачи без unique ID терялись в постоянной очереди, клиент зависал на одном
+  соединении или слал без TLS, сервер не останавливался, деление на ноль в gearman);
+  постоянная очередь — в SQLite (libsqlite3 из az; без MySQL, PostgreSQL, Redis, memcached,
+  Tokyo Cabinet); libevent из az; Boost.Program_options и libuuid официальных портов
+  вкомпонованы при сборке; `gearmand-openssl` — с TLS на OpenSSL базы; ставится один из
+  двух. Скрипт rc.d: на 127.0.0.1:4730, очередь в `/var/db/gearmand/gearmand.sqlite`
+  (`gearmand_listen`, `gearmand_port`, `gearmand_queue`; TLS — через `gearmand_flags`).
 - **`databases/mariadb1011-server`** и **`databases/mariadb1011-client`**: MariaDB 10.11 с
   опциями aZ (из движков опций только InnoDB; без GSSAPI, wsrep, RocksDB, Spider,
   Mroonga, S3, CONNECT с ODBC и XML, HashiCorp Vault, AWS key management), сокет

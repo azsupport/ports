@@ -1,0 +1,64 @@
+#!/bin/sh
+
+# PROVIDE: gearmand
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+#
+# Add the following lines to /etc/rc.conf.local or /etc/rc.conf
+# to enable this service:
+#
+# gearmand_enable (bool):	Set to NO by default.
+#				Set it to YES to enable gearmand.
+# gearmand_listen (str):	127.0.0.1 by default: the address it listens on
+#				(aZ, 16.11.2026: on the machine only).
+# gearmand_port (str):		4730 by default.
+# gearmand_queue (str):		/var/db/gearmand/gearmand.sqlite by default: the
+#				SQLite file of the persistent queue (the background
+#				jobs survive a restart); "" for none (memory only).
+# gearmand_log_level (str):	WARNING by default. Other options are:
+#				FATAL, ALERT, CRITICAL, ERROR, WARNING,
+#				NOTICE, INFO, and DEBUG
+# gearmand_flags (str):		Other command-line arguments (TLS of gearmand-openssl:
+#				--ssl --ssl-ca-file ... --ssl-certificate ...
+#				--ssl-key ...).
+# gearmand_user (str):		Set to %%USERS%% by default.
+# gearmand_group (str):		Set to %%GROUPS%% by default.
+
+. /etc/rc.subr
+
+name=gearmand
+rcvar=gearmand_enable
+
+load_rc_config $name
+
+: ${gearmand_enable:="NO"}
+: ${gearmand_listen="127.0.0.1"}
+: ${gearmand_port="4730"}
+: ${gearmand_queue="/var/db/${name}/${name}.sqlite"}
+: ${gearmand_log_level="WARNING"}
+: ${gearmand_user="%%USERS%%"}
+: ${gearmand_group="%%GROUPS%%"}
+
+command=%%PREFIX%%/sbin/${name}
+_piddir=/var/run/${name}
+pidfile=${_piddir}/${name}.pid
+_logdir=/var/log/${name}
+logfile=${_logdir}/${name}.log
+_statedir=/var/db/${name}
+
+command_args="-d --verbose ${gearmand_log_level} -l ${logfile} -P ${pidfile}"
+command_args="${command_args} -L ${gearmand_listen} -p ${gearmand_port}"
+if [ -n "${gearmand_queue}" ]; then
+	command_args="${command_args} -q libsqlite3 --libsqlite3-db=${gearmand_queue}"
+fi
+
+start_precmd="${name}_prestart"
+
+gearmand_prestart()
+{
+	install -d -o ${gearmand_user} -g ${gearmand_group} -m 755 ${_piddir}
+	install -d -o ${gearmand_user} -g ${gearmand_group} -m 755 ${_logdir}
+	install -d -o ${gearmand_user} -g ${gearmand_group} -m 750 ${_statedir}
+}
+
+run_rc_command "$1"

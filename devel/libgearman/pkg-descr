@@ -1,0 +1,4 @@
+libgearman, the C client library of Gearman, and the tools gearman (a client
+and a worker of the command line) and gearadmin (the status and the queues of a
+job server). Gearman farms out work to other machines or dispatches function calls
+to machines that are better suited to do the work.

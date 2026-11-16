@@ -1,0 +1,2 @@
+sbin/gearmand
+%%MANPAGES%%share/man/man8/gearmand.8.gz

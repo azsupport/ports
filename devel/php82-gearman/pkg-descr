@@ -1,0 +1,6 @@
+Gearman PHP extension: the client (GearmanClient) and the worker (GearmanWorker)
+of the Gearman job server, on the C library libgearman.
+
+PECL gearman 2.2.1 for php82 of azsupport/ports, built from ext/gearman of the
+release tarball of azsupport/php-src, which bundles it: lib/php/20220829/gearman.so,
+loaded by its ini in etc/php82/conf.d; libgearman of devel/libgearman.

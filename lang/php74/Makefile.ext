@@ -40,7 +40,7 @@
 # ffi fileinfo filter ftp gd gettext gmp iconv intl json mbstring mysqlnd
 # openssl openssl-legacy pcntl pdo phar posix readline shmop simplexml soap
 # sockets sodium sqlite3 sysvmsg sysvsem sysvshm tidy tokenizer xml xmlwriter
-# zip zlib excimer gmagick imagick mcrypt ssh2; 30 (USE_PHP: they need another
+# zip zlib excimer gearman gmagick imagick mcrypt ssh2; 30 (USE_PHP: they need another
 # one):
 # mysqli pdo_mysql pdo_sqlite xmlreader xmlrpc xsl igbinary memcache memcached
 # redis swoole openswoole.
@@ -518,6 +518,22 @@ LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
 CONFIGURE_ARGS+=--enable-excimer
+.endif
+
+.if ${PHP_MODNAME} == "gearman"
+# PECL gearman (aZ, 16.11.2026), built from ext/gearman of the tarball
+# (php-src freebsd/pecl.conf: 2.2.1; the FreeBSD tree has had no port of it
+# since 30.12.2018): GearmanClient and GearmanWorker on the libgearman of
+# devel/libgearman of this tree, which takes no server on the machine
+COMMENT=	PHP extension for the Gearman job server (libgearman)
+WWW=		https://pecl.php.net/package/gearman \
+		https://github.com/php/pecl-networking-gearman
+
+LICENSE=	PHP301
+LICENSE_FILE=	${WRKSRC}/LICENSE
+
+LIB_DEPENDS+=	libgearman.so:devel/libgearman
+CONFIGURE_ARGS+=--with-gearman=${LOCALBASE}
 .endif
 
 .if ${PHP_MODNAME} == "gmagick"

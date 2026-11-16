@@ -32,6 +32,7 @@ fileinfo_DEPENDS=	sysutils/php${PHP_VER}-fileinfo
 filter_DEPENDS=		security/php${PHP_VER}-filter
 ftp_DEPENDS=		ftp/php${PHP_VER}-ftp
 gd_DEPENDS=		graphics/php${PHP_VER}-gd
+gearman_DEPENDS=	devel/php${PHP_VER}-gearman
 gettext_DEPENDS=	devel/php${PHP_VER}-gettext
 gmagick_DEPENDS=	graphics/php${PHP_VER}-gmagick
 gmp_DEPENDS=		math/php${PHP_VER}-gmp

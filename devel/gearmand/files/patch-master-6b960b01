@@ -1,0 +1,299 @@
+Source: the fixes of master of gearman/gearmand after 2.2.0, 2.2.0..6b960b01
+(15.11.2026), the code of these commits without their tests, CI and documents:
+  ce6507f0 Close worker connection when the GRAB_JOB reply times out
+  358644af gearman: do not divide by a zero WORK_STATUS denominator
+  f1aba2c9 Give background jobs with an empty unique ID their own queue key
+  295146fd libgearman: refuse the SSL option in builds without SSL
+  9d60a37a libgearman: do not block on one connection in _client_run_tasks()
+  43d926be gearmand: end the I/O thread loop on shutdown even with timers left
+  3f765622 libgearman: apply the SSL option before connecting for EXCEPTION
+
+--- bin/gearman.cc.orig
++++ bin/gearman.cc
+@@ -316,7 +316,13 @@ void _client(Args &args)
+ 
+   if (args.use_ssl())
+   {
++#if defined(HAVE_SSL) && HAVE_SSL
+     gearman_client_add_options(&client, GEARMAN_CLIENT_SSL);
++#else
++    error::message("SSL (-S) was requested, but this gearman executable was not built with SSL support");
++    args.set_error();
++    return;
++#endif
+   }
+ 
+   gearman_client_set_created_fn(&client, _client_created);
+@@ -560,8 +566,19 @@ static gearman_return_t _client_status(gearman_task_st *task)
+   if (args->prefix())
+     printf("%s: ", gearman_task_function_name(task));
+ 
+-  printf("%u%% Complete\n", (gearman_task_numerator(task) * 100) /
+-         gearman_task_denominator(task));
++  // The numerator and denominator are whatever the worker sent. A denominator
++  // of zero is valid in the protocol, but it cannot be shown as a percentage.
++  const uint32_t numerator= gearman_task_numerator(task);
++  const uint32_t denominator= gearman_task_denominator(task);
++  if (denominator == 0)
++  {
++    printf("%u/%u Complete\n", numerator, denominator);
++  }
++  else
++  {
++    printf("%llu%% Complete\n",
++           static_cast<unsigned long long>(numerator) * 100 / denominator);
++  }
+ 
+   return GEARMAN_SUCCESS;
+ }
+@@ -609,7 +626,12 @@ void _worker(Args &args)
+ 
+   if (args.use_ssl())
+   {
++#if defined(HAVE_SSL) && HAVE_SSL
+     gearman_worker_add_options(&worker, GEARMAN_WORKER_SSL);
++#else
++    error::message("SSL (-S) was requested, but this gearman executable was not built with SSL support");
++    _exit(EXIT_FAILURE);
++#endif
+   }
+ 
+   gearman_worker_set_workload_free_fn(&worker, _worker_free, NULL);
+--- libgearman-server/gearmand_thread.cc.orig
++++ libgearman-server/gearmand_thread.cc
+@@ -657,5 +657,18 @@ static void _clear_events(gearmand_thread_st *thread)
+   {
+     gearmand_con_free(thread->dcon_list);
+   }
++
++  /*
++    Do not count on the event base running empty to end the loop: the job
++    timeout timers of the connections dropped above can still be pending on
++    it (gearman_server_con_attempt_free() leaves them alone once the
++    processing thread has been shut down). They are deleted by
++    gearman_server_thread_free(), which only runs after this thread has been
++    joined.
++  */
++  if (event_base_loopexit(thread->base, nullptr) == -1)
++  {
++    gearmand_perror(errno, "event_base_loopexit");
++  }
+ }
+ #pragma GCC diagnostic pop
+--- libgearman-server/include.am.orig
++++ libgearman-server/include.am
+@@ -56,6 +56,7 @@ noinst_HEADERS+= \
+ 
+ libgearman_server_libgearman_server_la_SOURCES+= libgearman/backtrace.cc
+ libgearman_server_libgearman_server_la_SOURCES+= libgearman/pipe.cc
++libgearman_server_libgearman_server_la_SOURCES+= libgearman/uuid.cc
+ libgearman_server_libgearman_server_la_SOURCES+= libgearman/vector.cc
+ libgearman_server_libgearman_server_la_SOURCES+= libgearman-server/text.cc
+ libgearman_server_libgearman_server_la_SOURCES+= libgearman-server/config.cc
+@@ -93,6 +94,7 @@ libgearman_server_libgearman_server_la_LIBADD+= @BOOST_PROGRAM_OPTIONS_LIB@
+ libgearman_server_libgearman_server_la_LIBADD+= @LIBM@
+ libgearman_server_libgearman_server_la_LIBADD+= @lt_cv_dlopen_libs@
+ libgearman_server_libgearman_server_la_LIBADD+= @RT_LIB@
++libgearman_server_libgearman_server_la_LIBADD+= @LIBUUID_LIB@
+ if ENABLE_SSL
+ if ENABLE_WOLFSSL
+ libgearman_server_libgearman_server_la_LIBADD+= @WOLFSSL_LIB@
+--- libgearman-server/job.cc.orig
++++ libgearman-server/job.cc
+@@ -49,6 +49,8 @@
+ #include <time.h>
+ 
+ #include <libgearman-server/queue.h>
++#include "libgearman/vector.hpp"
++#include "libgearman/uuid.hpp"
+ 
+ /*
+  * Private declarations
+@@ -280,6 +282,29 @@ gearman_server_job_add_reducer(gearman_server_st *server,
+     return NULL;
+   }
+ 
++  /* A background job is handed to the persistent queue, which stores it
++     under (unique, function_name). A job submitted without a unique ID is
++     still its own job here, but it would share that key with every other
++     such job of the function: the next one replaces its row, and finishing
++     either one deletes the row of both. Give it a server generated unique
++     ID, as libgearman does for background jobs submitted without one. Jobs
++     replayed from the queue keep the unique ID they were stored under. */
++  char generated_unique[GEARMAN_MAX_UNIQUE_SIZE];
++  if (unique_size == 0 && server_client == NULL && server->state.queue_startup == false)
++  {
++    size_t generated_unique_size= 0;
++    safe_uuid_generate(generated_unique, generated_unique_size);
++    if (generated_unique_size)
++    {
++      unique= generated_unique;
++      unique_size= generated_unique_size;
++    }
++    else
++    {
++      gearmand_log_error(GEARMAN_DEFAULT_LOG_PARAM, "Unable to generate a unique ID for a background job of %.*s", (int)function_name_size, function_name);
++    }
++  }
++
+   uint32_t key;
+   gearman_server_job_st *server_job;
+   if (unique_size == 0)
+--- libgearman/client.cc.orig
++++ libgearman/client.cc
+@@ -454,8 +454,8 @@ void gearman_client_set_options(gearman_client_st *client_shell,
+       GEARMAN_CLIENT_UNBUFFERED_RESULT,
+       GEARMAN_CLIENT_FREE_TASKS,
+       GEARMAN_CLIENT_GENERATE_UNIQUE,
++      GEARMAN_CLIENT_SSL, // Before GEARMAN_CLIENT_EXCEPTION, which talks to the servers
+       GEARMAN_CLIENT_EXCEPTION,
+-      GEARMAN_CLIENT_SSL,
+       GEARMAN_CLIENT_SERVER_SELECTION_BY_UNIQUE,
+       GEARMAN_CLIENT_MAX
+     };
+@@ -506,14 +506,16 @@ void gearman_client_add_options(gearman_client_st *client_shell,
+       client->options.generate_unique= true;
+     }
+ 
+-    if (options & GEARMAN_CLIENT_EXCEPTION)
++    // GEARMAN_CLIENT_EXCEPTION connects to the servers, and a connection only
++    // uses TLS if it has been asked for by the time it is made.
++    if (options & GEARMAN_CLIENT_SSL)
+     {
+-      client->options.exceptions= gearman_client_set_server_option(client_shell, gearman_literal_param("exceptions"));
++      client->ssl(true);
+     }
+ 
+-    if (options & GEARMAN_CLIENT_SSL)
++    if (options & GEARMAN_CLIENT_EXCEPTION)
+     {
+-      client->ssl(true);
++      client->options.exceptions= gearman_client_set_server_option(client_shell, gearman_literal_param("exceptions"));
+     }
+ 
+     if (options & GEARMAN_CLIENT_SERVER_SELECTION_BY_UNIQUE)
+@@ -1597,13 +1599,25 @@ static inline gearman_return_t _client_run_tasks(gearman_client_st *client_shell
+             {
+               /* Read the next packet, without buffering the data part. */
+               client->task= NULL;
++              PUSH_NON_BLOCKING(client->universal); // See below
+               (void)client->con->receiving(client->con->_packet, ret, false);
+             }
+           }
+           else
+           {
+-            /* Read the next packet, buffering the data part. */
++            /*
++              Read the next packet, buffering the data part.
++
++              This loop drains the connection until GEARMAN_IO_WAIT and leaves
++              the waiting to gearman_wait() at the bottom of the outer loop,
++              which watches every connection. So the read must not block, even
++              when the caller is gearman_client_run_block_tasks(): a blocking
++              read would wait for one more packet on this connection, which
++              may never come, while the reply the caller is waiting for sits
++              unread on another connection.
++            */
+             client->task= NULL;
++            PUSH_NON_BLOCKING(client->universal);
+             (void)client->con->receiving(client->con->_packet, ret, true);
+           }
+ 
+--- libgearman/connection.cc.orig
++++ libgearman/connection.cc
+@@ -701,6 +701,13 @@ gearman_return_t gearman_connection_st::enable_ssl()
+ 
+     SSL_set_connect_state(_ssl);
+   }
++#else
++  if (universal.ssl())
++  {
++    // Never fall back to cleartext on a connection that was asked to use SSL.
++    close_socket();
++    return gearman_error(universal, GEARMAN_INVALID_ARGUMENT, "SSL was requested, but libgearman was not built with SSL support");
++  }
+ #endif
+ 
+   return GEARMAN_SUCCESS;
+@@ -783,6 +790,13 @@ gearman_return_t gearman_connection_st::flush()
+ #if 0
+           addrinfo_next= NULL;
+ #endif
++          // connect() completed at once, so the GEARMAN_CON_UNIVERSAL_CONNECTING
++          // case, which would call enable_ssl(), is skipped.
++          gearman_return_t ssl_ret;
++          if ((ssl_ret= enable_ssl()) != GEARMAN_SUCCESS)
++          {
++            return ssl_ret;
++          }
+ 
+           break;
+         }
+--- libgearman/interface/universal.hpp.orig
++++ libgearman/interface/universal.hpp
+@@ -113,7 +113,13 @@ struct gearman_universal_st : public error_st
+ 
+   void ssl(bool ssl_)
+   {
+-    options._ssl= ssl_;
++    if (options._ssl != ssl_)
++    {
++      options._ssl= ssl_;
++      // Whether a connection uses TLS is decided when it is made, do not
++      // keep the ones that were made under the other setting.
++      reset();
++    }
+   }
+ 
+   private:
+--- libgearman/interface/worker.hpp.orig
++++ libgearman/interface/worker.hpp
+@@ -136,12 +136,12 @@ struct Worker
+ 
+   bool ssl() const
+   {
+-    return universal.options._ssl;
++    return universal.ssl();
+   }
+ 
+   void ssl(bool ssl_)
+   {
+-    universal.options._ssl= ssl_;
++    universal.ssl(ssl_);
+   }
+ 
+   bool in_work() const
+--- libgearman/worker.cc.orig
++++ libgearman/worker.cc
+@@ -865,7 +865,14 @@ gearman_job_st *gearman_worker_grab_job(gearman_worker_st *worker_shell,
+                   {
+                     worker->job(NULL);
+ 
+-                    if (*ret_ptr == GEARMAN_LOST_CONNECTION)
++                    if (*ret_ptr == GEARMAN_TIMEOUT)
++                    {
++                      /* The GRAB_JOB is still unanswered. Its reply would be
++                         read as the answer to the next GRAB_JOB, so drop the
++                         connection; the next call reconnects and re-registers. */
++                      worker->con->close_socket();
++                    }
++                    else if (*ret_ptr == GEARMAN_LOST_CONNECTION)
+                     {
+                       break;
+                     }
+--- util/instance.cc.orig
++++ util/instance.cc
+@@ -166,8 +166,12 @@ bool Instance::init_ssl()
+     _last_error = message.str();
+     return false;
+   }
+-#endif // defined(HAVE_SSL) && HAVE_SSL
+   return true;
++#else
++  // Never fall back to cleartext on a connection that was asked to use SSL.
++  _last_error= "SSL was requested, but this executable was not built with SSL support";
++  return false;
++#endif // defined(HAVE_SSL) && HAVE_SSL
+ }
+ 
+ #if __GNUC__ >= 7

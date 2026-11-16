@@ -82,6 +82,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `git` | `devel/git` | git without Perl, Python, Tcl/Tk, gettext, the manual pages and git daemon; HTTPS through our `curl`, `git grep -P` with `pcre2` |
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi and env too), no SSL; APR and libmaxminddb of az |
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached without TLS, SASL and DTrace, libevent of az; the variant with TLS; one of the two |
+| `gearmand`, `gearmand-openssl`, `libgearman` | `devel/gearmand`, `devel/gearmand-openssl`, `devel/libgearman` | Gearman 2.2.0 with the fixes of master after it: the job server gearmand (the persistent queue in SQLite of az; libevent of az), its variant with TLS, one of the two; libgearman (the client library, with TLS) and the tools gearman and gearadmin, which the servers and the modules `phpXY-gearman` take |
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11.20 (ahead of the official 10.11.19): of the engines of the options InnoDB only, no GSSAPI; the socket `/tmp/mysql.sock` compiled in and in `my.cnf` |
 | `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext with its rc.d script, the fix of CVE-2021-3618 (ALPACA) of vsftpd 3.0.5, ours of CVE-2026-119567, CVE-2026-119568 and `deny_file`, and of Debian: `deny_file` by the real path (CVE-2015-1419), PAM modules that start processes, and of openSUSE: no stderr of a session on the FTP connection; the variant with SSL; one of the two |
 | `3proxy`, `3proxy-openssl` | `net/3proxy`, `net/3proxy-openssl` | 3proxy 0.9.9.3 of the LTS line, ahead of the official 0.9.5 for its security fixes, with the names and paths of the official port; PAM, PCRE2 of `pcre2`, no TLS; the variant with TLS; one of the two |
@@ -116,7 +117,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `cpu-microcode-amd` | `sysutils/cpu-microcode-amd` | the microcode of AMD CPUs: the official port with the options of `cpu-microcode-intel`, RC (the rc.d script of `cpu-microcode-rc`) and SPLIT (the files of the families in `share/cpucontrol`), both on; `/boot/firmware/amd-ucode.bin` always |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
-| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 70 for 7.4 and 8.1, 68 for 8.2 to 8.4, 65 for 5.6 (with the variants below); the list of one: `pkg search -r az '^php84-'` |
+| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, `phpXY-gearman` (libgearman of `libgearman`), from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 71 for 7.4 and 8.1, 69 for 8.2 to 8.4, 66 for 5.6 (with the variants below); the list of one: `pkg search -r az '^php84-'` |
 
 - openssl in two kinds, one of the two: `phpXY-openssl` and `phpXY-openssl-legacy` (the
   legacy provider of OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
@@ -264,6 +265,19 @@ Names and origins as the ports, files at the paths of the ports:
 - **`databases/memcached`** and **`databases/memcached-openssl`**: memcached without TLS,
   SASL, DTrace and the docs, libevent of az; the variant with TLS on the OpenSSL of the
   base system; one of the two.
+- **`devel/gearmand`** and **`devel/gearmand-openssl`** (aZ, 16.11.2026): Gearman 2.2.0 of
+  18.10.2026 — the job server gearmand, the client library libgearman (of the modules
+  `phpXY-gearman`), the tools gearman and gearadmin. The FreeBSD tree has none any more
+  (`devel/gearmand-devel` removed 20.04.2021, `devel/gearmand`, 1.0.6 of 2013, 04.04.2024):
+  a port of this tree after the last official one. With the fixes of master after 2.2.0
+  (background jobs without a unique ID lost by the persistent queue, a client blocked on
+  one connection or sending without TLS, a server that did not stop, a division by zero
+  of gearman); the persistent queue of aZ in SQLite (libsqlite3 of az; no MySQL,
+  PostgreSQL, Redis, memcached, Tokyo Cabinet); libevent of az; Boost.Program_options and
+  libuuid of the official ports linked in at build time; `gearmand-openssl` with TLS on the
+  OpenSSL of the base system; one of the two. The rc.d script: on 127.0.0.1:4730, the queue
+  in `/var/db/gearmand/gearmand.sqlite` (`gearmand_listen`, `gearmand_port`,
+  `gearmand_queue`; TLS by `gearmand_flags`).
 - **`databases/mariadb1011-server`** and **`databases/mariadb1011-client`**: MariaDB 10.11
   with the options of aZ (of the engines of the options InnoDB only; no GSSAPI, wsrep,
   RocksDB, Spider, Mroonga, S3, CONNECT with ODBC and XML, HashiCorp Vault, AWS key
