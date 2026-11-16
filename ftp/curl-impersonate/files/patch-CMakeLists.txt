@@ -96,9 +96,9 @@
 -  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
 -)
 +# c-ares, zlib, zstd and brotli are not built here (the port ftp/curl-impersonate
-+# of azsupport/ports): curl takes the shared c-ares, brotli and zstd of the package
-+# az (AZ_LIB_DIR) and the zlib of the base system (BASE_ZLIB_LIBRARY), their headers
-+# in AZ_INCLUDE_DIR
++# of azsupport/ports): curl takes the shared c-ares, brotli, zstd, libidn2 and libpsl
++# of the package az (AZ_LIB_DIR) and the zlib of the base system (BASE_ZLIB_LIBRARY),
++# their headers in AZ_INCLUDE_DIR
  
  # boringssl
  
@@ -153,8 +153,15 @@
  )
  
  # libidn2
-@@ -498,11 +428,11 @@ else()
-   set(_curl_idn_flags -DUSE_LIBIDN2=OFF)
+@@ -495,14 +425,17 @@ elseif(ANDROID)
+ elseif(USE_LIBIDN2)
+   set(_curl_idn_flags -DUSE_LIBIDN2=ON)
+ else()
+-  set(_curl_idn_flags -DUSE_LIBIDN2=OFF)
++  # the shared libidn2 of the package az
++  set(_curl_idn_flags -DUSE_LIBIDN2=ON
++    "-DLIBIDN2_INCLUDE_DIR=${AZ_INCLUDE_DIR}"
++    "-DLIBIDN2_LIBRARY=${AZ_LIB_DIR}/libidn2.so")
  endif()
  
 -# Single curl build mode: produce shared+static libcurl and static curl binary.
@@ -168,7 +175,7 @@
    -DBUILD_CURL_EXE=ON
  )
  
-@@ -514,7 +444,7 @@ if(NOT CURL_CA_PATH STREQUAL "")
+@@ -514,7 +447,7 @@ if(NOT CURL_CA_PATH STREQUAL "")
    list(APPEND _curl_ca_flags "-DCURL_CA_PATH=${CURL_CA_PATH}")
  endif()
  
@@ -177,7 +184,7 @@
  
  if(ANDROID)
    set(_curl_resolver_flags
-@@ -522,13 +452,11 @@ if(ANDROID)
+@@ -522,13 +455,11 @@ if(ANDROID)
      -DENABLE_THREADED_RESOLVER=ON
    )
  else()
@@ -193,7 +200,7 @@
    )
  endif()
  if(USE_LIBIDN2)
-@@ -543,8 +471,8 @@ elseif(MINGW)
+@@ -543,8 +474,8 @@ elseif(MINGW)
    set(_curl_zlib_library "${DEPS_INSTALL_DIR}/lib/libzs.a")
    set(_curl_zstd_library "${DEPS_INSTALL_DIR}/lib/libzstd.a")
  else()
@@ -204,7 +211,7 @@
  endif()
  
  set(_curl_staged_dependency_args
-@@ -561,10 +489,15 @@ if(NOT (MSVC OR (CMAKE_C_COMPILER_FRONTE
+@@ -561,10 +492,15 @@ if(NOT (MSVC OR (CMAKE_C_COMPILER_FRONTE
  
    list(APPEND _curl_staged_dependency_args
      "-DCMAKE_C_FLAGS=${_curl_c_flags}"
@@ -223,7 +230,7 @@
      "-DNGHTTP2_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include"
      "-DNGHTTP2_LIBRARY=${DEPS_INSTALL_DIR}/lib/libnghttp2.a"
      "-DNGHTTP3_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include"
-@@ -672,10 +605,10 @@ ExternalProject_Add(curl
+@@ -672,19 +608,20 @@ ExternalProject_Add(curl
        -DCURL_BROTLI=ON
        -DCURL_ZSTD=ON
        # Make sure curl doesn't link against an unversioned .so (Linux only).
@@ -236,7 +243,20 @@
        -DZSTD_LIBRARY=${_curl_zstd_library}
        -DUSE_NGHTTP2=ON
        -DUSE_NGTCP2=ON
-@@ -758,16 +691,6 @@ install(
+       -DUSE_PROXY_HTTP3=ON
+       -DCURL_DISABLE_LDAP=ON
+       -DCURL_DISABLE_LDAPS=ON
+-      # XXX: psl should be enabled in the future:
+-      # https://daniel.haxx.se/blog/2024/01/10/psl-in-curl/
+-      -DCURL_USE_LIBPSL=OFF
++      # the shared libpsl of the package az
++      -DCURL_USE_LIBPSL=ON
++      -DLIBPSL_INCLUDE_DIR=${AZ_INCLUDE_DIR}
++      -DLIBPSL_LIBRARY=${AZ_LIB_DIR}/libpsl.so
+       -DUSE_LIBRTMP=OFF
+       -DCURL_DISABLE_WEBSOCKETS=OFF
+       -DUSE_ECH=ON
+@@ -758,16 +695,6 @@ install(
    FILES "${CMAKE_SOURCE_DIR}/include/curl-impersonate/webcrypto.h"
    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/curl-impersonate"
  )

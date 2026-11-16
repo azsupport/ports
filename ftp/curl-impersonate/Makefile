@@ -6,10 +6,13 @@
 # - the libraries of az where they keep the impersonation and the build (our ports
 #   link each other's shared libraries, aZ 10.11.2026): c-ares 1.34.9 (the resolver,
 #   and the HTTPS records of ECH), brotli 1.2.1 and zstd 1.5.7, the versions upstream
-#   pins (its patch of brotli is for IA-64 and LoongArch only), shared, with the run
-#   path /usr/local/az/lib, and zlib of the base system; their headers alone in a
-#   directory of the work. Upstream and the official port build these four static into
-#   the library and the program;
+#   pins (its patch of brotli is for IA-64 and LoongArch only), and libidn2 2.3.8 (IDN;
+#   it loads the libiconv of az) and libpsl 0.23.3 (PSL, its built-in list), which
+#   upstream leaves out on FreeBSD (aZ, 16.11.2026 17:47: IDN and PSL from az, as in
+#   ftp/curl and ftp/wget), shared, with the run path /usr/local/az/lib, and zlib of the
+#   base system; their headers alone in a directory of the work. Upstream and the
+#   official port build c-ares, brotli, zstd and zlib static into the library and the
+#   program;
 # - built in, static, into libcurl-impersonate.so alone, their symbols hidden there
 #   (--exclude-libs: a process that loads the nghttp2 of az as well keeps the two
 #   apart; upstream exports them): BoringSSL 156c7b75 with the patch of upstream (the
@@ -38,8 +41,8 @@
 # - the program and the library stripped.
 # The rest is upstream's build for FreeBSD: HTTP/2, HTTP/3 and HTTP/3 proxies, ECH with
 # the HTTPS records, brotli, zstd, zlib, WebSockets, the export of SSL sessions, IPv6;
-# no IDN, PSL, SCP and SFTP, LDAP, RTMP, GSS-API. The wrappers curl_<browser> are POSIX
-# sh (#!/bin/sh): no bash. The layout of the official port (include/curl-impersonate,
+# no SCP and SFTP, LDAP, RTMP, GSS-API. The wrappers curl_<browser> are POSIX sh
+# (#!/bin/sh): no bash. The layout of the official port (include/curl-impersonate,
 # lib/libcurl-impersonate.so, bin/curl-impersonate-config,
 # libdata/pkgconfig/libcurl-impersonate.pc), so that the official ftp/py-curl-cffi
 # builds on it unchanged.
@@ -73,9 +76,9 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 
 BROKEN_i386=	compilation fails: x86 assembly requires SSE2
 
-# c-ares, brotli and zstd of az, to build and to run (by a file: no ldconfig hints
-# for /usr/local/az/lib)
-AZ_CI_LIBS=	libbrotlidec.so libcares.so libzstd.so
+# c-ares, brotli, zstd, libidn2 and libpsl of az, to build and to run (by a file: no
+# ldconfig hints for /usr/local/az/lib)
+AZ_CI_LIBS=	libbrotlidec.so libcares.so libidn2.so libpsl.so libzstd.so
 BUILD_DEPENDS=	${AZ_CI_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
 RUN_DEPENDS=	${AZ_CI_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
 
@@ -112,9 +115,9 @@ post-patch:
 	${CAT} ${FILESDIR}/bundled-ngtcp2.patch >> ${WRKSRC}/patches/ngtcp2.patch
 	${CAT} ${FILESDIR}/bundled-curl.patch >> ${WRKSRC}/patches/curl.patch
 
-# the headers of c-ares, brotli and zstd of az and of zlib of the base system alone in
-# a directory of the work: no other header of az or of /usr/include (the OpenSSL of the
-# base system) comes before those of BoringSSL
+# the headers of c-ares, brotli, zstd, libidn2 and libpsl of az and of zlib of the base
+# system alone in a directory of the work: no other header of az or of /usr/include (the
+# OpenSSL of the base system) comes before those of BoringSSL
 pre-configure:
 	@${REINPLACE_CMD} \
 		-e 's|https://github.com/google/boringssl/archive/$${BORINGSSL_COMMIT}.zip|file://$${CMAKE_SOURCE_DIR}/$${BORINGSSL_COMMIT}.zip|' \
@@ -125,6 +128,7 @@ pre-configure:
 		${WRKSRC}/CMakeLists.txt
 	@${MKDIR} ${WRKDIR}/az-include
 	${LN} -sf ${AZ_PREFIX}/include/ares*.h ${AZ_PREFIX}/include/brotli \
+		${AZ_PREFIX}/include/idn2.h ${AZ_PREFIX}/include/libpsl.h \
 		${AZ_PREFIX}/include/zstd.h ${AZ_PREFIX}/include/zstd_errors.h \
 		/usr/include/zlib.h /usr/include/zconf.h ${WRKDIR}/az-include/
 
@@ -146,15 +150,15 @@ post-install:
 	@${RMDIR} ${STAGEDIR}${PREFIX}/include/curl
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/curl-impersonate \
 		${STAGEDIR}${PREFIX}/lib/libcurl-impersonate.so.4.*
-# the library: c-ares, brotli and zstd of az by its run path (that alone), zlib of the
-# base system, no OpenSSL and no nghttp2, nghttp3 or ngtcp2 of a package, none of the
-# symbols of what is built in exported, curl_easy_impersonate exported; the program:
-# the library, the same run path
+# the library: c-ares, brotli, zstd, libidn2 and libpsl of az by its run path (that
+# alone), zlib of the base system, no OpenSSL and no nghttp2, nghttp3 or ngtcp2 of a
+# package, none of the symbols of what is built in exported, curl_easy_impersonate
+# exported; the program: the library, the same run path
 .for f in lib/libcurl-impersonate.so.4 bin/curl-impersonate
 	@${READELF} -d ${STAGEDIR}${PREFIX}/${f} | ${GREP} -E -q '(RUNPATH|RPATH).*\[${AZ_PREFIX}/lib\]' || \
 		{ ${ECHO_MSG} "${f}: its run path is not ${AZ_PREFIX}/lib alone"; ${FALSE}; }
 .endfor
-.for l in libcares libbrotlidec libbrotlicommon libzstd libz
+.for l in libcares libbrotlidec libbrotlicommon libidn2 libpsl libzstd libz
 	@${READELF} -d ${STAGEDIR}${PREFIX}/lib/libcurl-impersonate.so.4 | ${GREP} -q 'Shared library: \[${l}\.so' || \
 		{ ${ECHO_MSG} "lib/libcurl-impersonate.so.4 does not link ${l}"; ${FALSE}; }
 .endfor
