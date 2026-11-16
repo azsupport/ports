@@ -17,13 +17,16 @@
 # socket /tmp/mysql.sock (MARIADB_SOCKET) compiled into the server and the client
 # library and in the sample configurations (aZ: /tmp is a memory disk on his
 # servers, tmpmfs), instead of /var/run/mysql/mysql.sock of the official one; the
-# PID file stays in /var/run/mysql. With the fix of the regression CONC-821 of the
-# Connector/C that 10.11.19 bundles (files/patch-libmariadb_libmariadb_mariadb__stmt.c,
-# upstream ead038d as Debian carries it, 12.11.2026): strings of length 0 for the
-# programs that bind the result buffers again after a fetch (Perl, Python, Qt).
+# PID file stays in /var/run/mysql. 10.11.20 ahead of the official 10.11.19 (aZ,
+# 16.11.2026): MDEV-42025 (before the authentication, the database name of
+# CLIENT_CONNECT_WITH_DB without a limit of its length), MDEV-41432 (CONVERT TABLE ...
+# TO PARTITION without the check of privileges), MDEV-40374, the crashes MDEV-40847,
+# MDEV-33843 and MDEV-41258, the fixes of the CONNECT engine; its Connector/C
+# (dfe23ed) has the fix of CONC-821 (ead038d), whose patch 10.11.19 needed; the test
+# plugins plugin_name_ascii and plugin_name_non_ascii are new.
 
 PORTNAME?=	mariadb
-PORTVERSION=	10.11.19
+PORTVERSION=	10.11.20
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	databases
 MASTER_SITES=	\

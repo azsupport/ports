@@ -11,7 +11,9 @@
 # dovecot-mysql the client library of databases/mariadb1011-client (the official
 # one takes the zstd and the MySQL 8.4 client of the ports); the OpenSSL, zlib,
 # bzip2, xz and iconv of the base system. No flavors: dovecot-mysql is a slave
-# port, as the variants of our other ports.
+# port, as the variants of our other ports. The security fixes of 2.3 after 2.3.21.1
+# as Ubuntu noble and RHEL 10 apply them to their 2.3.21 (aZ, 16.11.2026: the patches
+# on 2.3.21.1): see DOVECOT_CVE_PATCHES.
 
 PORTNAME=	dovecot
 DISTVERSION=	2.3.21.1
@@ -33,6 +35,24 @@ CONFLICTS_INSTALL+=	dovecot
 .else
 CONFLICTS_INSTALL+=	dovecot-mysql
 .endif
+
+# files/cve, in the order of Ubuntu (noble-security 2.3.21+dfsg1-2ubuntu6.5), then
+# of RHEL (10, dovecot-2.3.21-22.el10_3), before the patches of the port, the source
+# at the top of each: CVE-2022-30550, never taken into the branch 2.3; CVE-2026-73208,
+# RHEL's three of the code in one patch on 2.3.21.1, without its tests; CVE-2025-59031
+# (decode2text.sh removed) by the script not installed (post-install); the fixes of
+# Pigeonhole (not in this port) not taken
+DOVECOT_CVE_PATCHES=	01-CVE-2022-30550 02-CVE-2026-0394-1 03-CVE-2026-0394-2 \
+			04-CVE-2026-27855-1 05-CVE-2026-27855-2 06-CVE-2026-27855-3 \
+			07-CVE-2026-27855-4 08-CVE-2026-27856-1 09-CVE-2026-27856-2 \
+			10-CVE-2026-27856-3 11-CVE-2026-27857-2 12-CVE-2026-27857-3 \
+			13-CVE-2026-27857-4 14-CVE-2026-27857-5 15-CVE-2026-27859 \
+			16-CVE-2026-33603 17-CVE-2026-40020-pre1 18-CVE-2026-40020 \
+			19-CVE-2026-42006 20-CVE-2026-33263 21-CVE-2026-27852-1 \
+			22-CVE-2026-27852-2 23-CVE-2026-27852-3 24-CVE-2026-27852-4 \
+			25-CVE-2026-27852-5 26-CVE-2026-73208 27-CVE-2026-42391 \
+			28-CVE-2026-40018
+EXTRA_PATCHES=	${DOVECOT_CVE_PATCHES:@p@${FILESDIR}/cve/${p}.patch:-p1@}
 
 # zstd of az, with its run path: its headers and library alone in a directory of the
 # work (the pkg-config check of configure takes ZSTD_CFLAGS and ZSTD_LIBS, the
@@ -187,6 +207,7 @@ post-install:
 	@${MKDIR} ${STAGEDIR}${EXAMPLESDIR}
 	${MV} ${STAGEDIR}${DOCSDIR}/dovecot-openssl.cnf ${STAGEDIR}${EXAMPLESDIR}
 	${MV} ${STAGEDIR}${DOCSDIR}/mkcert.sh ${STAGEDIR}${EXAMPLESDIR}
+	${RM} ${STAGEDIR}${PREFIX}/libexec/${PORTNAME}/decode2text.sh
 
 post-install-DOCS-on:
 	@${MKDIR} ${STAGEDIR}${DOCSDIR}

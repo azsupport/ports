@@ -793,7 +793,6 @@ libexec/dovecot/anvil
 libexec/dovecot/auth
 libexec/dovecot/checkpassword-reply
 libexec/dovecot/config
-libexec/dovecot/decode2text.sh
 libexec/dovecot/deliver
 libexec/dovecot/dict
 libexec/dovecot/director
