@@ -1,0 +1,91 @@
+ngx_http_geoip2_module and ngx_stream_geoip2_module: the cached lookup result points
+into the memory-mapped database that gave it; after auto_reload closed that database,
+the result was used again for the same address: stale data or a read of unmapped
+memory. A flag of validity, reset at every reload and on a failed lookup. From Debian
+(libnginx-mod-http-geoip2 3.4-8, invalidate-cache-after-database-reload.patch; issue
+134 of leev/ngx_http_geoip2_module, not upstream; aZ, 16.11.2026). Applied by
+post-patch in WRKSRC_geoip2, -p0.
+
+--- ngx_http_geoip2_module.c.orig
++++ ngx_http_geoip2_module.c
+@@ -15,6 +15,7 @@
+ typedef struct {
+     MMDB_s                   mmdb;
+     MMDB_lookup_result_s     result;
++    ngx_flag_t               cache_valid;
+     time_t                   last_check;
+     time_t                   last_change;
+     time_t                   check_interval;
+@@ -208,18 +209,21 @@
+     }
+ 
+ #if (NGX_HAVE_INET6)
+-    if (ngx_memcmp(&address, &database->address, sizeof(address))
++    if (!database->cache_valid
++        || ngx_memcmp(&address, &database->address, sizeof(address))
+         != 0) {
+ #else
+-    if (address != database->address) {
++    if (!database->cache_valid || address != database->address) {
+ #endif
+         memcpy(&database->address, &address, sizeof(address));
+         database->result = MMDB_lookup_sockaddr(&database->mmdb,
+                                            addr.sockaddr, &mmdb_error);
+ 
+         if (mmdb_error != MMDB_SUCCESS) {
++            database->cache_valid = 0;
+             goto not_found;
+         }
++        database->cache_valid = 1;
+     }
+ 
+     if (!database->result.found_entry
+@@ -774,6 +778,7 @@
+         database->last_change = ngx_file_mtime(&fi);
+         MMDB_close(&database->mmdb);
+         database->mmdb = tmpdb;
++        database->cache_valid = 0;
+ 
+         ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                       "Reload MMDB \"%s\"",
+--- ngx_stream_geoip2_module.c.orig
++++ ngx_stream_geoip2_module.c
+@@ -16,6 +16,7 @@
+ typedef struct {
+     MMDB_s                   mmdb;
+     MMDB_lookup_result_s     result;
++    ngx_flag_t               cache_valid;
+     time_t                   last_check;
+     time_t                   last_change;
+     time_t                   check_interval;
+@@ -167,17 +168,20 @@
+     }
+ 
+ #if (NGX_HAVE_INET6)
+-    if (ngx_memcmp(&address, &database->address, sizeof(address)) != 0) {
++    if (!database->cache_valid
++        || ngx_memcmp(&address, &database->address, sizeof(address)) != 0) {
+ #else
+-    if (address != database->address) {
++    if (!database->cache_valid || address != database->address) {
+ #endif
+         memcpy(&database->address, &address, sizeof(address));
+         database->result = MMDB_lookup_sockaddr(&database->mmdb,
+                                                 addr.sockaddr, &mmdb_error);
+ 
+         if (mmdb_error != MMDB_SUCCESS) {
++            database->cache_valid = 0;
+             goto not_found;
+         }
++        database->cache_valid = 1;
+     }
+ 
+     if (!database->result.found_entry
+@@ -665,6 +669,7 @@
+         database->last_change = ngx_file_mtime(&fi);
+         MMDB_close(&database->mmdb);
+         database->mmdb = tmpdb;
++        database->cache_valid = 0;
+ 
+         ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+                       "Reload MMDB \"%s\"",

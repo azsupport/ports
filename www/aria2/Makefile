@@ -9,7 +9,8 @@
 # /usr/local/az/lib (our ports link each other's shared libraries: aZ, 10.11.2026),
 # given to configure by their FOO_CFLAGS and FOO_LIBS (no pkg-config, no other header
 # of az seen); expat of az for the other XML option; OpenSSL and zlib of the base
-# system (the official one takes libxml2 and sqlite3 of the ports).
+# system (the official one takes libxml2 and sqlite3 of the ports). With the fix of
+# openSUSE for IOFile::getLine() (files/patch-src_IOFile.cc; aZ, 16.11.2026).
 
 PORTNAME=	aria2
 PORTVERSION=	1.37.0

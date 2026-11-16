@@ -273,6 +273,11 @@ post-patch:
 		s!%%NGINX_ERRORLOG%%!${NGINX_ERRORLOG}!' \
 		${WRKSRC}/conf/nginx.conf
 	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-filter_config
+# brotli_static: Vary only where a .br file is, as gzip_static (from Debian; aZ, 16.11.2026)
+	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-static-vary
+# geoip2: the cached lookup result reset at a reload of the database (from Debian; aZ,
+# 16.11.2026), the http module and that of stream
+	@cd ${WRKSRC_geoip2} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-geoip2-reload-cache
 	@${REINPLACE_CMD} 's!%%PREFIX%%!${WRKDIR}/az!g' ${WRKSRC_brotli}/filter/config
 .if ${NGINX_AZ_MODULE:U} == stream-lua
 	@cd ${WRKSRC_luastream} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-lua-stream-src_ngx__stream__lua__module.c

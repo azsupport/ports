@@ -17,8 +17,8 @@
 
 - **Оверлей**: только наши порты, поверх официального дерева
   [freebsd-ports](https://github.com/freebsd/freebsd-ports) на закреплённом коммите
-  [`9a69436ea72f`](https://github.com/freebsd/freebsd-ports/tree/9a69436ea72fbfab0e73e3f14d81ed3ef6322251)
-  (main от 12.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh), перед сборкой
+  [`232cb6b34863`](https://github.com/freebsd/freebsd-ports/tree/232cb6b3486322dcd7e1b19bd629064023d4a3ad)
+  (main от 16.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh), перед сборкой
   переводится на последний main: последние версии портов, aZ). Фреймворк
   портов берёт его как `OVERLAYS`: `bsd.port.mk` включает
   [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk), берёт `Mk/Uses/<имя>.mk` оверлея раньше
@@ -111,7 +111,7 @@
 | `perl5` | `lang/perl5.42` | Perl 5.42 под именем пакета FreeBSD (aZ, 11.11.2026), чтобы с ним работали пакеты `p5-*` из репозитория FreeBSD: официальный порт как есть (потоки, MULTIPLICITY, 64-битные целые, разделяемая libperl), без DTrace, как все сборки здесь (его пробы есть только в ядре Perl: XS-модули пакетов FreeBSD с ним загружаются и работают, [`tools/perl-test.sh`](tools/perl-test.sh)) |
 | `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | JDK для `elasticsearch6`, `opensearch217` и `opensearch219`, и для OpenSearch 3.x потом, наш (aZ, 11.11.2026: чтобы сервер с Elasticsearch не получал ничего от рабочего стола; 12.11.2026: один JDK для всех: OpenSearch 2.x и Elasticsearch 6 не работают на JDK 24 и новее, где Security Manager отключён насовсем, а OpenSearch 3.x нужен JDK не ниже 21): OpenJDK 21 без графики в `/usr/local/openjdk21`, без X11, звука, шрифтов и javavmwrapper (нет `/usr/local/bin/java`), на libjpeg, FreeType и Little CMS из az; JNA без X11 и JAWT, на libffi из az, его библиотека — ещё и файлом `/usr/local/lib/jna/libjnidispatch.so`, который загружают `elasticsearch6`, `opensearch217` и `opensearch219` (`-Djna.boot.library.path`, `-Djna.nounpack`: при запуске ничего не распаковывается), собран на 21 для Java 8; Ant — официальный порт — на нашем JDK 21, для сборки JNA (aZ, 12.11.2026: JNA и Ant — на 21). `openjdk21` и `jna` зависят только от `az` |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows, и с исправлениями уязвимостей, которых нет в официальном порту, из Fedora: CVE-2014-8141 … CVE-2022-0530, zip-бомбы, и из Debian 6.0-31 и OpenBSD (`files/debian/`): CAN-2026-2034442 и CAN-2026-2034443 (переполнения кучи и стека), CVE-2022-1271 в zipgrep, архивы ZIP64 из Windows, время из Unix-полей extra; а также образцы zipgrep с `\|`, ошибка закрытия распакованного файла, обрезанное поле extra, дескрипторы данных Zip64 из Java (madler `af0d07f`), `memmove()` в скользящем окне (OpenBSD, `files/openbsd/`), исправление CVE-2014-8139 в варианте, исправленном Info-ZIP (`unzip -t` на jar давал ошибку), `memmove()` для `\` в `UNZIP` (Fedora) и справка zipinfo (четыре `%c` патча ICONV официального порта без аргументов); `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR, и тремя исправлениями Debian (переполнение кучи при изменении размера, отступ в строке статуса, `defflow` после переподключения); `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS, с исправлениями CVE-2026-96512 (три коммита апстрима), CVE-2026-35535 (почтовая программа от root с группами пользователя) и файла `@includedir` с `:` в имени (коммиты апстрима `3e474c2`, `ff0b6be`, как их несёт Debian); `yamdi` с исправлением Debian для `-c`; `zip` с тремя исправлениями: с `-j` образцы `-i` и `-x` теряли пути (openSUSE), `memmove()` для `\` в `ZIP` (RHEL), смещения после имени с флагом UTF-8 (`zipnote` зависал; Gentoo); `bash` без NLS, с тремя исправлениями 5.3, как их несёт Gentoo: `wait` закончившегося фонового задания, подстановки команд при большом окружении, приглашение в однобайтовой локали, и исправлением openSUSE для байта 0x80–0xFF в `${…}` (bash53-019); `portmaster` только с дополнением для bash), `wget` и `rsync` наши, с разделяемыми библиотеками az (`wget`: IDN, PSL, исправления CVE-2026-15146, CVE-2026-58470, CVE-2026-58471 и CVE-2026-58472, как их несёт Ubuntu, CVE-2026-16599 (вход S/KEY, коммит апстрима `e9697d9`, как его несёт Fedora), CVE-2021-31879 (`Authorization:` и `Cookie:` из `--header` после редиректа уходят только на источник первого URL: патч openSUSE, как это делает curl) и обработчика SIGHUP (коммит апстрима `e1f2559`, как его несёт RHEL); `rsync` 3.5.2, раньше официального 3.5.1 ради исправлений безопасности: lz4, zstd, xxhash, без ICONV), PCRE2 из `pcre2` (`wget`) и OpenSSL базы |
-| `ca_root_nss`, `cpu-microcode-intel`, `cpu-microcode-rc`, `fcron`, `rclone`, `fusefs-libs`, `fusefs-sshfs`, `fusefs-libs3`, `libtlsrpt` | их официальные origin | официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)): корневые сертификаты Mozilla, микрокод процессоров Intel с RC и SPLIT (скрипт rc.d `cpu-microcode-rc` и разделённые файлы), fcron, rclone с `rclone mount` (libfuse 2 из `fusefs-libs`), sshfs (libfuse 3 из `fusefs-libs3`, GLib из `glib`), библиотека TLSRPT для `postfix` |
+| `ca_root_nss`, `cpu-microcode-intel`, `cpu-microcode-rc`, `fcron`, `rclone`, `fusefs-libs`, `fusefs-sshfs`, `fusefs-libs3`, `libtlsrpt` | их официальные origin | официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)): корневые сертификаты Mozilla, микрокод процессоров Intel с RC и SPLIT (скрипт rc.d `cpu-microcode-rc` и разделённые файлы), fcron, rclone с `rclone mount` (libfuse 2 из `fusefs-libs`, с исправлением libfuse #571 для `-o remember`), sshfs 3.7.7 (libfuse 3 из `fusefs-libs3`, GLib из `glib`; с двумя исправлениями master после 3.7.7: скобочные IPv6-источники, цели readlink длиннее буфера FUSE), библиотека TLSRPT для `postfix` |
 | `cpu-microcode-amd` | `sysutils/cpu-microcode-amd` | микрокод процессоров AMD: официальный порт с опциями `cpu-microcode-intel`, RC (скрипт rc.d из `cpu-microcode-rc`) и SPLIT (файлы семейств в `share/cpucontrol`), обе включены; `/boot/firmware/amd-ucode.bin` всегда |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `mod_phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
@@ -343,7 +343,9 @@
   `nginx-devel-image-filter` (image_filter), подключаются через `load_module`. OpenSSL
   базы, PCRE2 из `devel/pcre2`, zlib базы; brotli, libmaxminddb и libgd — из az.
   Проверки в `servers-test.sh`: brotli, gzip_static, headers-more, geoip2, прокси stream,
-  image_filter.
+  image_filter. Патчи Debian (aZ, 16.11.2026): `brotli_static` ставит `Vary` только там,
+  где есть `.br`, как `gzip_static`; geoip2 не берёт кэшированный результат базы, которую
+  закрыл `auto_reload`.
 - **`www/nginx-devel-lua`** и **`www/nginx-devel-stream-lua`** (aZ, 15.11.2026): Lua для
   nginx-devel, только на LuaJIT (стандартного Lua у lua-nginx-module нет):
   `nginx-devel-lua` — ndk 0.3.6 и lua-nginx-module 0.10.31; `nginx-devel-stream-lua` —
@@ -359,7 +361,8 @@
 - **`www/aria2`** (aZ, 15.11.2026): aria2 1.37.0, официальный порт с опциями по
   умолчанию, кроме STATIC, без NLS и документации, с CARES, LIBUV и SSH2: libxml2,
   SQLite, c-ares, libuv и libssh2 из az (expat из az — для другой опции XML), OpenSSL
-  и zlib базы.
+  и zlib базы; с исправлением openSUSE для `IOFile::getLine()` (чтение перед буфером на
+  стеке, 16.11.2026).
 - **`devel/py-pip`** (aZ, 15.11.2026): pip 26.3 для нашего `python312`, новее
   официальной 23.3.2 (CVE-2025-8869), из исходника PyPI через flit_core; только
   `bin/pip`, как в официальном пакете.

@@ -162,7 +162,7 @@ set -u
 # port, or a newer release for its security or a serious bug (a take line of
 # deps.conf), so before a build this goes to the latest commit of main (it had
 # stayed at 04.11.2026: apache24 2.4.69 for 2.4.70 of 07.11.2026, aZ 10.11.2026)
-ports_commit="9a69436ea72fbfab0e73e3f14d81ed3ef6322251"
+ports_commit="232cb6b3486322dcd7e1b19bd629064023d4a3ad"
 ports_url="https://github.com/freebsd/freebsd-ports"
 
 # The build tools a port gets from the official packages of FreeBSD even when this

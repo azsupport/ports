@@ -1,0 +1,29 @@
+brotli_static on set the Vary flag before it looked for the .br file, so with
+gzip_vary on every answer of the location had "Vary: Accept-Encoding", images and
+videos without a .br among them (a copy for each Accept-Encoding in a cache): the
+flag now only when the .br file is there, as gzip_static does with its .gz. From
+Debian (libnginx-mod-http-brotli 1.0.0~rc-9, 0001-Fix-Vary-header.patch of Jan Mojzis,
+13.01.2023; issue 97 of google/ngx_brotli, not upstream; aZ, 16.11.2026: «да»).
+Applied by post-patch in WRKSRC_brotli, -p0.
+
+--- static/ngx_http_brotli_static_module.c.orig
++++ static/ngx_http_brotli_static_module.c
+@@ -168,7 +168,6 @@
+     /* Ignore request properties (e.g. Accept-Encoding). */
+   } else {
+     /* NGX_HTTP_BROTLI_STATIC_ON */
+-    req->gzip_vary = 1;
+     rc = check_eligility(req);
+     if (rc != NGX_OK) return NGX_DECLINED;
+   }
+@@ -227,6 +226,10 @@
+     return NGX_DECLINED;
+   }
+ 
++  if (cfg->enable == NGX_HTTP_BROTLI_STATIC_ON) {
++    req->gzip_vary = 1;
++  }
++
+   /* So far so good. */
+   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, log, 0, "http static fd: %d",
+                  file_info.fd);
