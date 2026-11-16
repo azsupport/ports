@@ -355,7 +355,11 @@ jobs:
             # packages first); exit 2: no catalog, said in checks.txt
             r=0
             if [ -f tools/test-programs.sh ]; then
-              sh tools/test-programs.sh --repo "$crepo" || r=$?
+              # its output and every result of a test go into results/tests/, which goes
+              # only to the private azsupport/azsupport (the step "The results of the tests"):
+              # this public log gets "test <name>: OK|FAIL|SKIP" of results/checks.txt alone
+              mkdir -p results/tests
+              sh tools/test-programs.sh --repo "$crepo" > results/tests/test-programs.out 2>&1 || r=$?
             else
               echo "programs: SKIP (no tools/test-programs.sh: the tests of azsupport/azsupport were not fetched)" >> results/checks.txt
             fi
@@ -429,6 +433,41 @@ jobs:
             exit 1
           fi
 
+      # results/tests/ (the outputs of the tests, their whole lines of the checks): into the
+      # branch runs of the private azsupport/azsupport as one archive
+      # (ports-build/<date>/<run>-<level>-tests.tar.xz), then away from results/, so that
+      # neither the job summary nor the public artifact results-<level> has a line of them
+      - name: The results of the tests, to azsupport/azsupport
+        if: always()
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          PART: ${{ matrix.cputype }}
+        run: |
+          [ -d results/tests ] || { echo "no results/tests: no test ran"; exit 0; }
+          a="${GITHUB_RUN_ID}-${PART}-tests.tar.xz"
+          tar -cJf "$RUNNER_TEMP/$a" -C results tests
+          mv results/tests "$RUNNER_TEMP/tests"
+          if [ -z "$RUNS_TOKEN" ]; then
+            echo "::warning title=test results::no RUNS_TOKEN: the results of the tests are not kept"
+            exit 0
+          fi
+          day="$(date -u +%Y-%m-%d)"
+          w="$RUNNER_TEMP/runs-tests"
+          git clone -q --depth 1 --branch runs --single-branch \
+            "https://x-access-token:${RUNS_TOKEN}@github.com/azsupport/azsupport.git" "$w"
+          mkdir -p "$w/ports-build/$day"
+          cp "$RUNNER_TEMP/$a" "$w/ports-build/$day/$a"
+          git -C "$w" add "ports-build/$day/$a"
+          git -C "$w" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "ports-build $PART: the results of the tests of run $GITHUB_RUN_ID"
+          i=0
+          until git -C "$w" push -q origin HEAD:runs; do
+            i=$((i + 1)); [ $i -lt 10 ] || { echo "::warning title=test results::push to azsupport/azsupport failed"; exit 0; }
+            sleep $((i * 3)); git -C "$w" pull -q --rebase origin runs
+          done
+          echo "the results of the tests: azsupport/azsupport, branch runs, ports-build/$day/$a"
+
       - name: Report
         id: report
         if: always()
@@ -447,7 +486,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: results-${{ matrix.cputype }}
-          path: results/
+          # never the results of the tests (they went to azsupport/azsupport above)
+          path: |
+            results/
+            !results/tests/
           if-no-files-found: ignore
 
       - name: Publish
