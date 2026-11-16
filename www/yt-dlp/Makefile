@@ -6,7 +6,10 @@
 # rest is the official port as it is: its patches (no self-update, no pandoc; one
 # that a release lets apply only with fuzz made again), its dependencies (official
 # packages; www/py-yt-dlp-ejs ours when a release pins a newer yt-dlp-ejs than the
-# official port has), pkg-plist and pkg-descr.
+# official port has), pkg-plist and pkg-descr. IMPERSONATE (aZ, 16.11.2026: on by
+# default): the browser impersonation of --impersonate with py-curl-cffi of our
+# ftp/py-curl-cffi on our ftp/curl-impersonate; yt-dlp 2026.10.26 takes curl_cffi
+# 0.5.10 and 0.10 through 0.17 (yt_dlp/networking/_curlcffi.py).
 # A new release (aZ, 12.11.2026: the releases of GitHub, not the official port):
 # DISTVERSION and distinfo by tools/ytdlp-update.sh, which the workflow
 # yt-dlp-update.yml runs every 6 hours (the SHA-256 of yt-dlp.tar.gz that of the
@@ -51,11 +54,14 @@ MAKE_ARGS=	PYTHON=${PYTHON_CMD} \
 
 NO_ARCH=	yes
 
-OPTIONS_DEFINE=			FFMPEG SECRETSTORAGE SYMLINK
-OPTIONS_DEFAULT=		FFMPEG SYMLINK
+OPTIONS_DEFINE=			FFMPEG IMPERSONATE SECRETSTORAGE SYMLINK
+OPTIONS_DEFAULT=		FFMPEG IMPERSONATE SYMLINK
 OPTIONS_SUB=			yes
 
 FFMPEG_RUN_DEPENDS=		ffprobe:multimedia/ffmpeg
+
+IMPERSONATE_DESC=		Browser impersonation (--impersonate) with ${PYTHON_PKGNAMEPREFIX}curl-cffi
+IMPERSONATE_RUN_DEPENDS=	${PYTHON_PKGNAMEPREFIX}curl-cffi>0:ftp/py-curl-cffi@${PY_FLAVOR}
 
 SECRETSTORAGE_DESC=		Build with ${PYTHON_PKGNAMEPREFIX}SecretStorage for secretstorage option
 SECRETSTORAGE_BUILD_DEPENDS=	${PYTHON_PKGNAMEPREFIX}SecretStorage>0:security/py-SecretStorage@${PY_FLAVOR}
