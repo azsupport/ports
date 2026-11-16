@@ -19,6 +19,5 @@ CONFLICTS_INSTALL=	manticore14
 MASTERDIR=	${.CURDIR}/../manticore14
 DESCR=		${.CURDIR}/pkg-descr
 DISTINFO_FILE=	${.CURDIR}/distinfo
-PLIST=		${.CURDIR}/pkg-plist
 
 .include "${MASTERDIR}/Makefile"

@@ -16,14 +16,14 @@
 # - CMake 4: CMAKE_POLICY_VERSION_MINIMUM=3.5 in the environment.
 
 PORTNAME=	manticore
-DISTVERSION=	9.0.0
+DISTVERSION?=	9.0.0
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	textproc
-PKGNAMESUFFIX=	14-columnar
+PKGNAMESUFFIX?=	14-columnar
 DIST_SUBDIR=	manticore
 
 MAINTAINER=	github@azsupport.com
-COMMENT=	Columnar, secondary and vector libraries of Manticore Search 14 (of azsupport/ports)
+COMMENT=	Columnar, secondary and vector libraries of Manticore Search ${MC_LINE} (of azsupport/ports)
 WWW=		https://github.com/manticoresoftware/columnar \
 		https://github.com/azsupport/ports
 
@@ -32,19 +32,21 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libonig.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libonig.so:az/az \
-		${LOCALBASE}/bin/searchd:textproc/manticore14
+		${LOCALBASE}/bin/searchd:textproc/manticore${MC_LINE}
 
 USES=		cargo cmake compiler:c++17-lang pkgconfig
 USE_GITHUB=	yes
 GH_ACCOUNT=	manticoresoftware
 GH_PROJECT=	columnar
-GH_TAGNAME=	c27-s18-k9
-GH_TUPLE=	manticoresoftware:FastPFor:5f6b7df8f0dba402bb616a81ca510bfeb04c42ce:fastpfor/freebsd-deps/fastpfor \
+GH_TAGNAME?=	c27-s18-k9
+# the line 14 (textproc/manticore31-columnar sets its own): hnswlib
+MC_HNSW?=	manticoresoftware:hnswlib:d7bb3bbd59220f62203012b2f649aa537cc97cdc:hnsw/freebsd-deps/hnswlib
+GH_TUPLE=	${MC_HNSW} \
+		manticoresoftware:FastPFor:5f6b7df8f0dba402bb616a81ca510bfeb04c42ce:fastpfor/freebsd-deps/fastpfor \
 		manticoresoftware:streamvbyte:efdd9dace81a4a8f844267631879b500c6d913cf:svb/freebsd-deps/streamvbyte \
-		manticoresoftware:PGM-index:5a5a763c7c07e56f56fd33137dcee9f1b3c3b640:pgm/freebsd-deps/pgm \
-		manticoresoftware:hnswlib:d7bb3bbd59220f62203012b2f649aa537cc97cdc:hnsw/freebsd-deps/hnswlib
+		manticoresoftware:PGM-index:5a5a763c7c07e56f56fd33137dcee9f1b3c3b640:pgm/freebsd-deps/pgm
 
-CARGO_CRATES=	addr2line-0.24.2 \
+CARGO_CRATES?=	addr2line-0.24.2 \
 		adler2-2.0.0 \
 		aho-corasick-1.1.3 \
 		anstream-0.6.18 \
@@ -349,7 +351,8 @@ CMAKE_ARGS=	-DBUILD_TESTING=OFF -DBUILD_EMBEDDINGS_LOCALLY=ON \
 		-DFETCHCONTENT_SOURCE_DIR_FASTPFOR=${MC_DEPS}/fastpfor \
 		-DFETCHCONTENT_SOURCE_DIR_HNSWLIB=${MC_DEPS}/hnswlib \
 		-DFETCHCONTENT_SOURCE_DIR_PGM=${MC_DEPS}/pgm \
-		-DFETCHCONTENT_SOURCE_DIR_STREAMVBYTE=${MC_DEPS}/streamvbyte
+		-DFETCHCONTENT_SOURCE_DIR_STREAMVBYTE=${MC_DEPS}/streamvbyte \
+		${MC_CMAKE_ARGS}
 # in the builds cmake runs: cargo (the vendored crates, Oniguruma of az), the minimum
 # of CMake 4 for the dependencies, one cache of the built dependencies for both builds
 # (the _avx2 one, at build time, takes them from it: no download)
@@ -360,15 +363,19 @@ MAKE_ENV=	${CARGO_ENV} CACHEB=${WRKDIR}/columnar-cache \
 # libonig of az by its run path (cargo.mk gives LDFLAGS to rustc as link-arg)
 LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
 
-CONFLICTS_INSTALL=	manticore31-columnar
+CONFLICTS_INSTALL?=	manticore31-columnar
 
-PLIST_FILES=	${DATADIR_REL}/modules/lib_manticore_columnar.so \
-		${DATADIR_REL}/modules/lib_manticore_columnar_avx2.so \
-		${DATADIR_REL}/modules/lib_manticore_knn.so \
-		${DATADIR_REL}/modules/lib_manticore_knn_avx2.so \
-		${DATADIR_REL}/modules/lib_manticore_knn_embeddings.so \
-		${DATADIR_REL}/modules/lib_manticore_secondary.so \
-		${DATADIR_REL}/modules/lib_manticore_secondary_avx2.so
+# the line of Manticore (14, 31), and the builds of the libraries: plain and for AVX2 (the
+# line 31: AVX-512 too); searchd takes the one the CPU runs
+MC_LINE=	${PKGNAMESUFFIX:S/-columnar//}
+MC_BUILDS?=	plain _avx2
+PLIST_FILES=	${DATADIR_REL}/modules/lib_manticore_knn_embeddings.so
+.for l in columnar knn secondary
+.  for b in ${MC_BUILDS:S/plain//}
+PLIST_FILES+=	${DATADIR_REL}/modules/lib_manticore_${l}${b}.so
+.  endfor
+PLIST_FILES+=	${DATADIR_REL}/modules/lib_manticore_${l}.so
+.endfor
 
 # the version of the libraries (upstream sets it when it packs them; 0.0.0 in the source)
 post-patch:
