@@ -1,0 +1,21 @@
+
+Description: CVE-2026-40170 (GHSA-f523-465f-8c8f) for the ngtcp2 1.20.0 that
+ curl-impersonate builds in (its patch is for that version): the transport
+ parameters of the peer written into qlog through a stack buffer of 1024 bytes
+ without a bound (curl writes qlog when QLOGDIR is set).
+Origin: upstream https://github.com/ngtcp2/ngtcp2/commit/708a7640c1f48fb8ffb540c4b8ea5b4c1dfb8ee5
+ (1.22.1). Appended to patches/ngtcp2.patch by the port.
+
+diff --git a/lib/ngtcp2_qlog.c b/lib/ngtcp2_qlog.c
+index ed08eb1b..42609481 100644
+--- a/lib/ngtcp2_qlog.c
++++ b/lib/ngtcp2_qlog.c
+@@ -902,7 +902,7 @@ void ngtcp2_qlog_pkt_sent_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
+ void ngtcp2_qlog_parameters_set_transport_params(
+   ngtcp2_qlog *qlog, const ngtcp2_transport_params *params, int server,
+   ngtcp2_qlog_side side) {
+-  uint8_t buf[1024];
++  uint8_t buf[2048];
+   uint8_t *p = buf;
+   const ngtcp2_preferred_addr *paddr;
+   const ngtcp2_sockaddr_in *sa_in;

@@ -1,0 +1,136 @@
+Description: CVE-2026-27135 (GHSA-6933-cjhr-5qg6) for the nghttp2 1.63.0 that
+ curl-impersonate builds in (upstream pins 1.64 or lower): after the session is
+ terminated, the library kept reading the input, and a malformed frame of the
+ peer then failed an assertion. The fatal errors checked first, then the state
+ checked after each callback that may terminate the session.
+Origin: upstream https://github.com/nghttp2/nghttp2/commit/943b64cfc57f6c66f26f8d6db6538e06a474a8c2
+ and https://github.com/nghttp2/nghttp2/commit/5c7df8fa815ac1004d9ecb9d1f7595c4d37f46e1
+ (both in 1.68.1), as RHEL 10 carries them for 1.68.0 and Debian 13 the second
+ for 1.64.0; the whitespace of 1.63.0. Copied to patches/nghttp2.patch by the
+ port, applied by CMakeLists.txt (files/patch-CMakeLists.txt).
+
+diff --git a/lib/nghttp2_session.c b/lib/nghttp2_session.c
+index 54746fb3..78da4776 100644
+--- a/lib/nghttp2_session.c
++++ b/lib/nghttp2_session.c
+@@ -5999,6 +5999,10 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
+         busy = 1;
+ 
+         rv = session_on_data_received_fail_fast(session);
++        if (nghttp2_is_fatal(rv)) {
++          return rv;
++        }
++
+         if (iframe->state == NGHTTP2_IB_IGN_ALL) {
+           return (nghttp2_ssize)inlen;
+         }
+@@ -6009,10 +6013,6 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
+           break;
+         }
+ 
+-        if (nghttp2_is_fatal(rv)) {
+-          return rv;
+-        }
+-
+         rv = inbound_frame_handle_pad(iframe, &iframe->frame.hd);
+         if (rv < 0) {
+           rv = nghttp2_session_terminate_session_with_reason(
+@@ -6082,6 +6082,10 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
+           return rv;
+         }
+ 
++        if (iframe->state == NGHTTP2_IB_IGN_ALL) {
++          return (nghttp2_ssize)inlen;
++        }
++
+         on_begin_frame_called = 1;
+ 
+         rv = session_process_headers_frame(session);
+@@ -6448,6 +6452,10 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
+           if (nghttp2_is_fatal(rv)) {
+             return rv;
+           }
++
++          if (iframe->state == NGHTTP2_IB_IGN_ALL) {
++            return (nghttp2_ssize)inlen;
++          }
+         }
+       }
+ 
+@@ -6704,6 +6712,10 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
+           return rv;
+         }
+ 
++        if (iframe->state == NGHTTP2_IB_IGN_ALL) {
++          return (nghttp2_ssize)inlen;
++        }
++
+         session_inbound_frame_reset(session);
+ 
+         break;
+@@ -7007,6 +7019,10 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
+         if (nghttp2_is_fatal(rv)) {
+           return rv;
+         }
++
++        if (iframe->state == NGHTTP2_IB_IGN_ALL) {
++          return (nghttp2_ssize)inlen;
++        }
+       } else {
+         iframe->state = NGHTTP2_IB_IGN_HEADER_BLOCK;
+       }
+@@ -7172,13 +7188,17 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
+             rv = session->callbacks.on_data_chunk_recv_callback(
+                 session, iframe->frame.hd.flags, iframe->frame.hd.stream_id,
+                 in - readlen, (size_t)data_readlen, session->user_data);
+-            if (rv == NGHTTP2_ERR_PAUSE) {
+-              return (nghttp2_ssize)(in - first);
+-            }
+-
+             if (nghttp2_is_fatal(rv)) {
+               return NGHTTP2_ERR_CALLBACK_FAILURE;
+             }
++
++            if (iframe->state == NGHTTP2_IB_IGN_ALL) {
++              return (nghttp2_ssize)inlen;
++            }
++
++            if (rv == NGHTTP2_ERR_PAUSE) {
++              return (nghttp2_ssize)(in - first);
++            }
+           }
+         }
+       }
+@@ -7259,6 +7279,10 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
+           return rv;
+         }
+ 
++        if (iframe->state == NGHTTP2_IB_IGN_ALL) {
++          return (nghttp2_ssize)inlen;
++        }
++
+         if (rv != 0) {
+           busy = 1;
+ 
+@@ -7277,6 +7301,10 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
+         return rv;
+       }
+ 
++      if (iframe->state == NGHTTP2_IB_IGN_ALL) {
++        return (nghttp2_ssize)inlen;
++      }
++
+       session_inbound_frame_reset(session);
+ 
+       break;
+@@ -7305,6 +7333,10 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
+         return rv;
+       }
+ 
++      if (iframe->state == NGHTTP2_IB_IGN_ALL) {
++        return (nghttp2_ssize)inlen;
++      }
++
+       session_inbound_frame_reset(session);
+ 
+       break;

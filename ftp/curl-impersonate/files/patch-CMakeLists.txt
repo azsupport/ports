@@ -1,0 +1,255 @@
+--- CMakeLists.txt.orig	2026-10-29 15:23:53 UTC
++++ CMakeLists.txt
+@@ -220,6 +220,10 @@ set(_common_cmake_args
+   -DCMAKE_BUILD_TYPE=Release
+   -DCMAKE_INSTALL_LIBDIR=lib
+   -DCMAKE_POSITION_INDEPENDENT_CODE=ON
++  "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
++  "-DCMAKE_C_FLAGS_RELEASE=${CMAKE_C_FLAGS_RELEASE}"
++  "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
++  "-DCMAKE_CXX_FLAGS_RELEASE=${CMAKE_CXX_FLAGS_RELEASE}"
+   ${_toolchain_cmake_args}
+ )
+ 
+@@ -233,86 +237,10 @@ set(_shadow_avoid_cmake_args
+ 
+ list(JOIN _common_cmake_args " " _common_cmake_args_str)
+ 
+-# c-ares
+-set(_cares_platform_args)
+-if(APPLE)
+-  # New Apple SDKs expose pipe2 even for deployment targets that lack it.
+-  # Use c-ares's portable pipe/fcntl fallback.
+-  list(APPEND _cares_platform_args -DHAVE_PIPE2=OFF)
+-endif()
+-ExternalProject_Add(cares
+-  URL "${CARES_URL}"
+-  URL_HASH "${CARES_URL_HASH}"
+-  SOURCE_DIR "${DEPS_SRC_DIR}/cares"
+-  BINARY_DIR "${DEPS_BUILD_DIR}/cares"
+-  INSTALL_DIR "${DEPS_INSTALL_DIR}"
+-  CMAKE_ARGS
+-    ${_common_cmake_args}
+-    -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+-    ${_cares_platform_args}
+-    -DCARES_SHARED=OFF
+-    -DCARES_STATIC=ON
+-    -DCARES_STATIC_PIC=ON
+-    -DCARES_BUILD_TOOLS=OFF
+-    -DCARES_BUILD_TESTS=OFF
+-  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
+-  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
+-)
+-
+-# zlib
+-ExternalProject_Add(zlib
+-  URL "${ZLIB_URL}"
+-  URL_HASH "${ZLIB_URL_HASH}"
+-  SOURCE_DIR "${DEPS_SRC_DIR}/zlib"
+-  BINARY_DIR "${DEPS_BUILD_DIR}/zlib"
+-  INSTALL_DIR "${DEPS_INSTALL_DIR}"
+-  CMAKE_ARGS
+-    ${_common_cmake_args}
+-    -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+-    -DZLIB_BUILD_SHARED=OFF
+-    -DZLIB_BUILD_TESTING=OFF
+-  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
+-)
+-
+-# zstd
+-ExternalProject_Add(zstd
+-  URL "${ZSTD_URL}"
+-  URL_HASH "${ZSTD_URL_HASH}"
+-  SOURCE_DIR "${DEPS_SRC_DIR}/zstd"
+-  BINARY_DIR "${DEPS_BUILD_DIR}/zstd"
+-  INSTALL_DIR "${DEPS_INSTALL_DIR}"
+-  SOURCE_SUBDIR build/cmake
+-  CMAKE_ARGS
+-    ${_common_cmake_args}
+-    -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+-    -DZSTD_BUILD_SHARED=OFF
+-    -DZSTD_BUILD_STATIC=ON
+-    -DZSTD_BUILD_PROGRAMS=OFF
+-    -DZSTD_BUILD_CONTRIB=OFF
+-    -DZSTD_BUILD_TESTS=OFF
+-  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
+-)
+-
+-# brotli
+-_track_external_project_patch(brotli _brotli_patch_file _brotli_patch_changed)
+-ExternalProject_Add(brotli
+-  URL "${BROTLI_URL}"
+-  URL_HASH "${BROTLI_URL_HASH}"
+-  SOURCE_DIR "${DEPS_SRC_DIR}/brotli"
+-  BINARY_DIR "${DEPS_BUILD_DIR}/brotli"
+-  INSTALL_DIR "${DEPS_INSTALL_DIR}"
+-  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${_brotli_patch_file}"
+-  CMAKE_ARGS
+-    ${_common_cmake_args}
+-    -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+-    -DBUILD_SHARED_LIBS=OFF
+-    -DBROTLI_DISABLE_TESTS=ON
+-    -DBROTLI_DISABLE_TOOLS=ON
+-    -DBROTLI_BUILD_TOOLS=OFF
+-    -DCMAKE_MACOSX_BUNDLE=OFF
+-  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
+-  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
+-)
++# c-ares, zlib, zstd and brotli are not built here (the port ftp/curl-impersonate
++# of azsupport/ports): curl takes the shared c-ares, brotli and zstd of the package
++# az (AZ_LIB_DIR) and the zlib of the base system (BASE_ZLIB_LIBRARY), their headers
++# in AZ_INCLUDE_DIR
+ 
+ # boringssl
+ 
+@@ -350,7 +278,7 @@ ExternalProject_Add(boringssl
+   PATCH_COMMAND ${PATCH_EXE} -p1 -i "${_boringssl_patch_file}"
+   CMAKE_ARGS ${_boringssl_cmake_args}
+   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target ssl crypto --parallel ${SUBJOBS}
+-  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
++  INSTALL_COMMAND ${CMAKE_COMMAND} -E env DESTDIR= ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
+ )
+ 
+ ExternalProject_Get_Property(boringssl source_dir binary_dir)
+@@ -373,12 +301,14 @@ if(MSVC OR (CMAKE_C_COMPILER_FRONTEND_VA
+ endif()
+ 
+ # nghttp2
++_track_external_project_patch(nghttp2 _nghttp2_patch_file _nghttp2_patch_changed)
+ ExternalProject_Add(nghttp2
+   URL "${NGHTTP2_URL}"
+   URL_HASH "${NGHTTP2_URL_HASH}"
+   SOURCE_DIR "${DEPS_SRC_DIR}/nghttp2"
+   BINARY_DIR "${DEPS_BUILD_DIR}/nghttp2"
+   INSTALL_DIR "${DEPS_INSTALL_DIR}"
++  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${_nghttp2_patch_file}"
+   CMAKE_ARGS
+     ${_common_cmake_args}
+     ${_shadow_avoid_cmake_args}
+@@ -390,7 +320,7 @@ ExternalProject_Add(nghttp2
+     -DENABLE_DOC=OFF
+     -DBUILD_TESTING=OFF
+   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
+-  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
++  INSTALL_COMMAND ${CMAKE_COMMAND} -E env DESTDIR= ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
+ )
+ 
+ # nghttp3
+@@ -412,7 +342,7 @@ ExternalProject_Add(nghttp3
+     -DBUILD_TESTING=OFF
+   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
+   INSTALL_COMMAND
+-    ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
++    ${CMAKE_COMMAND} -E env DESTDIR= ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
+     COMMAND ${CMAKE_COMMAND} -E copy_if_different
+       <SOURCE_DIR>/lib/includes/nghttp3/nghttp3.h
+       <INSTALL_DIR>/include/nghttp3/nghttp3.h
+@@ -452,7 +382,7 @@ ExternalProject_Add(ngtcp2
+     -DBORINGSSL_INCLUDE_DIR=${BORINGSSL_INCLUDE_DIR}
+     ${_ngtcp2_boringssl_libs_arg}
+   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${SUBJOBS}
+-  INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
++  INSTALL_COMMAND ${CMAKE_COMMAND} -E env DESTDIR= ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
+ )
+ 
+ # libidn2
+@@ -498,11 +428,11 @@ else()
+   set(_curl_idn_flags -DUSE_LIBIDN2=OFF)
+ endif()
+ 
+-# Single curl build mode: produce shared+static libcurl and static curl binary.
++# The shared libcurl only, and the curl binary linked to it.
+ set(_curl_build_flags
+   -DBUILD_SHARED_LIBS=ON
+-  -DBUILD_STATIC_LIBS=ON
+-  -DBUILD_STATIC_CURL=ON
++  -DBUILD_STATIC_LIBS=OFF
++  -DBUILD_STATIC_CURL=OFF
+   -DBUILD_CURL_EXE=ON
+ )
+ 
+@@ -514,7 +444,7 @@ if(NOT CURL_CA_PATH STREQUAL "")
+   list(APPEND _curl_ca_flags "-DCURL_CA_PATH=${CURL_CA_PATH}")
+ endif()
+ 
+-set(_curl_deps zlib zstd brotli boringssl nghttp2 ngtcp2 nghttp3)
++set(_curl_deps boringssl nghttp2 ngtcp2 nghttp3)
+ 
+ if(ANDROID)
+   set(_curl_resolver_flags
+@@ -522,13 +452,11 @@ if(ANDROID)
+     -DENABLE_THREADED_RESOLVER=ON
+   )
+ else()
+-  list(APPEND _curl_deps cares)
+   set(_curl_resolver_flags
+     -DENABLE_ARES=ON
+     -DENABLE_THREADED_RESOLVER=OFF
+-    -DCARES_USE_STATIC_LIBS=ON
+-    -DCURL_USE_CMAKECONFIG=ON
+-    "-Dc-ares_DIR=${DEPS_INSTALL_DIR}/lib/cmake/c-ares"
++    "-DCARES_INCLUDE_DIR=${AZ_INCLUDE_DIR}"
++    "-DCARES_LIBRARY=${AZ_LIB_DIR}/libcares.so"
+   )
+ endif()
+ if(USE_LIBIDN2)
+@@ -543,8 +471,8 @@ elseif(MINGW)
+   set(_curl_zlib_library "${DEPS_INSTALL_DIR}/lib/libzs.a")
+   set(_curl_zstd_library "${DEPS_INSTALL_DIR}/lib/libzstd.a")
+ else()
+-  set(_curl_zlib_library "${DEPS_INSTALL_DIR}/lib/libz.a")
+-  set(_curl_zstd_library "${DEPS_INSTALL_DIR}/lib/libzstd.a")
++  set(_curl_zlib_library "${BASE_ZLIB_LIBRARY}")
++  set(_curl_zstd_library "${AZ_LIB_DIR}/libzstd.so")
+ endif()
+ 
+ set(_curl_staged_dependency_args
+@@ -561,10 +489,15 @@ if(NOT (MSVC OR (CMAKE_C_COMPILER_FRONTE
+ 
+   list(APPEND _curl_staged_dependency_args
+     "-DCMAKE_C_FLAGS=${_curl_c_flags}"
++    "-DCMAKE_C_FLAGS_RELEASE=${CMAKE_C_FLAGS_RELEASE}"
+     "-DCMAKE_CXX_FLAGS=${_curl_cxx_flags}"
+-    "-DBROTLI_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include"
+-    "-DBROTLIDEC_LIBRARY=${DEPS_INSTALL_DIR}/lib/libbrotlidec.a"
+-    "-DBROTLICOMMON_LIBRARY=${DEPS_INSTALL_DIR}/lib/libbrotlicommon.a"
++    "-DCMAKE_CXX_FLAGS_RELEASE=${CMAKE_CXX_FLAGS_RELEASE}"
++    "-DCMAKE_EXE_LINKER_FLAGS=${CMAKE_EXE_LINKER_FLAGS}"
++    "-DCMAKE_SHARED_LINKER_FLAGS=${CMAKE_SHARED_LINKER_FLAGS} -Wl,--exclude-libs,ALL"
++    -DCMAKE_SKIP_BUILD_RPATH=ON
++    "-DBROTLI_INCLUDE_DIR=${AZ_INCLUDE_DIR}"
++    "-DBROTLIDEC_LIBRARY=${AZ_LIB_DIR}/libbrotlidec.so"
++    "-DBROTLICOMMON_LIBRARY=${AZ_LIB_DIR}/libbrotlicommon.so"
+     "-DNGHTTP2_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include"
+     "-DNGHTTP2_LIBRARY=${DEPS_INSTALL_DIR}/lib/libnghttp2.a"
+     "-DNGHTTP3_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include"
+@@ -672,10 +605,10 @@ ExternalProject_Add(curl
+       -DCURL_BROTLI=ON
+       -DCURL_ZSTD=ON
+       # Make sure curl doesn't link against an unversioned .so (Linux only).
+-      -DZLIB_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
++      -DZLIB_INCLUDE_DIR=${AZ_INCLUDE_DIR}
+       -DZLIB_LIBRARY=${_curl_zlib_library}
+       -DZLIB_LIBRARY_RELEASE=${_curl_zlib_library}
+-      -DZSTD_INCLUDE_DIR=${DEPS_INSTALL_DIR}/include
++      -DZSTD_INCLUDE_DIR=${AZ_INCLUDE_DIR}
+       -DZSTD_LIBRARY=${_curl_zstd_library}
+       -DUSE_NGHTTP2=ON
+       -DUSE_NGTCP2=ON
+@@ -758,16 +691,6 @@ install(
+   FILES "${CMAKE_SOURCE_DIR}/include/curl-impersonate/webcrypto.h"
+   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/curl-impersonate"
+ )
+-# Keep static dependencies private so they do not replace system libraries.
+-install(
+-  DIRECTORY "${DEPS_INSTALL_DIR}/lib/"
+-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/curl-impersonate"
+-  FILES_MATCHING
+-    PATTERN "*.a"
+-    PATTERN "*.lib"
+-    PATTERN "cmake" EXCLUDE
+-    PATTERN "pkgconfig" EXCLUDE
+-)
+ configure_file(
+   "${CMAKE_SOURCE_DIR}/cmake/PrepareInstallMetadata.cmake.in"
+   "${CMAKE_BINARY_DIR}/PrepareInstallMetadata.cmake"
