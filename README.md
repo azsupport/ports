@@ -85,6 +85,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi and env too), no SSL; APR and libmaxminddb of az |
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached without TLS, SASL and DTrace, libevent of az; the variant with TLS; one of the two |
 | `gearmand`, `gearmand-openssl`, `libgearman` | `devel/gearmand`, `devel/gearmand-openssl`, `devel/libgearman` | Gearman 2.2.0 with the fixes of master after it: the job server gearmand (the persistent queue in SQLite of az; libevent of az), its variant with TLS, one of the two; libgearman (the client library, with TLS) and the tools gearman and gearadmin, which the servers and the modules `phpXY-gearman` take |
+| `manticore14`, `manticore14-columnar`, `manticore31`, `manticore31-columnar` | `textproc/manticore14`, `textproc/manticore14-columnar`, `textproc/manticore31`, `textproc/manticore31-columnar` | Manticore Search 14.7.6 (the last of the line 14) and 31.0.24 (the current line), one of the two: searchd with Galera (replication), indexer and the tools, an rc.d script with profiles; ICU of az; their columnar, secondary and vector (KNN, embeddings) libraries |
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11.20 (ahead of the official 10.11.19): of the engines of the options InnoDB only, no GSSAPI; the socket `/tmp/mysql.sock` compiled in and in `my.cnf` |
 | `postgresql18-server`, `postgresql18-client`, `postgresql18-contrib` and their `-openssl` | `databases/postgresql18-server`, `-server-openssl`, `-client`, `-client-openssl`, `-contrib`, `-contrib-openssl` | PostgreSQL 18.7 in two chains, one of each component: without OpenSSL, and `-openssl` with that of the base system (pgcrypto and sslinfo only in `contrib-openssl`); the JIT of LLVM (`devel/llvm19`), ICU, LZ4, ZSTD, XML, `-O3 -funroll-loops`; no PAM, LDAP, GSSAPI, pl*, NLS, DTrace; the time zones of the base system; ICU, lz4, zstd, libxml2 and libxslt of az, libedit of the base system for psql |
 | `llvm19` | `devel/llvm19` | LLVM 19.1.7 for the JIT of PostgreSQL: the backend of X86 and clang only (no lld, lldb, MLIR, OpenMP, Polly, Flang, compiler-rt, extra tools), libLLVM whole with its optimization, Release; no zstd |
@@ -302,6 +303,27 @@ Names and origins as the ports, files at the paths of the ports:
   OpenSSL of the base system; one of the two. The rc.d script: on 127.0.0.1:4730, the queue
   in `/var/db/gearmand/gearmand.sqlite` (`gearmand_listen`, `gearmand_port`,
   `gearmand_queue`; TLS by `gearmand_flags`).
+- **`textproc/manticore14`** and **`textproc/manticore31`** (aZ, 16.11.2026): Manticore Search
+  14.7.6 of 29.11.2025 (the last of the line 14) and 31.0.24 of 13.11.2026, one of the two;
+  the FreeBSD tree has no port of it (`textproc/sphinxsearch` only). searchd, indexer,
+  indextool, spelldump, wordbreaker, index_converter; Galera (replication: `CREATE
+  CLUSTER`), its module in `share/manticore/modules` (Boost 1.89+ fixed); ICU of az; OpenSSL
+  of the base system (shared, not the static one upstream links); Boost.Context and
+  Boost.Filesystem of the official ports linked in at build time; zstd, libcurl and expat
+  of az and the client of MariaDB loaded when used (dlopen, as upstream builds it); RE2,
+  libstemmer (Snowball 3.0.3), cctz, CRoaring, uni-algo, nlohmann/json, xxHash and cppjieba
+  built in from distfiles (cmake downloads nothing). The config
+  `/usr/local/etc/manticore.conf` (the default path of the programs), its sample in RT
+  mode on 127.0.0.1 (9312, 9306 MySQL, 9308 HTTP), data `/var/db/manticore`, the user
+  `manticore`; time zones: `share/manticore/tzdata` a link to `/usr/share/zoneinfo`. The rc.d
+  script `manticore` with profiles (`manticore_profiles`: one searchd per config, the pid
+  file read from it). CMake 4: `CMAKE_POLICY_VERSION_MINIMUM=3.5` for the dependencies.
+  Not built: the ODBC and PostgreSQL sources of indexer, Buddy.
+- **`textproc/manticore14-columnar`** and **`textproc/manticore31-columnar`**: the libraries
+  searchd loads from `share/manticore/modules` — columnar storage, secondary indexes, KNN
+  and the auto embeddings (Rust: models of HuggingFace by candle, OpenAI, Voyage and Jina
+  over HTTPS with rustls; Oniguruma of az) — and their `_avx2` builds, as upstream builds
+  them; Manticore Columnar 9.0.0 for 14.7.6.
 - **`databases/mariadb1011-server`** and **`databases/mariadb1011-client`**: MariaDB 10.11
   with the options of aZ (of the engines of the options InnoDB only; no GSSAPI, wsrep,
   RocksDB, Spider, Mroonga, S3, CONNECT with ODBC and XML, HashiCorp Vault, AWS key

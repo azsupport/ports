@@ -370,6 +370,11 @@ PLIST_FILES=	${DATADIR_REL}/modules/lib_manticore_columnar.so \
 		${DATADIR_REL}/modules/lib_manticore_secondary.so \
 		${DATADIR_REL}/modules/lib_manticore_secondary_avx2.so
 
+# the version of the libraries (upstream sets it when it packs them; 0.0.0 in the source)
+post-patch:
+	@${REINPLACE_CMD} -e 's|^project ( columnar VERSION 0\.0\.0 )|project ( columnar VERSION ${DISTVERSION:C/-.*//} )|' \
+		${WRKSRC}/CMakeLists.txt
+
 # the config of cargo (the vendored crates) where cargo of cmake finds it: in its home
 # (it runs in the build directory, not in ${WRKSRC}); Oniguruma of az alone in
 # ${WRKDIR}/az (a .pc of its own)
