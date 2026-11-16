@@ -353,13 +353,13 @@ CMAKE_ARGS=	-DBUILD_TESTING=OFF -DBUILD_EMBEDDINGS_LOCALLY=ON \
 		-DFETCHCONTENT_SOURCE_DIR_PGM=${MC_DEPS}/pgm \
 		-DFETCHCONTENT_SOURCE_DIR_STREAMVBYTE=${MC_DEPS}/streamvbyte \
 		${MC_CMAKE_ARGS}
-# in the builds cmake runs: cargo (the vendored crates, Oniguruma of az), the minimum
-# of CMake 4 for the dependencies, one cache of the built dependencies for both builds
-# (the _avx2 one, at build time, takes them from it: no download)
+# in the builds cmake runs: cargo (the vendored crates, Oniguruma of az; at configure
+# time in the line 14, at build time in the line 31), the minimum of CMake 4 for the
+# dependencies, the cache of the built dependencies
 CONFIGURE_ENV=	${CARGO_ENV} CACHEB=${WRKDIR}/columnar-cache \
 		CMAKE_POLICY_VERSION_MINIMUM=3.5 PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc
 MAKE_ENV=	${CARGO_ENV} CACHEB=${WRKDIR}/columnar-cache \
-		CMAKE_POLICY_VERSION_MINIMUM=3.5
+		CMAKE_POLICY_VERSION_MINIMUM=3.5 PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc
 # libonig of az by its run path (cargo.mk gives LDFLAGS to rustc as link-arg)
 LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
 
