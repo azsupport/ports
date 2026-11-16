@@ -1,0 +1,5 @@
+Manticore Search 14: a full-text search and analytics server, the continuation of
+Sphinx Search. Real-time and plain tables, SQL over the MySQL protocol, a JSON HTTP
+API, replication (Galera), vector search (with the columnar libraries of
+manticore14-columnar). searchd with an rc.d script with profiles, indexer and the
+tools; built for azsupport/ports with the libraries of az.
