@@ -938,6 +938,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | `fork_ref` | the branch of azsupport/php-src the curl of az is compared with (`FORK_REF` of `tools/curl-sync-check.sh`, default `master`): a change of curl and its libraries goes to a branch of the fork first, a run of the branch here that carries it names that branch, and both go into their main branches at the same moment |
 | `publish` | publish the repository when everything built and every check passed (off by default: the repository the servers read is published on aZ's word) |
 | `publish_only` | with `publish`: publish only when the repository differs from the release by packages of these ports alone (`category/port`, separated by spaces: the runs of [yt-dlp from GitHub](#yt-dlp-from-github)), else nothing; empty: whatever differs |
+| `continuation` | set by a run whose time was over for the run it starts (its number in a row; `0` by hand). The job has 350 minutes: no port starts after about 245 of them, the builds still going stop at about 285 (`AZ_TIME_SOFT`, `AZ_TIME_HARD` of `tools/build.sh`); what was built is kept in the cache, checks and publishing wait, and the last step starts the next run with the same inputs (not `force`), at most 6 in a row; with `both`, `x86-64-v2` starts only after `x86-64-v3` is done |
 
 It takes the repository of the last run (an actions/cache, saved also when a run
 fails, so that a run that fails in PHP keeps `az` and the libraries) and the files of

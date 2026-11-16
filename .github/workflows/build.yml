@@ -83,9 +83,15 @@ on:
         description: 'With publish: publish only when the repository differs from the release by packages of these ports alone (category/port, separated by spaces; yt-dlp-update.yml), else nothing; empty: whatever differs'
         required: false
         default: ''
+      continuation:
+        description: 'Set by a run whose time was over for the run it starts (its number in a row); 0 for a run started by hand'
+        required: false
+        default: '0'
 
 permissions:
   contents: write
+  # the next run of this workflow, when the time of one was over (the last step)
+  actions: write
 
 jobs:
   build:
@@ -108,6 +114,10 @@ jobs:
       group: az-ports-${{ inputs.release }}-${{ matrix.cputype }}-${{ github.ref_name }}
       cancel-in-progress: false
     steps:
+      # the start of the job: the time of the build in the VM is reckoned from it
+      - name: The start of the job
+        run: echo "AZ_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v5
 
       # the repository of the last run, published or not (a run that fails in PHP keeps
@@ -241,6 +251,19 @@ jobs:
           rm -f "$t"
           echo "tests in tools/: $(ls tools/test-programs.sh tools/*-test.sh 2>/dev/null | wc -l) scripts"
 
+      # the time the build in the VM has (tools/build.sh: AZ_TIME_SOFT, AZ_TIME_HARD), from
+      # the start of the job, whose limit is 350 minutes: no port starts after 245 minutes,
+      # the builds still going stop at 285; less 8 minutes for the boot of the VM. Then
+      # the VM writes the repository, gives results/ and repo/ back, and the steps after
+      # it keep the packages in the cache for the next run (which the last step starts)
+      - name: The time of the build
+        run: |
+          now="$(date +%s)"; start="${AZ_JOB_START:-$now}"
+          soft=$((start + 245 * 60 - 480 - now)); hard=$((start + 285 * 60 - 480 - now))
+          [ "$soft" -gt 600 ] || soft=600; [ "$hard" -gt "$soft" ] || hard="$soft"
+          echo "AZ_TIME_SOFT=$soft" >> "$GITHUB_ENV"; echo "AZ_TIME_HARD=$hard" >> "$GITHUB_ENV"
+          echo "the VM: no port starts after $((soft / 60)) minutes, the builds still going stop at $((hard / 60)) (from the start of tools/build.sh)"
+
       - name: Build and check in FreeBSD ${{ inputs.release }}
         id: build
         uses: vmactions/freebsd-vm@v1
@@ -257,7 +280,7 @@ jobs:
           # the runner has 16 GB: 12 GB for the VM (up to 4 builds at once, each with
           # make -j of the 4 vCPUs), about 4 GB left to the host
           mem: 12288
-          envs: 'AZ_CPUTYPE AZ_PORTS AZ_FORCE AZ_JOBS AZ_CONFIGURE_CHECK AZ_PLAN AZ_PKG_KEY'
+          envs: 'AZ_CPUTYPE AZ_PORTS AZ_FORCE AZ_JOBS AZ_CONFIGURE_CHECK AZ_PLAN AZ_PKG_KEY AZ_TIME_SOFT AZ_TIME_HARD'
           prepare: |
             if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
             env ASSUME_ALWAYS_YES=yes pkg install -y git-lite
@@ -278,6 +301,8 @@ jobs:
             : > results/checks.txt
             if [ -n "${AZ_PLAN:-}" ]; then
               echo "plan (AZ_PLAN): no checks and no tests (results/plan.txt)" >> results/checks.txt
+            elif [ -f results/time-limit ]; then
+              echo "time limit: no checks and no tests, the next run goes on ($(head -n 1 results/time-limit); results/time-limit)" >> results/checks.txt
             else
             # the catalog the checks read: the signed one of repo/, else the unsigned one
             # of this run (work/repo-unsigned of build.sh: checks only, never published)
@@ -576,3 +601,49 @@ jobs:
           RUNS_STEPS: build=${{ steps.build.outcome }} outcome=${{ steps.outcome.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
           PART: ${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"
+
+      # a run whose time was over (results/time-limit) and that built something goes on in
+      # a new run of this workflow with the same inputs (not force: what it built is in the
+      # cache of the repository); GITHUB_TOKEN may start a workflow_dispatch, and the new
+      # job waits for this one (the concurrency of the level). With "both", a v3 that goes
+      # on stops this run here, so that x86-64-v2 does not start before v3 is done (aZ,
+      # 11.11.2026). At most 6 runs in a row
+      - name: The next run, when the time of this one was over
+        if: ${{ always() && !cancelled() && steps.build.outcome != 'skipped' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IN_RELEASE: ${{ inputs.release }}
+          IN_CPUTYPE: ${{ inputs.cputype }}
+          IN_PORTS: ${{ inputs.ports }}
+          IN_JOBS: ${{ inputs.jobs }}
+          IN_CCHECK: ${{ inputs.configure_check }}
+          IN_FORK_REF: ${{ inputs.fork_ref }}
+          IN_PUBLISH: ${{ inputs.publish }}
+          IN_PUBLISH_ONLY: ${{ inputs.publish_only }}
+          IN_CONT: ${{ inputs.continuation }}
+          LEVEL: ${{ matrix.cputype }}
+        run: |
+          [ -f results/time-limit ] || { echo "the time of this run was enough: no next run"; exit 0; }
+          first="$(head -n 1 results/time-limit)"
+          echo "results/time-limit: $first"
+          built="$(printf '%s' "$first" | sed -n 's/.*built=\([0-9]*\).*/\1/p')"
+          n="${IN_CONT:-0}"; case "$n" in ''|*[!0-9]*) n=0 ;; esac
+          if [ "${built:-0}" -eq 0 ]; then
+            echo "::error title=time limit::this run built nothing in its time: no next run (a port that takes longer than a run?)"
+            exit 1
+          fi
+          if [ "$n" -ge 5 ]; then
+            echo "::error title=time limit::6 runs in a row and the build is not done: no next run"
+            exit 1
+          fi
+          cp="$IN_CPUTYPE"
+          [ "$IN_CPUTYPE" = both ] && [ "$LEVEL" = x86-64-v2 ] && cp=x86-64-v2
+          gh workflow run build.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" \
+            -f release="$IN_RELEASE" -f cputype="$cp" -f ports="$IN_PORTS" -f force=false \
+            -f jobs="$IN_JOBS" -f configure_check="$IN_CCHECK" -f plan=false -f fork_ref="$IN_FORK_REF" \
+            -f publish="$IN_PUBLISH" -f publish_only="$IN_PUBLISH_ONLY" -f continuation="$((n + 1))"
+          echo "the next run: build.yml, cputype $cp, continuation $((n + 1))" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$IN_CPUTYPE" = both ] && [ "$LEVEL" = x86-64-v3 ]; then
+            echo "x86-64-v3 goes on in the next run: this run stops, so that x86-64-v2 does not start before it"
+            gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY"
+          fi

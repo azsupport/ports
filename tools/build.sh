@@ -31,6 +31,14 @@
 #   AZ_PKG_KEY_FILE  the signing key of the repository (see tools/pkg-repo-sign.sh)
 #   AZ_JOBS          the ports built at once, in waves (default 4); 1: one after
 #                    another in the order of the queue, as before AZ_JOBS
+#   AZ_TIME_SOFT, AZ_TIME_HARD
+#                    seconds from the start of this script: after AZ_TIME_SOFT no port
+#                    starts its build (it is "not built: the time of this run is
+#                    over", the next run builds it); at AZ_TIME_HARD the builds still
+#                    going are stopped and not built either; results/time-limit says
+#                    so, and the result is FAIL. The packages built until then go into
+#                    the repository as always (build.yml of azsupport/ports: its job has
+#                    350 minutes, and a run that reached them lost all it had built)
 #   AZ_DRYRUN        1: the queue, the hashes and the waves of the run (what the
 #                    repository has with the same az_hash left out), nothing installed
 #                    or built, no repository (the ports that need az: decided after az
@@ -224,6 +232,32 @@ case "${AZ_CONFIGURE_CHECK:-}" in ''|0) ccheck=0 ;; *) ccheck=1 ;; esac
 # one port after another as before AZ_JOBS: AZ_JOBS=1 (not a dry run)
 serial=0
 [ "$jobs" = 1 ] && [ "$dryrun" = 0 ] && serial=1
+# the time of the run (AZ_TIME_SOFT, AZ_TIME_HARD): from the clock of this machine at
+# the start of the script, whatever the clock of the host that set them
+t_soft="${AZ_TIME_SOFT:-}"; t_hard="${AZ_TIME_HARD:-}"
+case "$t_soft$t_hard" in *[!0-9]*) die "AZ_TIME_SOFT, AZ_TIME_HARD: seconds" ;; esac
+[ -z "$t_soft" ] || [ -n "$t_hard" ] || t_hard="$t_soft"
+[ -z "$t_hard" ] || [ -n "$t_soft" ] || t_soft="$t_hard"
+t0="$(date +%s)"
+deadline=""; deadline_hard=""
+if [ -n "$t_soft" ]; then
+    deadline=$((t0 + t_soft)); deadline_hard=$((t0 + t_hard))
+    [ "$deadline_hard" -ge "$deadline" ] || deadline_hard="$deadline"
+fi
+time_over() { [ -n "$deadline" ] && [ "$(date +%s)" -ge "$deadline" ]; }
+hard_over() { [ -n "$deadline_hard" ] && [ "$(date +%s)" -ge "$deadline_hard" ]; }
+# tree_pids <pid>: the process and all its descendants; kill_tree <pid>: stop them all
+# (stopped first, so that none starts another meanwhile), TERM, and KILL what is left
+tree_pids() { echo "$1"; for _tp in $(pgrep -P "$1" 2> /dev/null); do tree_pids "$_tp"; done; }
+kill_tree() {
+    _kt="$(tree_pids "$1")"
+    # shellcheck disable=SC2086
+    kill -STOP $_kt 2> /dev/null; kill -TERM $_kt 2> /dev/null; kill -CONT $_kt 2> /dev/null
+    sleep 5
+    # shellcheck disable=SC2086,SC2046
+    kill -KILL $_kt $(tree_pids "$1") 2> /dev/null
+    return 0
+}
 work="${AZ_WORK:-$top/work}"
 res="$top/results"
 packages="$top/packages"
@@ -1240,6 +1274,14 @@ record() {
     say "$_o: $_w $*"
 }
 
+# time_skip <origin>: a port that is to be built (pre_port said 0) after the time of the
+# run is over (AZ_TIME_SOFT, or stopped at AZ_TIME_HARD): not built, the next run builds
+# it; $q/timeskip lists them for results/time-limit
+time_skip() {
+    record "$1" skip "${pn:-$1}: not built: the time of this run is over (the next run builds it)"
+    echo "$1" >> "$q/timeskip"
+}
+
 # pre_port <origin>: what is to be done with a port, before its dependencies: 1 when
 # that is said already (the line of the summary: it failed, is skipped, its package
 # with the same az_hash is in the repository, or AZ_PLAN: it is to be built, not
@@ -1621,6 +1663,7 @@ if [ "$serial" = 1 ]; then
     for o in $(cat "$q/queue.txt"); do
         az_resolve
         pre_port "$o" || continue
+        if time_over; then time_skip "$o"; continue; fi
         dep_lists "$o"
         say "$o: make package (logs/$k.log)"
         job_port "$o"
@@ -1705,10 +1748,28 @@ else
                     running=$((running - 1))
                 done
                 [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; } || break
+                # AZ_TIME_HARD: the builds still going are stopped once (the tree of each
+                # job under its subshell, which then writes its .done); they have no state
+                # and come again as not built (time_skip). A job whose subshell is gone
+                # without a .done counts as done, so that this loop never waits on it
+                if hard_over && [ ! -f "$q/stopped" ]; then
+                    : > "$q/stopped"
+                    say "the time of this run is over (AZ_TIME_HARD): the $running builds still going are stopped"
+                    for pf in "$q"/jobs/*.pid; do
+                        [ -f "$pf" ] || continue
+                        for c_ in $(pgrep -P "$(cat "$pf")" 2> /dev/null); do kill_tree "$c_"; done
+                    done
+                fi
+                for pf in "$q"/jobs/*.pid; do
+                    [ -f "$pf" ] || continue
+                    jk="${pf##*/}"; jk="${jk%.pid}"
+                    [ -f "$q/jobs/$jk.done" ] || kill -0 "$(cat "$pf")" 2> /dev/null || : > "$q/jobs/$jk.done"
+                done
                 sleep 1
             done
             [ -n "$o" ] || break
             pre_port "$o"
+            if time_over; then time_skip "$o"; continue; fi
             # what it gets in its chroot, worked out here (not in the jobs beside it)
             dep_lists "$o"
             say "$o: make package (logs/$k.log)"
@@ -1948,6 +2009,16 @@ for o in $(cat "$q/queue.txt"); do
         *) skipped="$skipped $o" ;;
     esac
 done
+# the time of the run was over (AZ_TIME_SOFT, AZ_TIME_HARD): results/time-limit, its
+# first line for build.yml (built=, kept=, not_built_for_time=), then the ports
+if [ -s "$q/timeskip" ]; then
+    {
+        echo "built=$nok kept=$nkept not_built_for_time=$(wc -l < "$q/timeskip" | tr -d ' ')"
+        echo "the time of this run was over: these ports were not built (the next run builds them, and the ports that need them):"
+        cat "$q/timeskip"
+    } > "$res/time-limit"
+    say "the time of this run was over: $(sed -n 1p "$res/time-limit") (results/time-limit)"
+fi
 # the packages that link libraries of az their az_hash does not take (az_cover_check)
 uncov="$(cd "$q/uncov" && ls | sed 's/_/\//' | tr '\n' ' ' | sed 's/ $//')"
 echo "built:    $nok, kept from the repository: $nkept$( [ "$plan" = 1 ] && echo ", to be built (AZ_PLAN): $nplan")${failed:+, failed:$failed}${skipped:+, not built:$skipped}" >> "$sum"
