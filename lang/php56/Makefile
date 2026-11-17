@@ -367,6 +367,23 @@ post-install:
 		${STAGEDIR}${PREFIX}/etc/php${PHP_VER}
 	${INSTALL_SCRIPT} ${WRKDIR}/php-profile \
 		${STAGEDIR}${PREFIX}/bin/php${PHP_VER}-profile
+
+# the programs stripped, as lang/php84: make install of PHP copies them as they
+# were linked (no debug in our packages, aZ 17.11.2026: tools/debug-check.sh)
+post-install-CGI-on:
+	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/php-cgi${PHP_VER}
+
+post-install-CLI-on:
+	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/php${PHP_VER}
+
+post-install-EMBED-on:
+	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/php${PHP_VER}/libphp5.so
+
+post-install-FPM-on:
+	${STRIP_CMD} ${STAGEDIR}${PREFIX}/sbin/php-fpm${PHP_VER}
+
+post-install-PHPDBG-on:
+	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/phpdbg${PHP_VER}
 .else
 do-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/${APACHEMODDIR} \
