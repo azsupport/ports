@@ -31,6 +31,16 @@
 # of the system, not that of its git submodule). Not here: VOD (aZ, 15.11.2026: «на vod
 # пока забей тогда. вспомним когда понадобится»), NJS, OTEL, Perl, XSLT, GeoIP 1, the
 # GSSAPI modules and the other third-party modules of the official port.
+#
+# The mp4 module with mp4_limit_rate and mp4_limit_rate_after of Angie, the directives
+# of NGINX Plus (aZ, 17.11.2026: «замена стандартного mp4 модуля на его файл из agnie
+# ... там есть крутые фичи из nginx plus по ограничению скорости»): the rate of a
+# response limited to a factor of the average bitrate of the file after a playback time
+# (files/patch-src_http_modules_ngx__http__mp4__module.c: the change of the file of
+# Angie 1.12.4 against that of nginx 1.31.8, with the check of nginx that mp4_buffer_size
+# and mp4_max_buffer_size are not zero, which Angie has not). A patch, not the file of
+# Angie in the place of that of nginx: a fix of nginx in the parser of MP4 stays, and a
+# change of nginx in those lines stops the build instead of being lost.
 
 PORTNAME=	nginx
 PORTVERSION=	${NGINX_VERSION}

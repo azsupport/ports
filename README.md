@@ -401,6 +401,9 @@ Names and origins as the ports, files at the paths of the ports:
   result of a database `auto_reload` has closed. From Gentoo (aZ, 16.11.2026): `HTTP_PROXY ""`
   in `fastcgi_params`, `scgi_params` and `uwsgi_params` (httpoxy, CVE-2016-5385: the `Proxy`
   header of a request not passed on to the application as `HTTP_PROXY`), checked by
+  `servers-test.sh`. From Angie (aZ, 17.11.2026): `mp4_limit_rate` and `mp4_limit_rate_after`
+  of its mp4 module, those of NGINX Plus: the rate of a response limited to a factor of the
+  average bitrate of the file after a playback time (`on`: 1.1, after 60s), checked by
   `servers-test.sh`.
 - **`www/nginx-devel-lua`** and **`www/nginx-devel-stream-lua`** (aZ, 15.11.2026): Lua
   of nginx-devel, on LuaJIT alone (lua-nginx-module has no standard Lua): `nginx-devel-lua`

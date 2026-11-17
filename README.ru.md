@@ -390,7 +390,10 @@
   где есть `.br`, как `gzip_static`; geoip2 не берёт кэшированный результат базы, которую
   закрыл `auto_reload`. Из Gentoo (aZ, 16.11.2026): `HTTP_PROXY ""` в `fastcgi_params`,
   `scgi_params` и `uwsgi_params` (httpoxy, CVE-2016-5385: заголовок `Proxy` запроса не уходит
-  приложению как `HTTP_PROXY`), проверка — в `servers-test.sh`.
+  приложению как `HTTP_PROXY`), проверка — в `servers-test.sh`. Из Angie (aZ, 17.11.2026):
+  `mp4_limit_rate` и `mp4_limit_rate_after` его модуля mp4, как в NGINX Plus: скорость ответа —
+  множитель среднего битрейта файла после заданного времени воспроизведения (`on` — 1,1,
+  после 60s), проверка — в `servers-test.sh`.
 - **`www/nginx-devel-lua`** и **`www/nginx-devel-stream-lua`** (aZ, 15.11.2026): Lua для
   nginx-devel, только на LuaJIT (стандартного Lua у lua-nginx-module нет):
   `nginx-devel-lua` — ndk 0.3.6 и lua-nginx-module 0.10.31; `nginx-devel-stream-lua` —
