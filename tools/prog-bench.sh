@@ -124,7 +124,7 @@ report() {
         echo "FreeBSD $(uname -r), $(sysctl -n hw.model), $ncpu CPUs; rounds $rounds, medians;"
         echo "flags: $F (gcc16: and -std=gnu17 for C, -fno-semantic-interposition, libgcc linked in)."
         echo "gcc16 against clang19: a minus is faster with gcc16 (for times and for rates);"
-        echo "units: s (seconds, lower is better), s5 (seconds of five runs), MBps (MB/s), rps (requests/s),"
+        echo "units: s (seconds, lower is better), s5 (seconds of five runs), MBps (MB/s), MiBps (MiB/s), rps (requests/s),"
         echo "tps (transactions/s)."
         ls "$raw" | cut -d '|' -f 1 | sort -u | while IFS= read -r p; do
             echo
@@ -197,8 +197,9 @@ g_compress() {
             done
             cpuset -l "$last" "$W/src/xxhash-$v/xxhsum" -b1,3,5,11 2>&1 | tr '\r' '\n' > "$W/xb"
             for a in XXH32 XXH64 XXH3_64b XXH128; do
-                # its progress repeats the line of each (\r): the last one
-                record xxhash "$a" MBps higher "$v" "$(grep -E "#$a +:" "$W/xb" | tail -n 1 | sed -n -E 's/.*\( *([0-9.]+) MB\/s\).*/\1/p')"
+                # the result of each: "11#XXH128   :   102400 ->   368844 it/s (36019.9 MiB/s)"
+                # (its progress: "1-XXH128 ...")
+                record xxhash "$a" MiBps higher "$v" "$(grep -E "#$a +:" "$W/xb" | tail -n 1 | sed -n -E 's/.*\( *([0-9.]+) MiB\/s\).*/\1/p')"
             done
             b="$W/src/brotli-$v/_b/brotli"
             timed "$v" brotli "-q 5 (100 MB)" cpuset -l "$last" "$b" -q 5 -c "$W/corpus"
