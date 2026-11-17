@@ -80,7 +80,7 @@ GH_TUPLE=	${MC_TUPLES} \
 USE_RC_SUBR=	manticore
 
 MC_DEPS=	${WRKSRC}/freebsd-deps
-CMAKE_ARGS=	-DBUILD_TESTING=OFF -DVERNUMBERS=${DISTVERSION} \
+CMAKE_ARGS=	-DBUILD_TESTING=OFF \
 		-DCMAKE_INSTALL_LOCALSTATEDIR=/var/db/manticore \
 		-DCMAKE_INSTALL_RUNSTATEDIR=/var/run \
 		-DCACHEB=${WRKDIR}/manticore-cache \
@@ -139,8 +139,14 @@ PORTDOCS=	*
 # Manticore and its CMakeLists.txt, as cmake/GetRE2.cmake would put them (it runs
 # "patch --binary", an option of GNU patch alone: the patch of the base system fails,
 # without a word in 14 (RE2 left unpatched) and fatally in 31), is_patched.txt marking
-# it done
+# it done; the version of the release in src/sphinxversion.h.in (the source has
+# "0.0.0", which upstream changes when it packs a release: searchd --version said
+# "Manticore 0.0.0 b83863e29c@251129")
 post-patch:
+	@${REINPLACE_CMD} -e 's|^#define VERNUMBERS "0\.0\.0"$$|#define VERNUMBERS "${DISTVERSION}"|' \
+		${WRKSRC}/src/sphinxversion.h.in
+	@${GREP} -q '^#define VERNUMBERS "${DISTVERSION}"$$' ${WRKSRC}/src/sphinxversion.h.in || \
+		{ ${ECHO_MSG} "src/sphinxversion.h.in: no VERNUMBERS ${DISTVERSION}"; ${FALSE}; }
 	@${CP} ${FILESDIR}/galera-local.cmake.in ${WRKSRC}/cmake/
 	@${PATCH} -s -d ${MC_DEPS}/re2 -p1 < ${WRKSRC}/libre2/libre2.patch
 	@${CP} ${WRKSRC}/libre2/CMakeLists.txt ${MC_DEPS}/re2/CMakeLists.txt
