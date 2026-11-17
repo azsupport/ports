@@ -48,8 +48,14 @@ r="$w/r"
 warn() { echo "::warning title=runs report::$*"; exit 0; }
 hide() { sed 's#x-access-token:[^@]*@#x-access-token:***@#g'; }
 
-if git clone -q --depth 1 --branch runs --single-branch "$remote" "$r" 2>"$w/err"; then
-    :
+# the branch runs holds every report and test result (2.9 GB, 321 000 files on 17.11.2026):
+# a clone without blobs, with only the directories this report writes checked out, and
+# time limits, so that a report never hangs (tools/runs-progress.sh had no progress
+# written for an hour on 17.11.2026, a whole clone of runs every 13 minutes)
+if timeout 600 git clone -q --depth 1 --filter=blob:none --no-checkout --branch runs --single-branch "$remote" "$r" 2>"$w/err"; then
+    git -C "$r" sparse-checkout set --no-cone "/README.md" "/$wf/$day/" "/$wf/*/$run-*" 2>>"$w/err" &&
+        timeout 600 git -C "$r" checkout -q runs 2>>"$w/err" ||
+        warn "checkout of azsupport/azsupport (runs) failed: $(hide < "$w/err" | tail -n 2 | tr '\n' ' ')"
 elif grep -q -i -E 'not found in upstream|Remote branch runs not found' "$w/err"; then
     # no branch runs yet: the first report starts it
     git init -q "$r" && git -C "$r" checkout -q --orphan runs && git -C "$r" remote add origin "$remote" ||
@@ -87,14 +93,14 @@ git -C "$r" -c user.name='github-actions[bot]' -c user.email='41898282+github-ac
 i=0
 while [ $i -lt 10 ]; do
     i=$((i + 1))
-    if git -C "$r" push -q origin HEAD:runs 2>"$w/err"; then
+    if timeout 300 git -C "$r" push -q origin HEAD:runs 2>"$w/err"; then
         echo "runs report: $file"
         exit 0
     fi
     # a jitter, so that reports refused together do not try again together
     sleep $((i * 3 + $(od -An -N1 -tu1 /dev/urandom | tr -d ' ') % 7))
     # the rebase rewrites the commit: it needs the identity the commit was made with
-    git -C "$r" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+    timeout 600 git -C "$r" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
         pull -q --rebase origin runs 2>>"$w/err" || true
 done
 warn "push to azsupport/azsupport (runs) failed: $(hide < "$w/err" | tail -n 3 | tr '\n' ' ')"

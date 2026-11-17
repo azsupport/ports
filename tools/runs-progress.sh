@@ -43,18 +43,24 @@ while [ "$(date +%s)" -lt "$end" ]; do
     if [ -z "$vm" ]; then
         for h in freebsd $(awk 'tolower($1) == "host" { print $2 }' "$HOME/.ssh/config" 2>/dev/null); do
             # shellcheck disable=SC2086
-            if ssh $o "$h" true < /dev/null > /dev/null 2>&1; then vm="$h"; break; fi
+            if timeout 60 ssh $o "$h" true < /dev/null > /dev/null 2>&1; then vm="$h"; break; fi
         done
     fi
     {
         echo "## Progress of the build (tools/runs-progress.sh, every $every minutes)"
         echo
         echo "- the reporter since: $started UTC; now: $(date -u '+%H:%M') UTC"
+        # the disk of the VM grows on that of the runner
+        echo "- disk: runner $(df -h / 2>/dev/null | awk 'NR == 2 { print $4 " free of " $2 }')$( [ -z "$vm" ] || echo "; VM $(timeout 60 ssh $o "$vm" "df -h / | tail -n 1" < /dev/null 2>/dev/null | awk '{ print $4 " free of " $2 }')")"
+        # tools/runs-save.sh: the packages built, saved while the VM builds
+        if [ -d "${RUNNER_TEMP:-/tmp}/runs-save/saved" ]; then
+            echo "- saved as they were built (tools/runs-save.sh, the draft release $(cat "${RUNNER_TEMP:-/tmp}/runs-save.tag" 2>/dev/null)): $(ls "${RUNNER_TEMP:-/tmp}/runs-save/saved" | wc -l | tr -d ' ') packages"
+        fi
         if [ -z "$vm" ]; then
             echo "- the VM does not answer ssh yet (hosts: freebsd $(awk 'tolower($1) == "host" { printf "%s ", $2 }' "$HOME/.ssh/config" 2>/dev/null))"
         else
             # shellcheck disable=SC2086
-            if ssh $o "$vm" "cat '$ws/results/queue.txt' 2>/dev/null | wc -l; echo ====; cat '$ws/results/progress.log' 2>/dev/null" \
+            if timeout 180 ssh $o "$vm" "cat '$ws/results/queue.txt' 2>/dev/null | wc -l; echo ====; cat '$ws/results/progress.log' 2>/dev/null" \
                 < /dev/null > "$w/vm" 2> "$w/err"; then
                 total="$(sed -n 1p "$w/vm" | tr -d ' ')"
                 sed '1,/^====$/d' "$w/vm" > "$w/log"
@@ -98,7 +104,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
                         key="$(printf '%s' "$po" | tr '/@' '__')"
                         lf="$ws/results/logs/$key.log"
                         # shellcheck disable=SC2086
-                        ssh $o "$vm" "wc -l < '$lf' 2>/dev/null; tail -n 1 '$lf' 2>/dev/null" < /dev/null > "$w/plog" 2> /dev/null || :
+                        timeout 120 ssh $o "$vm" "wc -l < '$lf' 2>/dev/null; tail -n 1 '$lf' 2>/dev/null" < /dev/null > "$w/plog" 2> /dev/null || :
                         n="$(sed -n 1p "$w/plog" | tr -d ' ')"
                         # how the log grows (aZ, 12.11.2026: a build that is stuck must show
                         # at once, not after hours): the lines since the last report, and

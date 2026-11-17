@@ -146,6 +146,46 @@ jobs:
           fi
           ls -l repo
 
+      # the packages that runs of this branch and level saved as they were built
+      # (tools/runs-save.sh: draft releases wip-<level>-<branch>-<run>-<attempt>) and whose
+      # VM gave no repository back, or whose cache did not get them: into repo/, where
+      # tools/build.sh keeps the newest package of each origin and builds no port whose
+      # package has its az_hash; the drafts taken go once the cache of this run has them
+      - name: The packages saved by runs that did not end
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CPUTYPE: ${{ matrix.cputype }}
+        run: |
+          mkdir -p repo
+          : > "$RUNNER_TEMP/wip-taken"
+          b="$(printf '%s' "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._-' '-')"
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq ".[] | select(.draft and (.tag_name | startswith(\"wip-$CPUTYPE-$b-\"))) | \"\(.id) \(.tag_name)\"" \
+            > "$RUNNER_TEMP/wip-drafts" || { echo "no list of the releases"; exit 0; }
+          [ -s "$RUNNER_TEMP/wip-drafts" ] || { echo "no draft wip-$CPUTYPE-$b-*: nothing to take"; exit 0; }
+          while read -r id tag; do
+            n=0; bad=0
+            if ! gh api "repos/$GITHUB_REPOSITORY/releases/$id/assets?per_page=100" \
+              --jq '.[] | select(.state == "uploaded") | "\(.id) \(.name)"' > "$RUNNER_TEMP/wip-assets"; then
+              echo "$tag: no list of its files: left for the next run"; continue
+            fi
+            while read -r aid an; do
+              [ -e "repo/$an" ] && continue
+              if gh api -H 'Accept: application/octet-stream' "repos/$GITHUB_REPOSITORY/releases/assets/$aid" > "repo/$an.part"; then
+                mv -f "repo/$an.part" "repo/$an"; n=$((n + 1))
+              else
+                rm -f "repo/$an.part"; bad=$((bad + 1))
+              fi
+            done < "$RUNNER_TEMP/wip-assets"
+            if [ "$bad" = 0 ]; then
+              echo "$tag: $n packages into repo/"
+              echo "$id $tag" >> "$RUNNER_TEMP/wip-taken"
+            else
+              echo "::warning title=saved packages::$tag: $n packages into repo/, $bad did not download (the draft stays for the next run)"
+            fi
+          done < "$RUNNER_TEMP/wip-drafts"
+
       # the distribution files of the ports, kept between the runs (the VM fetches what is missing)
       - name: The distribution files of the runs before
         id: dist
@@ -231,6 +271,18 @@ jobs:
         run: |
           nohup sh tools/runs-progress.sh "$PART" 10 > "$RUNNER_TEMP/runs-progress.log" 2>&1 &
           echo "tools/runs-progress.sh: pid $!, every 10 minutes"
+
+      # each package the VM made, saved as soon as its port built (tools/runs-save.sh: the
+      # draft release wip-<level>-<branch>-<run>-<attempt>), so that a VM that dies or a job
+      # that stops loses none (aZ, 17.11.2026); its own log for the step at the end
+      - name: The packages built, saved as they come
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PART: ${{ matrix.cputype }}
+        run: |
+          nohup sh tools/runs-save.sh "$PART" 5 > "$RUNNER_TEMP/runs-save.log" 2>&1 &
+          echo "tools/runs-save.sh: pid $!, every 5 minutes"
 
       # the build tests (tools/test-programs.sh and the *-test.sh) are kept in the
       # private azsupport/azsupport (tests/ports/), not in this public repo; fetch them
@@ -439,12 +491,37 @@ jobs:
       # the repository of this run for the next one, also when the run failed (only repo/:
       # the caches of a repository have 10 GB)
       - name: The repository of this run, kept for the next one
+        id: save
         if: ${{ always() && steps.build.outcome != 'skipped' && hashFiles('repo/*.pkg') != '' }}
         continue-on-error: true
         uses: actions/cache/save@v4
         with:
           path: repo
           key: repo-${{ matrix.cputype }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # the drafts of the packages saved (tools/runs-save.sh) once the cache of this run has
+      # their packages: those taken into repo/ at the start, and that of this run when the
+      # VM gave its repository back (results/repo-files.txt); a run whose VM did not keeps
+      # its draft for the next run
+      - name: The drafts of the packages saved, once the cache has them
+        if: ${{ always() && steps.save.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -s "$RUNNER_TEMP/wip-taken" ]; then
+            while read -r id tag; do
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" && echo "deleted: $tag (its packages came into repo/ at the start)"
+            done < "$RUNNER_TEMP/wip-taken"
+          fi
+          if [ -s "$RUNNER_TEMP/runs-save.id" ]; then
+            if [ -f results/repo-files.txt ]; then
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$(cat "$RUNNER_TEMP/runs-save.id")" &&
+                echo "deleted: $(cat "$RUNNER_TEMP/runs-save.tag") (repo/ of the VM is in the cache)"
+            else
+              echo "kept: $(cat "$RUNNER_TEMP/runs-save.tag") (the VM gave no repository back): the next run takes its packages"
+            fi
+          fi
 
       # by a run of main alone: a branch reads those of main and fetches what it adds, while
       # a copy of its own (3.5 GB, its distinfo differs) pushed the repository of packages of
@@ -492,19 +569,23 @@ jobs:
           fi
           day="$(date -u +%Y-%m-%d)"
           w="$RUNNER_TEMP/runs-tests"
-          git clone -q --depth 1 --branch runs --single-branch \
+          # without blobs and with only its directory checked out (the branch runs: 2.9 GB,
+          # 321 000 files on 17.11.2026), as tools/runs-report.sh
+          timeout 600 git clone -q --depth 1 --filter=blob:none --no-checkout --branch runs --single-branch \
             "https://x-access-token:${RUNS_TOKEN}@github.com/azsupport/azsupport.git" "$w"
+          git -C "$w" sparse-checkout set --no-cone "/ports-build/$day/"
+          timeout 600 git -C "$w" checkout -q runs
           mkdir -p "$w/ports-build/$day"
           cp "$RUNNER_TEMP/$a" "$w/ports-build/$day/$a"
           git -C "$w" add "ports-build/$day/$a"
           git -C "$w" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit -q -m "ports-build $PART: the results of the tests of run $GITHUB_RUN_ID"
           i=0
-          until git -C "$w" push -q origin HEAD:runs; do
+          until timeout 300 git -C "$w" push -q origin HEAD:runs; do
             i=$((i + 1)); [ $i -lt 10 ] || { echo "::warning title=test results::push to azsupport/azsupport failed"; exit 0; }
             sleep $((i * 3))
             # the rebase rewrites the commit: it needs the identity the commit was made with
-            git -C "$w" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            timeout 600 git -C "$w" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
               pull -q --rebase origin runs || :
           done
           echo "the results of the tests: azsupport/azsupport, branch runs, ports-build/$day/$a"
@@ -621,6 +702,11 @@ jobs:
         if: always()
         continue-on-error: true
         run: tail -n 20 "$RUNNER_TEMP/runs-progress.log" 2>/dev/null || echo "no log of tools/runs-progress.sh"
+
+      - name: The log of the saver of the packages
+        if: always()
+        continue-on-error: true
+        run: tail -n 40 "$RUNNER_TEMP/runs-save.log" 2>/dev/null || echo "no log of tools/runs-save.sh"
 
       # the report into the branch runs of the private azsupport/azsupport (secret RUNS_TOKEN)
       - name: Report to azsupport/azsupport
