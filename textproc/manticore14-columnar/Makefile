@@ -13,7 +13,13 @@
 #   (cargo at configure time: the crates of Cargo.lock as distfiles, offline), with
 #   rustls (no OpenSSL) and Oniguruma of az (tokenizers; with the run path
 #   /usr/local/az/lib);
-# - CMake 4: CMAKE_POLICY_VERSION_MINIMUM=3.5 in the environment.
+# - CMake 4: CMAKE_POLICY_VERSION_MINIMUM=3.5 in the environment;
+# - no debug, the flags of the make.conf of the build everywhere (-O3, the -march of the
+#   level): the dependencies once, in Release (upstream: RelWithDebInfo and Debug, and
+#   the Debug one linked), with those flags (upstream: the -march of the build alone),
+#   the plain build with the -march of the level (upstream: x86-64-v2; the builds with
+#   AVX keep theirs) — files/patch-cmake_*; the embeddings with opt-level 3 (upstream:
+#   "z", for size); the modules stripped.
 
 PORTNAME=	manticore
 DISTVERSION?=	9.0.0
@@ -353,13 +359,17 @@ CMAKE_ARGS=	-DBUILD_TESTING=OFF -DBUILD_EMBEDDINGS_LOCALLY=ON \
 		-DFETCHCONTENT_SOURCE_DIR_PGM=${MC_DEPS}/pgm \
 		-DFETCHCONTENT_SOURCE_DIR_STREAMVBYTE=${MC_DEPS}/streamvbyte \
 		${MC_CMAKE_ARGS}
-# in the builds cmake runs: cargo (the vendored crates, Oniguruma of az; at configure
-# time in the line 14, at build time in the line 31), the minimum of CMake 4 for the
-# dependencies, the cache of the built dependencies
+# in the builds cmake runs: cargo (the vendored crates, Oniguruma of az, opt-level 3; at
+# configure time in the line 14, at build time in the line 31), the minimum of CMake 4
+# for the dependencies, the cache of the built dependencies; CFLAGS and CXXFLAGS for the
+# dependencies built at configure time (at build time MAKE_ENV has them)
 CONFIGURE_ENV=	${CARGO_ENV} CACHEB=${WRKDIR}/columnar-cache \
-		CMAKE_POLICY_VERSION_MINIMUM=3.5 PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc
+		CMAKE_POLICY_VERSION_MINIMUM=3.5 PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc \
+		CARGO_PROFILE_RELEASE_OPT_LEVEL=3 \
+		CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}"
 MAKE_ENV=	${CARGO_ENV} CACHEB=${WRKDIR}/columnar-cache \
-		CMAKE_POLICY_VERSION_MINIMUM=3.5 PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc
+		CMAKE_POLICY_VERSION_MINIMUM=3.5 PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc \
+		CARGO_PROFILE_RELEASE_OPT_LEVEL=3
 # the builds _avx2 (and _avx512 of the line 31) are ExternalProjects that configure,
 # build and install themselves and their dependencies into the build directory at
 # build time: USES=ninja puts DESTDIR (the stage) in MAKE_ENV, so the build runs
@@ -400,5 +410,10 @@ pre-configure:
 	@v=$$(${SED} -n 's/^Version: *//p' ${AZ_PREFIX}/lib/pkgconfig/oniguruma.pc); \
 	${PRINTF} 'Name: oniguruma\nDescription: oniguruma of az\nVersion: %s\nCflags: -I${WRKDIR}/az/include\nLibs: -L${WRKDIR}/az/lib -Wl,-rpath,${AZ_PREFIX}/lib -lonig\n' \
 		"$$v" > ${WRKDIR}/az/pc/oniguruma.pc
+
+# install/strip strips the targets only: the builds with AVX and the embeddings are
+# copied files
+post-install:
+	${STRIP_CMD} ${STAGEDIR}${DATADIR}/modules/*.so
 
 .include <bsd.port.mk>

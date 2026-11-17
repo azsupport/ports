@@ -108,10 +108,11 @@ CMAKE_ARGS=	-DBUILD_TESTING=OFF -DVERNUMBERS=${DISTVERSION} \
 		-DFETCHCONTENT_SOURCE_DIR_STEMMER=${MC_DEPS}/stemmer \
 		-DFETCHCONTENT_SOURCE_DIR_UNI-ALGO=${MC_DEPS}/uni-algo
 # the dependencies (cctz, RE2...) and galera are configured and built by cmake at
-# configure time in builds of their own: the minimum of CMake 4 through the
-# environment; the API of columnar: of the sources here (COLUMNAR_LOCATOR; the line 31
-# has it in its submodule mcl, MCL_LOCAL_RUNTIME=OFF)
-CONFIGURE_ENV=	CMAKE_POLICY_VERSION_MINIMUM=3.5
+# configure time in builds of their own: the minimum of CMake 4 and the flags of the
+# make.conf of the build (-O3, the -march of the level; else they have the flags of
+# CMake alone) through the environment; the API of columnar: of the sources here
+# (COLUMNAR_LOCATOR; the line 31 has it in its submodule mcl, MCL_LOCAL_RUNTIME=OFF)
+CONFIGURE_ENV=	CMAKE_POLICY_VERSION_MINIMUM=3.5 CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}"
 MC_COLUMNAR_ENV?=	COLUMNAR_LOCATOR="SOURCE_DIR ${MC_DEPS}/columnar"
 CONFIGURE_ENV+=	${MC_COLUMNAR_ENV}
 CMAKE_ARGS+=	${MC_COLUMNAR_ARGS}
