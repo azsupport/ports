@@ -360,6 +360,13 @@ CONFIGURE_ENV=	${CARGO_ENV} CACHEB=${WRKDIR}/columnar-cache \
 		CMAKE_POLICY_VERSION_MINIMUM=3.5 PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc
 MAKE_ENV=	${CARGO_ENV} CACHEB=${WRKDIR}/columnar-cache \
 		CMAKE_POLICY_VERSION_MINIMUM=3.5 PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc
+# the builds _avx2 (and _avx512 of the line 31) are ExternalProjects that configure,
+# build and install themselves and their dependencies into the build directory at
+# build time: USES=ninja puts DESTDIR (the stage) in MAKE_ENV, so the build runs
+# without it (with it they install into the stage and find nothing where they look);
+# the install runs with it
+DO_MAKE_BUILD=	${SETENVI} ${WRK_ENV} ${MAKE_ENV:N${DESTDIRNAME}=*} ${MAKE_CMD} \
+		${MAKE_FLAGS} ${MAKEFILE} ${_MAKE_JOBS} ${MAKE_ARGS:N${DESTDIRNAME}=*}
 # libonig of az by its run path (cargo.mk gives LDFLAGS to rustc as link-arg)
 LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
 
