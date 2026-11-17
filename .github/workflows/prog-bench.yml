@@ -68,7 +68,7 @@ jobs:
           # (Python 3 of the packages runs pyperformance, against our builds of Python)
           prepare: |
             mkdir -p /usr/local/etc/pkg/repos
-            echo 'FreeBSD: { url: "pkg+https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
+            echo 'FreeBSD: { url: "https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
             env ASSUME_ALWAYS_YES=yes pkg update -f
             env ASSUME_ALWAYS_YES=yes pkg install -y gcc16 gmake cmake-core ninja meson pkgconf curl python3 libffi glib expat perl5
           # the script ends well (vmactions copies results/ back only then); what failed
