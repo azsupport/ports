@@ -6,7 +6,7 @@
 # the VM ended well; until then the packages of the run are in packages/All of the VM
 # alone.
 #
-# Usage: sh tools/runs-save.sh <part> [<minutes>]
+# Usage: sh tools/runs-save.sh <part> [<minutes> | final]
 #
 # On the runner of build.yml, in the background (nohup), with GH_TOKEN (contents: write),
 # GITHUB_REPOSITORY, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT, GITHUB_REF_NAME and
@@ -25,10 +25,15 @@
 # per package saved. The next run of the branch takes the files of such drafts into repo/
 # before the VM starts (build.yml, "The packages saved by runs that did not end"), where
 # tools/build.sh keeps the newest package of each origin and builds no port whose
-# package has its az_hash; build.yml deletes a draft once the cache of a run has its
-# packages. It stops when the VM gave results/ back (results/rc), after 8 hours, or when
-# the job ends. A failure here never touches the build: it goes into the log of this
-# script (build.yml shows its end) and the package is tried again the next time.
+# package has its az_hash; build.yml deletes the drafts of main once a publish has their
+# packages (the release), delete-branches.yml those of a branch with it: a cache of the
+# repository alone is not enough, GitHub pushes caches out past 10 GB (17.11.2026: that
+# of main went while a branch saved its own, and 179 packages built and not published
+# were built again). It stops when the VM gave results/ back (results/rc), after 8
+# hours, or when the job ends; then "final", once, saves here what the VM built in its
+# last minutes: the packages work/queue/made-* names, from the files the VM gave back.
+# A failure here never touches the build: it goes into the log of this script (build.yml
+# shows its end) and the package is tried again the next time.
 
 set -u
 part="${1:?usage: sh tools/runs-save.sh <part> [<minutes>]}"
@@ -52,7 +57,7 @@ log() { echo "$(date -u '+%H:%M:%S') $*"; }
 release_id() {
     if [ -s "$t/runs-save.id" ]; then cat "$t/runs-save.id"; return 0; fi
     _id="$(gh api -X POST "repos/$repo/releases" -f tag_name="$tag" -f name="$tag" -F draft=true \
-        -f body="The packages of run $GITHUB_RUN_ID (attempt ${GITHUB_RUN_ATTEMPT:-1}, $part, $branch), saved as they were built (tools/runs-save.sh); deleted once the cache of a run has them." \
+        -f body="The packages of run $GITHUB_RUN_ID (attempt ${GITHUB_RUN_ATTEMPT:-1}, $part, $branch), saved as they were built (tools/runs-save.sh); deleted once a publish of main has them (the release), or with the branch." \
         --jq .id 2> "$w/err")" || { log "the draft $tag was not made: $(tail -n 1 "$w/err")" >&2; return 1; }
     [ -n "$_id" ] || return 1
     echo "$_id" > "$t/runs-save.id"
@@ -84,6 +89,35 @@ asset_check() {
     gh api -X DELETE "repos/$repo/releases/assets/$1" > /dev/null 2>&1
     return 1
 }
+
+# final: once, after the VM gave repo/ back and the loop was stopped (build.yml), what it
+# did not save yet: each package work/queue/made-* names, from its path in the VM (the
+# same path here) or from repo/; an upload the stop cut off (an asset "starter") goes and
+# is made again
+if [ "$every" = final ]; then
+    log "the last pass: the packages the loop did not save"
+    cat "$ws"/work/queue/made-* 2>/dev/null | LC_ALL=C sort -u > "$w/made"
+    n=0
+    while read -r f; do
+        b="${f##*/}"
+        case "$b" in *.pkg) ;; *) continue ;; esac
+        [ -e "$w/saved/$b" ] && continue
+        if [ -f "$f" ]; then p="$f"; elif [ -f "$ws/repo/$b" ]; then p="$ws/repo/$b"
+        else log "$b: not here (neither $f nor repo/$b): not saved"; continue; fi
+        id="$(release_id)" || break
+        s="$(sha256sum < "$p" | cut -c1-64)"
+        sz="$(wc -c < "$p" | tr -d ' ')"
+        if upload "$id" "$p" || asset_check "$id" "$b" "$sz" || upload "$id" "$p"; then
+            echo "$s $sz" > "$w/saved/$b"
+            log "saved: $b ($sz bytes, SHA-256 $s; the last pass)"
+            n=$((n + 1))
+        else
+            log "$b: the upload failed: $(tail -n 1 "$w/err") $(head -c 300 "$w/up" 2> /dev/null)"
+        fi
+    done < "$w/made"
+    log "the last pass: $n packages saved; $(find "$w/saved" -type f | wc -l | tr -d ' ') in the draft $tag in all"
+    exit 0
+fi
 
 nap=120
 while [ "$(date +%s)" -lt "$end" ]; do

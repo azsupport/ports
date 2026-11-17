@@ -685,6 +685,29 @@ printf '%s\n' 'az: { url: "https://github.com/azsupport/ports/releases/download/
 pkg update -r az
 ```
 
+Each publish also keeps the whole repository, its catalog and every package, as a
+release of its own that does not change: `az-fbsd15-amd64-v3-<YYYYMMDD>-<HHMM>` (UTC,
+the time of the publish; `-v2-` for x86-64-v2), the newest 31 of each level
+([releases](https://github.com/azsupport/ports/releases),
+[`tools/release-snapshot.sh`](tools/release-snapshot.sh)); the release itself has only
+the packages of its catalog, as GitHub keeps at most 1000 files in a release. A server
+goes back to a snapshot by its url (here that of 18.11.2026 04:12), `pkg upgrade -f`
+taking the packages of az as they are there, older versions too:
+
+```sh
+sed -i '' 's#/releases/download/az-fbsd15-amd64-v3[^"]*"#/releases/download/az-fbsd15-amd64-v3-20261118-0412"#' /usr/local/etc/pkg/repos/az.conf
+pkg update -f -r az
+pkg upgrade -f -r az
+```
+
+and to the release again:
+
+```sh
+sed -i '' 's#/releases/download/az-fbsd15-amd64-v3[^"]*"#/releases/download/az-fbsd15-amd64-v3"#' /usr/local/etc/pkg/repos/az.conf
+pkg update -f -r az
+pkg upgrade -r az
+```
+
 `priority: 100`: for a package both have (`curl`), pkg prefers az to the repository
 of FreeBSD. `pkg update -r az` refuses a catalog whose signature does not verify.
 `ffmpeg`, `libimagemagick6`, `libimagemagick7` and `GraphicsMagick` of az do not have the
@@ -1018,7 +1041,15 @@ checks them (`tools/install-php.sh`, `tools/check-php.sh`; a line each in
 that failed; [`tools/runs-report.sh`](tools/runs-report.sh): the report into the
 branch `runs` of azsupport/azsupport) and publishes: the packages first, the catalog
 last, then away with what the repository has no more. Only a signed catalog is
-published.
+published. Before that the release as it is becomes a snapshot when none has its catalog
+yet, after it the repository just published becomes the snapshot
+`az-fbsd15-amd64-<level>-<YYYYMMDD>-<HHMM>`, the newest 31 of each level kept
+([`tools/release-snapshot.sh`](tools/release-snapshot.sh); a server and the repository
+az, above). The packages each run built are saved as they come into the draft release
+`wip-<level>-<branch>-<run>-<attempt>` ([`tools/runs-save.sh`](tools/runs-save.sh)); the
+next run of the branch takes what its cache lacks from those drafts, and they go once a
+publish has their packages (those of a branch with it, `delete-branches.yml`): a cache
+alone is lost when GitHub pushes it out past the 10 GB of the caches of the repository.
 
 The secrets (https://github.com/azsupport/ports/settings/secrets/actions, the button
 **New repository secret**):

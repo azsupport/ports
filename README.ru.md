@@ -665,6 +665,29 @@ printf '%s\n' 'az: { url: "https://github.com/azsupport/ports/releases/download/
 pkg update -r az
 ```
 
+Каждая публикация ещё и сохраняет весь репозиторий — каталог и все пакеты — релизом,
+который потом не меняется: `az-fbsd15-amd64-v3-<ГГГГММДД>-<ЧЧММ>` (UTC, время публикации;
+`-v2-` для x86-64-v2), последние 31 на каждый уровень
+([релизы](https://github.com/azsupport/ports/releases),
+[`tools/release-snapshot.sh`](tools/release-snapshot.sh)); в самом релизе — только пакеты
+его каталога: GitHub держит в релизе не больше 1000 файлов. Сервер возвращается к снимку
+по его url (здесь — от 18.11.2026 04:12), а `pkg upgrade -f` ставит пакеты az такими, как
+они там, и более старые версии тоже:
+
+```sh
+sed -i '' 's#/releases/download/az-fbsd15-amd64-v3[^"]*"#/releases/download/az-fbsd15-amd64-v3-20261118-0412"#' /usr/local/etc/pkg/repos/az.conf
+pkg update -f -r az
+pkg upgrade -f -r az
+```
+
+и обратно к релизу:
+
+```sh
+sed -i '' 's#/releases/download/az-fbsd15-amd64-v3[^"]*"#/releases/download/az-fbsd15-amd64-v3"#' /usr/local/etc/pkg/repos/az.conf
+pkg update -f -r az
+pkg upgrade -r az
+```
+
 `priority: 100`: для пакета, который есть в обоих (`curl`), pkg предпочитает az
 репозиторию FreeBSD. `pkg update -r az` отказывается от каталога, подпись которого не
 проверяется. В `ffmpeg`, `libimagemagick6`, `libimagemagick7` и `GraphicsMagick` из az нет
@@ -989,7 +1012,16 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 ([`tools/report.sh`](tools/report.sh): сводка прогона, аннотация на каждый упавший порт;
 [`tools/runs-report.sh`](tools/runs-report.sh): отчёт в ветку `runs` azsupport/azsupport)
 и публикует: сначала пакеты, каталог последним, потом убирает то, чего в репозитории
-больше нет. Публикуется только подписанный каталог.
+больше нет. Публикуется только подписанный каталог. Перед этим релиз, каким он есть,
+становится снимком, если ни у одного снимка ещё нет его каталога, после — только что
+опубликованный репозиторий становится снимком `az-fbsd15-amd64-<уровень>-<ГГГГММДД>-<ЧЧММ>`,
+хранятся последние 31 на каждый уровень ([`tools/release-snapshot.sh`](tools/release-snapshot.sh);
+сервер и репозиторий az — выше). Пакеты, собранные прогоном, сохраняются по мере сборки
+в черновик релиза `wip-<уровень>-<ветка>-<прогон>-<попытка>`
+([`tools/runs-save.sh`](tools/runs-save.sh)); следующий прогон ветки берёт из этих
+черновиков то, чего нет в его кэше, а удаляются они, когда их пакеты есть в публикации
+(черновики ветки — вместе с ней, `delete-branches.yml`): один кэш теряется, когда GitHub
+вытесняет его сверх 10 ГБ кэшей репозитория.
 
 Секреты (https://github.com/azsupport/ports/settings/secrets/actions, кнопка
 **New repository secret**):

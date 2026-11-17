@@ -151,11 +151,15 @@ jobs:
           ls -l repo
 
       # the packages that runs of this branch and level saved as they were built
-      # (tools/runs-save.sh: draft releases wip-<level>-<branch>-<run>-<attempt>) and whose
-      # VM gave no repository back, or whose cache did not get them: into repo/, where
-      # tools/build.sh keeps the newest package of each origin and builds no port whose
-      # package has its az_hash; the drafts taken go once the cache of this run has them
-      - name: The packages saved by runs that did not end
+      # (tools/runs-save.sh: draft releases wip-<level>-<branch>-<run>-<attempt>) and that
+      # no publish took yet: into repo/ what it lacks (when the cache of the last run is
+      # there, nothing), where tools/build.sh keeps the newest package of each origin and
+      # builds no port whose package has its az_hash. The drafts taken go once a publish
+      # has their packages (the step after Publish), those of a branch with it
+      # (delete-branches.yml): the cache alone lost 179 packages built and not published
+      # (17.11.2026, run 44188852322: GitHub pushed that of main out past the 10 GB of the
+      # caches while a branch saved its own)
+      - name: The packages saved by the runs before, not published yet
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -287,7 +291,10 @@ jobs:
           PART: ${{ matrix.cputype }}
         run: |
           mkdir -p "$AZ_RUNS_STATE"
-          nohup sh tools/runs-save.sh "$PART" 5 > "$AZ_RUNS_STATE/runs-save.log" 2>&1 &
+          # a process group of its own (setsid): the step after the VM stops it with what it
+          # runs (curl, scp, ssh) before its last pass
+          setsid nohup sh tools/runs-save.sh "$PART" 5 > "$AZ_RUNS_STATE/runs-save.log" 2>&1 < /dev/null &
+          echo $! > "$AZ_RUNS_STATE/runs-save.pid"
           echo "tools/runs-save.sh: pid $!, every 5 minutes"
 
       # the build tests (tools/test-programs.sh and the *-test.sh) are kept in the
@@ -494,6 +501,23 @@ jobs:
           done
           ls repo | wc -l
 
+      # what the VM built in the last minutes of the saver (it looks every 5): the saver
+      # stopped with what it runs, then once more over work/queue/made-* from the files the
+      # VM gave back, so that the draft of this run has every package it built
+      - name: The packages built, the last of them saved
+        if: ${{ always() && steps.build.outcome != 'skipped' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PART: ${{ matrix.cputype }}
+        run: |
+          if [ -s "$AZ_RUNS_STATE/runs-save.pid" ]; then
+            kill -TERM -- "-$(cat "$AZ_RUNS_STATE/runs-save.pid")" 2> /dev/null || :
+            sleep 3
+          fi
+          sh tools/runs-save.sh "$PART" final >> "$AZ_RUNS_STATE/runs-save.log" 2>&1 || :
+          tail -n 3 "$AZ_RUNS_STATE/runs-save.log"
+
       # the repository of this run for the next one, also when the run failed (only repo/:
       # the caches of a repository have 10 GB)
       - name: The repository of this run, kept for the next one
@@ -505,43 +529,65 @@ jobs:
           path: repo
           key: repo-${{ matrix.cputype }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-      # the drafts of the packages saved (tools/runs-save.sh) once the cache of this run has
-      # their packages: those taken into repo/ at the start, and that of this run when the
-      # VM gave its repository back (results/repo-files.txt); a run whose VM did not keeps
-      # its draft for the next run
-      - name: The drafts of the packages saved, once the cache has them
+      # the caches of the repository of the runs before of this level and branch, away once
+      # this one is saved: each run saves one under a key of its own, and past the 10 GB of
+      # the caches of the repository GitHub pushes out the least used (17.11.2026: that of
+      # main, while a branch saved its own); the newest has every package they had
+      - name: The repository of the runs before, out of the caches
         if: ${{ always() && steps.save.outcome == 'success' }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+          KEY: repo-${{ matrix.cputype }}-${{ github.run_id }}-${{ github.run_attempt }}
+          PREFIX: repo-${{ matrix.cputype }}-
         run: |
-          if [ -s "$AZ_RUNS_STATE/wip-taken" ]; then
-            while read -r id tag; do
-              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" && echo "deleted: $tag (its packages came into repo/ at the start)"
-            done < "$AZ_RUNS_STATE/wip-taken"
-          fi
-          if [ -s "$AZ_RUNS_STATE/runs-save.id" ]; then
-            if [ -f results/repo-files.txt ]; then
-              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$(cat "$AZ_RUNS_STATE/runs-save.id")" &&
-                echo "deleted: $(cat "$AZ_RUNS_STATE/runs-save.tag") (repo/ of the VM is in the cache)"
+          gh api "repos/$GITHUB_REPOSITORY/actions/caches?key=$PREFIX&ref=$GITHUB_REF&per_page=100" \
+            --jq '.actions_caches[] | "\(.id) \(.key) \(.size_in_bytes)"' > "$AZ_RUNS_STATE/caches-repo" ||
+            { echo "no list of the caches"; exit 0; }
+          while read -r id key size; do
+            [ "$key" = "$KEY" ] && continue
+            if gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/caches/$id" > /dev/null; then
+              echo "deleted: $key ($((size / 1048576)) MB)"
             else
-              echo "kept: $(cat "$AZ_RUNS_STATE/runs-save.tag") (the VM gave no repository back): the next run takes its packages"
+              echo "not deleted: $key"
             fi
-          else
-            echo "no draft of this run (tools/runs-save.sh saved no package)"
-          fi
+          done < "$AZ_RUNS_STATE/caches-repo"
+          echo "kept: $KEY"
 
       # by a run of main alone: a branch reads those of main and fetches what it adds, while
       # a copy of its own (3.5 GB, its distinfo differs) pushed the repository of packages of
       # main out of the 10 GB of the caches of the repository (13.11.2026: the run of a
       # branch then found no packages of main and built its ports from nothing)
       - name: The distribution files, kept for the next run
+        id: distsave
         if: ${{ always() && github.ref_name == github.event.repository.default_branch && steps.build.outcome != 'skipped' && steps.dist.outputs.cache-hit != 'true' && hashFiles('distfiles/**') != '' }}
         continue-on-error: true
         uses: actions/cache/save@v4
         with:
           path: distfiles
           key: ${{ steps.dist.outputs.cache-primary-key }}
+
+      # the distribution files of the runs before, away once these are saved (a cache of
+      # about 5 GB for each distinfo of the tree; the newest has what the next run needs)
+      - name: The distribution files of the runs before, out of the caches
+        if: ${{ always() && steps.distsave.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEY: ${{ steps.dist.outputs.cache-primary-key }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/caches?key=distfiles-&ref=$GITHUB_REF&per_page=100" \
+            --jq '.actions_caches[] | "\(.id) \(.key) \(.size_in_bytes)"' > "$AZ_RUNS_STATE/caches-dist" ||
+            { echo "no list of the caches"; exit 0; }
+          while read -r id key size; do
+            [ "$key" = "$KEY" ] && continue
+            if gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/caches/$id" > /dev/null; then
+              echo "deleted: $key ($((size / 1048576)) MB)"
+            else
+              echo "not deleted: $key"
+            fi
+          done < "$AZ_RUNS_STATE/caches-dist"
+          echo "kept: $KEY"
 
       # the outcome of the build and of the checks of the VM (results/rc), after the caches
       # are saved: the job fails here, and nothing is published
@@ -631,6 +677,9 @@ jobs:
           RELEASE: ${{ inputs.release }}
           CPUTYPE: ${{ matrix.cputype }}
           PUBLISH_ONLY: ${{ inputs.publish_only }}
+          # the snapshots of a level kept (tools/release-snapshot.sh; aZ, 18.11.2026: «может
+          # 31 последних версий будем хранить?»); 0: every one
+          AZ_SNAPSHOTS: 31
         run: |
           major="${RELEASE%%.*}"
           level="${CPUTYPE#x86-64-}"
@@ -659,11 +708,18 @@ jobs:
               *) echo "::error title=publish::tools/publish-gate.sh failed (exit $r): not published"; exit 1 ;;
             esac
           fi
+          # the release as it is, kept first as a snapshot when none has its catalog (the
+          # repository published before the snapshots began, or by a publish whose snapshot
+          # failed): no publish that would lose it
+          if ! sh tools/release-snapshot.sh before "$tag"; then
+            echo "::error title=publish::the release $tag as it is was not kept as a snapshot (tools/release-snapshot.sh): not published"
+            exit 1
+          fi
           url="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
           commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
           # the versions of PHP of the repository: its cores phpXY-<version>.pkg
           php="$(ls "$dir" | sed -n 's/^php\([0-9]\)\([0-9]\)-[0-9][^/]*\.pkg$/\1.\2/p' | sort -u | tr '\n' ' ' | sed 's/ $//; s/ /, /g')"
-          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: az (the libraries of /usr/local/az), curl (with SCP and SFTP), ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc, yt-dlp and PHP $php (phpXY with mod_phpXY and the modules phpXY-<module>, phpXY-ssh2 among them). On a server, /usr/local/etc/pkg/repos/az.conf: az: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/az.pub\", priority: 100, enabled: yes } with the key keys/az.pub of $GITHUB_REPOSITORY, then: pkg update -r az, pkg install -r az php84 mod_php84 php84-gd ... (yt-dlp: pkg install yt-dlp, its Python packages are those of FreeBSD; README.md)."
+          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: az (the libraries of /usr/local/az), curl (with SCP and SFTP), ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc, yt-dlp and PHP $php (phpXY with mod_phpXY and the modules phpXY-<module>, phpXY-ssh2 among them). On a server, /usr/local/etc/pkg/repos/az.conf: az: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/az.pub\", priority: 100, enabled: yes } with the key keys/az.pub of $GITHUB_REPOSITORY, then: pkg update -r az, pkg install -r az php84 mod_php84 php84-gd ... (yt-dlp: pkg install yt-dlp, its Python packages are those of FreeBSD; README.md). Each publish is kept also as a release of its own that does not change, $tag-<YYYYMMDD>-<HHMM> (UTC, the newest $AZ_SNAPSHOTS): its url in az.conf takes a server back to it (README.md, A server and the repository az)."
           # a new release: its tag at the head of main. The token of a run may not make a
           # ref whose files of .github/workflows differ from those of main: HTTP 403
           # "Resource not accessible by integration" for the tag az-fbsd15-amd64-v2 at
@@ -705,6 +761,38 @@ jobs:
             printf '%s\n' "$have" | grep -qxF "$f" || { echo "not in the release $tag: $f"; exit 1; }
           done
           echo "published: $url ($(ls "$dir" | wc -l) files)"
+          echo "$tag" > "$AZ_RUNS_STATE/published"
+          # the repository just published as a snapshot of its own, the newest AZ_SNAPSHOTS of
+          # the level kept; a failure here does not undo the publish: the next one keeps
+          # this repository first (before, above)
+          sh tools/release-snapshot.sh after "$dir" "$tag" "$AZ_SNAPSHOTS" ||
+            echo "::warning title=snapshot::the repository just published is not kept as a snapshot (tools/release-snapshot.sh): the next publish keeps it first"
+
+      # the drafts of the packages saved (tools/runs-save.sh) once a publish has their
+      # packages: those taken into repo/ at the start, and that of this run. Not once the
+      # cache of a run has them: GitHub pushes caches out past the 10 GB of the repository,
+      # and what was there alone was built again (17.11.2026, run 44188852322: 179 packages)
+      - name: The drafts of the packages saved, once the release has them
+        if: ${{ always() && steps.publish.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -s "$AZ_RUNS_STATE/published" ]; then
+            echo "nothing published: the drafts stay for the next publish"
+            exit 0
+          fi
+          if [ -s "$AZ_RUNS_STATE/wip-taken" ]; then
+            while read -r id tag; do
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" > /dev/null && echo "deleted: $tag (its packages are in the release now)"
+            done < "$AZ_RUNS_STATE/wip-taken"
+          fi
+          if [ -s "$AZ_RUNS_STATE/runs-save.id" ]; then
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$(cat "$AZ_RUNS_STATE/runs-save.id")" > /dev/null &&
+              echo "deleted: $(cat "$AZ_RUNS_STATE/runs-save.tag") (its packages are in the release now)"
+          else
+            echo "no draft of this run (tools/runs-save.sh saved no package)"
+          fi
 
       - name: The log of the progress reporter
         if: always()
