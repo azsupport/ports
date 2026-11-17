@@ -93,7 +93,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (the line of 8.x with the long support of upstream), without the modules: JEMALLOC on (its own jemalloc: active defragmentation), no TLS; the variant with TLS (the OpenSSL of the base system); one of the two; the configurations of aZ: `redis.conf.sample` (the main cache), `redis-session.conf.sample` (PHP sessions), on 127.0.0.1, without snapshots |
 | `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua` | nginx 1.31.8 with brotli, headers-more and geoip2 built in (`--with-compat`); stream, image_filter and Lua (LuaJIT) as packages of their own (`load_module`) |
 | `lua51-vips`, `lua51-base64` | `graphics/lua51-vips`, `converters/lua51-base64` | lua-vips 1.1-12 and lbase64 1.5.3 for the LuaJIT of nginx (`share/lua/5.1`) |
-| `aria2` | `www/aria2` | aria2 1.37.0: Metalink and XML-RPC (libxml2 of az), the cookies of the browsers (SQLite of az), asynchronous DNS (c-ares of az), SFTP (libssh2 of az), the event poll libuv (az), BitTorrent, HTTPS (the OpenSSL of the base system); no NLS, no static build |
+| `aria2` | `www/aria2` | aria2 1.37.0: Metalink and XML-RPC (libxml2 of az), asynchronous DNS (c-ares of az), BitTorrent, HTTPS (the OpenSSL of the base system), the event poll kqueue; no libuv, no SQLite (the cookies of the browsers), no SFTP (libssh2), no NLS, no static build |
 | `php56-composer` … `php84-composer` | `devel/php56-composer` … `devel/php84-composer` | Composer 2.11.2 (for PHP 5.6 2.2.32, its LTS line) as `bin/composerXY`, which runs it with `bin/phpXY`: one for each PHP, side by side |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: the DNS server `named` with TCP Fast Open, no GSSAPI, DNSTAP, LMDB and statistics channels; dig, host, nslookup, delv, nsupdate and the DNSSEC tools, with IDN |
 | `vips` | `graphics/vips` | libvips 8.18 for the Lua scripts of nginx that convert images on the fly: JPEG (mozjpeg), PNG, WebP, HEIC (load), AVIF (load and save), GIF, with ICC profiles, EXIF and SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
@@ -414,11 +414,12 @@ Names and origins as the ports, files at the paths of the ports:
   inspect, patch, lua-fs-module, luasocket (the scripts of aZ do not need them). Tested by
   `servers-test.sh`: LuaJIT and resty.core in nginx, base64, resty.http, vips with the
   savers and options of resize.lua, Lua in a stream server.
-- **`www/aria2`** (aZ, 15.11.2026): aria2 1.37.0, the official port with its default
-  options but STATIC, without NLS and the docs, with CARES, LIBUV and SSH2: libxml2,
-  SQLite, c-ares, libuv and libssh2 of az (expat of az for the other XML option),
-  OpenSSL and zlib of the base system; with the fix of openSUSE for
-  `IOFile::getLine()` (a read before the buffer on the stack, 16.11.2026).
+- **`www/aria2`** (aZ, 15.11.2026): aria2 1.37.0, the official port with LIBXML2 of
+  its default and CARES, without STATIC, NLS and the docs, and without LIBUV, SQLITE
+  and SSH2 (aZ, 17.11.2026: the event poll is kqueue anyway; the cookies of the
+  browsers and SFTP are not needed, and each adds code that can be vulnerable):
+  libxml2 and c-ares of az, OpenSSL and zlib of the base system; with the fix of
+  openSUSE for `IOFile::getLine()` (a read before the buffer on the stack, 16.11.2026).
 - **`devel/py-pip`** (aZ, 15.11.2026): pip 26.3 for our `python312`, ahead of the
   official 23.3.2 (CVE-2025-8869), from its source of PyPI by flit_core; `bin/pip`
   only, as the official package.

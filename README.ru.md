@@ -93,7 +93,7 @@
 | `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (ветка 8.x с долгой поддержкой апстрима), без модулей: JEMALLOC включён (свой jemalloc: активная дефрагментация), без TLS; вариант с TLS (OpenSSL базы); ставится один из двух; конфиги aZ: `redis.conf.sample` (основной кеш), `redis-session.conf.sample` (сессии PHP), на 127.0.0.1, без снимков |
 | `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua` | nginx 1.31.8, вкомпилены brotli, headers-more и geoip2 (`--with-compat`); stream, image_filter и Lua (LuaJIT) — отдельными пакетами (`load_module`) |
 | `lua51-vips`, `lua51-base64` | `graphics/lua51-vips`, `converters/lua51-base64` | lua-vips 1.1-12 и lbase64 1.5.3 для LuaJIT nginx (`share/lua/5.1`) |
-| `aria2` | `www/aria2` | aria2 1.37.0: Metalink и XML-RPC (libxml2 из az), cookies браузеров (SQLite из az), асинхронный DNS (c-ares из az), SFTP (libssh2 из az), опрос событий через libuv (az), BitTorrent, HTTPS (OpenSSL базы); без NLS и статической сборки |
+| `aria2` | `www/aria2` | aria2 1.37.0: Metalink и XML-RPC (libxml2 из az), асинхронный DNS (c-ares из az), BitTorrent, HTTPS (OpenSSL базы), опрос событий kqueue; без libuv, без SQLite (cookies браузеров), без SFTP (libssh2), без NLS и статической сборки |
 | `php56-composer` … `php84-composer` | `devel/php56-composer` … `devel/php84-composer` | Composer 2.11.2 (для PHP 5.6 — 2.2.32, его LTS-линия) как `bin/composerXY`, который запускает его через `bin/phpXY`: по одному на каждый PHP, рядом друг с другом |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: DNS-сервер `named` с TCP Fast Open, без GSSAPI, DNSTAP, LMDB и каналов статистики; dig, host, nslookup, delv, nsupdate и утилиты DNSSEC, с IDN |
 | `vips` | `graphics/vips` | libvips 8.18 для скриптов Lua в nginx, перекодирующих картинки на лету: JPEG (mozjpeg), PNG, WebP, HEIC (чтение), AVIF (чтение и запись), GIF, с ICC-профилями, EXIF и SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
@@ -402,10 +402,11 @@
   luarocks; не собираются: inspect, patch, lua-fs-module, luasocket (скриптам aZ не
   нужны). Проверки в `servers-test.sh`: LuaJIT и resty.core в nginx, base64, resty.http,
   vips с форматами и опциями resize.lua, Lua в сервере stream.
-- **`www/aria2`** (aZ, 15.11.2026): aria2 1.37.0, официальный порт с опциями по
-  умолчанию, кроме STATIC, без NLS и документации, с CARES, LIBUV и SSH2: libxml2,
-  SQLite, c-ares, libuv и libssh2 из az (expat из az — для другой опции XML), OpenSSL
-  и zlib базы; с исправлением openSUSE для `IOFile::getLine()` (чтение перед буфером на
+- **`www/aria2`** (aZ, 15.11.2026): aria2 1.37.0, официальный порт с LIBXML2 по
+  умолчанию и CARES, без STATIC, NLS и документации, без LIBUV, SQLITE и SSH2 (aZ,
+  17.11.2026: опрос событий и так kqueue; cookies браузеров и SFTP не нужны, а каждая
+  опция — лишний код с возможными уязвимостями): libxml2 и c-ares из az, OpenSSL и
+  zlib базы; с исправлением openSUSE для `IOFile::getLine()` (чтение перед буфером на
   стеке, 16.11.2026).
 - **`devel/py-pip`** (aZ, 15.11.2026): pip 26.3 для нашего `python312`, новее
   официальной 23.3.2 (CVE-2025-8869), из исходника PyPI через flit_core; только
