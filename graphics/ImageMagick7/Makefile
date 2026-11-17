@@ -14,9 +14,7 @@
 # ImageMagick67 (aZ, 14.11.2026), whose ImageMagick 7 is this one.
 
 PORTNAME=	ImageMagick
-DISTVERSION=	7.1.2-35
-# 1: the programs only, the rest in libimagemagick7 (14.11.2026)
-PORTREVISION=	1
+DISTVERSION=	7.1.2-36
 CATEGORIES=	graphics
 # the take line of files/imagemagick.conf (the release before the port's)
 MASTER_SITES=	https://download.imagemagick.org/archive/releases/ \

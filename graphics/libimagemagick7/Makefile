@@ -15,7 +15,7 @@
 # path /usr/local/az/lib), and keeps all but the programs (AZ_IM_PART=lib).
 
 PORTNAME=	libimagemagick
-DISTVERSION=	7.1.2-35
+DISTVERSION=	7.1.2-36
 CATEGORIES=	graphics
 # the take line of graphics/ImageMagick7/files/imagemagick.conf
 MASTER_SITES=	https://download.imagemagick.org/archive/releases/ \

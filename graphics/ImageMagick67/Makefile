@@ -12,8 +12,8 @@
 # (AZ_IM_PART=bin).
 
 PORTNAME=	ImageMagick
-IM6_VERSION=	6.9.13-60
-IM7_VERSION=	7.1.2-35
+IM6_VERSION=	6.9.13-61
+IM7_VERSION=	7.1.2-36
 # both releases (the take lines of imagemagick.conf), ImageMagick 7 first: a new
 # release of either gives a higher version
 PORTVERSION=	${IM7_VERSION:S/-/./}.${IM6_VERSION:S/-/./}

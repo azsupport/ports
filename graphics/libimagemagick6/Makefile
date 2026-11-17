@@ -17,7 +17,7 @@
 # (AZ_IM_PART=lib).
 
 PORTNAME=	libimagemagick
-DISTVERSION=	6.9.13-60
+DISTVERSION=	6.9.13-61
 CATEGORIES=	graphics
 # the take line of graphics/ImageMagick7/files/imagemagick.conf
 MASTER_SITES=	https://download.imagemagick.org/archive/releases/ \

@@ -15,10 +15,7 @@
 # (AZ_IM_PART=bin). It conflicts with ImageMagick7 and ImageMagick67 (their files).
 
 PORTNAME=	ImageMagick
-DISTVERSION=	6.9.13-60
-# 1: the programs without the 6 at the end and only they, the rest in
-# libimagemagick6 (14.11.2026)
-PORTREVISION=	1
+DISTVERSION=	6.9.13-61
 PORTEPOCH=	1
 CATEGORIES=	graphics
 # the take line of imagemagick.conf (the release before the port's)
