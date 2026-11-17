@@ -489,7 +489,10 @@ jobs:
           i=0
           until git -C "$w" push -q origin HEAD:runs; do
             i=$((i + 1)); [ $i -lt 10 ] || { echo "::warning title=test results::push to azsupport/azsupport failed"; exit 0; }
-            sleep $((i * 3)); git -C "$w" pull -q --rebase origin runs
+            sleep $((i * 3))
+            # the rebase rewrites the commit: it needs the identity the commit was made with
+            git -C "$w" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              pull -q --rebase origin runs || :
           done
           echo "the results of the tests: azsupport/azsupport, branch runs, ports-build/$day/$a"
 
