@@ -49,10 +49,11 @@ release_id() {
     if [ -s "$t/runs-save.id" ]; then cat "$t/runs-save.id"; return 0; fi
     _id="$(gh api -X POST "repos/$repo/releases" -f tag_name="$tag" -f name="$tag" -F draft=true \
         -f body="The packages of run $GITHUB_RUN_ID (attempt ${GITHUB_RUN_ATTEMPT:-1}, $part, $branch), saved as they were built (tools/runs-save.sh); deleted once the cache of a run has them." \
-        --jq .id 2> "$w/err")" || { log "the draft $tag was not made: $(tail -n 1 "$w/err")"; return 1; }
+        --jq .id 2> "$w/err")" || { log "the draft $tag was not made: $(tail -n 1 "$w/err")" >&2; return 1; }
     [ -n "$_id" ] || return 1
     echo "$_id" > "$t/runs-save.id"
-    log "the draft release $tag: id $_id"
+    # into the log, not into the id the caller takes from stdout
+    log "the draft release $tag: id $_id" >&2
     echo "$_id"
 }
 
