@@ -324,8 +324,16 @@ b_libmemcached() {
         -DENABLE_HASH_FNV64=ON -DENABLE_HASH_HSIEH=ON -DENABLE_HASH_MURMUR=ON -DENABLE_MEMASLAP=OFF
 }
 b_libsodium() { at "$1"; }
+# argon2_nodebug <source>: the CFLAGS of the Makefile of argon2 without its -g (no debug
+# in our builds, aZ 17.11.2026; its -O3 stays, -march by OPTTARGET)
+argon2_nodebug() {
+    sed 's/^\(CFLAGS += -std=c89 -O3 -Wall\) -g /\1 /' "$1/Makefile" > "$1/Makefile.az" &&
+        mv -f "$1/Makefile.az" "$1/Makefile" &&
+        ! grep -q '^CFLAGS +=.* -g ' "$1/Makefile" || { echo "== argon2: -g still in its Makefile"; return 1; }
+}
 b_argon2() {
     # its Makefile builds static and shared, with -march=$(OPTTARGET) (native by default)
+    argon2_nodebug "$1" &&
     (cd "$1" && gmake -j"$ncpu" libargon2.a OPTTARGET="$cputype" &&
         mkdir -p "$P/include" "$P/lib/pkgconfig" && cp include/argon2.h "$P/include/" &&
         cp libargon2.a "$P/lib/" &&
@@ -560,7 +568,8 @@ s_libmemcached() {
 s_libsodium() { at_so "$1"; }
 s_argon2() {
     # the shared library as the port security/libargon2 builds it (SO_LDFLAGS with the
-    # soname libargon2.so.0), -march=$cputype as b_argon2
+    # soname libargon2.so.0), -march=$cputype and no -g as b_argon2
+    argon2_nodebug "$1" &&
     (cd "$1" && gmake libargon2.so OPTTARGET="$cputype" SO_LDFLAGS="-shared -Wl,-soname=libargon2.so.0 $LDFLAGS" &&
         mkdir -p "$S/include" "$S/lib/pkgconfig" && cp include/argon2.h "$S/include/" &&
         install -m 755 libargon2.so "$S/lib/libargon2.so.0" && ln -sf libargon2.so.0 "$S/lib/libargon2.so" &&
@@ -657,10 +666,21 @@ s_xxhash() {
         gmake install_libxxhash install_libxxhash.includes install_libxxhash.pc PREFIX="$S" LIBDIR="$S/lib" \
             PKGCONFIGDIR="$S/lib/pkgconfig")
 }
-# libmaxminddb, for www/mod_maxminddb (and nginx later); not its tests
-s_libmaxminddb() { at_so "$1" --disable-tests; }
-# libuv and liburcu (all its flavours), for dns/bind-tools; as their ports
-s_libuv() { at_so "$1" --disable-maintainer-mode; }
+# libmaxminddb, for www/mod_maxminddb (and nginx later); not its tests; without the
+# AM_CFLAGS of its common.mk, -O2 -g (no debug in our builds, aZ 17.11.2026; the -O3 of
+# CFLAGS comes after it): empty on the command line of gmake, which its sub-makes get
+s_libmaxminddb() {
+    src="$1"; shift
+    fix_guess "$src"
+    (cd "$src" && ./configure --prefix="$S" --libdir="$S/lib" --includedir="$S/include" \
+        --disable-static --enable-shared --with-pic --disable-tests &&
+        gmake -j"$ncpu" AM_CFLAGS= && gmake install AM_CFLAGS=)
+}
+# libuv and liburcu (all its flavours), for dns/bind-tools; as their ports; libuv
+# without the -g its configure appends to AM_CFLAGS (CC_CHECK_CFLAG_APPEND([-g]) of
+# configure.ac): the cache variable of that check says no (no debug in our builds,
+# aZ 17.11.2026)
+s_libuv() { at_so "$1" --disable-maintainer-mode cc_cv_cflags_werror__g=no; }
 s_liburcu() { at_so "$1"; }
 # fmt, for databases/mariadb1011-server and -client (which take it header-only,
 # FMT_HEADER_ONLY): its headers and libfmt.so, as the port (FMT_OS, no tests, docs

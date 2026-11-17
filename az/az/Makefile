@@ -213,11 +213,14 @@ do-build:
 	@cd ${WRKDIR} && ${SETENV} ${AZ_ENV} AZ_FILESDIR=${FILESDIR} \
 		CURL_DISTFILES=${DISTDIR}/${DIST_SUBDIR} ${SH} ${AZ_TOOLS}/az-build.sh
 
-# the tree the build left in AZ_PREFIX, without the mark of the build
+# the tree the build left in AZ_PREFIX, without the mark of the build; its programs and
+# shared libraries stripped (no debug in our packages, aZ 17.11.2026: the build copies
+# them as they were linked; the static libraries keep their symbols)
 do-install:
 	@${MKDIR} ${STAGEDIR}${AZ_PREFIX}
 	(cd ${AZ_PREFIX} && ${TAR} -cf - .) | (cd ${STAGEDIR}${AZ_PREFIX} && ${TAR} -xpf -)
 	${RM} ${STAGEDIR}${AZ_PREFIX}/.az-build
+	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${AZ_TOOLS}/strip-elf.sh ${STAGEDIR}${AZ_PREFIX}
 
 post-install:
 	@${AZ_PLIST}
