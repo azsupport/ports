@@ -109,6 +109,13 @@ TEST_ARGS=		TESTOPTS=-j${MAKE_JOBS_NUMBER}
 
 MAKE_ARGS+=		COMPILEALL_OPTS=-j${MAKE_JOBS_NUMBER} \
 			INSTALL_SHARED="${INSTALL_LIB}"				# Strip shared library
+# the strip of the binutils of the ports for the install -s of the make of CPython
+# too: the STRIPBIN that Mk/Uses/azgcc.mk exports did not reach it, and the strip of
+# the base system left libpython, python3.12 and lib-dynload without .comment
+# (17.11.2026: run 44149788389; with this, run 44180456352: GCC 16 there); only
+# here, not in Mk/Uses/azgcc.mk, whose change would build every port of PHP again
+# for the same files
+MAKE_ENV+=		STRIPBIN=${STRIP_CMD}
 
 SUB_FILES=		pkg-message
 SUB_LIST=		PYTHON_SUFFIX=${PYTHON_SUFFIX}

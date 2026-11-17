@@ -106,8 +106,5 @@ CONFIGURE_ENV+=	CC="${CC} -static-libgcc"
 USE_CSTD?=	gnu17
 STRIPBIN=	${STRIP_CMD}
 .export-env STRIPBIN
-# and in the environment of the make of the build and the install of the port
-# (make install of its own Makefile, install -s there)
-MAKE_ENV+=	STRIPBIN=${STRIP_CMD}
 .  endif
 .endif
