@@ -415,7 +415,12 @@
   приложению как `HTTP_PROXY`), проверка — в `servers-test.sh`. Из Angie (aZ, 17.11.2026):
   `mp4_limit_rate` и `mp4_limit_rate_after` его модуля mp4, как в NGINX Plus: скорость ответа —
   множитель среднего битрейта файла после заданного времени воспроизведения (`on` — 1,1,
-  после 60s), проверка — в `servers-test.sh`. Пакеты модулей от 17.11.2026 (aZ): `nginx-devel-vts`
+  после 60s), проверка — в `servers-test.sh`. От Intaro (aZ, 17.11.2026): водяной знак их
+  image_filter (`image_filter watermark`, `image_filter_watermark`, `_position`, `_width_from`,
+  `_height_from`; github.com/intaro/nginx-image-filter-watermark 62d1468) — на image_filter
+  nginx 1.31.8, вывод байт в байт их, без падений их файла (знака нет или он не PNG, пустой
+  путь, rotate ниже порогов) и чтения освобождённой памяти (знак в левом верхнем углу);
+  проверка — в `servers-test.sh`. Пакеты модулей от 17.11.2026 (aZ): `nginx-devel-vts`
   (nginx-module-vts 128ccd2: трафик зон server, upstream и кэшей — JSON, Prometheus и HTML-страница),
   `nginx-devel-cache-purge` (ngx_cache_purge 3.0.4) и `nginx-devel-testcookie`
   (testcookie-nginx-module de7ca88, с исправлениями 14.11.2026 двух переполнений кучи и чтения за

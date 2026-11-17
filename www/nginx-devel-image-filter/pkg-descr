@@ -1,2 +1,3 @@
 The image_filter module of nginx-devel: transforms JPEG, GIF, PNG and WebP
-images (resize, crop, rotate) with libgd.
+images (resize, crop, rotate) with libgd, and puts a PNG watermark on them
+("image_filter watermark", the directives of the module of Intaro).

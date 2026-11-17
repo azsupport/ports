@@ -426,7 +426,12 @@ Names and origins as the ports, files at the paths of the ports:
   `servers-test.sh`. From Angie (aZ, 17.11.2026): `mp4_limit_rate` and `mp4_limit_rate_after`
   of its mp4 module, those of NGINX Plus: the rate of a response limited to a factor of the
   average bitrate of the file after a playback time (`on`: 1.1, after 60s), checked by
-  `servers-test.sh`. Module packages of 17.11.2026 (aZ): `nginx-devel-vts` (nginx-module-vts
+  `servers-test.sh`. From Intaro (aZ, 17.11.2026): the watermark of their image_filter
+  (`image_filter watermark`, `image_filter_watermark`, `_position`, `_width_from`,
+  `_height_from`; github.com/intaro/nginx-image-filter-watermark 62d1468) on the image_filter
+  of nginx 1.31.8, the output byte for byte theirs, without the crashes of their file (a
+  watermark missing or not PNG, an empty path, rotate under the thresholds) and its read of
+  freed memory (the watermark in the top left corner); checked by `servers-test.sh`. Module packages of 17.11.2026 (aZ): `nginx-devel-vts` (nginx-module-vts
   at 128ccd2: the traffic of the server, upstream and cache zones as JSON, Prometheus and an
   HTML page), `nginx-devel-cache-purge` (ngx_cache_purge 3.0.4) and `nginx-devel-testcookie`
   (testcookie-nginx-module at de7ca88, with the fixes of 14.11.2026 for two heap buffer

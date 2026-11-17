@@ -43,6 +43,14 @@
 # and mp4_max_buffer_size are not zero, which Angie has not). A patch, not the file of
 # Angie in the place of that of nginx: a fix of nginx in the parser of MP4 stays, and a
 # change of nginx in those lines stops the build instead of being lost.
+#
+# The image_filter module with the watermark of Intaro (aZ, 17.11.2026: their file in the
+# place of that of nginx for years, «надо портировать улучшения из этого файла и при это
+# проверить на возможные уязвимости»): "image_filter watermark" and image_filter_watermark,
+# _position, _width_from and _height_from
+# (files/patch-src_http_modules_ngx__http__image__filter__module.c: their change of the file
+# of nginx 1.11.6 brought to that of nginx 1.31.8, the output byte for byte theirs, without
+# the crashes of their file and its read of freed memory; the details in its head).
 
 PORTNAME=	nginx
 PORTVERSION=	${NGINX_VERSION}
