@@ -158,7 +158,10 @@ path0="$PATH"
 # The shared libraries built with GCC of the packages instead of the base clang: those
 # that tools/lib-bench.sh found at least 2% faster with it, the whole interval of
 # about 95% below zero (aZ, 09.11.2026; lib-bench run 42619158312: expat -12.6%,
-# lcms2 -6.7%, sqlite3 -3.7%; the others the same or slower with GCC, so clang).
+# lcms2 -6.7%, sqlite3 -3.7%; the others the same or slower with GCC, so clang), and
+# xxhash, which tools/prog-bench.sh measured (aZ, 17.11.2026; prog-bench run
+# 44048576099, xxhsum -b: XXH3_64b -30.3%, XXH128 -31.2%, XXH32 -0.8%, XXH64 0; the
+# checksums of rsync are XXH3 and XXH128).
 # Their static builds (b_*, for PHP built on a server) stay with clang: not measured.
 # GCC as lib-bench measured it and as the PHP ports have it (Mk/Uses/azgcc.mk):
 # -std=gnu17 (the C of clang 19; GCC 15 and later default to C23),
@@ -166,7 +169,7 @@ path0="$PATH"
 # a library to its own exported functions), -static-libgcc in CC (libgcc linked into
 # each library: no NEEDED libgcc_s.so.1; in CC because libtool passes no
 # -static-libgcc of LDFLAGS to the link of a shared library). AZ_GCC_SO="": none.
-gcc_so="${AZ_GCC_SO-sqlite3 expat lcms2}"
+gcc_so="${AZ_GCC_SO-sqlite3 expat lcms2 xxhash}"
 gcc_bin="${AZ_GCC_BIN:-gcc16}"
 gcc_env() {
     g="$(command -v "$gcc_bin")" || { echo "== $1: no $gcc_bin (lang/${gcc_bin}, a BUILD_DEPENDS of az/az)"; return 1; }

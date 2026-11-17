@@ -21,7 +21,16 @@
 #   work), not ${LOCALBASE}/include and ${LOCALBASE}/lib of USES=readline and NLS:
 #   no other package of the build machine gets into a module;
 # - after the install: libpython and the modules link the libraries of az by their
-#   run path, _decimal libmpdec, _ssl and _hashlib the OpenSSL of the base system.
+#   run path, _decimal libmpdec, _ssl and _hashlib the OpenSSL of the base system;
+# - the C compiled by GCC 16 of the ports instead of the base clang (USES=azgcc,
+#   Mk/Uses/azgcc.mk; a build dependency only), aZ 17.11.2026 («а) Python, Redis и
+#   xxhash в az»): tools/prog-bench.sh measured Python 3.12.16 built with GCC 16
+#   against the base clang 19 (pyperformance --fast, 25 benchmarks, prog-bench run
+#   44043639827): faster in all of them, by 1.3% to 22.3%, the median 14.9%. After the
+#   install sysconfig names the compilers of the base system (cc, c++ and cpp in its
+#   _sysconfigdata and in the Makefile of config-3.12), so that an extension built
+#   with this Python (pip, setuptools) takes the base clang, not GCC, which a server
+#   has not.
 # As in the official port: no _gdbm, _tkinter and _sqlite3 (aZ: gdbm and tkinter
 # not needed; py312-sqlite3 is our databases/py-sqlite3, on the SQLite of az). The
 # flags of the build go into sysconfig as there: an extension built with this
@@ -67,6 +76,8 @@ RUN_DEPENDS=	${AZ_PYTHON_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
 
 USES=		compiler:c11 cpe ncurses pathfix pkgconfig \
 		python:${PYTHON_DISTVERSION:R},env shebangfix ssl tar:xz
+# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
+USES+=		azgcc
 PATHFIX_MAKEFILEIN=	Makefile.pre.in
 USE_LDCONFIG=	yes
 GNU_CONFIGURE=	yes
@@ -224,6 +235,21 @@ post-install:
 		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/_sysconfigdata_${ABIFLAGS}_freebsd${OSREL:R}_.py
 	@${REINPLACE_CMD} -e 's=/nxb-bin==' \
 		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/config-${PYTHON_VER}${ABIFLAGS}/Makefile
+.endif
+# the compilers of the build in sysconfig (GCC of USES=azgcc, its CC with -static-libgcc):
+# those of the base system instead, which an extension built on a server takes (pip,
+# setuptools); the bytecode of _sysconfigdata again
+.if ${AZ_GCC} != no
+	@${SED} -i '' -e 's|gcc${AZ_GCC} -static-libgcc|cc|g' -e 's|g++${AZ_GCC}|c++|g' -e 's|cpp${AZ_GCC}|cpp|g' \
+		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/_sysconfigdata_${ABIFLAGS}_freebsd${OSREL:R}_.py \
+		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/config-${PYTHON_VER}${ABIFLAGS}/Makefile
+	@if ${GREP} -E -n 'gcc${AZ_GCC}|g\+\+${AZ_GCC}|cpp${AZ_GCC}' \
+		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/_sysconfigdata_${ABIFLAGS}_freebsd${OSREL:R}_.py \
+		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/config-${PYTHON_VER}${ABIFLAGS}/Makefile; then \
+		${ECHO_MSG} "sysconfig still names GCC (above)"; ${FALSE}; fi
+	@cd ${WRKSRC} && ${SETENV} LD_LIBRARY_PATH=${WRKSRC} \
+		./python -E -m compileall -q -f -o 0 -o 1 -o 2 -d ${PREFIX}/lib/python${PYTHON_VER} \
+		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/_sysconfigdata_${ABIFLAGS}_freebsd${OSREL:R}_.py
 .endif
 	for i in ${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/lib-dynload/*.so; do \
 		${STRIP_CMD} $$i; done								# Strip shared extensions

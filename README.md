@@ -57,8 +57,8 @@ servers (amd64), so that nothing is built on the servers.
   `Zend/bench.php` and `micro_bench.php` run 33–44% faster with PHP 7.4 than with clang
   19, 36–38% with 8.3 without OPcache (5–15% with its JIT), and mod_php gets as much
   ([the benchmark](https://github.com/azsupport/php-src#benchmark-of-the-builds));
-  sqlite3, expat and lcms2 of az with GCC too ([The libraries with
-  GCC](#the-libraries-with-gcc)).
+  sqlite3, expat, lcms2 and xxhash of az, Python 3.12 and Redis 8.2 with GCC too ([The
+  libraries and programs with GCC](#the-libraries-and-programs-with-gcc)).
 - PHP 5.6, 7.4, 8.1, 8.2, 8.3 and 8.4, for x86-64-v3 and x86-64-v2 (a CPU without
   AVX2: the release `az-fbsd15-amd64-v2`).
 
@@ -1047,12 +1047,29 @@ The report: the summary of the run, and the branch `runs` of azsupport/azsupport
 (`ports-yt-dlp-update/`) when it did something, waits or failed. No secret of its own: the
 push and the build with the token of the run.
 
-### The libraries with GCC
+### The libraries and programs with GCC
 
 Which C libraries of `az` are built with GCC 16 instead of the base clang, and why (a
 library goes to GCC 16 when it is at least 2% faster through what the sites do: aZ,
 09.11.2026), is in the head of `tools/az-build.sh`. The benchmark that measured it is kept
 in the private repository with the tests of the build.
+
+The programs measured the same way, from the sources of our ports, by
+[`tools/prog-bench.sh`](tools/prog-bench.sh) ([`prog-bench.yml`](.github/workflows/prog-bench.yml);
+the medians of five rounds, each build against the other on one machine of GitHub
+Actions), with GCC 16 (aZ, 17.11.2026):
+
+- Python 3.12 (`lang/python312`): pyperformance, 25 benchmarks: faster in all of them, by
+  1.3% to 22.3%, the median 14.9%; sysconfig names the compilers of the base system, so
+  that pip builds an extension with the base clang;
+- Redis 8.2 (`databases/redis82`): redis-benchmark, the median 6.3% and 5.9% faster on
+  two CPUs; no C++ runtime (its one C++ file needs none);
+- xxhash of az (the checksums of rsync): XXH3 and XXH128 about 30% faster.
+
+With the base clang, as they are faster or the same with it: ImageMagick 7, vips, zstd,
+lz4, brotli and PostgreSQL 18 (2% at best); GraphicsMagick and ImageMagick 6 are faster
+with GCC on some CPUs and not on others, and stay with clang until they are measured on
+the CPUs of the servers.
 
 ## The rules of the ports
 
