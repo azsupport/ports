@@ -309,10 +309,10 @@ Names and origins as the ports, files at the paths of the ports:
   indextool, spelldump, wordbreaker, index_converter; Galera (replication: `CREATE
   CLUSTER`), its module in `share/manticore/modules` (Boost 1.89+ fixed); ICU of az; OpenSSL
   of the base system (shared, not the static one upstream links); Boost.Context and
-  Boost.Filesystem of the official ports linked in at build time; zstd, libcurl and expat
-  of az and the client of MariaDB loaded when used (dlopen, as upstream builds it); RE2,
-  libstemmer (Snowball 3.0.3), cctz, CRoaring, uni-algo, nlohmann/json, xxHash and cppjieba
-  built in from distfiles (cmake downloads nothing). The config
+  Boost.Filesystem of the official ports linked in at build time; zstd and expat of az, the
+  libcurl of our `ftp/curl` and the client of MariaDB loaded when used (dlopen, as upstream
+  builds it); xxHash of az (its header); RE2, libstemmer (Snowball 3.0.3), cctz, CRoaring,
+  uni-algo, nlohmann/json and cppjieba built in from distfiles (cmake downloads nothing). The config
   `/usr/local/etc/manticore.conf` (the default path of the programs), its sample in RT
   mode on 127.0.0.1 (9312, 9306 MySQL, 9308 HTTP), data `/var/db/manticore`, the user
   `manticore`; time zones: `share/manticore/tzdata` a link to `/usr/share/zoneinfo`. The rc.d

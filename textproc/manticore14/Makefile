@@ -13,7 +13,8 @@
 #   Manticore (it needs OpenSSL: that of the base system), Boost 1.89+ fixed;
 # - the libraries of az wherever az has them (aZ, 16.11.2026): ICU linked (with the run
 #   path /usr/local/az/lib), xxHash 0.8.4 (its header, inline), and loaded when used
-#   (dlopen, as upstream builds it): zstd, libcurl (Buddy), expat (xmlpipe2 of indexer);
+#   (dlopen, as upstream builds it): zstd, expat (xmlpipe2 of indexer); libcurl (Buddy)
+#   that of our ftp/curl, the libcurl of every package (az has it static only, for PHP);
 #   the client of MariaDB (MySQL sources of indexer) of databases/mariadb1011-client,
 #   loaded the same way; OpenSSL of the base system, shared (HTTPS and SSL of the MySQL
 #   listener; upstream links the static one); Boost.Context and Boost.Filesystem the
@@ -50,13 +51,12 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 
 BUILD_DEPENDS=	${LOCALBASE}/lib/libboost_context.a:devel/boost-libs \
 		bison:devel/bison \
-		${AZ_PREFIX}/lib/libcurl.so:az/az \
 		${AZ_PREFIX}/lib/libexpat.so:az/az \
 		${AZ_PREFIX}/lib/libicuuc.so:az/az \
 		${AZ_PREFIX}/lib/libxxhash.so:az/az \
 		${AZ_PREFIX}/lib/libzstd.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libcurl.so:az/az \
-		${AZ_PREFIX}/lib/libexpat.so:az/az \
+LIB_DEPENDS=	libcurl.so:ftp/curl
+RUN_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az \
 		${AZ_PREFIX}/lib/libicuuc.so:az/az \
 		${AZ_PREFIX}/lib/libzstd.so:az/az
 
@@ -141,18 +141,20 @@ post-patch:
 # Boost: its headers and the two archives alone in ${WRKDIR}/deps (the include
 # directory of devel/boost-libs is /usr/local/include, with the official ICU of its
 # dependencies); the libraries of az alone in ${WRKDIR}/az (nothing else of
-# /usr/local/az is seen)
+# /usr/local/az is seen), with the libcurl of ftp/curl
 pre-configure:
 	@${MKDIR} ${WRKDIR}/deps/include ${WRKDIR}/deps/lib ${WRKDIR}/az/include ${WRKDIR}/az/lib
 	@${LN} -sf ${LOCALBASE}/include/boost ${WRKDIR}/deps/include/boost
 	@${LN} -sf ${LOCALBASE}/lib/libboost_context.a ${LOCALBASE}/lib/libboost_filesystem.a \
 		${WRKDIR}/deps/lib/
-.for i in unicode curl expat.h expat_external.h expat_config.h xxhash.h xxh3.h zstd.h zdict.h zstd_errors.h
+.for i in unicode expat.h expat_external.h expat_config.h xxhash.h xxh3.h zstd.h zdict.h zstd_errors.h
 	@if [ -e ${AZ_PREFIX}/include/${i} ]; then ${LN} -sf ${AZ_PREFIX}/include/${i} ${WRKDIR}/az/include/${i}; fi
 .endfor
-.for l in libicuuc libicudata libicui18n libcurl libexpat libzstd
+.for l in libicuuc libicudata libicui18n libexpat libzstd
 	@${LN} -sf ${AZ_PREFIX}/lib/${l}.so ${WRKDIR}/az/lib/${l}.so
 .endfor
+	@${LN} -sf ${LOCALBASE}/include/curl ${WRKDIR}/az/include/curl
+	@${LN} -sf ${LOCALBASE}/lib/libcurl.so ${WRKDIR}/az/lib/libcurl.so
 # xxHash of az for cmake/GetxxHash.cmake (find_package CONFIG): its header only,
 # Manticore includes it with XXH_INLINE_ALL (nothing to link)
 	@${MKDIR} ${WRKDIR}/az/lib/cmake/xxHash

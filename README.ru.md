@@ -304,10 +304,10 @@
   indextool, spelldump, wordbreaker, index_converter; Galera (репликация: `CREATE CLUSTER`),
   её модуль в `share/manticore/modules` (исправлена под Boost 1.89+); ICU из az; OpenSSL базы
   (разделяемый, а не статический, как у апстрима); Boost.Context и Boost.Filesystem
-  официальных портов вкомпилированы при сборке; zstd, libcurl и expat из az и клиент MariaDB
-  загружаются при использовании (dlopen, как у апстрима); RE2, libstemmer (Snowball 3.0.3),
-  cctz, CRoaring, uni-algo, nlohmann/json, xxHash и cppjieba вкомпилированы из distfiles
-  (cmake ничего не скачивает). Конфиг `/usr/local/etc/manticore.conf` (путь программ по
+  официальных портов вкомпилированы при сборке; zstd и expat из az, libcurl нашего `ftp/curl`
+  и клиент MariaDB загружаются при использовании (dlopen, как у апстрима); xxHash из az (его
+  заголовок); RE2, libstemmer (Snowball 3.0.3), cctz, CRoaring, uni-algo, nlohmann/json и
+  cppjieba вкомпилированы из distfiles (cmake ничего не скачивает). Конфиг `/usr/local/etc/manticore.conf` (путь программ по
   умолчанию), его образец — RT-режим на 127.0.0.1 (9312, 9306 MySQL, 9308 HTTP), данные
   `/var/db/manticore`, пользователь `manticore`; часовые пояса: `share/manticore/tzdata` —
   ссылка на `/usr/share/zoneinfo`. Скрипт rc.d `manticore` с профилями
