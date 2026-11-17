@@ -7,6 +7,8 @@
 # The caches of the Actions of a deleted branch go with it (13.11.2026): no run reads
 # them any more, and in the 10 GB of the caches of the repository they pushed out
 # those of main (caches.yml lists them).
+# So do its draft releases wip-*-<branch>-* of the packages build.yml saved as they were
+# built (tools/runs-save.sh, 17.11.2026).
 name: Delete merged branches
 
 on:
@@ -65,6 +67,19 @@ jobs:
                   echo "$b: its cache $key deleted" | tee -a "$GITHUB_STEP_SUMMARY"
                 else
                   echo "::warning title=$b::its cache $key not deleted"
+                fi
+              done
+              # its drafts of the packages saved as they were built (tools/runs-save.sh of
+              # build.yml: wip-<level>-<branch>-<run>-<attempt>), which only a next run of
+              # the branch would have taken and deleted
+              bre="$(printf '%s' "$b" | tr -c 'A-Za-z0-9._-' '-' | sed 's/\./\\\\./g')"
+              gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+                --jq ".[] | select(.draft and (.tag_name | test(\"^wip-x86-64-v[0-9]+-${bre}-[0-9]+-[0-9]+\$\"))) | \"\(.id) \(.tag_name)\"" |
+              while read -r id tag; do
+                if gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" > /dev/null; then
+                  echo "$b: its draft $tag deleted" | tee -a "$GITHUB_STEP_SUMMARY"
+                else
+                  echo "::warning title=$b::its draft $tag not deleted"
                 fi
               done
             else
