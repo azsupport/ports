@@ -111,10 +111,13 @@ AZ_PG_LIBS=	icu lz4 zstd xml2
 .endif
 
 # the server and the contrib modules take the client of their chain (not the one
-# USES=pgsql would give: WANT_PGSQL empty)
+# USES=pgsql would give: WANT_PGSQL empty); they have no line editing (only psql of
+# the client has it, with the libedit of the base system), so configure looks for no
+# readline in them
 .if !defined(CLIENT_ONLY)
 WANT_PGSQL=
 LIB_DEPENDS+=	libpq.so.5:databases/postgresql${PORTVERSION:R}-client${AZ_PG_SSL}
+CONFIGURE_ARGS+=--without-readline
 .endif
 
 MAKE_ENV+=	PATH=${PREFIX}/bin:${PATH}
@@ -235,7 +238,7 @@ pre-configure:
 	@${MKDIR} ${WRKDIR}/az/include ${WRKDIR}/az/lib ${WRKDIR}/az/pc
 	@for l in ${AZ_PG_LIBS:O:u}; do \
 	    case $$l in \
-	    icu) pc="icu-uc:-licuuc -licudata icu-i18n:-licui18n"; \
+	    icu) pc="icu-uc:-licuuc,-licudata icu-i18n:-licui18n"; \
 		libs="libicuuc libicui18n libicudata"; incs="unicode" ;; \
 	    lz4) pc="liblz4:-llz4"; libs="liblz4"; incs="lz4.h lz4hc.h lz4frame.h" ;; \
 	    zstd) pc="libzstd:-lzstd"; libs="libzstd"; incs="zstd.h zdict.h zstd_errors.h" ;; \
@@ -245,7 +248,7 @@ pre-configure:
 	    esac; \
 	    for i in $$incs; do ${LN} -sf ${AZ_PREFIX}/include/$$i ${WRKDIR}/az/include/$$i; done; \
 	    for f in $$libs; do ${LN} -sf ${AZ_PREFIX}/lib/$$f.so ${WRKDIR}/az/lib/$$f.so; done; \
-	    for p in $$pc; do n=$${p%%:*}; L=$${p#*:}; \
+	    for p in $$pc; do n=$${p%%:*}; L=$$(${ECHO_CMD} "$${p#*:}" | ${TR} , ' '); \
 		v=$$(${SED} -n 's/^Version: *//p' ${AZ_PREFIX}/lib/pkgconfig/$$n.pc); \
 		[ -n "$$v" ] || { ${ECHO_MSG} "no ${AZ_PREFIX}/lib/pkgconfig/$$n.pc"; exit 1; }; \
 		r=""; [ $$n = icu-i18n ] && r="Requires: icu-uc"; \
