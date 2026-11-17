@@ -413,6 +413,7 @@ CARGO_CRATES=	accelerate-src-0.3.2 \
 		candle-core,candle-kernels,candle-metal-kernels,candle-nn,candle-transformers,candle-ug@git+https://github.com/manticoresoftware/candle.git?rev=0051854b382cc83e2bbea3f1ce6ac6488c655695\#0051854b382cc83e2bbea3f1ce6ac6488c655695
 
 MASTERDIR=	${.CURDIR}/../manticore14-columnar
+DESCR=		${.CURDIR}/pkg-descr
 DISTINFO_FILE=	${.CURDIR}/distinfo
 PATCHDIR=	${.CURDIR}/files
 
