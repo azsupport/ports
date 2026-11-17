@@ -1,6 +1,6 @@
 --- native/Makefile.orig	2024-03-29 21:57:29 UTC
 +++ native/Makefile
-@@ -296,12 +296,22 @@
+@@ -296,12 +296,25 @@
  ifneq (,$(or $(findstring bsd,$(OS)),$(findstring dragonfly,$(OS))))
  ARCH=$(shell uname -m | sed 's/i.86/i386/g')
  PCFLAGS+=-fPIC
@@ -12,6 +12,9 @@
 +ifeq ($(DYNAMIC_LIBFFI),true)
 +FFI_RPATH=-Wl,-rpath,$(shell pkg-config --variable=libdir libffi)
 +endif
++# stripped whole (strip -x of the defaults keeps the global symbols, the symbol
++# table): the library of lib/jna and of the jars has no debug and no symbols
++STRIP=strip
 +else
  # This is a mess: X11 headers locate in /usr/local/include on FreeBSD and
  # DragonFly, in /usr/X11R7/include on NetBSD, and in /usr/X11R6/include on

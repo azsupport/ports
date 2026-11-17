@@ -5,4 +5,10 @@
 
 AZ_OFFICIAL=	graphics/libimagequant
 
+# its library stripped: cargo cinstall of the official port copies it as cargo
+# linked it (no debug in our packages, aZ 17.11.2026); defined before the official
+# Makefile, so that bsd.port.mk runs it in the stage
+post-stage:
+	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${.CURDIR:H:H}/tools/strip-elf.sh ${STAGEDIR}${PREFIX}
+
 .include "${.CURDIR:H:H}/Mk/az-official.mk"

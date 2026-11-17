@@ -17,4 +17,10 @@ EXTRA_PATCHES=	${.CURDIR}/files/patch-CVE-2026-96512:-p1 \
 		${.CURDIR}/files/patch-CVE-2026-35535:-p1 \
 		${.CURDIR}/files/patch-open_sudoers-includedir:-p1
 
+# its libsudo_util.so stripped: the official port installs it as it was linked (no
+# debug in our packages, aZ 17.11.2026); defined before the official Makefile, so
+# that bsd.port.mk runs it in the stage
+post-stage:
+	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${.CURDIR:H:H}/tools/strip-elf.sh ${STAGEDIR}${PREFIX}
+
 .include "${.CURDIR:H:H}/Mk/az-official.mk"

@@ -73,5 +73,9 @@ post-install:
 		${STAGEDIR}${PREFIX}/etc/bash_completion.d/
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/scalar \
 		${STAGEDIR}${PREFIX}/libexec/git-core/scalar
+# the other programs stripped too, their hard links kept (no debug in our packages,
+# aZ 17.11.2026: the make install of git copies them as they were linked)
+	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${.CURDIR:H:H}/tools/strip-elf.sh \
+		${STAGEDIR}${PREFIX}/bin ${STAGEDIR}${PREFIX}/libexec/git-core
 
 .include <bsd.port.mk>

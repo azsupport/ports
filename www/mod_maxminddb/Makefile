@@ -45,4 +45,9 @@ pre-configure:
 pre-install:
 	@${MKDIR} ${STAGEDIR}${PREFIX}/${APACHEMODDIR}
 
+# the module stripped: apxs installs it as it was linked (no debug in our packages,
+# aZ 17.11.2026)
+post-install:
+	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${.CURDIR:H:H}/tools/strip-elf.sh ${STAGEDIR}${PREFIX}/${APACHEMODDIR}
+
 .include <bsd.port.mk>

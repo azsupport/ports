@@ -16,4 +16,10 @@ EXTRA_PATCHES=	${.CURDIR}/files/t1lib-5.1.2-format-security.patch:-p1 \
 		${.CURDIR}/files/t1lib-5.1.2-CVE-2011-1552_1553_1554.patch:-p1 \
 		${.CURDIR}/files/t1lib-5.1.2-c99.patch:-p1
 
+# its libt1.so stripped: the official port installs it as it was linked (no debug in
+# our packages, aZ 17.11.2026); defined before the official Makefile, so that
+# bsd.port.mk runs it in the stage
+post-stage:
+	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${.CURDIR:H:H}/tools/strip-elf.sh ${STAGEDIR}${PREFIX}
+
 .include "${.CURDIR:H:H}/Mk/az-official.mk"

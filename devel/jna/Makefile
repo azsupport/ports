@@ -103,7 +103,8 @@ do-install:
 		${STAGEDIR}${JAVAJARDIR}/jna-platform.jar
 	${INSTALL_DATA} ${WRKSRC}/build/jna.jar \
 		${STAGEDIR}${JAVAJARDIR}/jna.jar
-# the library of the jars as it is (stripped by native/Makefile already)
+# the library of the jars as it is (stripped whole by native/Makefile:
+# files/patch-native_Makefile-freebsd)
 	${MKDIR} ${STAGEDIR}${PREFIX}/lib/jna
 	${INSTALL_DATA} ${WRKSRC}/build/native-freebsd-${ANT_ARCH}/libjnidispatch.so \
 		${STAGEDIR}${PREFIX}/lib/jna/libjnidispatch.so
