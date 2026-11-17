@@ -1,6 +1,6 @@
 TIMESTAMP = 1794828895
-SHA256 (manticore/manticoresoftware-columnar-c27-s18-k9_GH0.tar.gz) = 775b9bba103515babf68b37edfade8ba8edbabe5ce2f77c74589ad388684e9a1
-SIZE (manticore/manticoresoftware-columnar-c27-s18-k9_GH0.tar.gz) = 5743014
+SHA256 (manticore/manticoresoftware-columnar-9.0.0-c27-s18-k9_GH0.tar.gz) = 775b9bba103515babf68b37edfade8ba8edbabe5ce2f77c74589ad388684e9a1
+SIZE (manticore/manticoresoftware-columnar-9.0.0-c27-s18-k9_GH0.tar.gz) = 5743014
 SHA256 (manticore/manticoresoftware-FastPFor-5f6b7df8f0dba402bb616a81ca510bfeb04c42ce_GH0.tar.gz) = a13d6bcef081d3a140a224cf81d69c6fd6674c0a2a6f65dfa6fe03b2fe10f4f6
 SIZE (manticore/manticoresoftware-FastPFor-5f6b7df8f0dba402bb616a81ca510bfeb04c42ce_GH0.tar.gz) = 209816
 SHA256 (manticore/manticoresoftware-hnswlib-d7bb3bbd59220f62203012b2f649aa537cc97cdc_GH0.tar.gz) = aeb994f60c80474bc7443b06b4260cb55f21a176b0d58280e7f8bd09a6303bb4

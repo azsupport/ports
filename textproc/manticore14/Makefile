@@ -134,9 +134,16 @@ OPTIONS_SUB=	yes
 
 PORTDOCS=	*
 
-# galera of the sources here (files/patch-cmake_GetGALERA.cmake)
+# galera of the sources here (files/patch-cmake_GetGALERA.cmake); RE2: the patch of
+# Manticore and its CMakeLists.txt, as cmake/GetRE2.cmake would put them (it runs
+# "patch --binary", an option of GNU patch alone: the patch of the base system fails,
+# without a word in 14 (RE2 left unpatched) and fatally in 31), is_patched.txt marking
+# it done
 post-patch:
 	@${CP} ${FILESDIR}/galera-local.cmake.in ${WRKSRC}/cmake/
+	@${PATCH} -s -d ${MC_DEPS}/re2 -p1 < ${WRKSRC}/libre2/libre2.patch
+	@${CP} ${WRKSRC}/libre2/CMakeLists.txt ${MC_DEPS}/re2/CMakeLists.txt
+	@${ECHO_CMD} ok > ${MC_DEPS}/re2/is_patched.txt
 
 # Boost: its headers and the two archives alone in ${WRKDIR}/deps (the include
 # directory of devel/boost-libs is /usr/local/include, with the official ICU of its
