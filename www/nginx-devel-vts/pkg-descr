@@ -1,0 +1,3 @@
+The vhost traffic status module of nginx-devel (nginx-module-vts): the requests,
+responses and traffic of the server zones, upstreams and caches (hits, misses), as
+JSON, in the format of Prometheus and as an HTML page.

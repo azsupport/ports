@@ -94,7 +94,7 @@
 | `postfix`, `postfix-mysql` | `mail/postfix`, `mail/postfix-mysql` | Postfix 3.11.7 с опциями aZ: EAI (SMTPUTF8, ICU из az), PCRE2 из `pcre2`, TLS (OpenSSL базы) и TLSRPT (`libtlsrpt`); без LMDB, CDB, blocklistd, LDAP, Cyrus SASL; вариант с таблицами MySQL (клиент из `mariadb1011-client`); ставится один из двух |
 | `dovecot`, `dovecot-mysql` | `mail/dovecot`, `mail/dovecot-mysql` | Dovecot 2.3.21.1, ветка 2.3, пока её поддерживает апстрим, с опциями aZ: без GSSAPI, LDAP, libwrap, FTS, Lua, LZ4; zstd из az; вариант с драйвером SQL для MySQL; ставится один из двух; исправления безопасности после 2.3.21.1 из Ubuntu noble и RHEL 10 |
 | `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (ветка 8.x с долгой поддержкой апстрима), без модулей: JEMALLOC включён (свой jemalloc: активная дефрагментация), без TLS; вариант с TLS (OpenSSL базы); ставится один из двух; конфиги aZ: `redis.conf.sample` (основной кеш), `redis-session.conf.sample` (сессии PHP), на 127.0.0.1, без снимков |
-| `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua` | nginx 1.31.8, вкомпилены brotli, headers-more и geoip2 (`--with-compat`); stream, image_filter и Lua (LuaJIT) — отдельными пакетами (`load_module`) |
+| `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua`, `nginx-devel-vts`, `nginx-devel-cache-purge`, `nginx-devel-testcookie` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua`, `www/nginx-devel-vts`, `www/nginx-devel-cache-purge`, `www/nginx-devel-testcookie` | nginx 1.31.8, вкомпилены brotli, headers-more и geoip2 (`--with-compat`); stream, image_filter, Lua (LuaJIT), VTS, cache_purge и testcookie — отдельными пакетами (`load_module`) |
 | `lua51-vips`, `lua51-base64` | `graphics/lua51-vips`, `converters/lua51-base64` | lua-vips 1.1-12 и lbase64 1.5.3 для LuaJIT nginx (`share/lua/5.1`) |
 | `aria2` | `www/aria2` | aria2 1.37.0: Metalink и XML-RPC (libxml2 из az), асинхронный DNS (c-ares из az), BitTorrent, HTTPS (OpenSSL базы), опрос событий kqueue; без libuv, без SQLite (cookies браузеров), без SFTP (libssh2), без NLS и статической сборки |
 | `php56-composer` … `php84-composer` | `devel/php56-composer` … `devel/php84-composer` | Composer 2.11.2 (для PHP 5.6 — 2.2.32, его LTS-линия) как `bin/composerXY`, который запускает его через `bin/phpXY`: по одному на каждый PHP, рядом друг с другом |
@@ -415,7 +415,11 @@
   приложению как `HTTP_PROXY`), проверка — в `servers-test.sh`. Из Angie (aZ, 17.11.2026):
   `mp4_limit_rate` и `mp4_limit_rate_after` его модуля mp4, как в NGINX Plus: скорость ответа —
   множитель среднего битрейта файла после заданного времени воспроизведения (`on` — 1,1,
-  после 60s), проверка — в `servers-test.sh`.
+  после 60s), проверка — в `servers-test.sh`. Пакеты модулей от 17.11.2026 (aZ): `nginx-devel-vts`
+  (nginx-module-vts 128ccd2: трафик зон server, upstream и кэшей — JSON, Prometheus и HTML-страница),
+  `nginx-devel-cache-purge` (ngx_cache_purge 3.0.4) и `nginx-devel-testcookie`
+  (testcookie-nginx-module de7ca88, с исправлениями 14.11.2026 двух переполнений кучи и чтения за
+  границей запроса); проверка — в `servers-test.sh`.
 - **`www/nginx-devel-lua`** и **`www/nginx-devel-stream-lua`** (aZ, 15.11.2026): Lua для
   nginx-devel, только на LuaJIT (стандартного Lua у lua-nginx-module нет):
   `nginx-devel-lua` — ndk 0.3.6 и lua-nginx-module 0.10.31; `nginx-devel-stream-lua` —

@@ -1,0 +1,3 @@
+The testcookie module of nginx-devel (testcookie-nginx-module): serves a client only
+after it gives back the cookie the module sets with a redirect or a page (JavaScript
+too), so that bots that keep no cookies or run no scripts are refused.

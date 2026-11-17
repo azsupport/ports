@@ -94,7 +94,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `postfix`, `postfix-mysql` | `mail/postfix`, `mail/postfix-mysql` | Postfix 3.11.7 with the options of aZ: EAI (SMTPUTF8, the ICU of az), PCRE2 of `pcre2`, TLS (the OpenSSL of the base system) and TLSRPT (`libtlsrpt`); no LMDB, CDB, blocklistd, LDAP, Cyrus SASL; the variant with the MySQL maps (the client of `mariadb1011-client`); one of the two |
 | `dovecot`, `dovecot-mysql` | `mail/dovecot`, `mail/dovecot-mysql` | Dovecot 2.3.21.1, the branch 2.3 as long as upstream supports it, with the options of aZ: no GSSAPI, LDAP, libwrap, FTS, Lua, LZ4; zstd of az; the variant with the SQL driver of MySQL; one of the two; the security fixes after 2.3.21.1 of Ubuntu noble and RHEL 10 |
 | `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (the line of 8.x with the long support of upstream), without the modules: JEMALLOC on (its own jemalloc: active defragmentation), no TLS; the variant with TLS (the OpenSSL of the base system); one of the two; the configurations of aZ: `redis.conf.sample` (the main cache), `redis-session.conf.sample` (PHP sessions), on 127.0.0.1, without snapshots |
-| `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua` | nginx 1.31.8 with brotli, headers-more and geoip2 built in (`--with-compat`); stream, image_filter and Lua (LuaJIT) as packages of their own (`load_module`) |
+| `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua`, `nginx-devel-vts`, `nginx-devel-cache-purge`, `nginx-devel-testcookie` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua`, `www/nginx-devel-vts`, `www/nginx-devel-cache-purge`, `www/nginx-devel-testcookie` | nginx 1.31.8 with brotli, headers-more and geoip2 built in (`--with-compat`); stream, image_filter, Lua (LuaJIT), VTS, cache_purge and testcookie as packages of their own (`load_module`) |
 | `lua51-vips`, `lua51-base64` | `graphics/lua51-vips`, `converters/lua51-base64` | lua-vips 1.1-12 and lbase64 1.5.3 for the LuaJIT of nginx (`share/lua/5.1`) |
 | `aria2` | `www/aria2` | aria2 1.37.0: Metalink and XML-RPC (libxml2 of az), asynchronous DNS (c-ares of az), BitTorrent, HTTPS (the OpenSSL of the base system), the event poll kqueue; no libuv, no SQLite (the cookies of the browsers), no SFTP (libssh2), no NLS, no static build |
 | `php56-composer` … `php84-composer` | `devel/php56-composer` … `devel/php84-composer` | Composer 2.11.2 (for PHP 5.6 2.2.32, its LTS line) as `bin/composerXY`, which runs it with `bin/phpXY`: one for each PHP, side by side |
@@ -426,7 +426,11 @@ Names and origins as the ports, files at the paths of the ports:
   `servers-test.sh`. From Angie (aZ, 17.11.2026): `mp4_limit_rate` and `mp4_limit_rate_after`
   of its mp4 module, those of NGINX Plus: the rate of a response limited to a factor of the
   average bitrate of the file after a playback time (`on`: 1.1, after 60s), checked by
-  `servers-test.sh`.
+  `servers-test.sh`. Module packages of 17.11.2026 (aZ): `nginx-devel-vts` (nginx-module-vts
+  at 128ccd2: the traffic of the server, upstream and cache zones as JSON, Prometheus and an
+  HTML page), `nginx-devel-cache-purge` (ngx_cache_purge 3.0.4) and `nginx-devel-testcookie`
+  (testcookie-nginx-module at de7ca88, with the fixes of 14.11.2026 for two heap buffer
+  overflows and a read past the query); checked by `servers-test.sh`.
 - **`www/nginx-devel-lua`** and **`www/nginx-devel-stream-lua`** (aZ, 15.11.2026): Lua
   of nginx-devel, on LuaJIT alone (lua-nginx-module has no standard Lua): `nginx-devel-lua`
   — ndk 0.3.6 and lua-nginx-module 0.10.31; `nginx-devel-stream-lua` —

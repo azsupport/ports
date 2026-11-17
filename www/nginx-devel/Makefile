@@ -13,7 +13,9 @@
 # modules) and installs only its objects, www/nginx-devel-stream (aZ, 15.11.2026:
 # «stream модулем, на 90% других серверов он не юзается») and
 # www/nginx-devel-image-filter, and on LuaJIT www/nginx-devel-lua (ndk and lua) and
-# www/nginx-devel-stream-lua (aZ, 15.11.2026: «давай luajit»). The core is built
+# www/nginx-devel-stream-lua (aZ, 15.11.2026: «давай luajit»), and www/nginx-devel-vts,
+# www/nginx-devel-cache-purge and www/nginx-devel-testcookie (aZ, 17.11.2026: VTS in the
+# place of the API of Angie, «testcookie, cache-purge нужны … берём»). The core is built
 # --with-compat and with --modules-path, so that a module built apart from it loads into
 # it (nginx loads only a module of its own version: the slaves depend on the core of
 # the same version, and they change together, both reading version.mk).
@@ -73,6 +75,24 @@ GH_TUPLE=	google:ngx_brotli:a71f931:brotli \
 GH_TUPLE+=	openresty:ngx_devel_kit:v0.3.6:ndk \
 		openresty:lua-nginx-module:v0.10.31:lua \
 		openresty:stream-lua-nginx-module:v0.0.19rc4:luastream
+.elif ${NGINX_AZ_MODULE:U} == vts
+# VTS at 128ccd2 (10.11.2026), not at c382342 (24.05.2025) as the official
+# www/nginx-devel: its fixes since, among them the overCounts of the cache zones in the
+# JSON in the wrong order (cc73da6: every value of them shifted) and the status code
+# counters of a node freed and cleared with it (b8ebf46, 1588db1)
+GH_TUPLE+=	vozlt:nginx-module-vts:128ccd2:vts
+.elif ${NGINX_AZ_MODULE:U} == cache-purge
+# ngx_cache_purge 3.0.4 of nginx-modules, the version of the official
+# www/nginx-module-cache-purge (its one patch is for freenginx alone); its copies of the
+# proxy, fastcgi, scgi and uwsgi configuration structures match those of nginx 1.31.8
+# up to cache_key (host_set of its copy is host_value of nginx 1.31.8, both 8 bytes)
+GH_TUPLE+=	nginx-modules:ngx_cache_purge:3.0.4:cache_purge
+.elif ${NGINX_AZ_MODULE:U} == testcookie
+# testcookie at de7ca88 (14.11.2026), with the fixes of that day: two heap buffer
+# overflows (#87), a read past the query (#90), the request body discarded before the
+# refresh page (#89), $testcookie_set of a whitelisted client (#95); the FreeBSD tree has
+# it only for Angie (www/angie-module-testcookie), at 7d263d43, before them
+GH_TUPLE+=	kyprizel:testcookie-nginx-module:de7ca88:testcookie
 .endif
 
 NGINX_VARDIR?=	/var
@@ -233,6 +253,22 @@ RUN_DEPENDS+=	lua-resty-core>0:www/lua-resty-core \
 		nginx-devel-lua>=${NGINX_VERSION}:www/nginx-devel-lua \
 		nginx-devel-stream>=${NGINX_VERSION}:www/nginx-devel-stream
 NGINX_AZ_OBJS=	ngx_stream_lua_module.so
+. elif ${NGINX_AZ_MODULE} == vts
+# the traffic of the server, upstream and cache zones: JSON, Prometheus and its HTML page
+# (aZ, 17.11.2026: in the place of the API of Angie)
+CONFIGURE_ARGS+=	--add-dynamic-module=${WRKSRC_vts}
+NGINX_AZ_OBJS=	ngx_http_vhost_traffic_status_module.so
+. elif ${NGINX_AZ_MODULE} == cache-purge
+# proxy_cache_purge, fastcgi_cache_purge, scgi_cache_purge and uwsgi_cache_purge (aZ,
+# 17.11.2026)
+CONFIGURE_ARGS+=	--add-dynamic-module=${WRKSRC_cache_purge}
+NGINX_AZ_OBJS=	ngx_http_cache_purge_module.so
+. elif ${NGINX_AZ_MODULE} == testcookie
+# the cookie (or the page that sets it) a client has to give back before it is served:
+# clients that keep no cookies are not (aZ, 17.11.2026); its AES (the encrypted cookie)
+# from the OpenSSL nginx loads
+CONFIGURE_ARGS+=	--add-dynamic-module=${WRKSRC_testcookie}
+NGINX_AZ_OBJS=	ngx_http_testcookie_access_module.so
 . else
 IGNORE=		NGINX_AZ_MODULE ${NGINX_AZ_MODULE}: no such module package
 . endif
