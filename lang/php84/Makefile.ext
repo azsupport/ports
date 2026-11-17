@@ -24,7 +24,7 @@
 #   now; the official 8.4 has no slaves of them either), oci8 and pdo_oci too;
 # - the PECL extensions are those of ext/<name> of the 8.4 tarball, their
 #   versions those of php-src freebsd/pecl.conf for 8.4 (memcache 8.2, swoole
-#   6.2.5; the others as for 7.4); package php84-<name>, origin
+#   6.2.6; the others as for 7.4); package php84-<name>, origin
 #   <category>/php84-<name>, as every module (Mk/php-modules.mk). Their rules:
 #   converters/pecl-igbinary, databases/pecl-memcache, databases/pecl-memcached,
 #   databases/php-redis, devel/pecl-excimer, devel/php-swoole,

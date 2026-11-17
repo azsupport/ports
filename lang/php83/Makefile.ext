@@ -18,7 +18,7 @@
 #   modules and their options are those of 7.4 but these two;
 # - the PECL extensions are those of ext/<name> of the 8.3 tarball, their
 #   versions those of php-src freebsd/pecl.conf for 8.3 (memcache 8.2, swoole
-#   6.2.5; the others as for 7.4); package php83-<name>, origin
+#   6.2.6; the others as for 7.4); package php83-<name>, origin
 #   <category>/php83-<name>, as every module (Mk/php-modules.mk). Their rules:
 #   converters/pecl-igbinary, databases/pecl-memcache, databases/pecl-memcached,
 #   databases/php-redis, devel/pecl-excimer, devel/php-swoole,
