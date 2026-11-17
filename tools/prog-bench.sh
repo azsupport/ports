@@ -70,7 +70,7 @@ set_cc() {
     esac
 }
 # the compiler a file was built with, from its .comment
-cc_of() { readelf -p .comment "$1" 2> /dev/null | grep -o -E '(FreeBSD clang|GCC: \([^)]*\)) [0-9.]+' | sort -u | tr '\n' ' '; }
+cc_of() { readelf -p .comment "$1" 2> /dev/null | grep -o -E '(FreeBSD clang version|GCC: \([^)]*\)) [0-9.]+' | sort -u | tr '\n' ' '; }
 
 # fetch <file> <sha256> <url>...: into $W/dist, the first URL that gives it, checked
 fetch() {
@@ -102,6 +102,17 @@ timed() {
         say "$_p $_b $_v: failed: $(tail -n 2 "$W/cmd.err" | tr '\n' ' ')"
     fi
 }
+# timed5 <variant> <program> <bench> <command>...: as timed, five runs of the command
+# in one time (time -p has 10 ms: too coarse for the operations of a fraction of a
+# second)
+timed5() {
+    _v="$1" _p="$2" _b="$3"; shift 3
+    if /usr/bin/time -p -o "$W/time.out" sh -c 'for i in 1 2 3 4 5; do "$@" > /dev/null || exit 1; done' sh "$@" 2> "$W/cmd.err"; then
+        record "$_p" "$_b" s5 lower "$_v" "$(awk '$1 == "real" { print $2 }' "$W/time.out")"
+    else
+        say "$_p $_b $_v: failed: $(tail -n 2 "$W/cmd.err" | tr '\n' ' ')"
+    fi
+}
 # order <round>: the variants, the first one turning from round to round
 order() { if [ $(( $1 % 2 )) = 1 ]; then echo "$variants"; else echo "$variants" | awk '{ for (i = NF; i > 0; i--) printf "%s ", $i }'; fi; }
 
@@ -113,7 +124,8 @@ report() {
         echo "FreeBSD $(uname -r), $(sysctl -n hw.model), $ncpu CPUs; rounds $rounds, medians;"
         echo "flags: $F (gcc16: and -std=gnu17 for C, -fno-semantic-interposition, libgcc linked in)."
         echo "gcc16 against clang19: a minus is faster with gcc16 (for times and for rates);"
-        echo "units: s (seconds, lower is better), MBps (MB/s), rps (requests/s), tps (transactions/s)."
+        echo "units: s (seconds, lower is better), s5 (seconds of five runs), MBps (MB/s), rps (requests/s),"
+        echo "tps (transactions/s)."
         ls "$raw" | cut -d '|' -f 1 | sort -u | while IFS= read -r p; do
             echo
             echo "## $p"
@@ -220,7 +232,8 @@ g_redis() {
             sleep 2
             cpuset -l 0-$((last - 1)) "$rb" -p 6390 -q -n 2000000 -P 16 -c 50 -t "$tests" --csv 2> /dev/null > "$W/rb.csv"
             kill "$pid"; wait "$pid" 2> /dev/null
-            tr -d '"' < "$W/rb.csv" | awk -F ',' 'NR > 1 { print $1, $2 }' | while read -r t rps; do
+            # "test","rps",...: a test has spaces in its name ("LRANGE_100 (first 100 elements)")
+            tr -d '"' < "$W/rb.csv" | awk -F ',' 'NR > 1 { print $2 "|" $1 }' | while IFS='|' read -r rps t; do
                 record redis "$t" rps higher "$v" "$rps"
             done
         done
@@ -335,11 +348,11 @@ modulate:-modulate 110,120,90"
         for v in $(order "$r"); do
             printf '%s\n' "$ops" | while IFS=: read -r n op; do
                 # shellcheck disable=SC2086
-                timed "$v" ImageMagick7 "$n ($op)" cpuset -l "$last" "$W/im7-$v/bin/magick" "$W/in.miff" $op null:
+                timed5 "$v" ImageMagick7 "$n ($op)" cpuset -l "$last" "$W/im7-$v/bin/magick" "$W/in.miff" $op null:
                 # shellcheck disable=SC2086
-                timed "$v" ImageMagick6 "$n ($op)" cpuset -l "$last" "$W/im6-$v/bin/convert" "$W/in.miff" $op null:
+                timed5 "$v" ImageMagick6 "$n ($op)" cpuset -l "$last" "$W/im6-$v/bin/convert" "$W/in.miff" $op null:
                 # shellcheck disable=SC2086
-                timed "$v" GraphicsMagick "$n ($op)" cpuset -l "$last" "$W/gm-$v/bin/gm" convert "$W/in.miff" $op null:
+                timed5 "$v" GraphicsMagick "$n ($op)" cpuset -l "$last" "$W/gm-$v/bin/gm" convert "$W/in.miff" $op null:
             done
         done
     done
@@ -372,12 +385,12 @@ g_vips() {
         say "vips: round $r of $rounds"
         for v in $(order "$r"); do
             x="$W/vips-$v/bin/vips"; l="$W/vips-$v/lib"
-            timed "$v" vips "resize 0.5 (lanczos3)" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" resize /mnt/pbrd/in.v /mnt/pbrd/o.v 0.5
-            timed "$v" vips "resize 2.0 (lanczos3)" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" resize /mnt/pbrd/in.v /mnt/pbrd/o.v 2.0
-            timed "$v" vips "gaussblur 3" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" gaussblur /mnt/pbrd/in.v /mnt/pbrd/o.v 3
-            timed "$v" vips "sharpen" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" sharpen /mnt/pbrd/in.v /mnt/pbrd/o.v
-            timed "$v" vips "rotate 33" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" rotate /mnt/pbrd/in.v /mnt/pbrd/o.v 33
-            timed "$v" vips "colourspace lab" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" colourspace /mnt/pbrd/in.v /mnt/pbrd/o.v lab
+            timed5 "$v" vips "resize 0.5 (lanczos3)" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" resize /mnt/pbrd/in.v /mnt/pbrd/o.v 0.5
+            timed5 "$v" vips "resize 2.0 (lanczos3)" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" resize /mnt/pbrd/in.v /mnt/pbrd/o.v 2.0
+            timed5 "$v" vips "gaussblur 3" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" gaussblur /mnt/pbrd/in.v /mnt/pbrd/o.v 3
+            timed5 "$v" vips "sharpen" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" sharpen /mnt/pbrd/in.v /mnt/pbrd/o.v
+            timed5 "$v" vips "rotate 33" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" rotate /mnt/pbrd/in.v /mnt/pbrd/o.v 33
+            timed5 "$v" vips "colourspace lab" env LD_LIBRARY_PATH="$l" cpuset -l "$last" "$x" colourspace /mnt/pbrd/in.v /mnt/pbrd/o.v lab
         done
     done
 }

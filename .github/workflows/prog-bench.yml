@@ -70,7 +70,7 @@ jobs:
             mkdir -p /usr/local/etc/pkg/repos
             echo 'FreeBSD: { url: "https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
             env ASSUME_ALWAYS_YES=yes pkg update -f
-            env ASSUME_ALWAYS_YES=yes pkg install -y gcc16 gmake cmake-core ninja meson pkgconf curl python3 libffi glib expat perl5
+            env ASSUME_ALWAYS_YES=yes pkg install -y gcc16 gmake cmake-core ninja meson pkgconf curl python3 libffi glib expat perl5 bison
           # the script ends well (vmactions copies results/ back only then); what failed
           # is in its report
           run: |
