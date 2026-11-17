@@ -81,7 +81,8 @@ trap 'rm -rf "$tmp"' EXIT
         [ -s "$l" ] || continue
         echo
         echo "== $o: the errors of logs/$k.log, then its end"
-        grep -E ' error:|Error code|^\*\*\*|^===>.*(not found|failed|IGNORE)' "$l" | head -n 15 | cut -c1-240
+        # those of the compilers, of cmake, of the commands ninja ran and of cargo too
+        grep -E ' error:|^error(\[E[0-9]+\])?:|CMake Error|^FAILED: |Error code|^\*\*\*|^===>.*(not found|failed|IGNORE)' "$l" | head -n 15 | cut -c1-240
         echo "..."
         tail -n 15 "$l" | cut -c1-240
     done
