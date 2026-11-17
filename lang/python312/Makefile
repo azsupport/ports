@@ -90,6 +90,11 @@ SHEBANG_FILES+=	Lib/test/ziptestdata/exe_with_z64 \
 DISABLED_EXTENSIONS=	_sqlite3 _tkinter _gdbm
 CONFIGURE_ARGS+=	--enable-shared --without-ensurepip --with-system-expat
 CONFIGURE_ENV+=		OPT="" # Null out OPT to respect user CFLAGS and remove optimizations
+# No -g with LTO: configure adds it when the compiler takes -g (ac_cv_prog_cc_g; bpo-30345)
+# to the flags of the link and, for GCC (LTOCFLAGS is set for clang alone), of the
+# compile too: libpython3.12.a came with debug information (debug-check, build run
+# 44059209484); no debug in our builds (aZ, 17.11.2026)
+CONFIGURE_ENV+=		ac_cv_prog_cc_g=no
 # az and the base system: the include directory and the libraries of az (expat.h
 # and -lexpat of --with-system-expat, libintl), with their run path; pkg-config
 # (libffi, readline) sees the .pc files of az and of the base system only
