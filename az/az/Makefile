@@ -145,7 +145,8 @@ MASTER_SITES=	https://github.com/curl/curl/releases/download/curl-8_23_0/:curl \
 		https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/:libssh2 \
 		https://codeload.github.com/publicsuffix/list/tar.gz/728555a?dummy=/:psllist \
 		https://github.com/strukturag/libheif/releases/download/v1.23.7/:libheif \
-		https://github.com/strukturag/libde265/releases/download/v1.1.3/:libde265
+		https://github.com/strukturag/libde265/releases/download/v1.1.3/:libde265 \
+		https://codeload.github.com/awesomized/libmemcached/tar.gz/1.2.0?dummy=/:libmemcached
 # The names are those tools/az-curl-sources.sh keeps them under (the distfile of
 # curl-deps.conf, / made _) and the take lines of files/deps.conf give.
 DISTFILES=	curl-8.23.0.tar.xz:curl \
@@ -158,7 +159,8 @@ DISTFILES=	curl-8.23.0.tar.xz:curl \
 		libssh2-1.11.1.tar.xz:libssh2 \
 		publicsuffix-list-20260921-728555a_GH0.tar.gz:psllist \
 		libheif-1.23.7.tar.gz:libheif \
-		libde265-1.1.3.tar.gz:libde265
+		libde265-1.1.3.tar.gz:libde265 \
+		awesomized-libmemcached-1.2.0_GH0.tar.gz:libmemcached
 
 COMMENT=	Static and shared libraries of /usr/local/az, for PHP and the programs
 WWW=		https://github.com/azsupport/ports
