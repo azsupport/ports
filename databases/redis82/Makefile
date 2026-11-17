@@ -21,8 +21,10 @@
 # faster in 9 of 11 tests, the median -6.3% (prog-bench run 44043639827), and in 10 of
 # 14, the median -5.9% (run 44046254033). Its one C++ file, fast_float_strtod.cpp of
 # deps/fast_float (by g++16), includes <iostream> and <string>, which it does not use;
-# <iostream> makes the object need libstdc++ (std::ios_base_library_init). Without them
-# it needs libc only, and the link goes without -lstdc++, which with GCC would be the
+# <iostream> makes the object need libstdc++ (std::ios_base_library_init). Without them,
+# and built without exceptions (-fno-exceptions: else GCC 16 puts __gxx_personality_v0
+# of libstdc++ into its unwind tables, and the link failed, build run 44059209484), it
+# needs libc only, and the link goes without -lstdc++, which with GCC would be the
 # libstdc++.so.6 of the gcc package (a library of the ports, not on the servers): a
 # symbol of the C++ library would fail the link, not the start; libgcc linked in
 # (-static-libgcc). Without the -g -ggdb of its Makefile (DEBUG; no debug in our builds,
@@ -127,10 +129,13 @@ LDFLAGS+=	-static-libgcc
 post-patch:
 	@${REINPLACE_CMD} -e '/^#include <iostream>$$/d' -e '/^#include <string>$$/d' \
 		${WRKSRC}/deps/fast_float/fast_float_strtod.cpp
+	@${REINPLACE_CMD} -e 's|^DEFS=-DFASTFLOAT_ALLOWS_LEADING_PLUS$$|& -fno-exceptions|' \
+		${WRKSRC}/deps/fast_float/Makefile
 	@${REINPLACE_CMD} -e 's|^FINAL_LIBS=-lm -lstdc++$$|FINAL_LIBS=-lm|' ${WRKSRC}/src/Makefile
 	@${GREP} -q '^FINAL_LIBS=-lm$$' ${WRKSRC}/src/Makefile && \
+		${GREP} -q '^DEFS=.* -fno-exceptions$$' ${WRKSRC}/deps/fast_float/Makefile && \
 		! ${GREP} -q -E '^#include <(iostream|string)>' ${WRKSRC}/deps/fast_float/fast_float_strtod.cpp || \
-		{ ${ECHO_MSG} "redis: -lstdc++ or <iostream> still there (src/Makefile, deps/fast_float)"; ${FALSE}; }
+		{ ${ECHO_MSG} "redis: -lstdc++, <iostream> or exceptions still there (src/Makefile, deps/fast_float)"; ${FALSE}; }
 .endif
 
 .include <bsd.port.post.mk>
