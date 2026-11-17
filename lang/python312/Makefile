@@ -258,6 +258,21 @@ post-install:
 .endif
 	for i in ${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/lib-dynload/*.so; do \
 		${STRIP_CMD} $$i; done								# Strip shared extensions
+.if ${AZ_GCC} != no
+# GCC 16 in the section .comment of libpython and python3.12, as python-test.sh of
+# azsupport/azsupport checks it: the strip of the base system removes the section,
+# that of the binutils of the ports keeps it (17.11.2026: the package of run
+# 44149788389 had no .comment at all); the files of the build next to the staged
+# ones, and the strip the environment named, when it is not there
+	@for f in ${STAGEDIR}${PREFIX}/lib/libpython${PYTHON_VER}${ABIFLAGS}.so.1.0 \
+		${STAGEDIR}${PREFIX}/bin/python${PYTHON_VER}${ABIFLAGS}; do \
+		if ! ${READELF:Ureadelf} -p .comment $$f 2>/dev/null | ${GREP} -q 'GCC: '; then \
+			${ECHO_MSG} "$$f: no GCC in its .comment (STRIPBIN=$${STRIPBIN:-unset}, STRIP_CMD=${STRIP_CMD})"; \
+			${ECHO_MSG} "the build: $$(${READELF:Ureadelf} -p .comment ${WRKSRC}/libpython${PYTHON_VER}${ABIFLAGS}.so.1.0 2>&1 | ${GREP} -c 'GCC: ') GCC line(s) in .comment of libpython of ${WRKSRC}"; \
+			${FALSE}; \
+		fi; \
+	done
+.endif
 	${INSTALL_DATA} ${WRKSRC}/Tools/gdb/libpython.py \
 		${STAGEDIR}${PREFIX}/lib/libpython${PYTHON_VER}${ABIFLAGS}.so.1.0-gdb.py
 # the libraries of az by the run path of libpython and of the modules, libmpdec of
