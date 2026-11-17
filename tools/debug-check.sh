@@ -1,13 +1,17 @@
 #!/bin/sh
-# tools/debug-check.sh <package>...: the ELF files of packages with debug information
-# or a symbol table (aZ, 17.11.2026: no debug in our builds, the packages stripped).
+# tools/debug-check.sh <package>...: the ELF files of packages built with debug
+# information or not stripped (aZ, 17.11.2026: no debug in our builds, the packages
+# stripped).
 #
 # A line per package on the output:
 #   OK <package>: <n> ELF files
-#   FAIL <package>: <d> of <n> ELF files with debug information, <s> more not stripped: <files>
+#   FAIL <package>: <d> of <n> ELF files built with debug information, <s> more not stripped: <files>
 # (the paths in the package, the first ten); exit 1 when a package fails, 2 when one
-# cannot be read. An object file (relocatable) needs its symbols: it fails with debug
-# information only. file(1) says what each file is: "with debug_info", "not stripped".
+# cannot be read. Built with debug information: a .debug_info over 4 KB (size -A); an
+# ELF file that is not stripped (file(1)) has a symbol table and the small
+# .debug_info of the crt objects of the base system (crti.S, crtbegin.c... about
+# 1 KB), what strip takes away. An object file (relocatable) needs its symbols: it
+# fails with debug information only.
 #
 # tools/build.sh runs it on the packages of each port it builds (results/debug-check.txt);
 # .github/workflows/build.yml makes the line "debug: OK|FAIL" of results/checks.txt of it.
@@ -25,25 +29,32 @@ for p in "$@"; do
         [ "$rc" = 0 ] && rc=2
         continue
     fi
-    # the type of every file at once; the pkg metadata (+COMPACT_MANIFEST...) is no ELF
-    find "$d" -type f -exec file -N -F '|' {} + 2> /dev/null > "$tmp/types"
-    awk -F '|' -v d="$d" -v n="$n" '
-        {
-            f = $1; t = $2
-            if (index(f, d) == 1) f = substr(f, length(d) + 1)
-            sub(/^ +/, "", t)
+    # the type of every file at once (the metadata of pkg, +MANIFEST..., is no ELF): a
+    # line per ELF file, "<s|-> <r|-> <path>" (not stripped, relocatable)
+    find "$d" -type f -exec file -N -F '|' {} + 2> /dev/null |
+        awk -F '|' '{
+            t = $2; sub(/^ +/, "", t)
             if (t !~ /^ELF /) next
-            ne++
-            if (t ~ /with debug_info/) { nd++; bad[++nb] = f }
-            else if (t ~ /not stripped/ && t !~ /relocatable/) { ns++; bad[++nb] = f }
-        }
-        END {
-            if (nb == 0) { printf "OK %s: %d ELF files\n", n, ne; exit 0 }
-            l = ""
-            for (i = 1; i <= nb && i <= 10; i++) l = l " " bad[i]
-            if (nb > 10) l = l " (and " nb - 10 " more)"
-            printf "FAIL %s: %d of %d ELF files with debug information, %d more not stripped:%s\n", n, nd, ne, ns, l
-            exit 1
-        }' "$tmp/types" || rc=1
+            printf "%s %s %s\n", (t ~ /not stripped/ ? "s" : "-"), (t ~ /relocatable/ ? "r" : "-"), $1
+        }' > "$tmp/elf"
+    ne=0; nd=0; ns=0; : > "$tmp/bad"
+    while read -r s r f; do
+        ne=$((ne + 1))
+        di="$(size -A "$f" 2> /dev/null | awk '$1 == ".debug_info" { print $2; exit }')"
+        if [ "${di:-0}" -gt 4096 ]; then
+            nd=$((nd + 1)); echo "${f#"$d"}" >> "$tmp/bad"
+        elif [ "$s" = s ] && [ "$r" != r ]; then
+            ns=$((ns + 1)); echo "${f#"$d"}" >> "$tmp/bad"
+        fi
+    done < "$tmp/elf"
+    if [ "$nd" = 0 ] && [ "$ns" = 0 ]; then
+        echo "OK $n: $ne ELF files"
+        continue
+    fi
+    nb=$((nd + ns))
+    l="$(head -n 10 "$tmp/bad" | tr '\n' ' ' | sed 's/ $//')"
+    [ "$nb" -gt 10 ] && l="$l (and $((nb - 10)) more)"
+    echo "FAIL $n: $nd of $ne ELF files built with debug information, $ns more not stripped: $l"
+    rc=1
 done
 exit "$rc"
