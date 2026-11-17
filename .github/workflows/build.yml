@@ -299,6 +299,19 @@ jobs:
             # repository as a server installs it, and checked, when the repository has its
             # catalog and the core of the version is there (not in a plan: AZ_PLAN)
             : > results/checks.txt
+            # no debug (aZ, 17.11.2026): every package of this run without debug
+            # information and stripped (tools/debug-check.sh in tools/build.sh); a FAIL
+            # keeps the run from being published
+            if [ -s results/debug-check.txt ]; then
+              nd="$(grep -c . results/debug-check.txt || :)"
+              nf="$(grep -c '^FAIL' results/debug-check.txt || :)"
+              if [ "$nf" -gt 0 ]; then
+                echo "debug: FAIL ($nf of $nd packages of this run with debug information or not stripped: $(awk '$1 == "FAIL" { sub(/:$/, "", $2); printf "%s ", $2 }' results/debug-check.txt)- results/debug-check.txt)" >> results/checks.txt
+                rc=1
+              else
+                echo "debug: OK ($nd packages of this run: no debug information, stripped)" >> results/checks.txt
+              fi
+            fi
             if [ -n "${AZ_PLAN:-}" ]; then
               echo "plan (AZ_PLAN): no checks and no tests (results/plan.txt)" >> results/checks.txt
             elif [ -f results/time-limit ]; then

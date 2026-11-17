@@ -1631,6 +1631,15 @@ make_port() {
     echo "$f" > "$q/file/$k"
     grep -qxF "$f" "$q/made-$k" || echo "$f" >> "$q/made-$k"
     note=""
+    # no debug in our packages (aZ, 17.11.2026): the ELF files of each package of the
+    # port without debug information and stripped (tools/debug-check.sh), a line each in
+    # results/debug-check.txt, of which build.yml makes "debug: OK|FAIL" of the checks
+    if [ -f "$top/tools/debug-check.sh" ]; then
+        # shellcheck disable=SC2046
+        sh "$top/tools/debug-check.sh" $(cat "$q/made-$k") > "$q/debug-$k" 2>&1 ||
+            note="; debug: $(grep -c '^FAIL' "$q/debug-$k") of its packages with debug information or not stripped (results/debug-check.txt)"
+        cat "$q/debug-$k" >> "$res/debug-check.txt"
+    fi
     [ "$(pkg_hash "$f")" = "$h" ] ||
         note="; warning: no annotation az_hash $hs in the package (PKG_NOTES of Mk/bsd.overlay.mk): the next run builds it again"
     note="$note$(az_cover_check "$1" "$f")"
