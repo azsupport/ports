@@ -1,7 +1,8 @@
 # www/nginx-devel: the nginx-devel of azsupport/ports in the place of the official
 # www/nginx-devel (aZ, 15.11.2026: «давай еще свой nginx-devel добавим», «может
 # модулями его разбить»): nginx 1.31.8 of the official port of the pinned commit, its
-# options the union of those of three of aZ's servers, and HTTP_GZIP_STATIC.
+# options the union of those of three of aZ's servers, HTTP_GZIP_STATIC and
+# HTTP_STATUS (for VTS).
 #
 # The core has the modules of nginx itself built in (they cannot be dynamic), and
 # brotli, headers-more and geoip2 (its http part), which every server of aZ uses
@@ -142,10 +143,15 @@ OPTIONS_GROUP_THIRDPARTYGRP=	BROTLI HEADERS_MORE HTTP_GEOIP2
 
 OPTIONS_DEFINE=		DEBUG DEBUGLOG FILE_AIO IPV6 THREADS WWW
 # the options of aZ: the union of three of his servers, and HTTP_GZIP_STATIC (aZ,
-# 15.11.2026: «вруби HTTP_GZIP_STATIC в сборке нгингс еще»)
+# 15.11.2026: «вруби HTTP_GZIP_STATIC в сборке нгингс еще»); HTTP_STATUS for
+# www/nginx-devel-vts (aZ, 17.11.2026: VTS taken): the config of VTS sets
+# NGX_STAT_STUB, so its module reads the counters ngx_stat_accepted... of the
+# core, which only an nginx with the stub_status module has (without it: "dlopen()
+# ... Undefined symbol ngx_stat_accepted", servers-test of run 44104438197); the
+# official port has HTTP_STATUS on by default
 OPTIONS_DEFAULT=	BROTLI FILE_AIO HEADERS_MORE HTTP HTTP_CACHE HTTP_GEOIP2 \
 		HTTP_GZIP_STATIC HTTP_MP4 HTTP_REALIP HTTP_SECURE_LINK HTTP_SLICE \
-		HTTP_SSL HTTP_SUB HTTPV2 HTTPV3 IPV6 THREADS WWW
+		HTTP_SSL HTTP_STATUS HTTP_SUB HTTPV2 HTTPV3 IPV6 THREADS WWW
 
 OPTIONS_SUB=	yes
 

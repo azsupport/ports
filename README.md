@@ -409,8 +409,8 @@ Names and origins as the ports, files at the paths of the ports:
 - **`www/nginx-devel`**, **`www/nginx-devel-stream`** and **`www/nginx-devel-image-filter`**
   (aZ, 15.11.2026): nginx 1.31.8, the options the union of those of the servers of aZ.
   Built in: the modules of nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE,
-  HTTP_GZIP_STATIC, HTTP_MP4, HTTP_REALIP, HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL, HTTP_SUB,
-  HTTPV2, HTTPV3, and brotli, headers-more and geoip2 (http), which every server uses; off: the other
+  HTTP_GZIP_STATIC, HTTP_MP4, HTTP_REALIP, HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL,
+  HTTP_STATUS (stub_status: its counters are those VTS reads), HTTP_SUB, HTTPV2, HTTPV3, and brotli, headers-more and geoip2 (http), which every server uses; off: the other
   modules of nginx (MAIL among them), NJS, OTEL, Perl, XSLT, GeoIP 1, GSSAPI, VOD and
   every other third-party module. `--with-compat`: the modules only some servers use
   are packages of their own, built from the same nginx: `nginx-devel-stream` (stream

@@ -400,7 +400,8 @@
 - **`www/nginx-devel`**, **`www/nginx-devel-stream`** и **`www/nginx-devel-image-filter`**
   (aZ, 15.11.2026): nginx 1.31.8, опции — объединение серверов aZ. Вкомпилены: модули
   nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE, HTTP_GZIP_STATIC, HTTP_MP4, HTTP_REALIP,
-  HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL, HTTP_SUB, HTTPV2, HTTPV3, а также brotli,
+  HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL, HTTP_STATUS (stub_status: его счётчики читает VTS),
+  HTTP_SUB, HTTPV2, HTTPV3, а также brotli,
   headers-more и geoip2 (http) — они на всех серверах; выключены: остальные модули nginx
   (в том числе MAIL), NJS, OTEL, Perl, XSLT, GeoIP 1, GSSAPI, VOD и прочие сторонние.
   `--with-compat`: модули, нужные не всем серверам, — отдельные пакеты из того же nginx:
