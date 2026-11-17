@@ -104,6 +104,10 @@ jobs:
       matrix:
         cputype: ${{ inputs.cputype == 'both' && fromJSON('["x86-64-v3", "x86-64-v2"]') || fromJSON(format('["{0}"]', inputs.cputype)) }}
     name: build (${{ matrix.cputype }})
+    env:
+      # the files of tools/runs-progress.sh and tools/runs-save.sh, outside /home/runner/work,
+      # which vmactions copies into the VM and back (back over what changed meanwhile)
+      AZ_RUNS_STATE: /tmp/az-runs
     # one job at a time for a release, a level and a branch: a run of main
     # publishes the release of its level, a run of another branch only tries its
     # ports (its caches are its own: GitHub gives a branch the caches of main, never
@@ -157,17 +161,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CPUTYPE: ${{ matrix.cputype }}
         run: |
-          mkdir -p repo
-          : > "$RUNNER_TEMP/wip-taken"
+          mkdir -p repo "$AZ_RUNS_STATE"
+          : > "$AZ_RUNS_STATE/wip-taken"
           b="$(printf '%s' "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._-' '-')"
           gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
             --jq ".[] | select(.draft and (.tag_name | startswith(\"wip-$CPUTYPE-$b-\"))) | \"\(.id) \(.tag_name)\"" \
-            > "$RUNNER_TEMP/wip-drafts" || { echo "no list of the releases"; exit 0; }
-          [ -s "$RUNNER_TEMP/wip-drafts" ] || { echo "no draft wip-$CPUTYPE-$b-*: nothing to take"; exit 0; }
+            > "$AZ_RUNS_STATE/wip-drafts" || { echo "no list of the releases"; exit 0; }
+          [ -s "$AZ_RUNS_STATE/wip-drafts" ] || { echo "no draft wip-$CPUTYPE-$b-*: nothing to take"; exit 0; }
           while read -r id tag; do
             n=0; bad=0
             if ! gh api "repos/$GITHUB_REPOSITORY/releases/$id/assets?per_page=100" \
-              --jq '.[] | select(.state == "uploaded") | "\(.id) \(.name)"' > "$RUNNER_TEMP/wip-assets"; then
+              --jq '.[] | select(.state == "uploaded") | "\(.id) \(.name)"' > "$AZ_RUNS_STATE/wip-assets"; then
               echo "$tag: no list of its files: left for the next run"; continue
             fi
             while read -r aid an; do
@@ -177,14 +181,14 @@ jobs:
               else
                 rm -f "repo/$an.part"; bad=$((bad + 1))
               fi
-            done < "$RUNNER_TEMP/wip-assets"
+            done < "$AZ_RUNS_STATE/wip-assets"
             if [ "$bad" = 0 ]; then
               echo "$tag: $n packages into repo/"
-              echo "$id $tag" >> "$RUNNER_TEMP/wip-taken"
+              echo "$id $tag" >> "$AZ_RUNS_STATE/wip-taken"
             else
               echo "::warning title=saved packages::$tag: $n packages into repo/, $bad did not download (the draft stays for the next run)"
             fi
-          done < "$RUNNER_TEMP/wip-drafts"
+          done < "$AZ_RUNS_STATE/wip-drafts"
 
       # the distribution files of the ports, kept between the runs (the VM fetches what is missing)
       - name: The distribution files of the runs before
@@ -269,7 +273,8 @@ jobs:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
           PART: ${{ matrix.cputype }}
         run: |
-          nohup sh tools/runs-progress.sh "$PART" 10 > "$RUNNER_TEMP/runs-progress.log" 2>&1 &
+          mkdir -p "$AZ_RUNS_STATE"
+          nohup sh tools/runs-progress.sh "$PART" 10 > "$AZ_RUNS_STATE/runs-progress.log" 2>&1 &
           echo "tools/runs-progress.sh: pid $!, every 10 minutes"
 
       # each package the VM made, saved as soon as its port built (tools/runs-save.sh: the
@@ -281,7 +286,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PART: ${{ matrix.cputype }}
         run: |
-          nohup sh tools/runs-save.sh "$PART" 5 > "$RUNNER_TEMP/runs-save.log" 2>&1 &
+          mkdir -p "$AZ_RUNS_STATE"
+          nohup sh tools/runs-save.sh "$PART" 5 > "$AZ_RUNS_STATE/runs-save.log" 2>&1 &
           echo "tools/runs-save.sh: pid $!, every 5 minutes"
 
       # the build tests (tools/test-programs.sh and the *-test.sh) are kept in the
@@ -509,18 +515,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ -s "$RUNNER_TEMP/wip-taken" ]; then
+          if [ -s "$AZ_RUNS_STATE/wip-taken" ]; then
             while read -r id tag; do
               gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" && echo "deleted: $tag (its packages came into repo/ at the start)"
-            done < "$RUNNER_TEMP/wip-taken"
+            done < "$AZ_RUNS_STATE/wip-taken"
           fi
-          if [ -s "$RUNNER_TEMP/runs-save.id" ]; then
+          if [ -s "$AZ_RUNS_STATE/runs-save.id" ]; then
             if [ -f results/repo-files.txt ]; then
-              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$(cat "$RUNNER_TEMP/runs-save.id")" &&
-                echo "deleted: $(cat "$RUNNER_TEMP/runs-save.tag") (repo/ of the VM is in the cache)"
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$(cat "$AZ_RUNS_STATE/runs-save.id")" &&
+                echo "deleted: $(cat "$AZ_RUNS_STATE/runs-save.tag") (repo/ of the VM is in the cache)"
             else
-              echo "kept: $(cat "$RUNNER_TEMP/runs-save.tag") (the VM gave no repository back): the next run takes its packages"
+              echo "kept: $(cat "$AZ_RUNS_STATE/runs-save.tag") (the VM gave no repository back): the next run takes its packages"
             fi
+          else
+            echo "no draft of this run (tools/runs-save.sh saved no package)"
           fi
 
       # by a run of main alone: a branch reads those of main and fetches what it adds, while
@@ -701,12 +709,12 @@ jobs:
       - name: The log of the progress reporter
         if: always()
         continue-on-error: true
-        run: tail -n 20 "$RUNNER_TEMP/runs-progress.log" 2>/dev/null || echo "no log of tools/runs-progress.sh"
+        run: tail -n 20 "$AZ_RUNS_STATE/runs-progress.log" 2>/dev/null || echo "no log of tools/runs-progress.sh"
 
       - name: The log of the saver of the packages
         if: always()
         continue-on-error: true
-        run: tail -n 40 "$RUNNER_TEMP/runs-save.log" 2>/dev/null || echo "no log of tools/runs-save.sh"
+        run: tail -n 40 "$AZ_RUNS_STATE/runs-save.log" 2>/dev/null || echo "no log of tools/runs-save.sh"
 
       # the report into the branch runs of the private azsupport/azsupport (secret RUNS_TOKEN)
       - name: Report to azsupport/azsupport

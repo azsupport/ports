@@ -53,8 +53,9 @@ while [ "$(date +%s)" -lt "$end" ]; do
         # the disk of the VM grows on that of the runner
         echo "- disk: runner $(df -h / 2>/dev/null | awk 'NR == 2 { print $4 " free of " $2 }')$( [ -z "$vm" ] || echo "; VM $(timeout 60 ssh $o "$vm" "df -h / | tail -n 1" < /dev/null 2>/dev/null | awk '{ print $4 " free of " $2 }')")"
         # tools/runs-save.sh: the packages built, saved while the VM builds
-        if [ -d "${RUNNER_TEMP:-/tmp}/runs-save/saved" ]; then
-            echo "- saved as they were built (tools/runs-save.sh, the draft release $(cat "${RUNNER_TEMP:-/tmp}/runs-save.tag" 2>/dev/null)): $(ls "${RUNNER_TEMP:-/tmp}/runs-save/saved" | wc -l | tr -d ' ') packages"
+        st="${AZ_RUNS_STATE:-/tmp/az-runs}"
+        if [ -d "$st/runs-save/saved" ]; then
+            echo "- saved as they were built (tools/runs-save.sh, the draft release $(cat "$st/runs-save.tag" 2>/dev/null)): $(ls "$st/runs-save/saved" | wc -l | tr -d ' ') packages"
         fi
         if [ -z "$vm" ]; then
             echo "- the VM does not answer ssh yet (hosts: freebsd $(awk 'tolower($1) == "host" { printf "%s ", $2 }' "$HOME/.ssh/config" 2>/dev/null))"
