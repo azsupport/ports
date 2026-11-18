@@ -10,9 +10,9 @@
 #
 # rocketchat8_config (path): its environment, NAME=value lines given to node as
 #                            they are, nothing in them run (not read as sh);
-#                            owned by root, readable by its group (root:%%GROUPS%%
-#                            640): node, a service on the network, cannot change
-#                            what root reads (default %%PREFIX%%/etc/rocketchat8.conf)
+#                            root:wheel 600: only root reads it (node takes the
+#                            environment, not the file) and only root can change it
+#                            (default %%PREFIX%%/etc/rocketchat8.conf)
 # rocketchat8_user (str):    the user it runs as (default %%USERS%%)
 # rocketchat8_group (str):   its group (default %%GROUPS%%)
 # rocketchat8_log (path):    its output (default /var/log/rocketchat8.log)

@@ -4,7 +4,7 @@
 Rocket.Chat 8 is in %%WWWDIR%% (owned by root), run by the rc script
 rocketchat8 as the user %%USERS%% with the environment of
 %%PREFIX%%/etc/rocketchat8.conf (its sample: rocketchat8.conf.sample):
-NAME=value lines, not run as sh, root:%%GROUPS%% 640; its output goes to
+NAME=value lines, not run as sh, root:wheel 600; its output goes to
 /var/log/rocketchat8.log.
 
 It needs MongoDB 8.0 (databases/mongodb80, here or on another host) as a

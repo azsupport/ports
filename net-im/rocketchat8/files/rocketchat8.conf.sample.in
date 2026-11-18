@@ -1,7 +1,7 @@
 # The environment of Rocket.Chat 8 (net-im/rocketchat8): the rc script rocketchat8
 # gives its NAME=value lines to node as they are (a value may be in quotes); it does
-# not run this file as sh, nothing in it is expanded. Owned by root, readable by the
-# group %%GROUPS%% (640): node cannot change what root reads.
+# not run this file as sh, nothing in it is expanded. root:wheel 600: only root reads
+# it (node gets the environment, not the file), only root changes it.
 
 # The address its users open (behind nginx: https://chat.example.org).
 ROOT_URL=http://localhost:3000
