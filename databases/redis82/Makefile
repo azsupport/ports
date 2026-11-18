@@ -34,6 +34,10 @@
 # CFLAGS of the build, -fno-omit-frame-pointer added by Redis; the code of Redis, src/,
 # compiled and linked with it (its link through the LTO plugin of GCC and the ld of
 # the binutils of the ports), its deps/ (hiredis, lua, ...) without it, as upstream.
+# MAKE=gmake for the lto-wrapper of GCC: it runs the parallel part of the link
+# (LTRANS) by $MAKE, else by make, which is BSD make here, and under gmake with the
+# jobserver it gives that make the MAKEFLAGS of gmake (--jobserver-auth=...), which
+# BSD make does not take: the link failed (build run 44301381623, 18.11.2026).
 
 PORTNAME=	redis
 DISTVERSION=	8.2.11
@@ -62,6 +66,7 @@ CPE_VENDOR=	redislabs
 USE_RC_SUBR=	redis sentinel
 
 MAKE_ENV=	OPTIMIZATION=-flto=auto \
+		MAKE=${GMAKE} \
 		V=yo
 MAKE_ARGS=	DEBUG=
 
