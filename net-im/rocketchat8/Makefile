@@ -203,7 +203,7 @@ RC_VIPS_ENV=	CC="${CC}" \
 		AR=llvm-ar \
 		RANLIB=llvm-ranlib \
 		NM=llvm-nm \
-		PKG_CONFIG_LIBDIR=${AZ_LIBS_PKG_CONFIG_LIBDIR}
+		PKG_CONFIG_LIBDIR=${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR}
 RC_SERVER=	${WRKSRC}/programs/server
 RC_NM=		${RC_SERVER}/npm/node_modules
 RC_NODE=	${LOCALBASE}/bin/node
@@ -370,6 +370,13 @@ do-build:
 		> ${RC_NM}/${d}/package.json
 .endfor
 	@${ECHO_MSG} "===>  libvips ${RC_VIPS}: static, for sharp"
+# libarchive of the base system has no .pc (run 44339185773): one in the work, with the
+# version of its archive.h
+	@${MKDIR} ${WRKDIR}/base-pc
+	@v="$$(${SED} -n 's/^#define[[:space:]]*ARCHIVE_VERSION_ONLY_STRING[[:space:]]*"\(.*\)"/\1/p' /usr/include/archive.h)" && \
+	[ -n "$$v" ] && ${PRINTF} '%s\n' 'Name: libarchive' 'Description: libarchive of the base system' \
+		"Version: $$v" 'Libs: -larchive' 'Cflags:' > ${WRKDIR}/base-pc/libarchive.pc && \
+	${ECHO_MSG} "===>  libarchive $$v of the base system (${WRKDIR}/base-pc/libarchive.pc)"
 	cd ${RC_VIPS_SRC} && ${SETENV} ${RC_VIPS_ENV} meson setup _build ${RC_VIPS_MESON}
 	cd ${RC_VIPS_SRC} && ${SETENV} ${RC_VIPS_ENV} meson compile -C _build -j ${MAKE_JOBS_NUMBER}
 	cd ${RC_VIPS_SRC} && ${SETENV} ${RC_VIPS_ENV} meson install -C _build --no-rebuild --tags devel
@@ -378,8 +385,8 @@ do-build:
 # Libs.private), the run path of az; the symbols of the archives not exported, the
 # module kept loaded (the types of GLib cannot be unloaded)
 	@${MKDIR} ${WRKDIR}/vips-sharp-pc
-	@l="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/lib/pkgconfig:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --static --libs vips-cpp)" && \
-	c="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/lib/pkgconfig:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --cflags vips-cpp)" && \
+	@l="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/lib/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --static --libs vips-cpp)" && \
+	c="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/lib/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --cflags vips-cpp)" && \
 	${PRINTF} '%s\n' 'Name: vips-cpp' 'Description: libvips of net-im/rocketchat8, static' \
 		'Version: ${RC_VIPS}' \
 		"Libs: -L${LOCALBASE}/lib $$l -Wl,-rpath,${AZ_PREFIX}/lib -Wl,-z,nodelete -Wl,--exclude-libs=ALL" \
@@ -388,7 +395,7 @@ do-build:
 	@${ECHO_MSG} "===>  sharp: node-gyp, on that libvips (pkg-config vips-cpp)"
 	cd ${RC_NM}/sharp/src && ${SETENV} ${RC_ENV} \
 		PKG_CONFIG_PATH=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/lib/pkgconfig \
-		PKG_CONFIG_LIBDIR=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/lib/pkgconfig:${AZ_LIBS_PKG_CONFIG_LIBDIR} \
+		PKG_CONFIG_LIBDIR=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/lib/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} \
 		SHARP_FORCE_GLOBAL_LIBVIPS=1 ${RC_GYP}
 	@m="$$(${FIND} ${RC_NM}/sharp/src/build/Release -maxdepth 1 -name 'sharp-*.node')" && \
 	n="$$(/usr/bin/readelf -d $$m | ${GREP} NEEDED)" && \
