@@ -1,0 +1,231 @@
+# Makefile.npm of net-im/rocketchat8: the npm modules the port takes from registry.npmjs.org
+# (RC_NPM_SERVER: <name>:<version>; RC_NPM_FIX: <its directory under
+# programs/server/npm/node_modules>:<name>:<version>).
+#
+# RC_NPM_SERVER: the modules of programs/server, its npm-shrinkwrap.json without the ones
+# for development; underscore 1.13.8 in the place of the 1.13.7 of the shrinkwrap
+# (GHSA-qpx9-hpmf-5gmw, high; the bundle itself has 1.13.8; aZ, 18.11.2026 14:10: a fix
+# of the same major version).
+RC_NPM_SERVER=	@babel/parser:7.25.0 \
+		@meteorjs/reify:0.25.4 \
+		@types/estree:1.0.9 \
+		@types/semver:7.5.8 \
+		acorn:8.18.0 \
+		asap:2.0.6 \
+		estree-walker:2.0.2 \
+		is-reference:1.2.1 \
+		lru-cache:6.0.0 \
+		magic-string:0.25.9 \
+		periscopic:2.0.3 \
+		promise:8.3.0 \
+		semver:7.6.3 \
+		source-map:0.5.7 \
+		sourcemap-codec:1.4.8 \
+		underscore:1.13.8 \
+		yallist:4.0.0
+
+# RC_NPM_FIX: the modules of the bundle the port replaces, by the advisory database of npm
+# (azsupport/azsupport rocketchat/2026-11-18-npm-audit-8.9.1.md; aZ, 18.11.2026 14:10:
+# «а) все 33» — the fixed versions within the ranges of the modules that need them —
+# and «а) 16 в той же мажорной ветке»; of the 16 in another major version 4: aZ
+# 18.11.2026 15:26 «да» to the table of rocketchat/2026-11-18-npm-audit-8.9.1.md, rows 1
+# to 4 updated — the other 12 and the 2 with no fixed version are not here), then the
+# modules their new versions need where the bundle has none in
+# their range: under the module that needs them, as npm would put them. The files of a
+# module replaced go, its node_modules stays.
+RC_NPM_FIX=
+# dompurify 3.4.14 -> 3.4.17: GHSA-p98j-92pf-mc4p GHSA-6688-9rhm-gjv2 GHSA-cg2g-xh64-v4q7 GHSA-mrv2-3pqr-j5jr GHSA-c6gr-qvv4-5v3f (critical)
+RC_NPM_FIX+=	dompurify:dompurify:3.4.17
+# proxy-addr 2.0.7 -> 2.0.8: GHSA-jqcg-44mw-7w3h (critical)
+RC_NPM_FIX+=	meteor/webapp/node_modules/proxy-addr:proxy-addr:2.0.8
+# proxy-addr 2.0.7 -> 2.0.8: GHSA-jqcg-44mw-7w3h (critical)
+RC_NPM_FIX+=	proxy-addr:proxy-addr:2.0.8
+# @grpc/grpc-js 1.14.4 -> 1.14.5: GHSA-m9gg-hp2v-232j GHSA-f596-whhp-79r4 (high)
+RC_NPM_FIX+=	@grpc/grpc-js:@grpc/grpc-js:1.14.5
+# axios 1.18.0 -> 1.20.0: GHSA-m8m8-qj5v-23w3 GHSA-44g4-m2mj-wpvx GHSA-vh66-26gq-q6x8 GHSA-9fr6-4gfg-395g GHSA-c29m-xwm3-cm6r GHSA-mghh-pgcx-3jjj GHSA-x97p-jq2g-jp4f GHSA-3pq3-5fj3-cg6v GHSA-542g-h47m-68v8 GHSA-j8rh-479h-cp32 GHSA-4hqw-qxg8-jxx2 GHSA-r4gj-5m52-g5wh (high)
+RC_NPM_FIX+=	axios:axios:1.20.0
+# body-parser 1.20.6 -> 1.20.9: GHSA-27r3-jxmh-p828 (high)
+RC_NPM_FIX+=	body-parser:body-parser:1.20.9
+# body-parser 1.20.3 -> 1.20.9: GHSA-v422-hmwv-36x6 GHSA-27r3-jxmh-p828 (high)
+RC_NPM_FIX+=	meteor/oauth/node_modules/body-parser:body-parser:1.20.9
+# body-parser 2.3.0 -> 2.4.0: GHSA-27r3-jxmh-p828 (high)
+RC_NPM_FIX+=	meteor/webapp/node_modules/body-parser:body-parser:2.4.0
+# brace-expansion 2.1.4 -> 2.1.7: GHSA-6j4f-fj2g-mc7p GHSA-q2hr-2g5m-vwhr GHSA-qhr7-859c-m2p7 (high)
+RC_NPM_FIX+=	brace-expansion:brace-expansion:2.1.7
+# brace-expansion 1.1.18 -> 1.1.21: GHSA-6j4f-fj2g-mc7p GHSA-q2hr-2g5m-vwhr GHSA-qhr7-859c-m2p7 (high)
+RC_NPM_FIX+=	minimatch/node_modules/brace-expansion:brace-expansion:1.1.21
+# browserslist 4.28.4 -> 4.28.7: GHSA-c83g-rgw3-j3cx GHSA-73wf-gq98-2v4g (high)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/browserslist:browserslist:4.28.7
+# compression 1.7.4 -> 1.8.2: GHSA-vc2v-76pw-4v95 (high)
+RC_NPM_FIX+=	meteor/webapp/node_modules/compression:compression:1.8.2
+# follow-redirects 1.16.0 -> 1.16.2: GHSA-mrwp-f3q8-3g9p GHSA-q3jh-wrc6-jgq8 GHSA-8r9p-f939-6h3c (high)
+RC_NPM_FIX+=	follow-redirects:follow-redirects:1.16.2
+# moleculer 0.14.35 -> 0.14.36: GHSA-h89v-g948-47vp (high)
+RC_NPM_FIX+=	moleculer:moleculer:0.14.36
+# nanoid 3.3.15 -> 3.3.18: GHSA-28wg-ghj8-5hjv GHSA-2v37-7h3g-55p8 (high)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/nanoid:nanoid:3.3.18
+# node-forge 1.4.0 -> 1.4.3: GHSA-86w9-cpqp-85rv GHSA-8hrf-8g6f-7xwp GHSA-hqq3-7jhf-c5jx GHSA-5x38-2vff-x55p GHSA-6889-vf6x-f3g5 GHSA-w4xr-hqv8-ch44 GHSA-6cv4-p8m7-4r25 GHSA-j8rw-jp99-435v GHSA-9wg5-mj3p-v49q GHSA-2vgq-wchc-25w7 GHSA-h46v-rmh6-fq4f GHSA-rhr8-3pm8-cq29 GHSA-6qrw-m8cv-hcxf GHSA-4642-5mcj-2rqw GHSA-6wvx-3r32-xmcg GHSA-525v-9gp9-w22h GHSA-7wch-p9px-956x GHSA-h6cr-wjv9-3cpp GHSA-4487-j8r4-4g2f GHSA-5cwg-6vw7-rj6p GHSA-jc66-7q78-782g (high)
+RC_NPM_FIX+=	node-forge:node-forge:1.4.3
+# openpgp 5.11.1 -> 5.11.3: GHSA-8qff-qr5q-5pr8 (high)
+RC_NPM_FIX+=	meteor/email/node_modules/openpgp:openpgp:5.11.3
+# postcss 8.5.1 -> 8.5.23: GHSA-fxqj-rqcc-2cmp GHSA-qx2v-qp2m-jg93 GHSA-6g55-p6wh-862q GHSA-r28c-9q8g-f849 (high)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/postcss:postcss:8.5.23
+# sharp 0.35.4 -> 0.35.5: GHSA-wq5f-xc86-pv6w (high)
+RC_NPM_FIX+=	sharp:sharp:0.35.5
+# source-map-js 1.2.1 -> 1.2.2: GHSA-68fv-2mgg-jv7q (high)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/source-map-js:source-map-js:1.2.2
+# source-map-js 1.2.1 -> 1.2.2: GHSA-68fv-2mgg-jv7q (high)
+RC_NPM_FIX+=	source-map-js:source-map-js:1.2.2
+# svgo 2.8.2 -> 2.8.4: GHSA-2p49-hgcm-8545 GHSA-4vpr-x523-8j87 GHSA-w27v-7q3p-w38r (high)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/svgo:svgo:2.8.4
+# tmp 0.2.3 -> 0.2.7: GHSA-52f5-9888-hmc6 GHSA-ph9p-34f9-6g65 (high)
+RC_NPM_FIX+=	meteor/webapp/node_modules/tmp:tmp:0.2.7
+# zod 4.3.6 -> 4.6.6: GHSA-mrhx-c7xc-m3w5 (high)
+RC_NPM_FIX+=	zod:zod:4.6.6
+# @babel/runtime 7.20.7 -> 7.26.10: GHSA-968p-4wvh-cqc8 (moderate)
+RC_NPM_FIX+=	meteor/ecmascript-runtime/node_modules/@babel/runtime:@babel/runtime:7.26.10
+# @babel/runtime 7.20.7 -> 7.26.10: GHSA-968p-4wvh-cqc8 (moderate)
+RC_NPM_FIX+=	meteor/ecmascript/node_modules/@babel/runtime:@babel/runtime:7.26.10
+# @babel/runtime 7.20.7 -> 7.26.10: GHSA-968p-4wvh-cqc8 (moderate)
+RC_NPM_FIX+=	meteor/logging/node_modules/@babel/runtime:@babel/runtime:7.26.10
+# baseline-browser-mapping 2.10.40 -> 2.11.0: GHSA-w5vr-8v7q-w6rv (moderate)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/baseline-browser-mapping:baseline-browser-mapping:2.11.0
+# bn.js 4.12.0 -> 4.12.3: GHSA-378v-28hj-76wf (moderate)
+RC_NPM_FIX+=	bn.js:bn.js:4.12.3
+# bn.js 5.2.1 -> 5.2.3: GHSA-378v-28hj-76wf (moderate)
+RC_NPM_FIX+=	browserify-rsa/node_modules/bn.js:bn.js:5.2.3
+# bn.js 5.2.1 -> 5.2.3: GHSA-378v-28hj-76wf (moderate)
+RC_NPM_FIX+=	browserify-sign/node_modules/bn.js:bn.js:5.2.3
+# colord 2.9.3 -> 2.9.4: GHSA-2wm5-q62r-hmrv (moderate)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/colord:colord:2.9.4
+# fast-uri 3.1.7 -> 3.1.9: GHSA-hrr3-gc8f-f4qj GHSA-w74x-v6f9-j3xg GHSA-xhq7-xmqj-769h GHSA-wjr9-j795-jxcr GHSA-333x-w4r6-6crp (moderate)
+RC_NPM_FIX+=	fast-uri:fast-uri:3.1.9
+# fast-xml-parser 5.6.0 -> 5.12.0: GHSA-474x-hrwr-fgx4 GHSA-gh4j-gqv2-49f6 (moderate)
+RC_NPM_FIX+=	@aws-sdk/xml-builder/node_modules/fast-xml-parser:fast-xml-parser:5.12.0
+# fast-xml-parser 5.5.11 -> 5.12.0: GHSA-474x-hrwr-fgx4 GHSA-gh4j-gqv2-49f6 (moderate)
+RC_NPM_FIX+=	fast-xml-parser:fast-xml-parser:5.12.0
+# fflate 0.8.2 -> 0.8.3: GHSA-px8p-9vwx-vf98 (moderate)
+RC_NPM_FIX+=	png-js/node_modules/fflate:fflate:0.8.3
+# hono 4.13.5 -> 4.13.16: GHSA-hxh3-vqpv-xpqv GHSA-5r4p-p66f-jhc7 GHSA-4m76-xfj5-7975 GHSA-h7mg-cq63-vhpq GHSA-3gg2-335m-rxc6 GHSA-46wx-v44x-9hh2 GHSA-4h7h-rv7c-7m2v (moderate)
+RC_NPM_FIX+=	hono:hono:4.13.16
+# ip-address 10.4.0 -> 10.7.4: GHSA-rpw4-54j3-4h4q GHSA-2vr4-cq9g-pvrc GHSA-j6r3-76f7-8jcv GHSA-h3mg-xc3c-68pw GHSA-rxp7-6hxx-x8q5 (moderate)
+RC_NPM_FIX+=	ip-address:ip-address:10.7.4
+# moment 2.30.1 -> 2.31.0: GHSA-4p3w-j4w9-5jqw (moderate)
+RC_NPM_FIX+=	moment:moment:2.31.0
+# pbkdf2 3.1.3 -> 3.1.7: GHSA-477h-4r7f-fvrx (moderate)
+RC_NPM_FIX+=	pbkdf2:pbkdf2:3.1.7
+# postcss-selector-parser 6.1.4 -> 6.1.5: GHSA-rj75-hqrm-r3gf (moderate)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/postcss-selector-parser:postcss-selector-parser:6.1.5
+# qs 6.13.0 -> 6.16.1: GHSA-4mjr-xmp4-gh2g GHSA-q8mj-m7cp-5q26 GHSA-w7fw-mjwx-w883 GHSA-6rw7-vpxm-498p GHSA-6pq8-jhm2-2vcw (moderate)
+RC_NPM_FIX+=	meteor/oauth/node_modules/qs:qs:6.16.1
+# qs 6.15.3 -> 6.16.1: GHSA-x5fp-wj9c-mxmx GHSA-4mjr-xmp4-gh2g GHSA-6pq8-jhm2-2vcw (moderate)
+RC_NPM_FIX+=	meteor/webapp/node_modules/body-parser/node_modules/qs:qs:6.16.1
+# qs 6.15.3 -> 6.16.1: GHSA-x5fp-wj9c-mxmx GHSA-4mjr-xmp4-gh2g GHSA-6pq8-jhm2-2vcw (moderate)
+RC_NPM_FIX+=	meteor/webapp/node_modules/express/node_modules/qs:qs:6.16.1
+# qs 6.13.0 -> 6.16.1: GHSA-4mjr-xmp4-gh2g GHSA-q8mj-m7cp-5q26 GHSA-w7fw-mjwx-w883 GHSA-6rw7-vpxm-498p GHSA-6pq8-jhm2-2vcw (moderate)
+RC_NPM_FIX+=	meteor/webapp/node_modules/qs:qs:6.16.1
+# qs 6.16.0 -> 6.16.1: GHSA-6pq8-jhm2-2vcw (moderate)
+RC_NPM_FIX+=	qs:qs:6.16.1
+# sanitize-html 2.17.7 -> 2.18.1: GHSA-x3q4-9hxx-gx8m GHSA-374f-7chj-9948 GHSA-cv27-6wvh-8x7j (moderate)
+RC_NPM_FIX+=	sanitize-html:sanitize-html:2.18.1
+# i18next-http-backend 4.0.2 -> 4.0.4: GHSA-9jhj-wvmw-cfx5 GHSA-3cmx-xjww-583x (low)
+RC_NPM_FIX+=	i18next-http-backend:i18next-http-backend:4.0.4
+# on-headers 1.0.2 -> 1.1.0: GHSA-76c9-3jph-rj3q (low)
+RC_NPM_FIX+=	meteor/webapp/node_modules/on-headers:on-headers:1.1.0
+# raw-body 2.5.3: for body-parser@1.20.9 (~2.5.3; the bundle has 2.5.2)
+RC_NPM_FIX+=	meteor/oauth/node_modules/body-parser/node_modules/raw-body:raw-body:2.5.3
+# http-errors 2.0.1: for body-parser@1.20.9 (~2.0.1; the bundle has 2.0.0)
+RC_NPM_FIX+=	meteor/oauth/node_modules/body-parser/node_modules/http-errors:http-errors:2.0.1
+# iconv-lite 0.7.3: for body-parser@2.4.0 (^0.7.3; the bundle has 0.7.2)
+RC_NPM_FIX+=	meteor/webapp/node_modules/body-parser/node_modules/iconv-lite:iconv-lite:0.7.3
+# content-type 2.1.0: for body-parser@2.4.0 (^2.1.0; the bundle has 2.0.0)
+RC_NPM_FIX+=	meteor/webapp/node_modules/body-parser/node_modules/content-type:content-type:2.1.0
+# caniuse-lite 1.0.30001826: for browserslist@4.28.7 (^1.0.30001806; the bundle has 1.0.30001800)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/browserslist/node_modules/caniuse-lite:caniuse-lite:1.0.30001826
+# node-releases 2.0.65: for browserslist@4.28.7 (^2.0.51; the bundle has 2.0.50)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/browserslist/node_modules/node-releases:node-releases:2.0.65
+# electron-to-chromium 1.5.490: for browserslist@4.28.7 (^1.5.393; the bundle has 1.5.382)
+RC_NPM_FIX+=	meteor/minifier-css/node_modules/browserslist/node_modules/electron-to-chromium:electron-to-chromium:1.5.490
+# bytes 3.1.2: for compression@1.8.2 (3.1.2; the bundle has 3.0.0)
+RC_NPM_FIX+=	meteor/webapp/node_modules/compression/node_modules/bytes:bytes:3.1.2
+# negotiator 0.6.4: for compression@1.8.2 (~0.6.4; the bundle has 0.6.3)
+RC_NPM_FIX+=	meteor/webapp/node_modules/compression/node_modules/negotiator:negotiator:0.6.4
+# safe-buffer 5.2.1: for compression@1.8.2 (5.2.1; the bundle has 5.1.2)
+RC_NPM_FIX+=	meteor/webapp/node_modules/compression/node_modules/safe-buffer:safe-buffer:5.2.1
+# regenerator-runtime 0.14.1: for @babel/runtime@7.26.10 (^0.14.0; the bundle has 0.13.11)
+RC_NPM_FIX+=	meteor/ecmascript-runtime/node_modules/@babel/runtime/node_modules/regenerator-runtime:regenerator-runtime:0.14.1
+# regenerator-runtime 0.14.1: for @babel/runtime@7.26.10 (^0.14.0; the bundle has 0.13.11)
+RC_NPM_FIX+=	meteor/ecmascript/node_modules/@babel/runtime/node_modules/regenerator-runtime:regenerator-runtime:0.14.1
+# regenerator-runtime 0.14.1: for @babel/runtime@7.26.10 (^0.14.0; the bundle has 0.13.11)
+RC_NPM_FIX+=	meteor/logging/node_modules/@babel/runtime/node_modules/regenerator-runtime:regenerator-runtime:0.14.1
+# strnum 2.5.1: for fast-xml-parser@5.12.0 (^2.5.1; the bundle has 2.2.3)
+RC_NPM_FIX+=	@aws-sdk/xml-builder/node_modules/fast-xml-parser/node_modules/strnum:strnum:2.5.1
+# is-unsafe 2.0.3: for fast-xml-parser@5.12.0 (^2.0.3; not in the bundle)
+RC_NPM_FIX+=	@aws-sdk/xml-builder/node_modules/fast-xml-parser/node_modules/is-unsafe:is-unsafe:2.0.3
+# xml-naming 0.3.0: for fast-xml-parser@5.12.0 (^0.3.0; not in the bundle)
+RC_NPM_FIX+=	@aws-sdk/xml-builder/node_modules/fast-xml-parser/node_modules/xml-naming:xml-naming:0.3.0
+# fast-xml-builder 1.3.2: for fast-xml-parser@5.12.0 (^1.3.1; the bundle has 1.1.9)
+RC_NPM_FIX+=	@aws-sdk/xml-builder/node_modules/fast-xml-parser/node_modules/fast-xml-builder:fast-xml-builder:1.3.2
+# @nodable/entities 3.1.0: for fast-xml-parser@5.12.0 (^3.1.0; the bundle has 1.1.0)
+RC_NPM_FIX+=	@aws-sdk/xml-builder/node_modules/fast-xml-parser/node_modules/@nodable/entities:@nodable/entities:3.1.0
+# path-expression-matcher 1.6.2: for fast-xml-parser@5.12.0 (^1.6.2; the bundle has 1.5.0)
+RC_NPM_FIX+=	@aws-sdk/xml-builder/node_modules/fast-xml-parser/node_modules/path-expression-matcher:path-expression-matcher:1.6.2
+# strnum 2.5.1: for fast-xml-parser@5.12.0 (^2.5.1; the bundle has 2.2.3)
+RC_NPM_FIX+=	fast-xml-parser/node_modules/strnum:strnum:2.5.1
+# is-unsafe 2.0.3: for fast-xml-parser@5.12.0 (^2.0.3; not in the bundle)
+RC_NPM_FIX+=	fast-xml-parser/node_modules/is-unsafe:is-unsafe:2.0.3
+# xml-naming 0.3.0: for fast-xml-parser@5.12.0 (^0.3.0; not in the bundle)
+RC_NPM_FIX+=	fast-xml-parser/node_modules/xml-naming:xml-naming:0.3.0
+# fast-xml-builder 1.3.2: for fast-xml-parser@5.12.0 (^1.3.1; the bundle has 1.1.9)
+RC_NPM_FIX+=	fast-xml-parser/node_modules/fast-xml-builder:fast-xml-builder:1.3.2
+# @nodable/entities 3.1.0: for fast-xml-parser@5.12.0 (^3.1.0; the bundle has 1.1.0)
+RC_NPM_FIX+=	fast-xml-parser/node_modules/@nodable/entities:@nodable/entities:3.1.0
+# path-expression-matcher 1.6.2: for fast-xml-parser@5.12.0 (^1.6.2; the bundle has 1.5.0)
+RC_NPM_FIX+=	fast-xml-parser/node_modules/path-expression-matcher:path-expression-matcher:1.6.2
+# ripemd160 2.0.3: for pbkdf2@3.1.7 (^2.0.3; the bundle has 2.0.1)
+RC_NPM_FIX+=	pbkdf2/node_modules/ripemd160:ripemd160:2.0.3
+# to-buffer 1.2.2: for pbkdf2@3.1.7 (^1.2.2; the bundle has 1.2.1)
+RC_NPM_FIX+=	pbkdf2/node_modules/to-buffer:to-buffer:1.2.2
+# create-hash 1.2.0: for pbkdf2@3.1.7 (^1.2.0; the bundle has 1.1.3)
+RC_NPM_FIX+=	pbkdf2/node_modules/create-hash:create-hash:1.2.0
+# launder 1.7.2: for sanitize-html@2.18.1 (^1.7.2; the bundle has 1.7.1)
+RC_NPM_FIX+=	sanitize-html/node_modules/launder:launder:1.7.2
+# postcss 8.5.33: for sanitize-html@2.18.1 (^8.5.27; the bundle has 8.5.26)
+RC_NPM_FIX+=	sanitize-html/node_modules/postcss:postcss:8.5.33
+# is-plain-object 5.1.0: for sanitize-html@2.18.1 (^5.1.0; the bundle has 5.0.0)
+RC_NPM_FIX+=	sanitize-html/node_modules/is-plain-object:is-plain-object:5.1.0
+# statuses 2.0.2: for http-errors@2.0.1 (~2.0.2; the bundle has 2.0.1)
+RC_NPM_FIX+=	meteor/oauth/node_modules/body-parser/node_modules/http-errors/node_modules/statuses:statuses:2.0.2
+# anynum 1.0.1: for strnum@2.5.1 (^1.0.1; not in the bundle)
+RC_NPM_FIX+=	@aws-sdk/xml-builder/node_modules/fast-xml-parser/node_modules/strnum/node_modules/anynum:anynum:1.0.1
+# anynum 1.0.1: for strnum@2.5.1 (^1.0.1; not in the bundle)
+RC_NPM_FIX+=	fast-xml-parser/node_modules/strnum/node_modules/anynum:anynum:1.0.1
+# hash-base 3.1.2: for ripemd160@2.0.3 (^3.1.2; the bundle has 2.0.2)
+RC_NPM_FIX+=	pbkdf2/node_modules/ripemd160/node_modules/hash-base:hash-base:3.1.2
+# dayjs 1.11.23: for launder@1.7.2 (^1.11.23; the bundle has 1.11.20)
+RC_NPM_FIX+=	sanitize-html/node_modules/launder/node_modules/dayjs:dayjs:1.11.23
+# nanoid 3.3.20: for postcss@8.5.33 (^3.3.20; the bundle has 3.3.18)
+RC_NPM_FIX+=	sanitize-html/node_modules/postcss/node_modules/nanoid:nanoid:3.3.20
+# readable-stream 2.3.8: for hash-base@3.1.2 (^2.3.8; the bundle has 3.6.2)
+RC_NPM_FIX+=	pbkdf2/node_modules/ripemd160/node_modules/hash-base/node_modules/readable-stream:readable-stream:2.3.8
+# isarray 1.0.0: for readable-stream@2.3.8 (~1.0.0; the bundle has 2.0.5)
+RC_NPM_FIX+=	pbkdf2/node_modules/ripemd160/node_modules/hash-base/node_modules/readable-stream/node_modules/isarray:isarray:1.0.0
+# safe-buffer 5.1.2: for readable-stream@2.3.8 (~5.1.1; the bundle has 5.2.1)
+RC_NPM_FIX+=	pbkdf2/node_modules/ripemd160/node_modules/hash-base/node_modules/readable-stream/node_modules/safe-buffer:safe-buffer:5.1.2
+# string_decoder 1.1.1: for readable-stream@2.3.8 (~1.1.1; the bundle has 1.3.0)
+RC_NPM_FIX+=	pbkdf2/node_modules/ripemd160/node_modules/hash-base/node_modules/readable-stream/node_modules/string_decoder:string_decoder:1.1.1
+
+# Another major version (aZ, 18.11.2026 15:26: «да» to the table of
+# rocketchat/2026-11-18-npm-audit-8.9.1.md of azsupport/azsupport, rows 1 to 4). nodemailer
+# 10 (Node 20 and later; TypeScript with builds for ES modules and CommonJS) keeps, by the
+# exports of its package.json, the files the bundle takes from it: lib/addressparser
+# (mailparser), lib/well-known and lib/mail-composer (the email of Meteor), package.json
+# nodemailer 8.0.3 -> 10.6.0: GHSA-p6gq-j5cr-w38f GHSA-268h-hp4c-crq3 GHSA-wqvq-jvpq-h66f GHSA-c7w3-x93f-qmm8 GHSA-vvjj-xcjg-gr5g GHSA-8m3c-c648-2xjj GHSA-wmmp-3585-3rmp GHSA-2x7j-588g-ccc2 GHSA-cc9r-2j5m-2m83 GHSA-4ffr-jq9g-5ffx GHSA-g73g-hqqh-jr95 GHSA-4g23-2xm8-66gc GHSA-m943-m63m-w62w GHSA-85x2-q946-cp5h GHSA-r7g4-qg5f-qqm2 GHSA-v53p-9fqp-m79j GHSA-6vj9-mwq6-2f5v GHSA-8vvx-rff5-p5rq GHSA-39m8-27wv-hr27 GHSA-8c8m-p3m8-cjg8 (high)
+RC_NPM_FIX+=	meteor/email/node_modules/nodemailer:nodemailer:10.6.0
+# nodemailer 9.1.1 -> 10.6.0: GHSA-4ffr-jq9g-5ffx GHSA-g73g-hqqh-jr95 GHSA-4g23-2xm8-66gc GHSA-m943-m63m-w62w GHSA-85x2-q946-cp5h GHSA-g57g-f23g-4646 GHSA-v53p-9fqp-m79j GHSA-6vj9-mwq6-2f5v GHSA-8vvx-rff5-p5rq GHSA-prgh-xp8r-p3m5 GHSA-39m8-27wv-hr27 GHSA-8c8m-p3m8-cjg8 (high)
+RC_NPM_FIX+=	nodemailer:nodemailer:10.6.0
+# axios 0.33.0 -> 0.34.0 (webdav, ^0.30.0): GHSA-9fr6-4gfg-395g GHSA-x97p-jq2g-jp4f (high)
+RC_NPM_FIX+=	webdav/node_modules/axios:axios:0.34.0
+# cookie 0.4.1 -> 0.7.2 (cookie-parser 1.4.6 of the webapp of Meteor, 0.4.1; cookie-parser
+# 1.4.7 is the same with cookie 0.7.2): GHSA-pxg6-pf52-xh8x (low)
+RC_NPM_FIX+=	meteor/webapp/node_modules/cookie:cookie:0.7.2
