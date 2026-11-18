@@ -28,16 +28,17 @@
 # libstdc++.so.6 of the gcc package (a library of the ports, not on the servers): a
 # symbol of the C++ library would fail the link, not the start; libgcc linked in
 # (-static-libgcc). Without the -g -ggdb of its Makefile (DEBUG; no debug in our builds,
-# aZ 17.11.2026). With LTO, as Redis builds itself (src/Makefile: -O3 with -flto=auto
-# for GCC, which the OPTIMIZATION= of the official port takes away; aZ, 18.11.2026: «он
-# же наоборот ускоряет программы»): OPTIMIZATION=-flto=auto, the -O3 and -march of the
-# CFLAGS of the build, -fno-omit-frame-pointer added by Redis; the code of Redis, src/,
-# compiled and linked with it (its link through the LTO plugin of GCC and the ld of
-# the binutils of the ports), its deps/ (hiredis, lua, ...) without it, as upstream.
+# aZ 17.11.2026). With LTO, as Redis builds itself (aZ, 18.11.2026: «он же наоборот
+# ускоряет программы»): no OPTIMIZATION, which the official port empties, so that
+# src/Makefile takes its -O3 with -flto=auto (GCC) and -fno-omit-frame-pointer, with the
+# -O3 and -march of the CFLAGS of the build; the code of Redis, src/, compiled and
+# linked with it (its link through the LTO plugin of GCC and the ld of the binutils of
+# the ports), its deps/ without it, as upstream. Not OPTIMIZATION=-flto=auto in the
+# environment: it reached deps/hiredis too (OPTIMIZATION?=-O3 of its Makefile), whose
+# LTO objects the ar of the base system cannot index, and the link of redis-server
+# missed every redisAsync* (build runs 44301381623 and 44307117115, 18.11.2026).
 # MAKE=gmake for the lto-wrapper of GCC: it runs the parallel part of the link
-# (LTRANS) by $MAKE, else by make, which is BSD make here, and under gmake with the
-# jobserver it gives that make the MAKEFLAGS of gmake (--jobserver-auth=...), which
-# BSD make does not take: the link failed (build run 44301381623, 18.11.2026).
+# (LTRANS) by $MAKE, else by make, which is BSD make here.
 
 PORTNAME=	redis
 DISTVERSION=	8.2.11
@@ -65,8 +66,7 @@ USES+=		azgcc
 CPE_VENDOR=	redislabs
 USE_RC_SUBR=	redis sentinel
 
-MAKE_ENV=	OPTIMIZATION=-flto=auto \
-		MAKE=${GMAKE} \
+MAKE_ENV=	MAKE=${GMAKE} \
 		V=yo
 MAKE_ARGS=	DEBUG=
 
