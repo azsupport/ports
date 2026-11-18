@@ -85,9 +85,10 @@ LDFLAGS+=	-L${WRKDIR}/az/lib -L${LOCALBASE}/lib -L${OPENSSLLIB} \
 SUB_FILES+=	pkg-message
 SUB_LIST+=	REQUIRE="${_REQUIRE}"
 # Default requirement for dovecot rc script
-# the requirement of the rc script: LOGIN alone, no slapd, mysql or postgresql of the
-# official port (they may be on another host; rcorder warns of a name without a
-# provider at every boot): the databases start before LOGIN (aZ, 18.11.2026 21:52)
+# the requirement of the rc script: LOGIN alone, without the mysql of the official port
+# (dovecot-mysql; the database may be on another host): the databases start before
+# LOGIN, so dovecot starts after them all the same (aZ, 18.11.2026 21:52); slapd and
+# postgresql of the official port go with LDAP and PGSQL, off here
 _REQUIRE=	LOGIN
 
 USERS=		${PORTNAME} dovenull

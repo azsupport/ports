@@ -182,10 +182,12 @@ POSTFIX_CCARGS+=	-DDEF_CONFIG_DIR=\\\"${ETCDIR}\\\" \
 			-DDEF_SGID_GROUP=\\\"maildrop\\\" \
 			-Wmissing-prototypes -Wformat -Wno-comment
 
-# the requirement of the rc script: no name of a service that may be on another host or
-# not there (dovecot, mysql, postgresql, slapd, ypserv of the official port): rcorder warns
-# of each at every boot of a host without it; the databases start before LOGIN, dovecot
-# before mail (aZ, 18.11.2026 21:52: «постфикс же может и работает без довекота»)
+# the requirement of the rc script: LOGIN and cleanvar alone, without the dovecot and the
+# mysql (postfix-mysql) of the official port: postfix works without dovecot (aZ,
+# 18.11.2026 21:52: «постфикс же может и работает без довекота»), the database may be on
+# another host; the databases start before LOGIN and dovecot before mail, so postfix
+# starts after them all the same where they are; slapd, postgresql and ypserv of the
+# official port go with LDAP, PGSQL and NIS, off here
 _REQUIRE=	LOGIN cleanvar
 
 # always build with Dovecot SASL support, Cyrus is optional
