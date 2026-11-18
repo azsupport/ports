@@ -1,0 +1,24 @@
+[
+{ type: install
+  message: <<EOM
+Rocket.Chat 8 is in %%WWWDIR%% (owned by root), run by the rc script
+rocketchat8 as the user %%USERS%% with the environment of
+%%PREFIX%%/etc/rocketchat8.conf (its sample: rocketchat8.conf.sample);
+its output goes to /var/log/rocketchat8.log.
+
+It needs MongoDB 8.0 (databases/mongodb80, here or on another host) as a
+replica set. In %%LOCALBASE%%/etc/mongodb.conf:
+
+  replication:
+    replSetName: rs01
+
+then, once mongod runs with it: mongosh --eval 'rs.initiate()'
+
+  sysrc rocketchat8_enable=YES
+  service rocketchat8 start
+
+The DDP transport of uWebSockets.js (DDP_TRANSPORT=uws) has no FreeBSD
+build: the default one, sockjs, is used.
+EOM
+}
+]

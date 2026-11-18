@@ -1,0 +1,2 @@
+@sample etc/rocketchat8.conf.sample
+@dir(%%USERS%%,%%GROUPS%%,750) /var/db/rocketchat8

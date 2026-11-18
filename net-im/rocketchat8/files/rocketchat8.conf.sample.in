@@ -1,0 +1,12 @@
+# The environment of Rocket.Chat 8 (net-im/rocketchat8): the rc script rocketchat8
+# reads this file as sh and exports every variable it sets to node.
+
+# The address its users open (behind nginx: https://chat.example.org).
+ROOT_URL=http://localhost:3000
+# The address and the port node listens on (127.0.0.1 behind nginx).
+BIND_IP=127.0.0.1
+PORT=3000
+# MongoDB 8.0 (databases/mongodb80) as the replica set rs01 (pkg info -D rocketchat8).
+MONGO_URL=mongodb://127.0.0.1:27017/rocketchat?replicaSet=rs01
+# The way it is installed, in the statistics Rocket.Chat keeps.
+DEPLOY_METHOD=freebsd-port

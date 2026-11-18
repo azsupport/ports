@@ -1,0 +1,50 @@
+#!/bin/sh
+
+# PROVIDE: rocketchat8
+# REQUIRE: LOGIN mongod
+# KEYWORD: shutdown
+#
+# Add to /etc/rc.conf to start Rocket.Chat 8:
+#
+# rocketchat8_enable="YES"
+#
+# rocketchat8_config (path): its environment, read as sh and exported to node
+#                            (default %%PREFIX%%/etc/rocketchat8.conf)
+# rocketchat8_user (str):    the user it runs as (default %%USERS%%)
+# rocketchat8_group (str):   its group (default %%GROUPS%%)
+# rocketchat8_log (path):    its output (default /var/log/rocketchat8.log)
+
+. /etc/rc.subr
+
+name=rocketchat8
+rcvar=rocketchat8_enable
+
+load_rc_config $name
+
+: ${rocketchat8_enable:="NO"}
+: ${rocketchat8_config:="%%PREFIX%%/etc/rocketchat8.conf"}
+: ${rocketchat8_user:="%%USERS%%"}
+: ${rocketchat8_group:="%%GROUPS%%"}
+: ${rocketchat8_log:="/var/log/rocketchat8.log"}
+
+pidfile="/var/run/${name}/${name}.pid"
+procname="/usr/sbin/daemon"
+command="/usr/sbin/daemon"
+command_args="-f -r -R 5 -P ${pidfile} -o ${rocketchat8_log} -t ${name} %%LOCALBASE%%/bin/node %%WWWDIR%%/main.js"
+start_precmd="${name}_prestart"
+
+rocketchat8_prestart()
+{
+	if [ ! -r "${rocketchat8_config}" ]; then
+		err 1 "no ${rocketchat8_config} (its sample: ${rocketchat8_config}.sample)"
+	fi
+	install -d -o "${rocketchat8_user}" -g "${rocketchat8_group}" -m 755 "/var/run/${name}"
+	if [ ! -e "${rocketchat8_log}" ]; then
+		install -o "${rocketchat8_user}" -g "${rocketchat8_group}" -m 640 /dev/null "${rocketchat8_log}"
+	fi
+	set -a
+	. "${rocketchat8_config}"
+	set +a
+}
+
+run_rc_command "$1"
