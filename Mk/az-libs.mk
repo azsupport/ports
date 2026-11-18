@@ -15,7 +15,9 @@
 #   links to the headers of these libraries and of those they require (the manifests of
 #   az, ${AZ_PREFIX}/share/az/interface/<name>.txt: the lines file and link under
 #   include/, requires), pkgconfig/ with their .pc files, whose include directory is
-#   that include/ (their libraries stay those of ${AZ_PREFIX}/lib);
+#   that include/ (their libraries stay those of ${AZ_PREFIX}/lib), and the links among
+#   them (libpng.pc to libpng16.pc: meson of graphics/cairo asks for libpng, and without
+#   it took the libpng of its subprojects/ into its package, build run 44379121576);
 # - ${AZ_LIBS_PKG_CONFIG_LIBDIR}: that pkgconfig/, then those of the framework (the
 #   links of PKGCONFIG_BASE), of /usr/local (the ports of this tree) and of the base
 #   system, the PKG_CONFIG_LIBDIR of the port (in its CONFIGURE_ENV and MAKE_ENV here,
@@ -58,6 +60,10 @@ az-libs-prepare:
 				-e 's|-I\$${prefix}/include|-I${AZ_LIBS_DIR}/include|g' \
 				-e 's|-I${AZ_PREFIX}/include|-I${AZ_LIBS_DIR}/include|g' \
 				${AZ_PREFIX}/$$p > ${AZ_LIBS_DIR}/pkgconfig/$${p##*/} || exit 1; \
+		done; \
+		for p in $$(${AWK} '$$1 == "link" && $$2 ~ /^lib\/pkgconfig\/.*\.pc$$/ { print $$2 "=" $$3 }' $$i/$$n.txt); do \
+			t=$${p#*=}; l=$${p%%=*}; \
+			${LN} -sf $${t##*/} ${AZ_LIBS_DIR}/pkgconfig/$${l##*/} || exit 1; \
 		done; \
 	done; \
 	${ECHO_MSG} "===>  The libraries of az, each with its own headers:$$seen"

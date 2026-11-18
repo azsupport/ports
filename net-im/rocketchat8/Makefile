@@ -412,7 +412,7 @@ do-build:
 		${ECHO_MSG} "sharp: $$m needs a shared libvips: $$n"; exit 1; fi && \
 	for l in libglib-2.0 librsvg-2 libpangocairo-1.0 libtiff libheif libjpeg libpng16 libwebp; do \
 		echo "$$n" | ${GREP} -q "\[$$l\." || { ${ECHO_MSG} "sharp: $$m without $$l: $$n"; exit 1; }; \
-	done && ${ECHO_MSG} "===>  $${m##*/}: libvips static, $$(echo "$$n" | ${WC} -l | ${TR} -d ' ') shared libraries"
+	done && ${ECHO_MSG} "===>  $${m##*/}: libvips static, $$(echo "$$n" | wc -l | ${TR} -d ' ') shared libraries"
 
 post-build:
 # of the builds only the modules they make: sodium-native where require-addon finds it,
@@ -452,7 +452,7 @@ post-install:
 	done > ${WRKDIR}/static-tls.txt; \
 	if [ -s ${WRKDIR}/static-tls.txt ]; then ${CAT} ${WRKDIR}/static-tls.txt; \
 		${ECHO_MSG} "native modules with static TLS (above)"; ${FALSE}; fi; \
-	${ECHO_MSG} "===>  $$(${FIND} . -name '*.node' -type f | ${WC} -l | ${TR} -d ' ') native modules, none with static TLS"
+	${ECHO_MSG} "===>  $$(${FIND} . -name '*.node' -type f | wc -l | ${TR} -d ' ') native modules, none with static TLS"
 	cd ${STAGEDIR}${PREFIX} && ${FIND} ${WWWDIR_REL} \( -type f -o -type l \) | ${SORT} >> ${TMPPLIST}
 	cd ${STAGEDIR}${PREFIX} && ${FIND} ${WWWDIR_REL} -type d -empty | ${SORT} | \
 		${SED} 's|^|@dir |' >> ${TMPPLIST}

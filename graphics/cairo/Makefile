@@ -57,8 +57,17 @@ AZ_LIBS=	fontconfig:libfontconfig.so \
 		png:libpng16.so
 .include "${.CURDIR:H:H}/Mk/az-libs.mk"
 
-# the plist: what meson installed (headers, the libraries, their .pc files)
+# no fallback of meson to subprojects/: a library of az it does not find stops the build
+# (the package of 18.11.2026 had a libpng16 of its own, which conflicted with the official
+# png: build run 44379121576)
+post-extract:
+	${RM} -r ${WRKSRC}/subprojects
+
+# the plist: what meson installed (headers, the libraries, their .pc files); nothing of
+# another library
 post-install:
+	@if ${FIND} ${STAGEDIR}${PREFIX} -name 'libpng*' | ${GREP} -q .; then \
+		${FIND} ${STAGEDIR}${PREFIX} -name 'libpng*'; ${ECHO_MSG} "cairo: libpng in the stage"; exit 1; fi
 	@n="$$(/usr/bin/readelf -d ${STAGEDIR}${PREFIX}/lib/libcairo.so.2 | ${GREP} NEEDED)"; \
 	for l in libfontconfig libfreetype libpng16 libpixman-1; do \
 		echo "$$n" | ${GREP} -q "\[$$l\." || { ${ECHO_MSG} "cairo: no $$l ($$n)"; exit 1; }; \
