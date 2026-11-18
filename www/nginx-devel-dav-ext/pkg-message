@@ -1,0 +1,10 @@
+[
+{ type: install
+  message: <<EOM
+Load the modules in the main context of nginx.conf:
+
+load_module /usr/local/libexec/nginx/ngx_http_dav_module.so;
+load_module /usr/local/libexec/nginx/ngx_http_dav_ext_module.so;
+EOM
+}
+]

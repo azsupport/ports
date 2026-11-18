@@ -1,0 +1,4 @@
+The DAV module of nginx (ngx_http_dav_module) for nginx-devel, as a dynamic module:
+the WebDAV methods PUT, DELETE, MKCOL, COPY and MOVE (dav_methods,
+create_full_put_path, dav_access, min_delete_depth). PROPFIND, OPTIONS, LOCK and
+UNLOCK come with nginx-devel-dav-ext.

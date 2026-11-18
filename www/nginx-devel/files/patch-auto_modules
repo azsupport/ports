@@ -1,0 +1,15 @@
+The DAV module of nginx as a dynamic module: its block of auto/modules for
+HTTP_DAV=DYNAMIC too (see patch-auto_options). Its place in the order of the modules
+(ngx_module_order: after gzip_static, before autoindex) goes with it.
+
+--- auto/modules.orig
++++ auto/modules
+@@ -511,7 +511,7 @@
+         . auto/module
+     fi
+ 
+-    if [ $HTTP_DAV = YES ]; then
++    if [ $HTTP_DAV != NO ]; then
+         have=NGX_HTTP_DAV . auto/have
+ 
+         ngx_module_name=ngx_http_dav_module

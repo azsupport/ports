@@ -4,8 +4,10 @@
 # options the union of those of three of aZ's servers, HTTP_GZIP_STATIC and
 # HTTP_STATUS (for VTS).
 #
-# The core has the modules of nginx itself built in (they cannot be dynamic), and
-# brotli, headers-more and geoip2 (its http part), which every server of aZ uses
+# The core has the modules of nginx itself built in (nginx can build only a few of
+# them dynamic, here stream and image_filter, and DAV with files/patch-auto_options and
+# patch-auto_modules), and brotli, headers-more and geoip2 (its http part), which
+# every server of aZ uses
 # (aZ, 15.11.2026: «бротли и хеадерсморе у меня на всех серверах есть, есть ли смысл
 # вкомпилить их в нгингс тогда?»): their libraries are shared ones in both cases, and
 # a module compiled in needs no load_module and cannot be of another version. A module
@@ -16,7 +18,12 @@
 # www/nginx-devel-image-filter, and on LuaJIT www/nginx-devel-lua (ndk and lua) and
 # www/nginx-devel-stream-lua (aZ, 15.11.2026: «давай luajit»), and www/nginx-devel-vts,
 # www/nginx-devel-cache-purge and www/nginx-devel-testcookie (aZ, 17.11.2026: VTS in the
-# place of the API of Angie, «testcookie, cache-purge нужны … берём»). The core is built
+# place of the API of Angie, «testcookie, cache-purge нужны … берём»), and WebDAV,
+# www/nginx-devel-dav (the DAV module of nginx: PUT, DELETE, MKCOL, COPY, MOVE) and
+# www/nginx-devel-dav-ext (PROPFIND, OPTIONS, LOCK, UNLOCK; aZ, 18.11.2026: «мне в
+# нгингс ещё надо для одного сервера http_webdav, его модулем можешь сделать?»; the
+# review of the patches of the distributions: docs/distro-patches-nginx-dav-2026-11-18.md
+# of azsupport/azsupport). The core is built
 # --with-compat and with --modules-path, so that a module built apart from it loads into
 # it (nginx loads only a module of its own version: the slaves depend on the core of
 # the same version, and they change together, both reading version.mk).
@@ -52,6 +59,11 @@
 # (files/patch-src_http_modules_ngx__http__image__filter__module.c: their change of the file
 # of nginx 1.11.6 brought to that of nginx 1.31.8, the output byte for byte theirs, without
 # the crashes of their file and its read of freed memory; the details in its head).
+#
+# The handshake of SSL waits when the callback of the certificate yields
+# (files/patch-src_event_ngx__event__openssl.c, the patch of OpenResty for nginx 1.31.8,
+# as Debian has it; aZ, 18.11.2026): ssl_certificate_by_lua* of www/nginx-devel-lua can
+# then do non-blocking I/O.
 
 PORTNAME=	nginx
 PORTVERSION=	${NGINX_VERSION}
@@ -102,6 +114,15 @@ GH_TUPLE+=	nginx-modules:ngx_cache_purge:3.0.4:cache_purge
 # refresh page (#89), $testcookie_set of a whitelisted client (#95); the FreeBSD tree has
 # it only for Angie (www/angie-module-testcookie), at 7d263d43, before them
 GH_TUPLE+=	kyprizel:testcookie-nginx-module:de7ca88:testcookie
+.elif ${NGINX_AZ_MODULE:U} == dav-ext
+# nginx-dav-ext-module 3.0.1 of sysadmin-labs (01.11.2026), the maintained fork of arut
+# 3.0.0 (17.12.2018, the last of arut) that the official www/nginx-module-dav-ext takes:
+# 3.0.0 with the pull requests #62 (PROPFIND lists the files whose names begin with a
+# dot, only . and .. are left out) and #56 (a child it cannot stat no longer fails the
+# whole PROPFIND); with files/extra-patch-dav-ext-dav-class (#46, as Alpine: DAV: 1,2
+# with LOCK) and extra-patch-dav-ext-propfind-stat (the entry of that child taken back:
+# without it the answer had an empty one)
+GH_TUPLE+=	sysadmin-labs:nginx-dav-ext-module:v3.0.1:dav_ext
 .endif
 
 NGINX_VARDIR?=	/var
@@ -283,6 +304,23 @@ NGINX_AZ_OBJS=	ngx_http_cache_purge_module.so
 # from the OpenSSL nginx loads
 CONFIGURE_ARGS+=	--add-dynamic-module=${WRKSRC_testcookie}
 NGINX_AZ_OBJS=	ngx_http_testcookie_access_module.so
+. elif ${NGINX_AZ_MODULE} == dav
+# PUT, DELETE, MKCOL, COPY and MOVE (dav_methods, create_full_put_path, dav_access,
+# min_delete_depth): the DAV module of nginx, dynamic (files/patch-auto_options and
+# patch-auto_modules)
+CONFIGURE_ARGS+=	--with-http_dav_module=dynamic
+NGINX_AZ_OBJS=	ngx_http_dav_module.so
+. elif ${NGINX_AZ_MODULE} == dav-ext
+# PROPFIND, OPTIONS, LOCK and UNLOCK (dav_ext_methods, dav_ext_lock_zone, dav_ext_lock)
+# on libxml2 and libxslt of az; with the DAV module of nginx (www/nginx-devel-dav) for
+# the methods that write
+CONFIGURE_ARGS+=	--add-dynamic-module=${WRKSRC_dav_ext}
+BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libxml2.so:az/az \
+		${AZ_PREFIX}/lib/libxslt.so:az/az
+RUN_DEPENDS+=	${AZ_PREFIX}/lib/libxml2.so:az/az \
+		${AZ_PREFIX}/lib/libxslt.so:az/az \
+		nginx-devel-dav>=${NGINX_VERSION}:www/nginx-devel-dav
+NGINX_AZ_OBJS=	ngx_http_dav_ext_module.so
 . else
 IGNORE=		NGINX_AZ_MODULE ${NGINX_AZ_MODULE}: no such module package
 . endif
@@ -326,6 +364,13 @@ pre-configure:
 	@${LN} -sf ${AZ_PREFIX}/include/gd*.h ${WRKDIR}/az/include/
 	@${LN} -sf ${AZ_PREFIX}/lib/libgd.so ${WRKDIR}/az/lib/
 .endif
+# dav-ext (ngx_module_libs=LIBXSLT): libxml and libxslt, not libexslt, so that the
+# configure of nginx finds the first two in ${WRKDIR}/az and links nothing more
+.if ${NGINX_AZ_MODULE:U} == dav-ext
+	@${LN} -sfh ${AZ_PREFIX}/include/libxml2/libxml ${WRKDIR}/az/include/libxml
+	@${LN} -sfh ${AZ_PREFIX}/include/libxslt ${WRKDIR}/az/include/libxslt
+	@${LN} -sf ${AZ_PREFIX}/lib/libxml2.so ${AZ_PREFIX}/lib/libxslt.so ${WRKDIR}/az/lib/
+.endif
 
 post-patch:
 	@${REINPLACE_CMD} 's!%%HTTP_PORT%%!${HTTP_PORT}!; \
@@ -341,6 +386,10 @@ post-patch:
 	@${REINPLACE_CMD} 's!%%PREFIX%%!${WRKDIR}/az!g' ${WRKSRC_brotli}/filter/config
 .if ${NGINX_AZ_MODULE:U} == stream-lua
 	@cd ${WRKSRC_luastream} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-lua-stream-src_ngx__stream__lua__module.c
+.endif
+.if ${NGINX_AZ_MODULE:U} == dav-ext
+	@cd ${WRKSRC_dav_ext} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-dav-ext-dav-class
+	@cd ${WRKSRC_dav_ext} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-dav-ext-propfind-stat
 .endif
 
 .if defined(NGINX_AZ_MODULE)

@@ -19,3 +19,5 @@ SHA256 (nginx-modules-ngx_cache_purge-3.0.4_GH0.tar.gz) = d9eefad55c1306af5a9d22
 SIZE (nginx-modules-ngx_cache_purge-3.0.4_GH0.tar.gz) = 48255
 SHA256 (kyprizel-testcookie-nginx-module-de7ca88_GH0.tar.gz) = 4f1c931e44cd7de00bfdeef42fb8e48eb17e9704fbfee6e10b1bac21d64718af
 SIZE (kyprizel-testcookie-nginx-module-de7ca88_GH0.tar.gz) = 23360
+SHA256 (sysadmin-labs-nginx-dav-ext-module-v3.0.1_GH0.tar.gz) = 04ab320549b1b5c85f57226d6d02d924c46b517f13ec74f9d718f0d6ff0c7cb2
+SIZE (sysadmin-labs-nginx-dav-ext-module-v3.0.1_GH0.tar.gz) = 35843

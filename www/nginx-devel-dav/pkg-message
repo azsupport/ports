@@ -1,0 +1,16 @@
+[
+{ type: install
+  message: <<EOM
+Load the module in the main context of nginx.conf:
+
+load_module /usr/local/libexec/nginx/ngx_http_dav_module.so;
+
+With PROPFIND and OPTIONS (nginx-devel-dav-ext) a location can be, for example:
+
+dav_methods PUT DELETE MKCOL COPY MOVE;
+dav_ext_methods PROPFIND OPTIONS;
+create_full_put_path on;
+dav_access user:rw group:rw all:r;
+EOM
+}
+]

@@ -1,0 +1,18 @@
+dav-ext: a child of a collection that PROPFIND cannot stat (a broken symbolic link, a
+file removed while it lists the collection) is left out of the answer. The fix of 3.0.1
+(arut/nginx-dav-ext-module pull request #56, which FreeBSD and Alpine carry) logs it
+and goes on with the next child, but leaves the entry it had added, zeroed: the answer
+then had a response with an empty href, an empty displayname, length 0 and the date of
+1970. Its entry is taken back off the array before it goes on (found 18.11.2026 with a
+broken link in a collection; the test of www/nginx-devel-dav-ext lists one).
+
+--- src/ngx_http_dav_ext_module.c.orig
++++ src/ngx_http_dav_ext_module.c
+@@ -908,6 +908,7 @@
+             if (ngx_de_info(filename, &dir) == NGX_FILE_ERROR) {
+                 ngx_log_error(NGX_LOG_ERR, r->connection->log, ngx_errno,
+                               ngx_de_info_n " \"%s\" failed", filename);
++                entries.nelts--;
+                 continue;
+             }
+         }

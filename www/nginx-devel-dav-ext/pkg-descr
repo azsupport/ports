@@ -1,0 +1,4 @@
+nginx-dav-ext-module for nginx-devel, as a dynamic module: the WebDAV methods
+PROPFIND and OPTIONS, and LOCK and UNLOCK with a lock zone (dav_ext_methods,
+dav_ext_lock_zone, dav_ext_lock). The fork of sysadmin-labs that FreeBSD takes, with
+the DAV: 1,2 header of RFC 4918 when LOCK is configured.
