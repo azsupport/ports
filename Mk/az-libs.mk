@@ -16,16 +16,17 @@
 #   az, ${AZ_PREFIX}/share/az/interface/<name>.txt: the lines file and link under
 #   include/, requires), pkgconfig/ with their .pc files, whose include directory is
 #   that include/ (their libraries stay those of ${AZ_PREFIX}/lib);
-# - ${AZ_LIBS_PKG_CONFIG_LIBDIR}: that pkgconfig/, then the .pc files of /usr/local
-#   (the ports of this tree) and of the base system, the PKG_CONFIG_LIBDIR of the port
-#   (in its CONFIGURE_ENV and MAKE_ENV here); -I of that include/ (CPPFLAGS: the
-#   libintl.h of az for the GLib of devel/glib20, glib/gi18n.h); the run path of az
-#   (its directory has no hints of ldconfig).
+# - ${AZ_LIBS_PKG_CONFIG_LIBDIR}: that pkgconfig/, then those of the framework (the
+#   links of PKGCONFIG_BASE), of /usr/local (the ports of this tree) and of the base
+#   system, the PKG_CONFIG_LIBDIR of the port (in its CONFIGURE_ENV and MAKE_ENV here,
+#   so the framework does not set its own); -I of that include/ (CPPFLAGS: the
+#   libintl.h of az for the GLib of devel/glib20, glib/gi18n.h); -L of az (-lintl of
+#   the .pc of GLib) and its run path (its directory has no hints of ldconfig).
 #
 # Only the ports that include it read this file: a change of it builds them again.
 
 AZ_LIBS_DIR=		${WRKDIR}/az-libs
-AZ_LIBS_PKG_CONFIG_LIBDIR=	${AZ_LIBS_DIR}/pkgconfig:${LOCALBASE}/libdata/pkgconfig:/usr/libdata/pkgconfig
+AZ_LIBS_PKG_CONFIG_LIBDIR=	${AZ_LIBS_DIR}/pkgconfig:${WRKDIR}/.pkgconfig:${LOCALBASE}/libdata/pkgconfig:${LOCALBASE}/share/pkgconfig:/usr/libdata/pkgconfig
 
 .for l in ${AZ_LIBS}
 BUILD_DEPENDS+=	${AZ_PREFIX}/lib/${l:C/^[^:]*://}:az/az
@@ -34,7 +35,7 @@ RUN_DEPENDS+=	${AZ_PREFIX}/lib/${l:C/^[^:]*://}:az/az
 CONFIGURE_ENV+=	PKG_CONFIG_LIBDIR=${AZ_LIBS_PKG_CONFIG_LIBDIR}
 MAKE_ENV+=	PKG_CONFIG_LIBDIR=${AZ_LIBS_PKG_CONFIG_LIBDIR}
 CPPFLAGS+=	-I${AZ_LIBS_DIR}/include
-LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
+LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
 _USES_configure+=	310:az-libs-prepare
 
 az-libs-prepare:
