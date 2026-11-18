@@ -33,7 +33,12 @@ USES=		cpe gmake
 CONFLICTS_INSTALL=	luajit
 
 USE_LDCONFIG=	yes
-MAKE_ARGS=	CC=${CC} Q=
+# CCDEBUG empty: the src/Makefile of OpenResty sets CCDEBUG= -g (that of LuaJIT leaves it
+# empty), and the strip of post-install does not reach the static library: its
+# lib/libluajit-5.1.a went out with debug information (tools/debug-check.sh on the
+# release az-fbsd15-amd64-v3, 18.11.2026); with it empty its install strips as LuaJIT's
+# does (TARGET_STRIP)
+MAKE_ARGS=	CC=${CC} Q= CCDEBUG=
 
 USE_GITHUB=	yes
 GH_ACCOUNT=	openresty
