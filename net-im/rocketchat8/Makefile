@@ -422,7 +422,7 @@ post-build:
 	${RM} -r ${CARGO_DOT_DIR} ${RC_NM}/@napi-rs/pinyin/Cargo.lock
 
 do-install:
-	${MKDIR} ${STAGEDIR}${WWWDIR}
+	${MKDIR} ${STAGEDIR}${WWWDIR} ${STAGEDIR}/var/db/rocketchat8
 	cd ${WRKSRC} && ${COPYTREE_SHARE} . ${STAGEDIR}${WWWDIR}
 	cd ${STAGEDIR}${WWWDIR} && ${FIND} . -name '*.node' -type f -exec ${STRIP_CMD} {} + && \
 		${FIND} . -name '*.node' -type f -exec ${CHMOD} ${BINMODE} {} +
