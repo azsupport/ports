@@ -8,8 +8,11 @@
 #
 # rocketchat8_enable="YES"
 #
-# rocketchat8_config (path): its environment, read as sh and exported to node
-#                            (default %%PREFIX%%/etc/rocketchat8.conf)
+# rocketchat8_config (path): its environment, NAME=value lines given to node as
+#                            they are, nothing in them run (not read as sh);
+#                            owned by root, readable by its group (root:%%GROUPS%%
+#                            640): node, a service on the network, cannot change
+#                            what root reads (default %%PREFIX%%/etc/rocketchat8.conf)
 # rocketchat8_user (str):    the user it runs as (default %%USERS%%)
 # rocketchat8_group (str):   its group (default %%GROUPS%%)
 # rocketchat8_log (path):    its output (default /var/log/rocketchat8.log)
@@ -33,6 +36,37 @@ command="/usr/sbin/daemon"
 command_args="-f -r -R 5 -P ${pidfile} -o ${rocketchat8_log} -t ${name} %%LOCALBASE%%/bin/node %%WWWDIR%%/main.js"
 start_precmd="${name}_prestart"
 
+# the NAME=value lines of the configuration exported as they are: no expansion, no
+# command of it run as root; a value may be in single or double quotes; empty lines and
+# comments (#) skipped, any other line skipped with a warning
+rocketchat8_environment()
+{
+	local _l _k _v
+	while IFS= read -r _l || [ -n "${_l}" ]; do
+		case "${_l}" in
+		""|\#*)
+			continue ;;
+		[A-Za-z_]*=*)
+			_k="${_l%%=*}"
+			_v="${_l#*=}"
+			case "${_k}" in
+			*[!A-Za-z0-9_]*)
+				warn "${rocketchat8_config}: not NAME=value, skipped: ${_l}"
+				continue ;;
+			esac
+			case "${_v}" in
+			\"*\")
+				_v="${_v#\"}"; _v="${_v%\"}" ;;
+			\'*\')
+				_v="${_v#\'}"; _v="${_v%\'}" ;;
+			esac
+			export "${_k}=${_v}" ;;
+		*)
+			warn "${rocketchat8_config}: not NAME=value, skipped: ${_l}" ;;
+		esac
+	done < "${rocketchat8_config}"
+}
+
 rocketchat8_prestart()
 {
 	if [ ! -r "${rocketchat8_config}" ]; then
@@ -42,9 +76,7 @@ rocketchat8_prestart()
 	if [ ! -e "${rocketchat8_log}" ]; then
 		install -o "${rocketchat8_user}" -g "${rocketchat8_group}" -m 640 /dev/null "${rocketchat8_log}"
 	fi
-	set -a
-	. "${rocketchat8_config}"
-	set +a
+	rocketchat8_environment
 }
 
 run_rc_command "$1"
