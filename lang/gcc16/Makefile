@@ -154,7 +154,11 @@ post-stage:
 	# scripts of libstdc++)
 	cd ${STAGEDIR}${PREFIX} && ${FIND} . ! -type d \
 		! \( -path './lib/gcc${SUFFIX}/lib*.so.[0-9]*' ! -name '*.py' \) -delete
-	cd ${STAGEDIR}${PREFIX} && ${FIND} . -mindepth 1 -depth -type d -empty -delete
+	# the directories those files were in, not those of the hierarchy of the stage
+	# (mtree): libdata/ldconfig takes the file of USE_LDCONFIG after this target
+	# (build run 44299593024: "cannot create .../libdata/ldconfig/gcc16-libs")
+	${RM} -r ${STAGEDIR}${PREFIX}/share/gcc-${PORTVERSION}
+	cd ${STAGEDIR}${PREFIX} && ${FIND} lib/gcc${SUFFIX} -mindepth 1 -depth -type d -empty -delete
 	cd ${STAGEDIR}${PREFIX} && ${FIND} lib/gcc${SUFFIX} -type f -o -type l | \
 		${SORT} > ${WRKDIR}/PLIST.lib
 .else
