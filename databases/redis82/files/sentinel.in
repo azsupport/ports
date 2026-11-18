@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # PROVIDE: sentinel
-# REQUIRE: LOGIN
-# BEFORE:  securelevel
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN securelevel
 # KEYWORD: shutdown
 
 # Add the following line to /etc/rc.conf to enable `sentinel':

@@ -85,6 +85,9 @@ LDFLAGS+=	-L${WRKDIR}/az/lib -L${LOCALBASE}/lib -L${OPENSSLLIB} \
 SUB_FILES+=	pkg-message
 SUB_LIST+=	REQUIRE="${_REQUIRE}"
 # Default requirement for dovecot rc script
+# the requirement of the rc script: LOGIN alone, no slapd, mysql or postgresql of the
+# official port (they may be on another host; rcorder warns of a name without a
+# provider at every boot): the databases start before LOGIN (aZ, 18.11.2026 21:52)
 _REQUIRE=	LOGIN
 
 USERS=		${PORTNAME} dovenull
@@ -136,7 +139,6 @@ ICU_LDFLAGS=			-licuuc
 
 LDAP_USES=			ldap
 LDAP_CONFIGURE_WITH=		ldap
-LDAP_VARS=			_REQUIRE+=slapd
 
 LIBSODIUM_LIB_DEPENDS=		libsodium.so:security/libsodium
 LIBSODIUM_CONFIGURE_WITH=	sodium
@@ -162,11 +164,9 @@ OPTIONS_SLAVE=		MYSQL
 
 MYSQL_USES=			mysql
 MYSQL_CONFIGURE_WITH=		mysql
-MYSQL_VARS=			_REQUIRE+=mysql
 
 PGSQL_USES=			pgsql
 PGSQL_CONFIGURE_WITH=		pgsql
-PGSQL_VARS=			_REQUIRE+=postgresql
 
 SOLR_LIB_DEPENDS=		libcurl.so:ftp/curl \
 				libexpat.so:textproc/expat2

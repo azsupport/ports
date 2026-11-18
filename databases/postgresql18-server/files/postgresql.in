@@ -2,7 +2,10 @@
 
 # PROVIDE: postgresql
 # REQUIRE: DAEMON mountlate
+# BEFORE: LOGIN
 # KEYWORD: shutdown
+#
+# Before LOGIN: what uses it has REQUIRE: LOGIN and starts after it.
 #
 # Add the following line to /etc/rc.conf to enable PostgreSQL:
 #

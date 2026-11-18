@@ -1,8 +1,12 @@
 #!/bin/sh
 
 # PROVIDE: mysql
-# REQUIRE: LOGIN
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
 # KEYWORD: shutdown
+#
+# Before LOGIN: what uses it (PHP-FPM, nginx, apache, postfix, dovecot) has
+# REQUIRE: LOGIN and starts after it, with no name of it in their scripts.
 #
 # Add the following line to /etc/rc.conf to enable mysql:
 # mysql_(instance_)?enable (bool):	Set to "NO" by default.

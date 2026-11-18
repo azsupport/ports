@@ -1,8 +1,11 @@
 #!/bin/sh
 
 # PROVIDE: memcached
-# REQUIRE: LOGIN
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
 # KEYWORD: shutdown
+#
+# Before LOGIN: what uses it has REQUIRE: LOGIN and starts after it.
 #
 # Add the following lines to /etc/rc.conf to run memcached:
 #

@@ -182,8 +182,11 @@ POSTFIX_CCARGS+=	-DDEF_CONFIG_DIR=\\\"${ETCDIR}\\\" \
 			-DDEF_SGID_GROUP=\\\"maildrop\\\" \
 			-Wmissing-prototypes -Wformat -Wno-comment
 
-# Default requirement for postfix rc script
-_REQUIRE=	LOGIN cleanvar dovecot
+# the requirement of the rc script: no name of a service that may be on another host or
+# not there (dovecot, mysql, postgresql, slapd, ypserv of the official port): rcorder warns
+# of each at every boot of a host without it; the databases start before LOGIN, dovecot
+# before mail (aZ, 18.11.2026 21:52: «постфикс же может и работает без довекота»)
+_REQUIRE=	LOGIN cleanvar
 
 # always build with Dovecot SASL support, Cyrus is optional
 # see Postfix HISTORY 20051222
@@ -266,14 +269,12 @@ POSTFIX_DYN_AUXLIBS+=	"AUXLIBS_MONGODB=`pkg-config --libs mongoc2`"
 DYN_EXT+=		mysql
 POSTFIX_CCARGS+=	-DHAS_MYSQL -I${LOCALBASE}/include/mysql
 POSTFIX_DYN_AUXLIBS+=	"AUXLIBS_MYSQL=-L${LOCALBASE}/lib/mysql -lmysqlclient -lz -lm"
-_REQUIRE+=		mysql
 .endif
 
 .if ${PORT_OPTIONS:MPGSQL}
 DYN_EXT+=		pgsql
 POSTFIX_CCARGS+=	-DHAS_PGSQL `pkg-config --cflags libpq`
 POSTFIX_DYN_AUXLIBS+=	"AUXLIBS_PGSQL=`pkg-config --libs libpq`"
-_REQUIRE+=		postgresql
 .endif
 
 .if ${PORT_OPTIONS:MSQLITE}
@@ -287,7 +288,6 @@ DYN_EXT+=		ldap
 POSTFIX_CCARGS+=	-DHAS_LDAP `pkg-config --cflags ldap` \
 			-I${LOCALBASE}/include/sasl -DUSE_LDAP_SASL
 POSTFIX_DYN_AUXLIBS+=	"AUXLIBS_LDAP=`pkg-config --libs ldap`"
-_REQUIRE+=		slapd
 .endif
 
 .if ${PORT_OPTIONS:MCDB}
@@ -298,7 +298,6 @@ POSTFIX_DYN_AUXLIBS+=	"AUXLIBS_CDB=`pkg-config --libs libcdb`"
 
 .if ${PORT_OPTIONS:MNIS}
 POSTFIX_CCARGS+=	-DHAS_NIS
-_REQUIRE+=		ypserv
 .endif
 
 .if ${PORT_OPTIONS:MTEST}
