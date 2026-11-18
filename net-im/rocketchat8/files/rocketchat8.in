@@ -1,8 +1,12 @@
 #!/bin/sh
 
 # PROVIDE: rocketchat8
-# REQUIRE: LOGIN mongod
+# REQUIRE: LOGIN
 # KEYWORD: shutdown
+#
+# MongoDB may be on another host (MONGO_URL): no REQUIRE of mongod, whose
+# rc.d of databases/mongodb80 puts itself before this one (BEFORE: rocketchat8)
+# when both are here; without mongod rcorder says nothing.
 #
 # Add to /etc/rc.conf to start Rocket.Chat 8:
 #
