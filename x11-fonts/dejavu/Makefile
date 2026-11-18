@@ -1,11 +1,12 @@
-# x11-fonts/dejavu of azsupport/ports: the DejaVu fonts of the official port, without
-# what its USES=fonts adds to run it: fc-cache of x11-fonts/fontconfig and mkfontscale
-# of x11-fonts/mkfontscale, official packages with libraries of their own (fontconfig,
-# FreeType, expat, libfontenc) next to those of az (aZ, 18.11.2026 16:35: «добавляй и
-# в наши порты значит»). The fonts and their files of fontconfig only: the text of the
-# libvips of net-im/rocketchat8 (the letters of its avatars: sans-serif) and of the
-# ImageMagick and GraphicsMagick of az, whose fontconfig (of az) finds them in
-# /usr/local/share/fonts; its cache it makes when it runs.
+# x11-fonts/dejavu of azsupport/ports: the DejaVu fonts of the official port, as it is, with
+# its USES=fonts: fc-cache of x11-fonts/fontconfig and mkfontscale of x11-fonts/mkfontscale
+# (official packages) to run it, fc-cache when it installs (aZ, 18.11.2026 16:35: «добавляй и
+# в наши порты значит»; 19:58, on the option "as the official port: USES=fonts, the official
+# fontconfig a dependency, fc-cache when it installs": «так делай»):
+# with fonts:none no fontconfig came with it, and the fonts of openjdk21 failed without
+# libfontconfig (build run 44357987655 of 18.11.2026: NullPointerException). The text of the
+# libvips of net-im/rocketchat8 (the letters of its avatars: sans-serif) takes them too.
+# No DOCS.
 
 PORTNAME=	dejavu
 PORTVERSION=	2.37
@@ -31,8 +32,7 @@ LICENSE_PERMS_AMS=	auto-accept dist-mirror dist-sell pkg-mirror pkg-sell
 LICENSE_PERMS_AREV=	auto-accept dist-mirror dist-sell pkg-mirror pkg-sell
 LICENSE_PERMS_BITSTREAM=auto-accept dist-mirror dist-sell pkg-mirror pkg-sell
 
-# none: no fc-cache, no mkfontscale (above)
-USES=		fonts:none tar:bzip2
+USES=		fonts tar:bzip2
 NO_ARCH=	yes
 NO_BUILD=	yes
 
