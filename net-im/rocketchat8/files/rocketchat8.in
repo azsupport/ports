@@ -1,0 +1,82 @@
+#!/bin/sh
+
+# PROVIDE: rocketchat8
+# REQUIRE: LOGIN mongod
+# KEYWORD: shutdown
+#
+# Add to /etc/rc.conf to start Rocket.Chat 8:
+#
+# rocketchat8_enable="YES"
+#
+# rocketchat8_config (path): its environment, NAME=value lines given to node as
+#                            they are, nothing in them run (not read as sh);
+#                            root:wheel 600: only root reads it (node takes the
+#                            environment, not the file) and only root can change it
+#                            (default %%PREFIX%%/etc/rocketchat8.conf)
+# rocketchat8_user (str):    the user it runs as (default %%USERS%%)
+# rocketchat8_group (str):   its group (default %%GROUPS%%)
+# rocketchat8_log (path):    its output (default /var/log/rocketchat8.log)
+
+. /etc/rc.subr
+
+name=rocketchat8
+rcvar=rocketchat8_enable
+
+load_rc_config $name
+
+: ${rocketchat8_enable:="NO"}
+: ${rocketchat8_config:="%%PREFIX%%/etc/rocketchat8.conf"}
+: ${rocketchat8_user:="%%USERS%%"}
+: ${rocketchat8_group:="%%GROUPS%%"}
+: ${rocketchat8_log:="/var/log/rocketchat8.log"}
+
+pidfile="/var/run/${name}/${name}.pid"
+procname="/usr/sbin/daemon"
+command="/usr/sbin/daemon"
+command_args="-f -r -R 5 -P ${pidfile} -o ${rocketchat8_log} -t ${name} %%LOCALBASE%%/bin/node %%WWWDIR%%/main.js"
+start_precmd="${name}_prestart"
+
+# the NAME=value lines of the configuration exported as they are: no expansion, no
+# command of it run as root; a value may be in single or double quotes; empty lines and
+# comments (#) skipped, any other line skipped with a warning
+rocketchat8_environment()
+{
+	local _l _k _v
+	while IFS= read -r _l || [ -n "${_l}" ]; do
+		case "${_l}" in
+		""|\#*)
+			continue ;;
+		[A-Za-z_]*=*)
+			_k="${_l%%=*}"
+			_v="${_l#*=}"
+			case "${_k}" in
+			*[!A-Za-z0-9_]*)
+				warn "${rocketchat8_config}: not NAME=value, skipped: ${_l}"
+				continue ;;
+			esac
+			case "${_v}" in
+			\"*\")
+				_v="${_v#\"}"; _v="${_v%\"}" ;;
+			\'*\')
+				_v="${_v#\'}"; _v="${_v%\'}" ;;
+			esac
+			export "${_k}=${_v}" ;;
+		*)
+			warn "${rocketchat8_config}: not NAME=value, skipped: ${_l}" ;;
+		esac
+	done < "${rocketchat8_config}"
+}
+
+rocketchat8_prestart()
+{
+	if [ ! -r "${rocketchat8_config}" ]; then
+		err 1 "no ${rocketchat8_config} (its sample: ${rocketchat8_config}.sample)"
+	fi
+	install -d -o "${rocketchat8_user}" -g "${rocketchat8_group}" -m 755 "/var/run/${name}"
+	if [ ! -e "${rocketchat8_log}" ]; then
+		install -o "${rocketchat8_user}" -g "${rocketchat8_group}" -m 640 /dev/null "${rocketchat8_log}"
+	fi
+	rocketchat8_environment
+}
+
+run_rc_command "$1"

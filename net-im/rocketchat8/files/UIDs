@@ -1,0 +1,1 @@
+rocketchat:*:3000:3000::0:0:Rocket.Chat:/var/db/rocketchat8:/usr/sbin/nologin
