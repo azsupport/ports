@@ -419,9 +419,18 @@ jobs:
           # make -j of the 4 vCPUs), about 4 GB left to the host
           mem: 12288
           envs: 'AZ_CPUTYPE AZ_PORTS AZ_FORCE AZ_JOBS AZ_CONFIGURE_CHECK AZ_PLAN AZ_PKG_KEY AZ_TIME_SOFT AZ_TIME_HARD'
+          # the package mirror: every address of its names tried, the first that answers in
+          # /etc/hosts (tools/pkg-mirror.sh; aZ, 18.11.2026 23:23); 10 minutes a try of pkg,
+          # 3 tries 60 s apart, then the job fails instead of waiting for hours
           prepare: |
             if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
-            env ASSUME_ALWAYS_YES=yes pkg install -y git-lite
+            i=1
+            while :; do
+              sh tools/pkg-mirror.sh
+              env ASSUME_ALWAYS_YES=yes timeout 600 pkg install -y git-lite && break
+              [ "$i" -ge 3 ] && { echo "pkg: no git-lite after $i tries"; exit 1; }
+              echo "pkg: try $i failed, again in 60 s"; i=$((i + 1)); sleep 60
+            done
           # the script never stops before its end (vmactions copies results/ and repo/ back
           # only after a script that ended well): what failed goes into results/rc (0: the
           # build and every check passed), and a step after the caches fails the job on it
