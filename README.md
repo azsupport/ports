@@ -94,6 +94,8 @@ Names and origins as the ports, files at the paths of the ports:
 | `postfix`, `postfix-mysql` | `mail/postfix`, `mail/postfix-mysql` | Postfix 3.11.7 with the options of aZ: EAI (SMTPUTF8, the ICU of az), PCRE2 of `pcre2`, TLS (the OpenSSL of the base system) and TLSRPT (`libtlsrpt`); no LMDB, CDB, blocklistd, LDAP, Cyrus SASL; the variant with the MySQL maps (the client of `mariadb1011-client`); one of the two |
 | `dovecot`, `dovecot-mysql` | `mail/dovecot`, `mail/dovecot-mysql` | Dovecot 2.3.21.1, the branch 2.3 as long as upstream supports it, with the options of aZ: no GSSAPI, LDAP, libwrap, FTS, Lua, LZ4; zstd of az; the variant with the SQL driver of MySQL; one of the two; the security fixes after 2.3.21.1 of Ubuntu noble and RHEL 10 |
 | `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (the line of 8.x with the long support of upstream), without the modules: JEMALLOC on (its own jemalloc: active defragmentation), no TLS; the variant with TLS (the OpenSSL of the base system); one of the two; the configurations of aZ: `redis.conf.sample` (the main cache), `redis-session.conf.sample` (PHP sessions), on 127.0.0.1, without snapshots |
+| `mongodb80` | `databases/mongodb80` | MongoDB 8.0.38 Community (the database of Rocket.Chat 8): ThinLTO, `-O3` and the `-march` of the level, the AVX2 of SpiderMonkey by the level (no NOAVX), no debug symbols; the allocator of the system, no libunwind; OpenSSL of the base system, curl of `ftp/curl`; a build the time of a run stopped goes on in the next run (the disk cache of Bazel) |
+| `mongodb-tools` | `databases/mongodb-tools` | the MongoDB Database Tools 100.20.1: bsondump, mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat, mongotop; TLS on (crypto/tls of Go), SASL and docs off; GOAMD64 by the level, `-trimpath`, `-s -w` |
 | `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua`, `nginx-devel-vts`, `nginx-devel-cache-purge`, `nginx-devel-testcookie`, `nginx-devel-dav`, `nginx-devel-dav-ext` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua`, `www/nginx-devel-vts`, `www/nginx-devel-cache-purge`, `www/nginx-devel-testcookie`, `www/nginx-devel-dav`, `www/nginx-devel-dav-ext` | nginx 1.31.8 with brotli, headers-more and geoip2 built in (`--with-compat`); stream, image_filter, Lua (LuaJIT), VTS, cache_purge, testcookie and WebDAV (DAV, dav-ext) as packages of their own (`load_module`) |
 | `lua51-vips`, `lua51-base64` | `graphics/lua51-vips`, `converters/lua51-base64` | lua-vips 1.1-12 and lbase64 1.5.3 for the LuaJIT of nginx (`share/lua/5.1`) |
 | `aria2` | `www/aria2` | aria2 1.37.0: Metalink and XML-RPC (libxml2 of az), asynchronous DNS (c-ares of az), BitTorrent, HTTPS (the OpenSSL of the base system), the event poll kqueue; no libuv, no SQLite (the cookies of the browsers), no SFTP (libssh2), no NLS, no static build |
@@ -411,6 +413,25 @@ Names and origins as the ports, files at the paths of the ports:
   variants of a snapshot commented out), lazy freeing on, `hide-user-data-from-log`.
   Tested by `servers-test.sh`: jemalloc, PING, SET, GET, TLS on its port, both
   configurations as they are: what they set, the socket 777, no snapshot on stop.
+- **`databases/mongodb80`** (aZ, 18.11.2026): MongoDB 8.0.38 Community, `mongod` and
+  `mongos`, the official port of the pinned tree (its patches, its Bazel distfiles, its rc
+  script `mongod`, the user `mongodb`) with the flags of aZ and no options: ThinLTO
+  always (`--thin_lto=True`; the official LTO off), `-O3` and the `-march` of the level
+  (`--copt`: Bazel takes no CFLAGS, and the official build has neither), no debug symbols
+  (`--//bazel/config:debug_symbols=False`); the AVX2 `memchr` of SpiderMonkey by the level
+  of the build, on v3 and off on v2 (our patch of `SIMD.cpp` in the place of the official
+  NOAVX, which leaves the choice to the CPU at run time). As the official port: the
+  allocator of the system (the jemalloc of libc), libunwind off (the backtraces by the
+  execinfo of the base system), OpenSSL of the base system, no enterprise features; curl
+  of `ftp/curl`. The disk cache of Bazel (`AZ_PORT_CACHE`, below) goes from run to run:
+  a build the time of a run stopped goes on in the next one from the actions it did.
+- **`databases/mongodb-tools`** (aZ, 18.11.2026 15:29): the MongoDB Database Tools
+  100.20.1 of the official port of the pinned tree, its eight programs (bsondump,
+  mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat, mongotop)
+  without its options: TLS by crypto/tls of Go (the build tag `ssl`), no SASL (no
+  Kerberos), no documents; the Go code for the level of the build (GOAMD64 v3 or v2 by
+  its `-march`), `-trimpath`, `-s -w`. mongosh is not a port: the npm package on our
+  node24 when it is needed (aZ, 18.11.2026 11:05).
 - **`www/nginx-devel`**, **`www/nginx-devel-stream`** and **`www/nginx-devel-image-filter`**
   (aZ, 15.11.2026): nginx 1.31.8, the options the union of those of the servers of aZ.
   Built in: the modules of nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE,
@@ -1069,7 +1090,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | `fork_ref` | the branch of azsupport/php-src the curl of az is compared with (`FORK_REF` of `tools/curl-sync-check.sh`, default `master`): a change of curl and its libraries goes to a branch of the fork first, a run of the branch here that carries it names that branch, and both go into their main branches at the same moment |
 | `publish` | publish the repository when everything built and every check passed (off by default: the repository the servers read is published on aZ's word) |
 | `publish_only` | with `publish`: publish only when the repository differs from the release by packages of these ports alone (`category/port`, separated by spaces: the runs of [yt-dlp from GitHub](#yt-dlp-from-github)), else nothing; empty: whatever differs |
-| `continuation` | set by a run whose time was over for the run it starts (its number in a row; `0` by hand). The job has 350 minutes: no port starts after about 245 of them, the builds still going stop at about 285 (`AZ_TIME_SOFT`, `AZ_TIME_HARD` of `tools/build.sh`); what was built is kept in the cache, checks and publishing wait, and the last step starts the next run with the same inputs (not `force`), at most 6 in a row; with `both`, `x86-64-v2` starts only after `x86-64-v3` is done |
+| `continuation` | set by a run whose time was over for the run it starts (its number in a row; `0` by hand). The job has 350 minutes: no port starts after about 245 of them, the builds still going stop at about 285 (`AZ_TIME_SOFT`, `AZ_TIME_HARD` of `tools/build.sh`); what was built is kept in the cache, and so is the cache of a port with `AZ_PORT_CACHE` whose build stopped (MongoDB: the disk cache of Bazel; a draft release `portcache-<level>-<key>-<run>`, which the next run unpacks into `portcache/`, so that the build goes on from what it did), checks and publishing wait, and the last step starts the next run with the same inputs (not `force`), at most 6 in a row; with `both`, `x86-64-v2` starts only after `x86-64-v3` is done |
 
 It takes the repository of the last run (an actions/cache, saved also when a run
 fails, so that a run that fails in PHP keeps `az` and the libraries) and the files of

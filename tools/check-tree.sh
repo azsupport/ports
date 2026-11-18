@@ -97,7 +97,7 @@ say() { printf '%s\n' "$*"; }
 for mk in "$top"/*/*/Makefile; do
     [ -f "$mk" ] || continue
     d="${mk%/Makefile}"; o="${d#"$top"/}"
-    case "$o" in Mk/* | Templates/* | Keywords/* | tools/* | .github/* | work/* | packages/* | distfiles/*) continue ;; esac
+    case "$o" in Mk/* | Templates/* | Keywords/* | tools/* | .github/* | work/* | packages/* | distfiles/* | portcache/*) continue ;; esac
     if ! "$MAKE" -C "$d" "$@" -V PKGNAME -V PKGORIGIN -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS \
         -V AZ_STATIC -V AZ_STATIC_LIBS -V .MAKE.MAKEFILES -V AZ_HASH_FILES -V IGNORE > "$tmp/out" 2> "$tmp/err" < /dev/null; then
         say "FAIL $o: make: $(grep -v '^[[:space:]]*$' "$tmp/err" | tail -n 3 | tr '\n' ' ' | sed 's/ *$//')"

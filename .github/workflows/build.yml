@@ -266,6 +266,49 @@ jobs:
           sudo docker system prune --all --force > /dev/null 2>&1 || true
           df -h /
 
+      # the caches of the ports that keep one between the runs (AZ_PORT_CACHE of their
+      # Makefile: the disk cache of Bazel of databases/mongodb80; tools/build.sh): the
+      # newest draft release portcache-<level>-<key>-<run> of each key, its parts
+      # (tar | zstd, split below 2 GB) into portcache/<key>/, so that a build the time of
+      # a run stopped goes on from what it did (aZ, 18.11.2026: MongoDB «с докачкой»)
+      - name: The caches of the ports between the runs (portcache/)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CPUTYPE: ${{ matrix.cputype }}
+        run: |
+          mkdir -p portcache "$AZ_RUNS_STATE"
+          # every page of the releases (100 a page)
+          : > "$AZ_RUNS_STATE/portcache-rel"
+          for p in $(seq 1 30); do
+            gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100&page=$p" --jq '.[] | select(.draft) | "\(.id) \(.tag_name) \(.created_at)"' > "$AZ_RUNS_STATE/portcache-page" ||
+              { echo "no list of the releases"; exit 0; }
+            [ -s "$AZ_RUNS_STATE/portcache-page" ] || break
+            cat "$AZ_RUNS_STATE/portcache-page" >> "$AZ_RUNS_STATE/portcache-rel"
+          done
+          awk -v pre="portcache-$CPUTYPE-" 'index($2, pre) == 1' "$AZ_RUNS_STATE/portcache-rel" | sort -k3,3r > "$AZ_RUNS_STATE/portcache-drafts"
+          [ -s "$AZ_RUNS_STATE/portcache-drafts" ] || { echo "no draft portcache-$CPUTYPE-*: no cache to take"; exit 0; }
+          : > "$AZ_RUNS_STATE/portcache-taken"
+          while read -r id tag created; do
+            k="${tag#portcache-$CPUTYPE-}"; k="${k%-*}"
+            grep -qx "$k" "$AZ_RUNS_STATE/portcache-taken" && continue
+            echo "$k" >> "$AZ_RUNS_STATE/portcache-taken"
+            gh api "repos/$GITHUB_REPOSITORY/releases/$id/assets?per_page=100" --jq '.[] | select(.state == "uploaded") | "\(.id) \(.name)"' |
+              sort -k2,2 > "$AZ_RUNS_STATE/portcache-assets" || { echo "$tag: no list of its files"; continue; }
+            rm -rf "portcache/$k"; mkdir -p "portcache/$k"
+            ok=1
+            while read -r aid an; do
+              gh api -H 'Accept: application/octet-stream' "repos/$GITHUB_REPOSITORY/releases/assets/$aid" || { ok=0; break; }
+            done < "$AZ_RUNS_STATE/portcache-assets" | zstd -dc | tar -xf - -C "portcache/$k" || ok=0
+            if [ "$ok" = 1 ]; then
+              echo "$tag ($created): portcache/$k, $(du -sh "portcache/$k" | cut -f1)"
+            else
+              echo "::warning title=portcache::$tag did not come whole: portcache/$k starts empty"
+              rm -rf "portcache/$k"; mkdir -p "portcache/$k"
+            fi
+          done < "$AZ_RUNS_STATE/portcache-drafts"
+          du -sh portcache
+
       # the key of the repository az (the secret PKG_SIGNING_KEY, PEM) in one line for envs:
       # of the VM, masked; tools/pkg-repo-sign.sh signs with it there (no key: unsigned)
       - name: The signing key of the repository, for the VM
@@ -494,6 +537,45 @@ jobs:
               while read -r m; do umount -f "$m" || echo "cannot unmount $m"; done
             rm -rfx work packages
             exit 0
+
+      # the caches the ports built in this run with (results/portcache.txt): each one as a
+      # new draft release portcache-<level>-<key>-<run> (tar | zstd, parts below 2 GB),
+      # then the older drafts of its key away; the next run takes the newest (above)
+      - name: The caches of the ports, kept for the next run
+        if: ${{ always() && steps.build.outcome != 'skipped' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CPUTYPE: ${{ matrix.cputype }}
+        run: |
+          [ -s results/portcache.txt ] || { echo "no port of this run builds with a cache between the runs"; exit 0; }
+          while read -r k; do
+            [ -d "portcache/$k" ] && [ -n "$(ls -A "portcache/$k")" ] || { echo "$k: its cache is empty"; continue; }
+            tag="portcache-$CPUTYPE-$k-$GITHUB_RUN_ID"
+            t="$RUNNER_TEMP/pc-$k"; rm -rf "$t"; mkdir -p "$t"
+            tar -cf - -C "portcache/$k" . | zstd -T0 -3 -q | split -b 1900m -d -a 3 - "$t/$k.tar.zst."
+            id="$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="$tag" -f name="$tag" -F draft=true \
+              -f body="The cache of $k between the runs of build.yml ($CPUTYPE; run $GITHUB_RUN_ID, $GITHUB_REF_NAME): tools/build.sh, AZ_PORT_CACHE." --jq .id)" ||
+              { echo "::warning title=portcache::$k: no draft release $tag"; continue; }
+            up=1
+            for f in "$t"/*; do
+              curl -sS -f --max-time 1800 -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/octet-stream" \
+                --data-binary @"$f" "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$id/assets?name=${f##*/}" > /dev/null || { up=0; break; }
+            done
+            if [ "$up" = 1 ]; then
+              echo "$k: $(du -sh "portcache/$k" | cut -f1) as $(ls "$t" | wc -l) parts ($(du -sh "$t" | cut -f1)) in $tag"
+              for p in $(seq 1 30); do
+                gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100&page=$p" --jq '.[] | select(.draft) | "\(.id) \(.tag_name)"' > "$t.page" || break
+                [ -s "$t.page" ] || break
+                cat "$t.page"
+              done | awk -v pre="portcache-$CPUTYPE-$k-" -v me="$tag" 'index($2, pre) == 1 && $2 != me { print $1, $2 }' |
+                while read -r oid otag; do sh tools/release-drop.sh "$oid" "$otag" > /dev/null && echo "older: $otag deleted"; done
+            else
+              echo "::warning title=portcache::$k: the upload to $tag failed: the older drafts stay"
+              sh tools/release-drop.sh "$id" "$tag" || :
+            fi
+            rm -rf "$t"
+          done < results/portcache.txt
 
       # vmactions copies repo/ back without deleting: what tools/build.sh removed there (an
       # older package of an origin, an origin the tree has no more, a name with a comma)
@@ -863,8 +945,11 @@ jobs:
           first="$(head -n 1 results/time-limit)"
           echo "results/time-limit: $first"
           built="$(printf '%s' "$first" | sed -n 's/.*built=\([0-9]*\).*/\1/p')"
+          cached="$(printf '%s' "$first" | sed -n 's/.*cached=\([0-9]*\).*/\1/p')"
           n="${IN_CONT:-0}"; case "$n" in ''|*[!0-9]*) n=0 ;; esac
-          if [ "${built:-0}" -eq 0 ]; then
+          # a port with a cache between the runs (AZ_PORT_CACHE) that the time stopped goes
+          # on from it in the next run: progress too
+          if [ "${built:-0}" -eq 0 ] && [ "${cached:-0}" -eq 0 ]; then
             echo "::error title=time limit::this run built nothing in its time: no next run (a port that takes longer than a run?)"
             exit 1
           fi
