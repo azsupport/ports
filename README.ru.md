@@ -94,6 +94,7 @@
 | `postfix`, `postfix-mysql` | `mail/postfix`, `mail/postfix-mysql` | Postfix 3.11.7 с опциями aZ: EAI (SMTPUTF8, ICU из az), PCRE2 из `pcre2`, TLS (OpenSSL базы) и TLSRPT (`libtlsrpt`); без LMDB, CDB, blocklistd, LDAP, Cyrus SASL; вариант с таблицами MySQL (клиент из `mariadb1011-client`); ставится один из двух |
 | `dovecot`, `dovecot-mysql` | `mail/dovecot`, `mail/dovecot-mysql` | Dovecot 2.3.21.1, ветка 2.3, пока её поддерживает апстрим, с опциями aZ: без GSSAPI, LDAP, libwrap, FTS, Lua, LZ4; zstd из az; вариант с драйвером SQL для MySQL; ставится один из двух; исправления безопасности после 2.3.21.1 из Ubuntu noble и RHEL 10 |
 | `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (ветка 8.x с долгой поддержкой апстрима), без модулей: JEMALLOC включён (свой jemalloc: активная дефрагментация), без TLS; вариант с TLS (OpenSSL базы); ставится один из двух; конфиги aZ: `redis.conf.sample` (основной кеш), `redis-session.conf.sample` (сессии PHP), на 127.0.0.1, без снимков |
+| `mongodb80` | `databases/mongodb80` | MongoDB 8.0.38 Community (база Rocket.Chat 8): ThinLTO, `-O3` и `-march` уровня, AVX2 SpiderMonkey по уровню (без NOAVX), без отладочных символов; аллокатор системы, без libunwind; OpenSSL базы, curl из `ftp/curl`; сборка, которую остановило время прогона, продолжается в следующем прогоне (дисковый кэш Bazel) |
 | `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua`, `nginx-devel-vts`, `nginx-devel-cache-purge`, `nginx-devel-testcookie`, `nginx-devel-dav`, `nginx-devel-dav-ext` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua`, `www/nginx-devel-vts`, `www/nginx-devel-cache-purge`, `www/nginx-devel-testcookie`, `www/nginx-devel-dav`, `www/nginx-devel-dav-ext` | nginx 1.31.8, вкомпилены brotli, headers-more и geoip2 (`--with-compat`); stream, image_filter, Lua (LuaJIT), VTS, cache_purge, testcookie и WebDAV (DAV, dav-ext) — отдельными пакетами (`load_module`) |
 | `lua51-vips`, `lua51-base64` | `graphics/lua51-vips`, `converters/lua51-base64` | lua-vips 1.1-12 и lbase64 1.5.3 для LuaJIT nginx (`share/lua/5.1`) |
 | `aria2` | `www/aria2` | aria2 1.37.0: Metalink и XML-RPC (libxml2 из az), асинхронный DNS (c-ares из az), BitTorrent, HTTPS (OpenSSL базы), опрос событий kqueue; без libuv, без SQLite (cookies браузеров), без SFTP (libssh2), без NLS и статической сборки |
@@ -399,6 +400,18 @@
   без снимков (варианты снимка закомментированы), ленивое освобождение включено,
   `hide-user-data-from-log`. Проверки в `servers-test.sh`: jemalloc, PING, SET, GET, TLS
   на своём порту, оба конфига как есть: что задают, сокет 777, нет снимка при остановке.
+- **`databases/mongodb80`** (aZ, 18.11.2026): MongoDB 8.0.38 Community, `mongod` и
+  `mongos`, официальный порт закреплённого дерева (его патчи, distfiles Bazel, rc-скрипт
+  `mongod`, пользователь `mongodb`) с флагами aZ и без опций: ThinLTO всегда
+  (`--thin_lto=True`; в официальном LTO выключен), `-O3` и `-march` уровня (`--copt`:
+  CFLAGS Bazel не берёт, а в официальной сборке нет ни того, ни другого), без отладочных
+  символов (`--//bazel/config:debug_symbols=False`); AVX2-вариант `memchr` SpiderMonkey —
+  по уровню сборки: на v3 включён, на v2 выключен (наш патч `SIMD.cpp` вместо официального
+  NOAVX, который оставляет выбор процессору при запуске). Как в официальном порту:
+  аллокатор системы (jemalloc libc), libunwind выключен (трассировки — execinfo базы),
+  OpenSSL базы, без enterprise-функций; curl из `ftp/curl`. Дисковый кэш Bazel
+  (`AZ_PORT_CACHE`, ниже) переходит из прогона в прогон: сборка, которую остановило время
+  прогона, продолжается в следующем с уже сделанных действий.
 - **`www/nginx-devel`**, **`www/nginx-devel-stream`** и **`www/nginx-devel-image-filter`**
   (aZ, 15.11.2026): nginx 1.31.8, опции — объединение серверов aZ. Вкомпилены: модули
   nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE, HTTP_GZIP_STATIC, HTTP_MP4, HTTP_REALIP,
@@ -1006,7 +1019,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 | `fork_ref` | ветка azsupport/php-src, с которой сверяется curl пакета az (`FORK_REF` у `tools/curl-sync-check.sh`, по умолчанию `master`): правка curl и его библиотек сначала идёт в ветку форка, прогон ветки здесь, которая её несёт, называет эту ветку, и обе входят в свои основные ветки в один момент |
 | `publish` | опубликовать репозиторий, когда всё собралось и все проверки прошли (по умолчанию выключено: репозиторий, который читают серверы, публикуется по слову aZ) |
 | `publish_only` | вместе с `publish`: публиковать, только когда репозиторий отличается от релиза лишь пакетами этих портов (`категория/порт` через пробел: прогоны [yt-dlp из GitHub](#yt-dlp-из-github)), иначе ничего; пусто — что бы ни отличалось |
-| `continuation` | ставит прогон, у которого кончилось время, для прогона, который он запускает (его номер подряд; вручную — `0`). У задачи 350 минут: после ~245 новые порты не начинаются, идущие сборки останавливаются на ~285 (`AZ_TIME_SOFT`, `AZ_TIME_HARD` у `tools/build.sh`); собранное остаётся в кэше, проверки и публикация ждут, последний шаг запускает следующий прогон с теми же входами (без `force`), не больше 6 подряд; при `both` `x86-64-v2` начинается только после готового `x86-64-v3` |
+| `continuation` | ставит прогон, у которого кончилось время, для прогона, который он запускает (его номер подряд; вручную — `0`). У задачи 350 минут: после ~245 новые порты не начинаются, идущие сборки останавливаются на ~285 (`AZ_TIME_SOFT`, `AZ_TIME_HARD` у `tools/build.sh`); собранное остаётся в кэше, как и кэш порта с `AZ_PORT_CACHE`, чья сборка остановлена (MongoDB — дисковый кэш Bazel; черновой релиз `portcache-<уровень>-<ключ>-<прогон>`, его следующий прогон распаковывает в `portcache/`, и сборка продолжается с уже сделанного), проверки и публикация ждут, последний шаг запускает следующий прогон с теми же входами (без `force`), не больше 6 подряд; при `both` `x86-64-v2` начинается только после готового `x86-64-v3` |
 
 Он берёт репозиторий прошлого прогона (actions/cache, сохраняется и тогда, когда прогон
 упал, чтобы прогон, упавший на PHP, оставил `az` и библиотеки) и файлы релиза

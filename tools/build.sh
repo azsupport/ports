@@ -35,10 +35,17 @@
 #                    seconds from the start of this script: after AZ_TIME_SOFT no port
 #                    starts its build (it is "not built: the time of this run is
 #                    over", the next run builds it); at AZ_TIME_HARD the builds still
-#                    going are stopped and not built either; results/time-limit says
-#                    so, and the result is FAIL. The packages built until then go into
-#                    the repository as always (build.yml of azsupport/ports: its job has
-#                    350 minutes, and a run that reached them lost all it had built)
+#                    going are stopped and not built either (one after another too);
+#                    results/time-limit says so, and the result is FAIL. The packages
+#                    built until then go into the repository as always (build.yml of
+#                    azsupport/ports: its job has 350 minutes, and a run that reached
+#                    them lost all it had built). A port with AZ_PORT_CACHE in its
+#                    Makefile (databases/mongodb80: the disk cache of Bazel) builds with
+#                    AZ_PORT_CACHE_DIR, portcache/<key> of this tree read-write in its
+#                    chroot, which build.yml keeps between the runs (a draft release):
+#                    one stopped at AZ_TIME_HARD goes on from there in the next run
+#                    (cached= of results/time-limit); results/portcache.txt: the keys of
+#                    the ports built with theirs in this run
 #   AZ_DRYRUN        1: the queue, the hashes and the waves of the run (what the
 #                    repository has with the same az_hash left out), nothing installed
 #                    or built, no repository (the ports that need az: decided after az
@@ -330,7 +337,7 @@ cp "$work/make.conf" "$res/make.conf"
 key() { printf '%s' "$1" | tr '/@' '__'; }
 # ours <origin>: a port of this tree (not a directory of the tools or the work)
 ours() {
-    case "${1%%/*}" in Mk|Templates|Keywords|Tools|tools|work|packages|distfiles|results|repo|keys|docs) return 1 ;; esac
+    case "${1%%/*}" in Mk|Templates|Keywords|Tools|tools|work|packages|distfiles|results|repo|keys|docs|portcache) return 1 ;; esac
     [ -f "$top/${1%%@*}/Makefile" ]
 }
 all_ports() {
@@ -455,7 +462,8 @@ ch_under() {
     return 1
 }
 # the directories of this tree a chroot gets read only: all but those of the run (the
-# work directory, packages/, distfiles/, results/, the repository) and the hidden ones
+# work directory, packages/, distfiles/, results/, the repository, portcache/: each
+# port its own part, read-write) and the hidden ones
 ch_ovl=""
 for _d in "$topr"/*/; do
     _d="${_d%/}"
@@ -464,6 +472,7 @@ for _d in "$topr"/*/; do
     case " $workr $(realpath "$packages") $(realpath "$distdir") $(realpath "$res") $(realpath "$repo") " in
         *" $_rd "*) continue ;;
     esac
+    [ "${_d##*/}" = portcache ] && continue
     ch_ovl="$ch_ovl ${_d##*/}"
 done
 # ch_up <key>: the chroot $c of a port ($chd/<key>; its files of the run in $cs,
@@ -519,9 +528,23 @@ ch_up() {
         if ch_under "$(realpath "$_d")" $_ro; then why="$_d is in a directory mounted read only in the chroot"; return 1; fi
         ch_mount rw "$_d" || return 1
     done
+    # the cache of a port that keeps one between the runs (AZ_PORT_CACHE: the disk cache
+    # of Bazel of databases/mongodb80), read-write at the same path: portcache/<key>
+    if [ -n "$(port_cache "$1")" ]; then
+        mkdir -p "$top/portcache/$1" || { why="cannot make $top/portcache/$1"; return 1; }
+        ch_mount rw "$top/portcache/$1" || return 1
+    fi
     # the hints of the run-time linker (/usr/local/lib; the packages add theirs)
     chroot "$c" /usr/sbin/service ldconfig start > /dev/null 2>&1 || :
     return 0
+}
+# port_cache <key>: the directory of the cache of the port of the key between the runs
+# (portcache/<key> of this tree, AZ_PORT_CACHE of its Makefile; build.yml keeps it in a
+# draft release of its own: a build stopped at the time of the run goes on from there in
+# the next one), or nothing; the key in results/portcache.txt once the port built here
+port_cache() {
+    [ -n "$(sed -n 25p "$q/info/$1" 2> /dev/null)" ] || return 0
+    echo "$top/portcache/$1"
 }
 # ch_run [-l <lock file>] <command>...: a command in the chroot $c (under lockf(1) of
 # the machine with -l), with the environment of a login of root, the make.conf of the
@@ -562,7 +585,8 @@ tool_official() {
 # (lines: 1 PKGNAME, 2 IGNORE, 3-9 FETCH_ EXTRACT_ PATCH_ BUILD_ LIB_ RUN_ PKG_DEPENDS,
 # 10 NEED_ROOT, 11 MASTERDIR, 12 FILESDIR, 13 PATCHDIR, 14 PKGDIR, 15 DISTINFO_FILE,
 # 16 .MAKE.MAKEFILES, 17 AZ_HASH_NOT_FOR_DEPENDENTS, 18 AZ_HASH_LIBS, 19 FLAVOR,
-# 20 AZ_STATIC_LIBS, 21 EXTRA_PATCHES, 22 AZ_PREFIX, 23 AZ_STATIC, 24 AZ_HASH_FILES); our
+# 20 AZ_STATIC_LIBS, 21 EXTRA_PATCHES, 22 AZ_PREFIX, 23 AZ_STATIC, 24 AZ_HASH_FILES,
+# 25 AZ_PORT_CACHE); our
 # dependencies into $q/deps/<key> (all kinds) and
 # $q/rdeps/<key> (LIB_ and RUN_DEPENDS: what pkg add of its package needs), the
 # official ones into $q/odeps/<key> and $q/orun/<key>; the origins of this tree it gets
@@ -577,7 +601,7 @@ port_info() {
             -V PATCH_DEPENDS -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS -V NEED_ROOT \
             -V MASTERDIR -V FILESDIR -V PATCHDIR -V PKGDIR -V DISTINFO_FILE -V .MAKE.MAKEFILES \
             -V AZ_HASH_NOT_FOR_DEPENDENTS -V AZ_HASH_LIBS -V FLAVOR -V AZ_STATIC_LIBS -V EXTRA_PATCHES \
-            -V AZ_PREFIX -V AZ_STATIC -V AZ_HASH_FILES > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
+            -V AZ_PREFIX -V AZ_STATIC -V AZ_HASH_FILES -V AZ_PORT_CACHE > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
         echo "make -V failed: $(grep . "$q/info/$_k.err" | head -n 1)" > "$q/info/$_k.bad"
         return 1
     fi
@@ -1572,8 +1596,13 @@ make_port() {
     start="$(date +%s)"
     # AZ_RESULTS: the results of the scripts of tools/ (az/az: the line of each library)
     # in results/az-results/<key>, where they stay after make clean
+    _pcd="$(port_cache "$k")"
+    if [ -n "$_pcd" ]; then
+        grep -qxF "$k" "$res/portcache.txt" 2> /dev/null || echo "$k" >> "$res/portcache.txt"
+        echo "== the cache of the port between the runs: $_pcd ($(du -sh "$_pcd" 2> /dev/null | cut -f1))" >> "$log"
+    fi
     ch_run make -C "$top/$1" clean package USE_PACKAGE_DEPENDS_ONLY=yes AZ_STAMP="$az_stamp" AZ_HASH="$h" \
-        AZ_RESULTS="$res/az-results/$k" PACKAGES="$_pk" >> "$log" 2>&1
+        AZ_RESULTS="$res/az-results/$k" PACKAGES="$_pk" ${_pcd:+AZ_PORT_CACHE_DIR="$_pcd"} >> "$log" 2>&1
     rc=$?
     secs=$(( $(date +%s) - start ))
     cht="(chroot ${chs}s, dependencies ${dps}s)"
@@ -1675,7 +1704,24 @@ if [ "$serial" = 1 ]; then
         if time_over; then time_skip "$o"; continue; fi
         dep_lists "$o"
         say "$o: make package (logs/$k.log)"
-        job_port "$o"
+        # in a subshell, so that AZ_TIME_HARD stops it as in the waves: it has no line of
+        # the summary then and comes again in the next run (time_skip), one with a cache
+        # between the runs (AZ_PORT_CACHE) from what it did here ($q/timecached)
+        ( trap - EXIT HUP INT TERM; job_port "$o" ) &
+        jp_=$!
+        while kill -0 "$jp_" 2> /dev/null; do
+            if hard_over && [ ! -f "$q/stopped" ]; then
+                : > "$q/stopped"
+                say "the time of this run is over (AZ_TIME_HARD): the build of $o is stopped"
+                kill_tree "$jp_"
+            fi
+            sleep 5
+        done
+        wait "$jp_" 2> /dev/null
+        if [ -f "$q/stopped" ] && [ ! -s "$q/state/$k" ]; then
+            time_skip "$o"
+            [ -n "$(port_cache "$k")" ] && echo "$o" >> "$q/timecached"
+        fi
     done
 else
     # Waves (AZ_JOBS above 1, or AZ_DRYRUN): the ports whose ports of this tree they
@@ -1753,7 +1799,16 @@ else
                     jk="${dn##*/}"; jk="${jk%.done}"
                     wait "$(cat "$q/jobs/$jk.pid")" 2> /dev/null
                     cat "$q/jobs/$jk.out"
-                    rm -f "$dn" "$q/jobs/$jk.pid" "$q/jobs/$jk.out"
+                    # a build stopped at AZ_TIME_HARD (no line of the summary): not built,
+                    # the next run builds it (time_skip); one with a cache between the runs
+                    # (AZ_PORT_CACHE) goes on there from what it did here ($q/timecached)
+                    if [ -f "$q/stopped" ] && [ ! -s "$q/state/$jk" ] && [ -s "$q/jobs/$jk.origin" ]; then
+                        jo="$(cat "$q/jobs/$jk.origin")"
+                        pn="$(sed -n 1p "$q/info/$jk" 2> /dev/null)"
+                        time_skip "$jo"
+                        [ -n "$(port_cache "$jk")" ] && echo "$jo" >> "$q/timecached"
+                    fi
+                    rm -f "$dn" "$q/jobs/$jk.pid" "$q/jobs/$jk.out" "$q/jobs/$jk.origin"
                     running=$((running - 1))
                 done
                 [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; } || break
@@ -1785,6 +1840,7 @@ else
             # .done after the subshell of the build, also if it ends early: the loop
             # above would otherwise wait for it until the timeout of the job; the traps
             # of the run (all chroots away) are not those of a job
+            echo "$o" > "$q/jobs/$k.origin"
             ( trap - EXIT HUP INT TERM; ( job_port "$o" ) > "$q/jobs/$k.out" 2>&1; : > "$q/jobs/$k.done" ) &
             echo $! > "$q/jobs/$k.pid"
             running=$((running + 1))
@@ -2022,7 +2078,7 @@ done
 # first line for build.yml (built=, kept=, not_built_for_time=), then the ports
 if [ -s "$q/timeskip" ]; then
     {
-        echo "built=$nok kept=$nkept not_built_for_time=$(wc -l < "$q/timeskip" | tr -d ' ')"
+        echo "built=$nok kept=$nkept not_built_for_time=$(wc -l < "$q/timeskip" | tr -d ' ') cached=$(cat "$q/timecached" 2> /dev/null | wc -l | tr -d ' ')"
         echo "the time of this run was over: these ports were not built (the next run builds them, and the ports that need them):"
         cat "$q/timeskip"
     } > "$res/time-limit"
