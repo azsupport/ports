@@ -269,14 +269,17 @@ do-build:
 	${CARGO_CARGO_RUN} build --manifest-path ${CARGO_CARGOTOML} ${CARGO_BUILD_ARGS}
 	${INSTALL_LIB} ${CARGO_TARGET_DIR}/release/libnapi_pinyin.so \
 		${RC_NM}/@napi-rs/pinyin/pinyin.freebsd-x64.node
-.for e v d in esb1 0.28.1 ${RC_NM}/@esbuild/freebsd-x64 esb2 0.28.2 ${RC_NM}/@rocket.chat/apps/node_modules/@esbuild/freebsd-x64
+# the directories under RC_NM: a .for list is expanded when the Makefile is read, before
+# WRKDIR is set (run 44319468792: /bundle/...); the binary as esbuild-<version>.bin, as
+# esbuild-<version> is the directory of its sources (go build -o put it inside)
+.for e v d in esb1 0.28.1 @esbuild/freebsd-x64 esb2 0.28.2 @rocket.chat/apps/node_modules/@esbuild/freebsd-x64
 	@${ECHO_MSG} "===>  esbuild ${v}: go"
 	cd ${WRKSRC_${e}} && ${SETENV} ${RC_GO_ENV} ${LOCALBASE}/bin/go build -trimpath \
-		-ldflags='-s -w' -o ${WRKDIR}/esbuild-${v} ./cmd/esbuild
-	${MKDIR} ${d}/bin
-	${INSTALL_PROGRAM} ${WRKDIR}/esbuild-${v} ${d}/bin/esbuild
+		-ldflags='-s -w' -o ${WRKDIR}/esbuild-${v}.bin ./cmd/esbuild
+	${MKDIR} ${RC_NM}/${d}/bin
+	${INSTALL_PROGRAM} ${WRKDIR}/esbuild-${v}.bin ${RC_NM}/${d}/bin/esbuild
 	${PRINTF} '{\n  "name": "@esbuild/freebsd-x64",\n  "version": "%s",\n  "description": "The FreeBSD 64-bit binary for esbuild, built by net-im/rocketchat8 of azsupport/ports.",\n  "license": "MIT",\n  "preferUnplugged": true,\n  "engines": {\n    "node": ">=18"\n  },\n  "os": [\n    "freebsd"\n  ],\n  "cpu": [\n    "x64"\n  ]\n}\n' ${v} \
-		> ${d}/package.json
+		> ${RC_NM}/${d}/package.json
 .endfor
 	@${ECHO_MSG} "===>  sharp: node-gyp, on the libvips of graphics/vips (pkg-config vips-cpp)"
 	cd ${RC_NM}/sharp/src && ${SETENV} ${RC_ENV} ${RC_GYP}
