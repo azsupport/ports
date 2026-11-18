@@ -146,12 +146,14 @@ RC_NM=		${RC_SERVER}/npm/node_modules
 RC_NODE=	${LOCALBASE}/bin/node
 RC_NODE_GYP=	${LOCALBASE}/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js
 # the C and C++ of the native modules and of libsodium: the flags of the build with
-# ThinLTO (clang and its lld)
+# ThinLTO (clang and its lld); the headers of the libuv of az last (uv.h: node24 is on
+# the shared libuv of az, and node-gyp gives only include/node of the nodedir: build
+# run 44313885867, "'uv.h' file not found")
 RC_ENV=		HOME=${WRKDIR} \
 		CC="${CC}" \
 		CXX="${CXX}" \
-		CFLAGS="${CFLAGS} -flto=thin" \
-		CXXFLAGS="${CXXFLAGS} -flto=thin" \
+		CFLAGS="${CFLAGS} -flto=thin -idirafter ${AZ_PREFIX}/include" \
+		CXXFLAGS="${CXXFLAGS} -flto=thin -idirafter ${AZ_PREFIX}/include" \
 		LDFLAGS="${LDFLAGS} -flto=thin" \
 		AR=llvm-ar \
 		RANLIB=llvm-ranlib \
