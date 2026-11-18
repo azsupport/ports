@@ -17,7 +17,10 @@
 #   the binutils of the ports (the official package of devel/binutils). Built as
 #   optimized as GCC builds: profiledbootstrap-lean (PGO: stage1 by the base clang, an
 #   instrumented stage that builds the next one as its training, then the final stage
-#   with the profile) with bootstrap-lto-lean (the final stage with LTO), and gmp 6.3.0,
+#   with the profile) with bootstrap-lto-noplugin (LTO with fat objects, as the
+#   official port: bootstrap-lto-lean archives its libraries by gcc-ranlib, which took
+#   the ranlib of the base system, "Invalid option: '--plugin'", build run 44308740075),
+#   and gmp 6.3.0,
 #   mpfr 4.2.2, mpc 1.3.1 and isl 0.24 (Graphite: the loop optimizations -floop-* and
 #   -fgraphite-identity) built in, static, the versions of contrib/download_prerequisites
 #   of 16.2.0: neither package needs math/gmp, math/mpfr, math/mpc or devel/isl. No GCC
@@ -127,7 +130,7 @@ USE_LDCONFIG=	${TARGLIB}
 RUN_DEPENDS=	${LOCALBASE}/bin/as:devel/binutils \
 		gcc${SUFFIX}-libs>=${PORTVERSION}:lang/gcc${SUFFIX}-libs
 CONFIGURE_ARGS+=	--enable-bootstrap \
-			--with-build-config=bootstrap-lto-lean
+			--with-build-config=bootstrap-lto-noplugin
 ALL_TARGET=	profiledbootstrap-lean
 MAKE_ARGS+=	STAGE1_CFLAGS="${CFLAGS}" \
 		BOOT_CFLAGS="${CFLAGS}"
@@ -159,6 +162,10 @@ post-stage:
 	# (build run 44299593024: "cannot create .../libdata/ldconfig/gcc16-libs")
 	${RM} -r ${STAGEDIR}${PREFIX}/share/gcc-${PORTVERSION}
 	cd ${STAGEDIR}${PREFIX} && ${FIND} lib/gcc${SUFFIX} -mindepth 1 -depth -type d -empty -delete
+	# stripped: libgcc_s.so.1 comes with the debug information of libgcc (-g of
+	# LIBGCC2_DEBUG_CFLAGS) and not stripped by install-strip-target (build run
+	# 44308740075, debug-check)
+	${FIND} ${STAGEDIR}${TARGLIB} -name 'lib*.so.[0-9]*' -type f -exec ${STRIP_CMD} {} +
 	cd ${STAGEDIR}${PREFIX} && ${FIND} lib/gcc${SUFFIX} -type f -o -type l | \
 		${SORT} > ${WRKDIR}/PLIST.lib
 .else
