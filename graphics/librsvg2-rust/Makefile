@@ -77,10 +77,12 @@ post-patch:
 	    ${GREP} -q -e '"pdf"' -e '"ps"' ${WRKSRC}/rsvg/Cargo.toml ${WRKSRC}/librsvg-c/Cargo.toml; then \
 		${ECHO_MSG} "librsvg: gif, webp, pdf or ps still in a Cargo.toml"; exit 1; fi
 
-# the plist: what meson installed (the header, the library, its .pc file)
+# the plist: what meson installed (the header, the library, its .pc file); the
+# libraries it needs itself (--as-needed: fontconfig and FreeType through Pango and
+# Cairo, run 44334196993)
 post-install:
 	@n="$$(/usr/bin/readelf -d ${STAGEDIR}${PREFIX}/lib/librsvg-2.so | ${GREP} NEEDED)"; \
-	for l in libcairo libpango-1.0 libxml2 libfontconfig libfreetype; do \
+	for l in libcairo libpango-1.0 libpangocairo-1.0 libxml2 libglib-2.0; do \
 		echo "$$n" | ${GREP} -q "\[$$l\." || { ${ECHO_MSG} "librsvg: no $$l ($$n)"; exit 1; }; \
 	done
 	cd ${STAGEDIR}${PREFIX} && ${FIND} include lib libdata \( -type f -o -type l \) | \
