@@ -4,9 +4,11 @@
 # REQUIRE: LOGIN
 # KEYWORD: shutdown
 #
-# MongoDB may be on another host (MONGO_URL): no REQUIRE of mongod, whose
-# rc.d of databases/mongodb80 puts itself before this one (BEFORE: rocketchat8)
-# when both are here; without mongod rcorder says nothing.
+# MongoDB may be on another host (MONGO_URL): no REQUIRE of mongod, and no name
+# of the other in either script, which rcorder would warn of at each boot on a
+# host without it ("has no providers", "is before unknown provision"). The rc.d
+# of databases/mongodb80 has BEFORE: LOGIN, this one REQUIRE: LOGIN: on one
+# host mongod starts first, for every version of Rocket.Chat.
 #
 # Add to /etc/rc.conf to start Rocket.Chat 8:
 #

@@ -2,7 +2,7 @@
 
 # PROVIDE: mongod
 # REQUIRE: NETWORKING ldconfig
-# BEFORE: rocketchat8
+# BEFORE: LOGIN
 # KEYWORD: shutdown
 #
 # Add the following lines to /etc/rc.conf.local or /etc/rc.conf
