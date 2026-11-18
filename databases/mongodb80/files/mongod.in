@@ -1,9 +1,13 @@
 #!/bin/sh
 
 # PROVIDE: mongod
-# REQUIRE: NETWORKING ldconfig
+# REQUIRE: DAEMON
 # BEFORE: LOGIN
 # KEYWORD: shutdown
+#
+# After DAEMON and before LOGIN, as the other databases: syslogd and named are up
+# when it starts, and what uses it (rocketchat8, PHP-FPM, nginx) starts after it,
+# with no name of it in their scripts (aZ, 18.11.2026 22:15).
 #
 # Add the following lines to /etc/rc.conf.local or /etc/rc.conf
 # to enable this service:

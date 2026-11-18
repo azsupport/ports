@@ -1,8 +1,12 @@
 #!/bin/sh
 
 # PROVIDE: manticore
-# REQUIRE: LOGIN
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
 # KEYWORD: shutdown
+#
+# After DAEMON and before LOGIN, as the databases: what uses it (PHP-FPM, nginx)
+# starts after it, with no name of it in their scripts (aZ, 18.11.2026 22:15).
 #
 # Add the following lines to /etc/rc.conf.local or /etc/rc.conf
 # to enable this service:
