@@ -84,7 +84,10 @@ LIB_DEPENDS=	libcairo.so:graphics/cairo \
 		librsvg-2.so:graphics/librsvg2-rust \
 		libtiff.so:graphics/tiff \
 		libuhdr.so:graphics/libultrahdr
-RUN_DEPENDS=	node24>=24.15:www/node24
+# DejaVu: the sans-serif of the letters of its avatars (SVG through sharp; aZ,
+# 18.11.2026 16:35, our x11-fonts/dejavu)
+RUN_DEPENDS=	dejavu>0:x11-fonts/dejavu \
+		node24>=24.15:www/node24
 
 USES=		cargo compiler:c++20-lang gmake pkgconfig python:build tar:bzip2
 USE_GITHUB=	nodefault

@@ -103,6 +103,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `glib`, `libexif`, `cgif`, `libimagequant`, `highway` | `devel/glib20`, `graphics/libexif`, `graphics/cgif`, `graphics/libimagequant`, `devel/highway` | the libraries of `vips` (GLib of `mc` too, libimagequant of the libgd of az too: LIQ, the palette of `imagegif()` and `imagetruecolortopalette()` of PHP 5.6 to 8.4; GPLv3 or later): GLib 2.88 shared, without introspection, NLS, documents and manual pages, on libffi, libintl and libiconv of az and PCRE2 of `pcre2`; the others the official ports as they are (libexif without NLS) |
 | `rocketchat8` | `net-im/rocketchat8` | Rocket.Chat 8.9.1, the Meteor bundle on our node24 (`/usr/local/www/rocketchat8`, rc script `rocketchat8`, the user `rocketchat`), its npm modules checked against the advisory database of npm and fixed as aZ agreed, every native module built here (sharp on a libvips 8.18.7 of its own, static in it) |
 | `tiff`, `harfbuzz`, `fribidi`, `pixman`, `cairo`, `pango`, `librsvg2-rust`, `libultrahdr` | `graphics/tiff`, `print/harfbuzz`, `converters/fribidi`, `x11/pixman`, `graphics/cairo`, `x11-toolkits/pango`, `graphics/librsvg2-rust`, `graphics/libultrahdr` | the libraries of the libvips of sharp in `rocketchat8` that `vips` does not take (TIFF, text, SVG, Ultra HDR), shared, with the options of sharp-libvips: no X11, documents, NLS, tests, introspection, tools |
+| `dejavu` | `x11-fonts/dejavu` | the DejaVu fonts 2.37 (the letters of the avatars of `rocketchat8`, the text of ImageMagick), without the fc-cache and mkfontscale of the official port |
 | `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (the moov atom of an MP4 first), back for compatibility: the official port expired on 30.06.2022 |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp at the latest release of GitHub, not at the version of the official port (aZ, 12.11.2026): [`yt-dlp-update.yml`](.github/workflows/yt-dlp-update.yml) looks every 6 hours, takes a new release into the port by itself (and its `yt-dlp-ejs`, ours when the official port is behind), builds it and publishes it when nothing else differs from the release ([yt-dlp from GitHub](#yt-dlp-from-github)); with our `ffmpeg` and, by the option IMPERSONATE (on by default, aZ, 16.11.2026), our `py312-curl-cffi` for `--impersonate` |
 | `node24`, `npm-node24`, `yarn-node24`, `corepack-node24` | `www/node24`, `www/npm-node24`, `www/yarn-node24`, `www/corepack-node24` | Node.js 24.22.3 (for yt-dlp, Kibana 6 and OpenSearch Dashboards 2.17 and 2.19; the security release of 11.11.2026, ahead of the official port at 24.22.2) with npm, Yarn 1 and corepack: `node` on brotli, c-ares, ICU, nghttp2, libuv, zstd and SQLite of az, the OpenSSL (with the CA store of the base system) and zlib of the base system and the libraries below; no DTrace; npm and Yarn the official ports as they are, corepack ours (corepack-node24: 0.36 runs on Node 22 and 24 only, Node 18 gets corepack-node18; one of the two) |
@@ -532,6 +533,12 @@ Names and origins as the ports, files at the paths of the ports:
   AVIF, gdk-pixbuf, rsvg-convert); libultrahdr 2.0.2 (mozjpeg; no examples). FreeType,
   fontconfig, libpng, mozjpeg, WebP, libxml2 of az, each with its own headers
   ([`Mk/az-libs.mk`](Mk/az-libs.mk)).
+- **`x11-fonts/dejavu`** (aZ, 18.11.2026 16:35): the DejaVu fonts 2.37 of the official
+  port and their files of fontconfig, without what its `USES=fonts` adds to run it
+  (fc-cache of `x11-fonts/fontconfig` and mkfontscale: official packages with libraries
+  of their own next to those of az); the fontconfig of az finds them in
+  `/usr/local/share/fonts`. `rocketchat8` needs them (the sans-serif of the letters of
+  its avatars).
 - **`multimedia/qt-faststart`**: `bin/qt-faststart`, `tools/qt-faststart.c` of FFmpeg
   9.0.2 (public domain): the official port expired on 30.06.2022 (ffmpeg `-movflags
   +faststart` does the same); kept for compatibility until it is no longer needed (aZ,
