@@ -385,8 +385,8 @@ do-build:
 # Libs.private), the run path of az; the symbols of the archives not exported, the
 # module kept loaded (the types of GLib cannot be unloaded)
 	@${MKDIR} ${WRKDIR}/vips-sharp-pc
-	@l="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/lib/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --static --libs vips-cpp)" && \
-	c="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/lib/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --cflags vips-cpp)" && \
+	@l="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/libdata/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --static --libs vips-cpp)" && \
+	c="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/libdata/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --cflags vips-cpp)" && \
 	${PRINTF} '%s\n' 'Name: vips-cpp' 'Description: libvips of net-im/rocketchat8, static' \
 		'Version: ${RC_VIPS}' \
 		"Libs: -L${LOCALBASE}/lib $$l -Wl,-rpath,${AZ_PREFIX}/lib -Wl,-z,nodelete -Wl,--exclude-libs=ALL" \
@@ -394,8 +394,8 @@ do-build:
 	${CAT} ${WRKDIR}/vips-sharp-pc/vips-cpp.pc
 	@${ECHO_MSG} "===>  sharp: node-gyp, on that libvips (pkg-config vips-cpp)"
 	cd ${RC_NM}/sharp/src && ${SETENV} ${RC_ENV} \
-		PKG_CONFIG_PATH=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/lib/pkgconfig \
-		PKG_CONFIG_LIBDIR=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/lib/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} \
+		PKG_CONFIG_PATH=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/libdata/pkgconfig \
+		PKG_CONFIG_LIBDIR=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/libdata/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} \
 		SHARP_FORCE_GLOBAL_LIBVIPS=1 ${RC_GYP}
 	@m="$$(${FIND} ${RC_NM}/sharp/src/build/Release -maxdepth 1 -name 'sharp-*.node')" && \
 	n="$$(/usr/bin/readelf -d $$m | ${GREP} NEEDED)" && \
