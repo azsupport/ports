@@ -72,9 +72,20 @@ jobs:
               # its drafts of the packages saved as they were built (tools/runs-save.sh of
               # build.yml: wip-<level>-<branch>-<run>-<attempt>), which only a next run of
               # the branch would have taken and deleted
-              bre="$(printf '%s' "$b" | tr -c 'A-Za-z0-9._-' '-' | sed 's/\./\\\\./g')"
-              gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-                --jq ".[] | select(.draft and (.tag_name | test(\"^wip-x86-64-v[0-9]+-${bre}-[0-9]+-[0-9]+\$\"))) | \"\(.id) \(.tag_name)\"" |
+              # every page of the releases (the API gives at most 100 a page; the snapshots
+              # of the publishes are releases too); the branch by its name exactly
+              bn="$(printf '%s' "$b" | tr -c 'A-Za-z0-9._-' '-')"
+              p=1
+              while [ "$p" -le 30 ]; do
+                gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100&page=$p" --jq '.[] | "\(.draft) \(.id) \(.tag_name)"' > /tmp/releases-page || break
+                [ -s /tmp/releases-page ] || break
+                cat /tmp/releases-page
+                p=$((p + 1))
+              done |
+              awk -v b="$bn" '$1 == "true" && match($3, /^wip-x86-64-v[0-9]+-/) {
+                  r = substr($3, RLENGTH + 1)
+                  if (match(r, /-[0-9]+-[0-9]+$/) && substr(r, 1, RSTART - 1) == b) print $2, $3
+                }' |
               while read -r id tag; do
                 if gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" > /dev/null; then
                   echo "$b: its draft $tag deleted" | tee -a "$GITHUB_STEP_SUMMARY"
