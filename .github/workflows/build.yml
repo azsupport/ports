@@ -87,6 +87,13 @@ on:
         description: 'Set by a run whose time was over for the run it starts (its number in a row); 0 for a run started by hand'
         required: false
         default: '0'
+      # the packages that other branches built and that went into this one with them: the
+      # x86-64-v3 builds on the 16-core runner of 13Z0 save theirs as drafts of their branch
+      # (aZ, 18.11.2026 19:13), and the run of main that publishes them takes those drafts
+      drafts:
+        description: 'Other branches whose drafts wip-<level>-<branch>-* this run takes too, as those of its own (separated by spaces), once those branches went into this one'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -164,10 +171,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CPUTYPE: ${{ matrix.cputype }}
+          DRAFTS: ${{ inputs.drafts }}
         run: |
           mkdir -p repo "$AZ_RUNS_STATE"
           : > "$AZ_RUNS_STATE/wip-taken"
           b="$(printf '%s' "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._-' '-')"
+          # the prefixes of the drafts: this branch, and those of the input drafts
+          pres="wip-$CPUTYPE-$b-"
+          for o in $DRAFTS; do
+            pres="$pres wip-$CPUTYPE-$(printf '%s' "$o" | tr -c 'A-Za-z0-9._-' '-')-"
+          done
           # pages <path> <jq> <file>: every page of a list of the API into the file (it gives
           # at most 100 a page: page 1 alone took 100 of the 323 packages of a draft and 100
           # of 271 of another, and runs 44188852322 and 44205092140 built the rest again,
@@ -184,8 +197,11 @@ jobs:
           }
           pages "repos/$GITHUB_REPOSITORY/releases?" '.[] | "\(.draft) \(.id) \(.tag_name)"' "$AZ_RUNS_STATE/releases" ||
             { echo "no list of the releases"; exit 0; }
-          awk -v pre="wip-$CPUTYPE-$b-" '$1 == "true" && index($3, pre) == 1 { print $2, $3 }' "$AZ_RUNS_STATE/releases" > "$AZ_RUNS_STATE/wip-drafts"
-          [ -s "$AZ_RUNS_STATE/wip-drafts" ] || { echo "no draft wip-$CPUTYPE-$b-*: nothing to take"; exit 0; }
+          awk -v pres="$pres" 'BEGIN { n = split(pres, P, " ") }
+            $1 == "true" { for (i = 1; i <= n; i++) if (index($3, P[i]) == 1) { print $2, $3; next } }' \
+            "$AZ_RUNS_STATE/releases" > "$AZ_RUNS_STATE/wip-drafts"
+          [ -s "$AZ_RUNS_STATE/wip-drafts" ] || { echo "no draft $(echo "$pres" | sed 's/- */-* /g'): nothing to take"; exit 0; }
+          echo "the drafts of $pres: $(wc -l < "$AZ_RUNS_STATE/wip-drafts" | tr -d ' ')"
           while read -r id tag; do
             n=0; bad=0
             if ! pages "repos/$GITHUB_REPOSITORY/releases/$id/assets?" '.[] | "\(.state) \(.id) \(.name)"' "$AZ_RUNS_STATE/wip-all"; then
@@ -915,7 +931,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} configure_check=${{ inputs.configure_check }} plan=${{ inputs.plan }} fork_ref=${{ inputs.fork_ref }} publish=${{ inputs.publish }} publish_only=${{ inputs.publish_only }}
+          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} configure_check=${{ inputs.configure_check }} plan=${{ inputs.plan }} fork_ref=${{ inputs.fork_ref }} publish=${{ inputs.publish }} publish_only=${{ inputs.publish_only }} drafts=${{ inputs.drafts }}
           RUNS_STEPS: build=${{ steps.build.outcome }} outcome=${{ steps.outcome.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
           PART: ${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"
@@ -939,6 +955,7 @@ jobs:
           IN_PUBLISH: ${{ inputs.publish }}
           IN_PUBLISH_ONLY: ${{ inputs.publish_only }}
           IN_CONT: ${{ inputs.continuation }}
+          IN_DRAFTS: ${{ inputs.drafts }}
           LEVEL: ${{ matrix.cputype }}
         run: |
           [ -f results/time-limit ] || { echo "the time of this run was enough: no next run"; exit 0; }
@@ -962,7 +979,7 @@ jobs:
           gh workflow run build.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" \
             -f release="$IN_RELEASE" -f cputype="$cp" -f ports="$IN_PORTS" -f force=false \
             -f jobs="$IN_JOBS" -f configure_check="$IN_CCHECK" -f plan=false -f fork_ref="$IN_FORK_REF" \
-            -f publish="$IN_PUBLISH" -f publish_only="$IN_PUBLISH_ONLY" -f continuation="$((n + 1))"
+            -f publish="$IN_PUBLISH" -f publish_only="$IN_PUBLISH_ONLY" -f drafts="$IN_DRAFTS" -f continuation="$((n + 1))"
           echo "the next run: build.yml, cputype $cp, continuation $((n + 1))" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ "$IN_CPUTYPE" = both ] && [ "$LEVEL" = x86-64-v3 ]; then
             echo "x86-64-v3 goes on in the next run: this run stops, so that x86-64-v2 does not start before it"
