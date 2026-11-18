@@ -338,6 +338,15 @@ post-patch:
 	${GREP} -q '__FreeBSD__' ${RC_NM}/isolated-vm/src/lib/suspend.h
 	${SED} -e 's|%%SODIUM%%|${WRKDIR}/sodium|g' ${FILESDIR}/sodium-native.gyp.in \
 		> ${RC_NM}/sodium-native/binding.gyp
+# @napi-rs/pinyin: mimalloc on the TLS of a library loaded by dlopen (files/pinyin-mimalloc.awk;
+# run 44357987655: "No space available for static Thread Local Storage"); post-install
+# checks that no module of the package needs static TLS
+	${AWK} -f ${FILESDIR}/pinyin-mimalloc.awk ${CARGO_CARGOTOML} > ${CARGO_CARGOTOML}.az
+	${MV} ${CARGO_CARGOTOML}.az ${CARGO_CARGOTOML}
+	@${GREP} -qE '^mimalloc[[:space:]]*=' ${CARGO_CARGOTOML} || \
+		{ ${ECHO_MSG} "@napi-rs/pinyin: no line mimalloc = in Cargo.toml"; exit 1; }
+	@if ${GREP} -E '^mimalloc[[:space:]]*=' ${CARGO_CARGOTOML} | ${GREP} -qv local_dynamic_tls; then \
+		${ECHO_MSG} "@napi-rs/pinyin: a mimalloc of Cargo.toml without local_dynamic_tls"; exit 1; fi
 
 do-build:
 	@${ECHO_MSG} "===>  libsodium ${RC_SODIUM} (static, PIC)"
@@ -436,6 +445,14 @@ post-install:
 		${GREP} -E '\| *(ELF|Mach-O|PE32)' | ${GREP} -v 'FreeBSD' > ${WRKDIR}/foreign.txt || :
 	@if [ -s ${WRKDIR}/foreign.txt ]; then ${CAT} ${WRKDIR}/foreign.txt; \
 		${ECHO_MSG} "binaries of other systems in the package (above)"; ${FALSE}; fi
+# no native module that needs static TLS (DF_STATIC_TLS): node dlopens them, and FreeBSD
+# may have no room left for it (@napi-rs/pinyin, run 44357987655)
+	@cd ${STAGEDIR}${WWWDIR} && for m in $$(${FIND} . -name '*.node' -type f); do \
+		if readelf -d $$m | ${GREP} -q 'STATIC_TLS'; then echo "$$m"; fi; \
+	done > ${WRKDIR}/static-tls.txt; \
+	if [ -s ${WRKDIR}/static-tls.txt ]; then ${CAT} ${WRKDIR}/static-tls.txt; \
+		${ECHO_MSG} "native modules with static TLS (above)"; ${FALSE}; fi; \
+	${ECHO_MSG} "===>  $$(${FIND} . -name '*.node' -type f | ${WC} -l | ${TR} -d ' ') native modules, none with static TLS"
 	cd ${STAGEDIR}${PREFIX} && ${FIND} ${WWWDIR_REL} \( -type f -o -type l \) | ${SORT} >> ${TMPPLIST}
 	cd ${STAGEDIR}${PREFIX} && ${FIND} ${WWWDIR_REL} -type d -empty | ${SORT} | \
 		${SED} 's|^|@dir |' >> ${TMPPLIST}
