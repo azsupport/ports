@@ -187,6 +187,11 @@ post-stage:
 	${RM} ${STAGEDIR}${TARGLIB}/lib*.so.[0-9]*
 	${RM} -r ${STAGEDIR}${PREFIX}/share/gcc-${PORTVERSION} \
 		${STAGEDIR}${TARGLIB}/gcc/*/${PORTVERSION}/include-fixed
+	# the static libraries without debug information, their symbols kept: libgcc.a,
+	# libgcc_eh.a and libgcov.a come with that of -g of LIBGCC2_DEBUG_CFLAGS, which
+	# install-strip leaves (build run 44385710548 of 13Z0/13Z0, 18.11.2026, debug-check:
+	# .debug_info of 122 KB, 74 KB and 51 KB)
+	${FIND} ${STAGEDIR}${TARGLIB} -name '*.a' -type f -exec ${STRIP_CMD} --strip-debug {} +
 .  for d in ${TARGLIB:S/^${PREFIX}\///} ${LIBEXEC:S/^${PREFIX}\///}
 	cd ${STAGEDIR}${PREFIX} && ${FIND} ${d} -type f -o -type l | \
 		${SORT} >> ${WRKDIR}/PLIST.lib
