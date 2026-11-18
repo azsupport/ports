@@ -798,12 +798,21 @@ jobs:
           fi
           if [ -s "$AZ_RUNS_STATE/wip-taken" ]; then
             while read -r id tag; do
-              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" > /dev/null && echo "deleted: $tag (its packages are in the release now)"
+              # tools/release-drop.sh: a draft of hundreds of files answered DELETE with HTTP 502
+              # (18.11.2026), so its files go one by one first
+              if sh tools/release-drop.sh "$id" "$tag"; then
+                echo "deleted: $tag (its packages are in the release now)"
+              else
+                echo "::warning title=drafts::$tag not deleted: the next publish tries again"
+              fi
             done < "$AZ_RUNS_STATE/wip-taken"
           fi
           if [ -s "$AZ_RUNS_STATE/runs-save.id" ]; then
-            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$(cat "$AZ_RUNS_STATE/runs-save.id")" > /dev/null &&
+            if sh tools/release-drop.sh "$(cat "$AZ_RUNS_STATE/runs-save.id")" "$(cat "$AZ_RUNS_STATE/runs-save.tag")"; then
               echo "deleted: $(cat "$AZ_RUNS_STATE/runs-save.tag") (its packages are in the release now)"
+            else
+              echo "::warning title=drafts::$(cat "$AZ_RUNS_STATE/runs-save.tag") not deleted: the next publish tries again"
+            fi
           else
             echo "no draft of this run (tools/runs-save.sh saved no package)"
           fi
