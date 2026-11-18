@@ -1,0 +1,5 @@
+GCC, the GNU Compiler Collection, 16: the C and C++ compilers gcc16, g++16 and cpp16
+with the LTO of GCC, built with profile feedback and link-time optimization, with
+Graphite, the libraries it needs to build (libgcc, the headers and static
+libraries of libstdc++) and the links of the shared libraries of run time, which
+are the package gcc16-libs. Of azsupport/ports.

@@ -94,7 +94,7 @@
 # - a port that names no file of the static tree of az in its dependencies builds
 #   without its archives (they go from its chroot): only a port that says AZ_STATIC_LIBS
 #   (tools/check-tree.sh) can link them;
-# - the build tools of AZ_TOOLS_OFFICIAL (below: Python, Perl, meson) come from the
+# - the build tools of AZ_TOOLS_OFFICIAL (below: Python, Perl, meson, GCC 16) come from the
 #   official packages of FreeBSD also when this tree has the origin (aZ, 11.11.2026:
 #   our python312 and perl5.42 link libraries of az, which needs them to build): for a
 #   port that needs such an origin only to build it (FETCH_, EXTRACT_, PATCH_, BUILD_
@@ -181,7 +181,11 @@ ports_url="https://github.com/freebsd/freebsd-ports"
 # extension for it, ours. The origins as the dependencies name them (lang/python3 the
 # meta port of the default Python, meson needs it); an origin this tree does not have
 # is official anyway. Here only: not taken from the environment.
-AZ_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson"
+# lang/gcc16: the compiler of USES=azgcc (PHP, Redis, Python) and of az/az stays the
+# official package until these move to the gcc16 of this tree with the next full build
+# (aZ, 18.11.2026: «а) ... да, давай так»); our lang/gcc16-libs is not a tool and goes
+# to the ports that run with it (sysutils/arcconf)
+AZ_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson lang/gcc16"
 
 top="$(cd "$(dirname "$0")/.." && pwd)"
 usage() { sed -n 's/^# \{0,1\}//; 6,16p' "$0" >&2; exit "${1:-2}"; }
