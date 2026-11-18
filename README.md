@@ -95,6 +95,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `dovecot`, `dovecot-mysql` | `mail/dovecot`, `mail/dovecot-mysql` | Dovecot 2.3.21.1, the branch 2.3 as long as upstream supports it, with the options of aZ: no GSSAPI, LDAP, libwrap, FTS, Lua, LZ4; zstd of az; the variant with the SQL driver of MySQL; one of the two; the security fixes after 2.3.21.1 of Ubuntu noble and RHEL 10 |
 | `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (the line of 8.x with the long support of upstream), without the modules: JEMALLOC on (its own jemalloc: active defragmentation), no TLS; the variant with TLS (the OpenSSL of the base system); one of the two; the configurations of aZ: `redis.conf.sample` (the main cache), `redis-session.conf.sample` (PHP sessions), on 127.0.0.1, without snapshots |
 | `mongodb80` | `databases/mongodb80` | MongoDB 8.0.38 Community (the database of Rocket.Chat 8): ThinLTO, `-O3` and the `-march` of the level, the AVX2 of SpiderMonkey by the level (no NOAVX), no debug symbols; the allocator of the system, no libunwind; OpenSSL of the base system, curl of `ftp/curl`; a build the time of a run stopped goes on in the next run (the disk cache of Bazel) |
+| `mongodb-tools` | `databases/mongodb-tools` | the MongoDB Database Tools 100.20.1: bsondump, mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat, mongotop; TLS on (crypto/tls of Go), SASL and docs off; GOAMD64 by the level, `-trimpath`, `-s -w` |
 | `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua`, `nginx-devel-vts`, `nginx-devel-cache-purge`, `nginx-devel-testcookie`, `nginx-devel-dav`, `nginx-devel-dav-ext` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua`, `www/nginx-devel-vts`, `www/nginx-devel-cache-purge`, `www/nginx-devel-testcookie`, `www/nginx-devel-dav`, `www/nginx-devel-dav-ext` | nginx 1.31.8 with brotli, headers-more and geoip2 built in (`--with-compat`); stream, image_filter, Lua (LuaJIT), VTS, cache_purge, testcookie and WebDAV (DAV, dav-ext) as packages of their own (`load_module`) |
 | `lua51-vips`, `lua51-base64` | `graphics/lua51-vips`, `converters/lua51-base64` | lua-vips 1.1-12 and lbase64 1.5.3 for the LuaJIT of nginx (`share/lua/5.1`) |
 | `aria2` | `www/aria2` | aria2 1.37.0: Metalink and XML-RPC (libxml2 of az), asynchronous DNS (c-ares of az), BitTorrent, HTTPS (the OpenSSL of the base system), the event poll kqueue; no libuv, no SQLite (the cookies of the browsers), no SFTP (libssh2), no NLS, no static build |
@@ -421,6 +422,13 @@ Names and origins as the ports, files at the paths of the ports:
   execinfo of the base system), OpenSSL of the base system, no enterprise features; curl
   of `ftp/curl`. The disk cache of Bazel (`AZ_PORT_CACHE`, below) goes from run to run:
   a build the time of a run stopped goes on in the next one from the actions it did.
+- **`databases/mongodb-tools`** (aZ, 18.11.2026 15:29): the MongoDB Database Tools
+  100.20.1 of the official port of the pinned tree, its eight programs (bsondump,
+  mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat, mongotop)
+  without its options: TLS by crypto/tls of Go (the build tag `ssl`), no SASL (no
+  Kerberos), no documents; the Go code for the level of the build (GOAMD64 v3 or v2 by
+  its `-march`), `-trimpath`, `-s -w`. mongosh is not a port: the npm package on our
+  node24 when it is needed (aZ, 18.11.2026 11:05).
 - **`www/nginx-devel`**, **`www/nginx-devel-stream`** and **`www/nginx-devel-image-filter`**
   (aZ, 15.11.2026): nginx 1.31.8, the options the union of those of the servers of aZ.
   Built in: the modules of nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE,
