@@ -80,8 +80,15 @@ upload() {
 # "starter"): the same size and uploaded, it is saved; else it goes and the next time
 # uploads it again
 asset_check() {
-    _a="$(gh api "repos/$repo/releases/$1/assets?per_page=100" \
-        --jq ".[] | select(.name == \"$(printf '%s' "$2" | tr ',' '.')\") | \"\(.id) \(.size) \(.state)\"" 2> /dev/null | head -n 1)"
+    # every page of the files of the draft: the API gives at most 100 a page
+    _a=""; _pg=1
+    while [ -z "$_a" ] && [ "$_pg" -le 30 ]; do
+        gh api "repos/$repo/releases/$1/assets?per_page=100&page=$_pg" \
+            --jq '.[] | "\(.name) \(.id) \(.size) \(.state)"' > "$w/page" 2> /dev/null || return 1
+        [ -s "$w/page" ] || break
+        _a="$(awk -v n="$(printf '%s' "$2" | tr ',' '.')" '$1 == n { print $2, $3, $4; exit }' "$w/page")"
+        _pg=$((_pg + 1))
+    done
     [ -n "$_a" ] || return 1
     # shellcheck disable=SC2086
     set -- $_a "$3"

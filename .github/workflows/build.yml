@@ -168,16 +168,30 @@ jobs:
           mkdir -p repo "$AZ_RUNS_STATE"
           : > "$AZ_RUNS_STATE/wip-taken"
           b="$(printf '%s' "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._-' '-')"
-          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq ".[] | select(.draft and (.tag_name | startswith(\"wip-$CPUTYPE-$b-\"))) | \"\(.id) \(.tag_name)\"" \
-            > "$AZ_RUNS_STATE/wip-drafts" || { echo "no list of the releases"; exit 0; }
+          # pages <path> <jq> <file>: every page of a list of the API into the file (it gives
+          # at most 100 a page: page 1 alone took 100 of the 323 packages of a draft and 100
+          # of 271 of another, and runs 44188852322 and 44205092140 built the rest again,
+          # 17-18.11.2026); the jq of a line has the field to stop on first
+          pages() {
+            : > "$3"
+            p=1
+            while [ "$p" -le 30 ]; do
+              gh api "${1}per_page=100&page=$p" --jq "$2" > "$AZ_RUNS_STATE/page" || return 1
+              [ -s "$AZ_RUNS_STATE/page" ] || return 0
+              cat "$AZ_RUNS_STATE/page" >> "$3"
+              p=$((p + 1))
+            done
+          }
+          pages "repos/$GITHUB_REPOSITORY/releases?" '.[] | "\(.draft) \(.id) \(.tag_name)"' "$AZ_RUNS_STATE/releases" ||
+            { echo "no list of the releases"; exit 0; }
+          awk -v pre="wip-$CPUTYPE-$b-" '$1 == "true" && index($3, pre) == 1 { print $2, $3 }' "$AZ_RUNS_STATE/releases" > "$AZ_RUNS_STATE/wip-drafts"
           [ -s "$AZ_RUNS_STATE/wip-drafts" ] || { echo "no draft wip-$CPUTYPE-$b-*: nothing to take"; exit 0; }
           while read -r id tag; do
             n=0; bad=0
-            if ! gh api "repos/$GITHUB_REPOSITORY/releases/$id/assets?per_page=100" \
-              --jq '.[] | select(.state == "uploaded") | "\(.id) \(.name)"' > "$AZ_RUNS_STATE/wip-assets"; then
+            if ! pages "repos/$GITHUB_REPOSITORY/releases/$id/assets?" '.[] | "\(.state) \(.id) \(.name)"' "$AZ_RUNS_STATE/wip-all"; then
               echo "$tag: no list of its files: left for the next run"; continue
             fi
+            awk '$1 == "uploaded" { print $2, $3 }' "$AZ_RUNS_STATE/wip-all" > "$AZ_RUNS_STATE/wip-assets"
             while read -r aid an; do
               [ -e "repo/$an" ] && continue
               if gh api -H 'Accept: application/octet-stream' "repos/$GITHUB_REPOSITORY/releases/assets/$aid" > "repo/$an.part"; then
@@ -187,7 +201,7 @@ jobs:
               fi
             done < "$AZ_RUNS_STATE/wip-assets"
             if [ "$bad" = 0 ]; then
-              echo "$tag: $n packages into repo/"
+              echo "$tag: $n of its $(wc -l < "$AZ_RUNS_STATE/wip-assets" | tr -d ' ') packages into repo/ (the others were there)"
               echo "$id $tag" >> "$AZ_RUNS_STATE/wip-taken"
             else
               echo "::warning title=saved packages::$tag: $n packages into repo/, $bad did not download (the draft stays for the next run)"
