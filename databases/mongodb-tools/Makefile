@@ -38,7 +38,11 @@ GO_TARGET=	./bsondump/main:bsondump \
 		./mongostat/main:mongostat \
 		./mongotop/main:mongotop
 GO_BUILDFLAGS=	-tags "ssl"
-GO_LDFLAGS=	-w
+# the version and the commit each tool prints with --version, as the build script of
+# mongo-tools sets them (main.VersionStr, main.GitCommit of each main package); without
+# them "built-without-version-string" (the publish run 44391248725, 18.11.2026)
+GO_LDFLAGS=	-w -X main.VersionStr=${DISTVERSION} \
+		-X main.GitCommit=99fd6bc7140e31e0287a9b4ef7e03194d834c7f0
 GOAMD64=	${CFLAGS:M-march=x86-64-v[234]:S/-march=x86-64-//}
 
 # This should be TEST_ENV according to bsd.port.mk, but Uses/go.mk passes
