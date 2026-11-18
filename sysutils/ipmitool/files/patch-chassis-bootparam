@@ -1,0 +1,16 @@
+"ipmitool chassis bootparam set bootflag ... options=no-timeout" failed on the option
+(the parser took no-timeout for an error). Upstream b67f400 (codeberg pull request 19),
+as Debian carries it (0130-chassis_bootparam.patch, bug 1099886); not in ipmitool
+1.8.19 nor in the official port.
+
+--- lib/ipmi_chassis.c.orig
++++ lib/ipmi_chassis.c
+@@ -1049,7 +1049,7 @@ get_bootparam_options(char *optstring,
+ 			optionError = 1;
+ 			break;
+ 		}
+-		if (!strcmp(token, "no-")) {
++		if (strncmp(token, "no-", 3) == 0) {
+ 			setbit = 1;
+ 			token += 3;
+ 		}

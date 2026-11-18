@@ -1,0 +1,18 @@
+A stack buffer overflow of "ipmitool tsol": buff, which takes what was read into
+out_buff (IPMI_BUF_SIZE * 8), had IPMI_BUF_SIZE + 4 bytes. Debian 101_fix_buf_overflow
+(Ubuntu bug 633054), as Gentoo carries it
+(sys-apps/ipmitool/files/ipmitool-1.8.19-fix-buffer-overflow.patch); not in ipmitool
+1.8.19 nor in the official port.
+
+diff -Nuar --exclude '*.orig' ipmitool-50d8c36edf9657720e25445a435dabc44572cf5f.orig/lib/ipmi_tsol.c ipmitool-50d8c36edf9657720e25445a435dabc44572cf5f/lib/ipmi_tsol.c
+--- ipmitool-50d8c36edf9657720e25445a435dabc44572cf5f.orig/lib/ipmi_tsol.c	2020-08-07 00:53:06.000000000 -0700
++++ ipmitool-50d8c36edf9657720e25445a435dabc44572cf5f/lib/ipmi_tsol.c	2020-10-21 13:55:58.571536858 -0700
+@@ -374,7 +374,7 @@
+ 	char *recvip = NULL;
+ 	char in_buff[IPMI_BUF_SIZE];
+ 	char out_buff[IPMI_BUF_SIZE * 8];
+-	char buff[IPMI_BUF_SIZE + 4];
++	char buff[IPMI_BUF_SIZE * 8 + 4];
+ 	int fd_socket, result, i;
+ 	int out_buff_fill, in_buff_fill;
+ 	int ip1, ip2, ip3, ip4;
