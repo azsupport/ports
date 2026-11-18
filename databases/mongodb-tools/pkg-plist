@@ -1,8 +1,0 @@
-bin/bsondump
-bin/mongodump
-bin/mongoexport
-bin/mongofiles
-bin/mongoimport
-bin/mongorestore
-bin/mongostat
-bin/mongotop

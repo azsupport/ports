@@ -1,5 +1,0 @@
-Rocket.Chat is an open source team chat server: channels, direct messages,
-threads, files, voice and video calls, omnichannel and integrations.
-
-Its server of version 8 as Rocket.Chat builds it (the Meteor bundle), on
-Node.js 24 and MongoDB 8.0, with every native module built from source.
