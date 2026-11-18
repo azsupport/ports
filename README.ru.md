@@ -413,7 +413,7 @@
   (`AZ_PORT_CACHE`, ниже) переходит из прогона в прогон: сборка, которую остановило время
   прогона, продолжается в следующем с уже сделанных действий.
 - **`www/nginx-devel`**, **`www/nginx-devel-stream`** и **`www/nginx-devel-image-filter`**
-  (aZ, 15.11.2026): nginx 1.31.9 (18.11.2026; до него 1.31.8), опции — объединение серверов aZ. Вкомпилены: модули
+  (aZ, 15.11.2026): nginx 1.31.9 (18.11.2026; до него 1.31.8) с четырьмя исправлениями freenginx, которых нет в nginx (gzip, mp4, charset, захваты подзапросов), опции — объединение серверов aZ. Вкомпилены: модули
   nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE, HTTP_GZIP_STATIC, HTTP_MP4, HTTP_REALIP,
   HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL, HTTP_STATUS (stub_status: его счётчики читает VTS),
   HTTP_SUB, HTTPV2, HTTPV3, а также brotli,

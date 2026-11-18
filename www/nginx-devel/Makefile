@@ -7,6 +7,15 @@
 # uwsgi are the same), its options the union of those of three of aZ's servers,
 # HTTP_GZIP_STATIC and HTTP_STATUS (for VTS).
 #
+# Fixes of freenginx that nginx 1.31.9 has not (aZ, 18.11.2026 22:39: «проверил фиксы?
+# может висят в иссуес или в коммитах еще не зааррувленых?»): the double ngx_pfree() of
+# gzip, the sanity checks of the "end" of mp4 (reads out of the buffer with a crafted
+# file; after the patch of Angie), the invalid UTF-8 split between buffers of charset
+# (CVE-2026-48142) and the positional captures of cloned subrequests after a non-match
+# (files/patch-*: each its origin in its head). Those nginx 1.31.9 fixed its own way are
+# not taken: DAV with alias (r->valid_location), the lengths of HTTP/2 and gRPC headers,
+# r->main->blocked (the limit of pending operations), the session ticket keys.
+#
 # The core has the modules of nginx itself built in (nginx can build only a few of
 # them dynamic, here stream and image_filter, and DAV with files/patch-auto_options and
 # patch-auto_modules), and brotli, headers-more and geoip2 (its http part), which
