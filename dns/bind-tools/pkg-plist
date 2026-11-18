@@ -19,12 +19,12 @@ bin/nsec3hash
 bin/nslookup
 bin/nsupdate
 lib/bind-tools/libdns.so
-lib/bind-tools/libdns-9.20.30.so
+lib/bind-tools/libdns-9.20.31.so
 lib/bind-tools/libisc.so
-lib/bind-tools/libisc-9.20.30.so
+lib/bind-tools/libisc-9.20.31.so
 lib/bind-tools/libisccc.so
-lib/bind-tools/libisccc-9.20.30.so
+lib/bind-tools/libisccc-9.20.31.so
 lib/bind-tools/libisccfg.so
-lib/bind-tools/libisccfg-9.20.30.so
+lib/bind-tools/libisccfg-9.20.31.so
 lib/bind-tools/libns.so
-lib/bind-tools/libns-9.20.30.so
+lib/bind-tools/libns-9.20.31.so

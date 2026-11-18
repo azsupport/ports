@@ -17,7 +17,7 @@
 # /usr/local/etc/namedb with named.conf.sample, the user bind of the base system.
 
 PORTNAME=	bind
-DISTVERSION=	9.20.30
+DISTVERSION=	9.20.31
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	dns net
 MASTER_SITES=	ISC/bind9/${DISTVERSION}

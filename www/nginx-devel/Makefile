@@ -1,8 +1,11 @@
 # www/nginx-devel: the nginx-devel of azsupport/ports in the place of the official
 # www/nginx-devel (aZ, 15.11.2026: «давай еще свой nginx-devel добавим», «может
-# модулями его разбить»): nginx 1.31.8 of the official port of the pinned commit, its
-# options the union of those of three of aZ's servers, HTTP_GZIP_STATIC and
-# HTTP_STATUS (for VTS).
+# модулями его разбить»): nginx 1.31.9 (the security update of the official port,
+# 230b1e426b, 18.11.2026; 1.31.8 before, of the pinned commit; of the files the
+# patches below change, 1.31.9 changes src/event/ngx_event_openssl.c alone, away from
+# the lines of its patch, and the configuration structures of proxy, fastcgi, scgi and
+# uwsgi are the same), its options the union of those of three of aZ's servers,
+# HTTP_GZIP_STATIC and HTTP_STATUS (for VTS).
 #
 # The core has the modules of nginx itself built in (nginx can build only a few of
 # them dynamic, here stream and image_filter, and DAV with files/patch-auto_options and
