@@ -8,10 +8,11 @@
 # official USES=readline takes. The open interface of the base system (/dev/ipmi, the
 # ipmi(4) driver), the OpenSSL of the base system; without FREEIPMI (the in-band
 # driver of GNU FreeIPMI: ipmi(4) does it) and DOCS (the make.conf of the build). With
-# three fixes Debian carries and the official port lacks: CVE-2011-4339, the PID file
+# the fixes of the distributions the official port lacks: CVE-2011-4339, the PID file
 # of ipmievd writable by every user, and a stack buffer overflow of "ipmitool tsol"
-# (files/extra-patch-*, as Gentoo has them), and options=no-timeout of "chassis
-# bootparam" (files/patch-chassis-bootparam).
+# (Debian, as Gentoo has them), options=no-timeout of "chassis bootparam" (Debian,
+# files/patch-chassis-bootparam), and the time of a timestamp of "sel get", which
+# printed its date twice (upstream after 1.8.19, as Ubuntu; files/extra-patch-*).
 
 PORTNAME=	ipmitool
 PORTVERSION=	1.8.19
@@ -74,6 +75,7 @@ CONFIGURE_ARGS+=	--disable-intf-open
 # the shell required: configure fails without readline
 CONFIGURE_ARGS+=	--enable-ipmishell IANADIR=${DATADIR}
 EXTRA_PATCHES=	${FILESDIR}/extra-patch-CVE-2011-4339:-p1 \
+		${FILESDIR}/extra-patch-sel-timestamp:-p1 \
 		${FILESDIR}/extra-patch-tsol-buffer-overflow:-p1
 DOCS_EXTRA_PATCHES_OFF=	${PATCHDIR}/extra-patch-Makefile.in
 

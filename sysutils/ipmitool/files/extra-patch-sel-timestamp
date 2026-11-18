@@ -1,0 +1,43 @@
+"ipmitool sel get" printed the date of a timestamp twice, not its date and time:
+ipmi_timestamp_date() and ipmi_timestamp_time() both return the one static buffer
+of ipmi_timestamp_fmt(), the second call overwriting the first in one printf.
+Upstream 01c572b (codeberg, 10.10.2024), after 1.8.19, as Ubuntu carries it
+(fix-date-time-output-of-timestamps.patch, bug 2107550); not in Debian nor in the
+official port.
+
+diff --git a/lib/ipmi_sel.c b/lib/ipmi_sel.c
+index 9a97af3..482d460 100644
+--- a/lib/ipmi_sel.c
++++ b/lib/ipmi_sel.c
+@@ -2042,13 +2042,13 @@ ipmi_sel_print_std_entry_verbose(struct ipmi_intf * intf, struct sel_event_recor
+ 	if (evt->record_type < 0xe0)
+ 	{
+ 		printf(" Timestamp             : ");
+-		if (evt->record_type < 0xc0)
+-			printf("%s %s", ipmi_timestamp_date(evt->sel_type.standard_type.timestamp),
+-				ipmi_timestamp_time(evt->sel_type.standard_type.timestamp));
+-		else
+-			printf("%s %s", ipmi_timestamp_date(evt->sel_type.oem_ts_type.timestamp),
+-				ipmi_timestamp_time(evt->sel_type.oem_ts_type.timestamp));
+-		printf("\n");
++		if (evt->record_type < 0xc0) {
++			printf("%s ", ipmi_timestamp_date(evt->sel_type.standard_type.timestamp));
++			printf("%s\n", ipmi_timestamp_time(evt->sel_type.standard_type.timestamp));
++		} else {
++			printf("%s ", ipmi_timestamp_date(evt->sel_type.oem_ts_type.timestamp));
++			printf("%s\n", ipmi_timestamp_time(evt->sel_type.oem_ts_type.timestamp));
++		}
+ 	}
+ 
+ 	if (evt->record_type >= 0xc0)
+@@ -2133,8 +2133,8 @@ ipmi_sel_print_extended_entry_verbose(struct ipmi_intf * intf, struct sel_event_
+ 	if (evt->record_type < 0xe0)
+ 	{
+ 		printf(" Timestamp             : ");
+-		printf("%s %s\n", ipmi_timestamp_date(evt->sel_type.standard_type.timestamp),
+-		ipmi_timestamp_time(evt->sel_type.standard_type.timestamp));
++		printf("%s ", ipmi_timestamp_date(evt->sel_type.standard_type.timestamp));
++		printf("%s\n", ipmi_timestamp_time(evt->sel_type.standard_type.timestamp));
+ 	}
+ 
+ 
