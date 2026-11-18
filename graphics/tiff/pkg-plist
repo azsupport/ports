@@ -1,0 +1,12 @@
+include/tiff.h
+include/tiffconf.h
+include/tiffio.h
+include/tiffvers.h
+lib/cmake/tiff/tiff-config-version.cmake
+lib/cmake/tiff/tiff-config.cmake
+lib/cmake/tiff/tiff-targets-%%CMAKE_BUILD_TYPE%%.cmake
+lib/cmake/tiff/tiff-targets.cmake
+lib/libtiff.so
+lib/libtiff.so.6
+lib/libtiff.so.6.3.0
+libdata/pkgconfig/libtiff-4.pc

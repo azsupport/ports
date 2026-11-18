@@ -101,6 +101,8 @@ Names and origins as the ports, files at the paths of the ports:
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: the DNS server `named` with TCP Fast Open, no GSSAPI, DNSTAP, LMDB and statistics channels; dig, host, nslookup, delv, nsupdate and the DNSSEC tools, with IDN |
 | `vips` | `graphics/vips` | libvips 8.18 for the Lua scripts of nginx that convert images on the fly: JPEG (mozjpeg), PNG, WebP, HEIC (load), AVIF (load and save), GIF, with ICC profiles, EXIF and SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
 | `glib`, `libexif`, `cgif`, `libimagequant`, `highway` | `devel/glib20`, `graphics/libexif`, `graphics/cgif`, `graphics/libimagequant`, `devel/highway` | the libraries of `vips` (GLib of `mc` too, libimagequant of the libgd of az too: LIQ, the palette of `imagegif()` and `imagetruecolortopalette()` of PHP 5.6 to 8.4; GPLv3 or later): GLib 2.88 shared, without introspection, NLS, documents and manual pages, on libffi, libintl and libiconv of az and PCRE2 of `pcre2`; the others the official ports as they are (libexif without NLS) |
+| `rocketchat8` | `net-im/rocketchat8` | Rocket.Chat 8.9.1, the Meteor bundle on our node24 (`/usr/local/www/rocketchat8`, rc script `rocketchat8`, the user `rocketchat`), its npm modules checked against the advisory database of npm and fixed as aZ agreed, every native module built here (sharp on a libvips 8.18.7 of its own, static in it) |
+| `tiff`, `harfbuzz`, `fribidi`, `pixman`, `cairo`, `pango`, `librsvg2-rust`, `libultrahdr` | `graphics/tiff`, `print/harfbuzz`, `converters/fribidi`, `x11/pixman`, `graphics/cairo`, `x11-toolkits/pango`, `graphics/librsvg2-rust`, `graphics/libultrahdr` | the libraries of the libvips of sharp in `rocketchat8` that `vips` does not take (TIFF, text, SVG, Ultra HDR), shared, with the options of sharp-libvips: no X11, documents, NLS, tests, introspection, tools |
 | `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (the moov atom of an MP4 first), back for compatibility: the official port expired on 30.06.2022 |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp at the latest release of GitHub, not at the version of the official port (aZ, 12.11.2026): [`yt-dlp-update.yml`](.github/workflows/yt-dlp-update.yml) looks every 6 hours, takes a new release into the port by itself (and its `yt-dlp-ejs`, ours when the official port is behind), builds it and publishes it when nothing else differs from the release ([yt-dlp from GitHub](#yt-dlp-from-github)); with our `ffmpeg` and, by the option IMPERSONATE (on by default, aZ, 16.11.2026), our `py312-curl-cffi` for `--impersonate` |
 | `node24`, `npm-node24`, `yarn-node24`, `corepack-node24` | `www/node24`, `www/npm-node24`, `www/yarn-node24`, `www/corepack-node24` | Node.js 24.22.3 (for yt-dlp, Kibana 6 and OpenSearch Dashboards 2.17 and 2.19; the security release of 11.11.2026, ahead of the official port at 24.22.2) with npm, Yarn 1 and corepack: `node` on brotli, c-ares, ICU, nghttp2, libuv, zstd and SQLite of az, the OpenSSL (with the CA store of the base system) and zlib of the base system and the libraries below; no DTrace; npm and Yarn the official ports as they are, corepack ours (corepack-node24: 0.36 runs on Node 22 and 24 only, Node 18 gets corepack-node18; one of the two) |
@@ -503,6 +505,33 @@ Names and origins as the ports, files at the paths of the ports:
   overflow into a wrong size), the input profile of `icc_import` (used after free),
   LZW codes across sub-blocks of GIF, PNGs of libpng 1.6.0 to 1.6.2, HEIC photos of
   more than 256 items.
+- **`net-im/rocketchat8`** (aZ, 18.11.2026): Rocket.Chat 8.9.1, the Meteor bundle of
+  Rocket.Chat (`rocket.chat-8.9.1.tgz`) on `www/node24`, in `/usr/local/www/rocketchat8`,
+  run by the rc script `rocketchat8` as the user `rocketchat` with the environment of
+  `/usr/local/etc/rocketchat8.conf`, the log `/var/log/rocketchat8.log`; its database
+  MongoDB 8.0 as a replica set. The npm modules at the versions 8.9.1 was built with,
+  checked against the advisory database of npm, with the fixes aZ agreed
+  (`Makefile.npm`). Every native module built here: argon2, bcrypt, isolated-vm,
+  deasync, sodium-native (on libsodium 1.0.22), gc-stats, @napi-rs/pinyin (Rust),
+  esbuild 0.28.1 and 0.28.2 (Go), sharp 0.35.5 on libvips 8.18.7 built in the port with
+  the patches of `graphics/vips`, static in sharp, with the formats of sharp-libvips
+  1.3.4 (JPEG, PNG, WebP, GIF, AVIF and HEIF, TIFF, SVG, text, ICC, EXIF, Ultra HDR, the
+  C++ API) on the shared libraries of az and of this tree; ThinLTO. No binary of
+  another system in the package.
+- **`graphics/tiff`**, **`print/harfbuzz`**, **`converters/fribidi`**, **`x11/pixman`**,
+  **`graphics/cairo`**, **`x11-toolkits/pango`**, **`graphics/librsvg2-rust`**,
+  **`graphics/libultrahdr`** (aZ, 18.11.2026 16:02): the libraries of the libvips of
+  `rocketchat8` that `graphics/vips` does not take, ours in the place of the official
+  ports, shared, with the options of sharp-libvips 1.3.4 and LTO: libtiff 4.7.2 (JPEG,
+  WebP, Deflate; no JBIG, LERC, libdeflate, LZMA, ZSTD, tools, C++); HarfBuzz 15.0.0
+  (FreeType, GLib; no subset, raster, vector, GPU, Cairo, ICU, utilities); FriBidi
+  1.0.18 and pixman 0.46.4 (the official ports, no OpenMP); Cairo 1.18.6 (FreeType,
+  fontconfig, PNG, pixman, GLib; no zlib, so no PDF, PostScript and script surfaces,
+  no X11); Pango 1.58.2 (Cairo, HarfBuzz, FriBidi, fontconfig; no Xft, libthai, tools);
+  librsvg 2.63.4 (Cairo, Pango, libxml2; no GIF and WebP in an SVG, PDF, PostScript,
+  AVIF, gdk-pixbuf, rsvg-convert); libultrahdr 2.0.2 (mozjpeg; no examples). FreeType,
+  fontconfig, libpng, mozjpeg, WebP, libxml2 of az, each with its own headers
+  ([`Mk/az-libs.mk`](Mk/az-libs.mk)).
 - **`multimedia/qt-faststart`**: `bin/qt-faststart`, `tools/qt-faststart.c` of FFmpeg
   9.0.2 (public domain): the official port expired on 30.06.2022 (ffmpeg `-movflags
   +faststart` does the same); kept for compatibility until it is no longer needed (aZ,

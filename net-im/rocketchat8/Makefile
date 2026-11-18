@@ -15,7 +15,8 @@
 # - every native module built here from its source; the bundle has those of Linux,
 #   Windows, macOS and Android, all removed: argon2 and bcrypt of accounts-password,
 #   bcrypt, isolated-vm (its thread suspension and CPU clock of Linux for FreeBSD too),
-#   @kaciras/deasync and sharp (on the libvips of graphics/vips) by the node-gyp of npm,
+#   @kaciras/deasync and sharp by the node-gyp of npm (sharp on a libvips of its own,
+#   below),
 #   @sematext/gc-stats by its node-pre-gyp, sodium-native by node-gyp
 #   (files/sodium-native.gyp.in: its CMake build fetches libsodium from git) on
 #   libsodium 1.0.22 built here, @napi-rs/pinyin (Rust, its sources in the bundle; aZ,
@@ -24,6 +25,15 @@
 #   @esbuild/freebsd-x64; uWebSockets.js of ddp-server has no binary (Meteor loads it
 #   for DDP_TRANSPORT=uws only; the default transport is sockjs); post-install fails on
 #   any binary left that is not of FreeBSD;
+# - sharp 0.35.5 (RC_NPM_FIX) on libvips 8.18.7 built here with the patches of
+#   graphics/vips, static in its module, with the formats of sharp-libvips 1.3.4: JPEG,
+#   PNG, WebP, GIF, AVIF and HEIF, TIFF, SVG (librsvg), text (Pango, fontconfig), ICC,
+#   EXIF, Ultra HDR, the C++ API (aZ, 18.11.2026 15:26: «давай так»); its libraries the
+#   shared ones of az and of the ports of this tree (16:02: «да конечно»): expat, lcms2,
+#   libheif, mozjpeg, libpng, WebP, fontconfig, FreeType, libxml2, libintl of az (each
+#   with its own headers: Mk/az-libs.mk); GLib, cgif, libexif, Highway, libimagequant,
+#   libtiff, Cairo, Pango, HarfBuzz, FriBidi, librsvg, libultrahdr of this tree;
+#   libarchive and zlib of the base system; graphics/vips of nginx as it is;
 # - LTO wherever there is one: ThinLTO for the native modules and libsodium (sharp has
 #   -flto upstream for Linux), the LTO of the Cargo.toml of pinyin; the -O3 and -march of
 #   the level for the C and C++, the target-cpu for Rust, GOAMD64 for Go;
@@ -38,10 +48,12 @@ PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	net-im www
 MASTER_SITES=	https://cdn-download.rocket.chat/build/:bundle \
 		https://github.com/jedisct1/libsodium/releases/download/${RC_SODIUM}-RELEASE/:sodium \
+		https://github.com/libvips/libvips/releases/download/v${RC_VIPS}/:vips \
 		https://registry.npmjs.org/:npm
 PKGNAMESUFFIX=	8
 DISTFILES=	rocket.chat-${DISTVERSION}.tgz:bundle \
-		libsodium-${RC_SODIUM}.tar.bz2:sodium
+		libsodium-${RC_SODIUM}.tar.bz2:sodium \
+		vips-${RC_VIPS}.tar.xz:vips
 DIST_SUBDIR=	rocketchat8
 
 MAINTAINER=	github@azsupport.com
@@ -56,8 +68,22 @@ ONLY_FOR_ARCHS=	amd64
 ONLY_FOR_ARCHS_REASON=	the x86-64 levels of azsupport/ports only
 
 BUILD_DEPENDS=	go:lang/go \
+		meson:devel/meson \
+		ninja:devel/ninja \
 		npm:www/npm-node24
-LIB_DEPENDS=	libvips.so:graphics/vips
+# the libraries of this tree sharp links (its libvips: below); those of az: AZ_LIBS
+LIB_DEPENDS=	libcairo.so:graphics/cairo \
+		libcgif.so:graphics/cgif \
+		libexif.so:graphics/libexif \
+		libfribidi.so:converters/fribidi \
+		libglib-2.0.so:devel/glib20 \
+		libharfbuzz.so:print/harfbuzz \
+		libhwy.so:devel/highway \
+		libimagequant.so:graphics/libimagequant \
+		libpangocairo-1.0.so:x11-toolkits/pango \
+		librsvg-2.so:graphics/librsvg2-rust \
+		libtiff.so:graphics/tiff \
+		libuhdr.so:graphics/libultrahdr
 RUN_DEPENDS=	node24>=24.15:www/node24
 
 USES=		cargo compiler:c++20-lang gmake pkgconfig python:build tar:bzip2
@@ -141,6 +167,40 @@ WWWDIR=		${PREFIX}/www/${PORTNAME}${PKGNAMESUFFIX}
 REINPLACE_ARGS=	-i ''
 
 RC_SODIUM=	1.0.22
+# libvips of sharp: 8.18.7 (sharp 0.35.5 asks for >= 8.18.7) with the patches of
+# graphics/vips (the fixes of the 8.18 branch after 8.18.7), the directory it is
+# installed into (static), the .pc of it sharp reads
+RC_VIPS=	8.18.7
+RC_VIPS_SRC=	${WRKDIR}/vips-${RC_VIPS}
+RC_VIPS_PREFIX=	${WRKDIR}/vips-static
+RC_VIPS_PATCHES=	${.CURDIR:H:H}/graphics/vips/files/patch-gifload-height \
+		${.CURDIR:H:H}/graphics/vips/files/patch-heifload-1-height \
+		${.CURDIR:H:H}/graphics/vips/files/patch-heifload-2-max-items \
+		${.CURDIR:H:H}/graphics/vips/files/patch-icc-transform-blob \
+		${.CURDIR:H:H}/graphics/vips/files/patch-libnsgif-lzw \
+		${.CURDIR:H:H}/graphics/vips/files/patch-pngload-cmf \
+		${.CURDIR:H:H}/graphics/vips/files/patch-webpload-height
+AZ_HASH_FILES=	${RC_VIPS_PATCHES}
+# its options: those of sharp-libvips 1.3.4 (build/posix.sh), every feature not named
+# here on (auto_features), the static libraries with the C++ API
+RC_VIPS_MESON=	--prefix=${RC_VIPS_PREFIX} --libdir=lib --default-library=static \
+		--buildtype=release --wrap-mode=nofallback -Dauto_features=enabled \
+		-Dcplusplus=true -Ddeprecated=false -Dexamples=false -Dintrospection=disabled \
+		-Dmodules=disabled -Dcfitsio=disabled -Dfftw=disabled -Djpeg-xl=disabled \
+		-Dorc=disabled -Dmagick=disabled -Dmatio=disabled -Dnifti=disabled \
+		-Dopenexr=disabled -Dopenjpeg=disabled -Dopenslide=disabled -Dpdfium=disabled \
+		-Dpoppler=disabled -Dquantizr=disabled -Draw=disabled -Dspng=disabled \
+		-Dppm=false -Danalyze=false -Dradiance=false
+RC_VIPS_ENV=	CC="${CC}" \
+		CXX="${CXX}" \
+		CFLAGS="${CFLAGS} -fPIC -flto=thin" \
+		CXXFLAGS="${CXXFLAGS} -fPIC -flto=thin" \
+		CPPFLAGS="${CPPFLAGS}" \
+		LDFLAGS="${LDFLAGS} -flto=thin" \
+		AR=llvm-ar \
+		RANLIB=llvm-ranlib \
+		NM=llvm-nm \
+		PKG_CONFIG_LIBDIR=${AZ_LIBS_PKG_CONFIG_LIBDIR}
 RC_SERVER=	${WRKSRC}/programs/server
 RC_NM=		${RC_SERVER}/npm/node_modules
 RC_NODE=	${LOCALBASE}/bin/node
@@ -184,6 +244,20 @@ RC_GO_ENV=	HOME=${WRKDIR} \
 		GOTOOLCHAIN=local \
 		CGO_ENABLED=0 \
 		${RC_GOAMD64:S/^/GOAMD64=/}
+
+# the libraries of az of the libvips of sharp, each with its own headers (gettext: the
+# libintl.h of glib/gi18n.h; libxml2: the .pc librsvg requires)
+AZ_LIBS=	expat:libexpat.so \
+		fontconfig:libfontconfig.so \
+		freetype2:libfreetype.so \
+		gettext:libintl.so \
+		lcms2:liblcms2.so \
+		libheif:libheif.so \
+		libxml2:libxml2.so \
+		mozjpeg:libjpeg.so \
+		png:libpng16.so \
+		webp:libwebp.so
+.include "${.CURDIR:H:H}/Mk/az-libs.mk"
 
 .include "${.CURDIR}/Makefile.npm"
 
@@ -240,6 +314,17 @@ post-extract:
 .endfor
 
 post-patch:
+# libvips of sharp: the patches of graphics/vips; no manual pages, translations, tools,
+# tests and fuzzers (sharp-libvips)
+.for p in ${RC_VIPS_PATCHES}
+	${PATCH} -s -p0 -d ${RC_VIPS_SRC} < ${p}
+.endfor
+	${REINPLACE_CMD} -e "/^subdir('man')$$/d" -e "/^subdir('po')$$/d" \
+		-e "/^subdir('tools')$$/d" -e "/^subdir('test')$$/d" -e "/^subdir('fuzz')$$/d" \
+		${RC_VIPS_SRC}/meson.build
+	@if ${GREP} -q -e "subdir('man')" -e "subdir('po')" -e "subdir('tools')" \
+	    -e "subdir('test')" -e "subdir('fuzz')" ${RC_VIPS_SRC}/meson.build; then \
+		${ECHO_MSG} "libvips: man, po, tools, test or fuzz still in meson.build"; exit 1; fi
 # isolated-vm: the thread suspension and the CPU time of threads of Linux for FreeBSD,
 # which has pthread_kill, SIGRTMIN and CLOCK_THREAD_CPUTIME_ID (else no suspension)
 	${REINPLACE_CMD} -e "s|'OS == \"linux\"', { 'defines': \[ 'USE_CLOCK_THREAD_CPUTIME_ID' \] }|'OS == \"linux\" or OS == \"freebsd\"', { 'defines': [ 'USE_CLOCK_THREAD_CPUTIME_ID' ] }|" \
@@ -281,8 +366,34 @@ do-build:
 	${PRINTF} '{\n  "name": "@esbuild/freebsd-x64",\n  "version": "%s",\n  "description": "The FreeBSD 64-bit binary for esbuild, built by net-im/rocketchat8 of azsupport/ports.",\n  "license": "MIT",\n  "preferUnplugged": true,\n  "engines": {\n    "node": ">=18"\n  },\n  "os": [\n    "freebsd"\n  ],\n  "cpu": [\n    "x64"\n  ]\n}\n' ${v} \
 		> ${RC_NM}/${d}/package.json
 .endfor
-	@${ECHO_MSG} "===>  sharp: node-gyp, on the libvips of graphics/vips (pkg-config vips-cpp)"
-	cd ${RC_NM}/sharp/src && ${SETENV} ${RC_ENV} ${RC_GYP}
+	@${ECHO_MSG} "===>  libvips ${RC_VIPS}: static, for sharp"
+	cd ${RC_VIPS_SRC} && ${SETENV} ${RC_VIPS_ENV} meson setup _build ${RC_VIPS_MESON}
+	cd ${RC_VIPS_SRC} && ${SETENV} ${RC_VIPS_ENV} meson compile -C _build -j ${MAKE_JOBS_NUMBER}
+	cd ${RC_VIPS_SRC} && ${SETENV} ${RC_VIPS_ENV} meson install -C _build --no-rebuild --tags devel
+# the .pc of it sharp reads (its binding.gyp: pkg-config --libs vips-cpp): libvips and
+# libvips-cpp static, the libraries they need shared (pkgconf --static: those of
+# Libs.private), the run path of az; the symbols of the archives not exported, the
+# module kept loaded (the types of GLib cannot be unloaded)
+	@${MKDIR} ${WRKDIR}/vips-sharp-pc
+	@l="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/lib/pkgconfig:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --static --libs vips-cpp)" && \
+	c="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/lib/pkgconfig:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --cflags vips-cpp)" && \
+	${PRINTF} '%s\n' 'Name: vips-cpp' 'Description: libvips of net-im/rocketchat8, static' \
+		'Version: ${RC_VIPS}' \
+		"Libs: -L${LOCALBASE}/lib $$l -Wl,-rpath,${AZ_PREFIX}/lib -Wl,-z,nodelete -Wl,--exclude-libs=ALL" \
+		"Cflags: $$c" > ${WRKDIR}/vips-sharp-pc/vips-cpp.pc && \
+	${CAT} ${WRKDIR}/vips-sharp-pc/vips-cpp.pc
+	@${ECHO_MSG} "===>  sharp: node-gyp, on that libvips (pkg-config vips-cpp)"
+	cd ${RC_NM}/sharp/src && ${SETENV} ${RC_ENV} \
+		PKG_CONFIG_PATH=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/lib/pkgconfig \
+		PKG_CONFIG_LIBDIR=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/lib/pkgconfig:${AZ_LIBS_PKG_CONFIG_LIBDIR} \
+		SHARP_FORCE_GLOBAL_LIBVIPS=1 ${RC_GYP}
+	@m="$$(${FIND} ${RC_NM}/sharp/src/build/Release -maxdepth 1 -name 'sharp-*.node')" && \
+	n="$$(/usr/bin/readelf -d $$m | ${GREP} NEEDED)" && \
+	if echo "$$n" | ${GREP} -q 'libvips'; then \
+		${ECHO_MSG} "sharp: $$m needs a shared libvips: $$n"; exit 1; fi && \
+	for l in libglib-2.0 librsvg-2 libpangocairo-1.0 libtiff libheif libjpeg libpng16 libwebp; do \
+		echo "$$n" | ${GREP} -q "\[$$l\." || { ${ECHO_MSG} "sharp: $$m without $$l: $$n"; exit 1; }; \
+	done && ${ECHO_MSG} "===>  $${m##*/}: libvips static, $$(echo "$$n" | ${WC} -l | ${TR} -d ' ') shared libraries"
 
 post-build:
 # of the builds only the modules they make: sodium-native where require-addon finds it,

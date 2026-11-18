@@ -1,0 +1,5 @@
+include/ultrahdr_api.h
+lib/libuhdr.so
+lib/libuhdr.so.2
+lib/libuhdr.so.%%PORTVERSION%%
+libdata/pkgconfig/libuhdr.pc
