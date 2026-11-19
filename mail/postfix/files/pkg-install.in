@@ -104,36 +104,23 @@ if [ "$2" = "POST-INSTALL" ]; then
 fi
 
 # ==============================================================================
-# If FreeBSD <= 10.2 is deprecated check only LOCALBASE and remove BASE checks,
-# regardless if installed in BASE or LOCALBASE
-# Iff postfix is activated in BASE, also activate postfix in LOCALBASE!
+# azsupport/ports (aZ, 19.11.2026): the mailer.conf of LOCALBASE is installed
+# from the template when there is none (Postfix for sendmail, send-mail, mailq
+# and newaliases of mailwrapper), with no question and no POSTFIX_DEFAULT_MTA;
+# one that is there is left as it is, whatever it says
 # ==============================================================================
 if [ "$2" = "POST-INSTALL" -a -z "${PACKAGE_BUILDING}" ]; then
-if [ -f "${MC_BASE}" ]; then
 	if [ "${USE_LOCALBASE_MAILER_CONF}" = "yes" ]; then
-		cmp_mailer ${MC_BASE}
-		if [ $? -eq 0 ]; then
-			show_activated_msg ${MC_BASE}
-			cmp_mailer ${MC_LOCALBASE} || install_mailer_conf ${MC_LOCALBASE}
-			show_needs_reload_msg
+		if [ -e "${MC_LOCALBASE}" ]; then
+			if cmp_mailer ${MC_LOCALBASE}; then
+				show_activated_msg ${MC_LOCALBASE}
+			else
+				echo "${MC_LOCALBASE} is there: left as it is"
+			fi
 		else
-			cmp_mailer ${MC_LOCALBASE} || install_choice ${MC_LOCALBASE}
+			install_mailer_conf ${MC_LOCALBASE}
 		fi
 	else
-		cmp_mailer ${MC_BASE}
-		if [ $? -ne 0 ]; then
-			install_choice ${MC_BASE}
-		else
-			show_activated_msg ${MC_BASE}
-			show_needs_reload_msg
-		fi
+		cmp_mailer ${MC_BASE} && show_activated_msg ${MC_BASE} || show_not_activated_msg ${MC_BASE}
 	fi
-
-else
-	if [ "${USE_LOCALBASE_MAILER_CONF}" = "yes" ]; then
-		show_not_activated_msg ${MC_LOCALBASE}
-	else
-		show_not_activated_msg ${MC_BASE}
-	fi
-fi # -f "${MC_BASE}"
-fi # "$2" = "POST-INSTALL" -a -z "${PACKAGE_BUILDING}" 
+fi
