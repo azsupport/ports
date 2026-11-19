@@ -1,0 +1,4 @@
+# The global configuration of mongosh of azsupport/ports (YAML): read before
+# /etc/mongosh.conf. No telemetry, and the users of the shell cannot turn it on.
+mongosh:
+  forceDisableTelemetry: true
