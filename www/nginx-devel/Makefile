@@ -395,6 +395,10 @@ post-patch:
 # geoip2: the cached lookup result reset at a reload of the database (from Debian; aZ,
 # 16.11.2026), the http module and that of stream
 	@cd ${WRKSRC_geoip2} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-geoip2-reload-cache
+# headers-more: more_set_input_headers -r of an absent header of several values (Cookie
+# and the like) wrote through an uninitialized pointer (upstream e30b10e0bb1c, after
+# v0.41; 19.11.2026)
+	@cd ${WRKSRC_headers_more} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-headers-more-replace-absent
 	@${REINPLACE_CMD} 's!%%PREFIX%%!${WRKDIR}/az!g' ${WRKSRC_brotli}/filter/config
 .if ${NGINX_AZ_MODULE:U} == stream-lua
 	@cd ${WRKSRC_luastream} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-lua-stream-src_ngx__stream__lua__module.c
