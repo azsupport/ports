@@ -358,10 +358,12 @@ post-patch:
 		-type f -a ! \( -name INSTALL -o -name aliases \) | ${XARGS} \
 		${REINPLACE_CMD} -i '' -E -e '${REINPLACE}'
 
+.if ${PORT_OPTIONS:MDOCS}
 .for f in ${HTML1}
 	@${ECHO_CMD} '$$html_directory/$f:f:root:-:644' \
 		>> ${WRKSRC}/conf/postfix-files
 .endfor
+.endif
 	@${ECHO_CMD} '$$manpage_directory/man1/posttls-finger.1:f:root:-:644' \
 		>> ${WRKSRC}/conf/postfix-files
 	@${ECHO_CMD} '$$command_directory/posttls-finger:f:root:-:755' \
@@ -438,6 +440,14 @@ do-install:
 
 # Fix compressed man pages and strip executables
 	${SED} -i '' -E -e "s|(man[158]/.*.[158]):|\1.gz:|g" ${STAGEDIR}${META_DIRECTORY}/postfix-files
+# Without DOCS, no entries of readme_directory and html_directory in postfix-files
+# (aZ, 19.11.2026: «мы же без DOC собираем»): the "postfix set-permissions" of the
+# package script touches no docs whatever main.cf names there (the main.cf of a package
+# with the docs: chown of /usr/local/share/doc/postfix failed, no such directory)
+.if !${PORT_OPTIONS:MDOCS}
+	${SED} -i '' -e '/^\$$readme_directory/d' -e '/^\$$html_directory/d' \
+		${STAGEDIR}${META_DIRECTORY}/postfix-files
+.endif
 	-@${STRIP_CMD} ${STRIP_LIBEXEC:S|^|${STAGEDIR}${DAEMONDIR}/|}
 	-@${STRIP_CMD} ${STAGEDIR}${PREFIX}/sbin/*
 	-@${STRIP_CMD} ${STAGEDIR}${SHLIB_DIRECTORY}/*.so
