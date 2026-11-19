@@ -909,8 +909,20 @@ jobs:
             done
           fi
           # the packages first, the catalog of pkg repo last (the files that are not
-          # <name>-<version>.pkg), then away with what the repository has no more
-          pk="$(ls "$dir" | grep -E '^[^/]+-[0-9][^/]*\.pkg$' | sed "s#^#$dir/#")"
+          # <name>-<version>.pkg), then away with what the repository has no more.
+          # A package the release has already with the same sha256 (the digest of its
+          # file) is not uploaded again: each publish uploaded every package with
+          # --clobber, a DELETE and an upload each, and two publishes within an hour
+          # went over the 1000 requests an hour of GITHUB_TOKEN (run 44624023922,
+          # 19.11.2026: 617 packages uploaded again for 11 new ones, then HTTP 403 "API
+          # rate limit exceeded for installation" once the catalog was up)
+          rid="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .id)"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" \
+            --jq '.[] | "\(.name) \(.digest)"' > "$AZ_RUNS_STATE/release-digests.txt"
+          pk="$(ls "$dir" | grep -E '^[^/]+-[0-9][^/]*\.pkg$' | while read -r f; do
+            grep -qxF "$f sha256:$(sha256sum "$dir/$f" | cut -d ' ' -f 1)" "$AZ_RUNS_STATE/release-digests.txt" || echo "$dir/$f"
+          done)"
+          echo "packages to upload: $(printf '%s\n' "$pk" | grep -c . || :) of $(ls "$dir" | grep -cE '^[^/]+-[0-9][^/]*\.pkg$' || :) (the others are in the release with the same sha256)"
           if [ -n "$pk" ]; then gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber $pk; fi
           gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber $(ls -d "$dir"/* | grep -v -E '/[^/]+-[0-9][^/]*\.pkg$')
           for a in $(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'); do
