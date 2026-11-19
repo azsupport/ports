@@ -926,7 +926,10 @@ What it does, with the logic of poudriere:
   (`FETCH_`, `EXTRACT_`, `PATCH_`, `BUILD_` or `PKG_DEPENDS`) gets the official package
   in its chroot, and the hash of our port is not in its `az_hash`; a port that runs
   with it (`LIB_` or `RUN_DEPENDS`) or builds an extension for it (a `FLAVOR` `py*`)
-  gets ours (`results/hashes.txt` names the tools a port gets official);
+  gets ours (`results/hashes.txt` names the tools a port gets official); automake
+  (`devel/automake`) is ours, the official port as it is: the `Mk/Uses/autoreconf.mk`
+  of a new pin can want an automake the official packages do not have yet (19.11.2026:
+  `automake>=1.20`, az failed without it);
 - up to `AZ_JOBS` ports at once (default 4), in waves: the ports whose ports of this
   tree they need are done form a wave, the biggest first, each in its chroot with its
   log and its own packages directory (two packages with the same files, `php84-mysqlnd`
