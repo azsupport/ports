@@ -10,9 +10,15 @@
 # after the pinned commit. The files of the commit also from the repository of
 # linux-firmware on GitLab, where it is kept (git.kernel.org: "No route to host" from
 # the runners of GitHub, run 43708464894; distcache of FreeBSD: not found).
+# 20260926, ahead of the official port (20251202): the amd-ucode of linux-firmware
+# 9b858e5bb58d (the git_version of ucode-amd 20260926 of openSUSE Factory), a new
+# microcode_amd_fam1ah.bin (Zen 5), the other five the same as at 2b318c8e4159
+# (aZ, 19.11.2026: «да, и там мониторить апдейды»; the new ones are watched by the
+# rows of ucode-amd of openSUSE and of this port of FreeBSD in freebsd/upstream.conf
+# of azsupport/php-src).
 
 PORTNAME=	microcode
-PORTVERSION=	20251202
+PORTVERSION=	20260926
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	sysutils
 MASTER_SITES=	https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/amd-ucode/ \
@@ -58,7 +64,7 @@ RC_IMPLIES=	SPLIT
 RC_RUN_DEPENDS=	${LOCALBASE}/etc/rc.d/microcode_update:sysutils/cpu-microcode-rc
 SPLIT_PLIST_FILES=	${DISTFILES:S/^/${DATADIR}\//g:C/\?.*//}
 
-_REV=		2b318c8e4159234ddbcc1cadc90cf32d17d9ee82
+_REV=		9b858e5bb58d7bf1fc4d8818cb9100aed6d46f6a
 
 post-extract:
 	${CAT} ${WRKSRC}/microcode_amd* > ${WRKSRC}/amd-ucode.bin
