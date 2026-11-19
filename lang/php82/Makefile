@@ -4,7 +4,7 @@
 # lang/php83 are (see their heads; the same decisions of aZ, 08.11.2026), for
 # the framework of the pinned tree (f16b6dd0f7c1). What differs, and why:
 #
-# - Source: the dated release tarball of the fork azsupport/php-src, PHP 8.2.35
+# - Source: the dated release tarball of the fork azsupport/php-src, PHP 8.2.36
 #   (the latest php-8.2 tag of php-src) with the patches of the official port,
 #   the PECL extensions in ext/ and a configure generated with them: no
 #   files/patch-*, no buildconf (no autoreconf). Of the patches the fork leaves
@@ -67,11 +67,11 @@
 # (82).
 
 PORTNAME=	php82
-DISTVERSION?=	8.2.35
+DISTVERSION?=	8.2.36
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES?=	lang devel www
 MASTER_SITES=	https://github.com/azsupport/php-src/releases/download/freebsd-8.2-${AZ_PHP_RELEASE}/
-DISTNAME=	php-8.2.35-fbsd-${AZ_PHP_RELEASE}
+DISTNAME=	php-8.2.36-fbsd-${AZ_PHP_RELEASE}
 DIST_SUBDIR=	php
 
 MAINTAINER=	github@azsupport.com
@@ -88,7 +88,7 @@ PHP_VER=	82
 
 # the dated release of the fork: its tag freebsd-8.2-<date>-<commit>; DISTNAME
 # without DISTVERSION, which the slaves of PECL extensions set to their version
-AZ_PHP_RELEASE=	20261117-09a9f29a
+AZ_PHP_RELEASE=	20261119-bbc92cfe
 
 # the files of this port that the ports needing it need not see (tools/build.sh),
 # as in lang/php74: run-time files of the core only (post-install, USE_RC_SUBR,
