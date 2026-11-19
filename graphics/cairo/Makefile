@@ -7,6 +7,14 @@
 # no zlib (so no PDF, PostScript and script surfaces), X11 (xlib, xcb), Quartz,
 # DirectWrite, tee, LZO, spectre, symbol lookup, documents, tests. LTO (aZ, 18.11.2026
 # 12:29).
+# Five fixes 1.18.6 lacks (aZ, 19.11.2026 02:10: «давай так»), in files/fixes, in order,
+# the source at the top of each: CVE-2025-50422, a rectangle at INT32_MAX (and INT32_MIN)
+# makes active_edges_to_traps() read past the list of edges (pkgsrc, the merge request
+# 632; openSUSE has its first half); three of cairo-image-info.c of upstream after
+# 1.18.6 (Debian 1.18.6-1: dd4da532e5, 89f049a35e, 1e5851bdc9 — the JPEG read past the
+# data and its fields left unset, the JPEG 2000 box of length 0 that loops forever, the
+# JBIG2 reads past the data); CVE-2017-7475, a bitmap without a buffer in
+# _get_bitmap_surface() of cairo-ft-font.c (openSUSE, OpenEmbedded).
 
 PORTNAME=	cairo
 DISTVERSION=	1.18.6
@@ -28,6 +36,11 @@ LICENSE_FILE_MPL11=	${WRKSRC}/COPYING-MPL-1.1
 LIB_DEPENDS=	libpixman-1.so:x11/pixman
 
 USES=		cpe gnome meson pkgconfig python:build shebangfix tar:xz
+CAIRO_FIXES=	1-CVE-2025-50422 \
+		2-image-info-out-of-bounds-read-and-uninitialized-inf \
+		3-image-info-infinite-loop-on-jpeg-2000-boxes-with-le \
+		4-image-info-out-of-bounds-reads-for-jbig2 5-CVE-2017-7475
+EXTRA_PATCHES=	${CAIRO_FIXES:@p@${FILESDIR}/fixes/${p}.patch:-p1@}
 CPE_VENDOR=	cairographics
 USE_GNOME=	glib20
 USE_LDCONFIG=	yes

@@ -38,11 +38,18 @@ CONFLICTS_INSTALL+=	dovecot-mysql
 .endif
 
 # files/cve, in the order of Ubuntu (noble-security 2.3.21+dfsg1-2ubuntu6.5), then
-# of RHEL (10, dovecot-2.3.21-22.el10_3), before the patches of the port, the source
-# at the top of each: CVE-2022-30550, never taken into the branch 2.3; CVE-2026-73208,
-# RHEL's three of the code in one patch on 2.3.21.1, without its tests; CVE-2025-59031
-# (decode2text.sh removed) by the script not installed (post-install); the fixes of
-# Pigeonhole (not in this port) not taken
+# of RHEL (10, dovecot-2.3.21-22.el10_3), then (29-48) those of the Debian bookworm
+# security update 1:2.3.19.1+dfsg1-2.1+deb12u7 (27.09.2026: the fixes of 2.4.5 for 2.3)
+# as OpenWrt applies them to its 2.3.21.1 (openwrt/packages mail/dovecot), before the
+# patches of the port, the source at the top of each: CVE-2022-30550, never taken
+# into the branch 2.3; CVE-2026-73208, RHEL's three of the code in one patch on
+# 2.3.21.1, without its tests, and with it the scope check of CVE-2026-40205, so of
+# OpenWrt's patch of the two only its lib-oauth2 part (43); CVE-2026-40018 of RHEL,
+# not again of OpenWrt; CVE-2026-40017 its xxh64 in the generated src/lib/Makefile.in
+# of the release (38) rather than in Makefile.am, so that no automake runs; it moves
+# the strmap files of the threads (IMAP THREAD) to a format v2 that older dovecot do
+# not read (they rebuild them); CVE-2025-59031 (decode2text.sh removed) by the script
+# not installed (post-install); the fixes of Pigeonhole (not in this port) not taken
 DOVECOT_CVE_PATCHES=	01-CVE-2022-30550 02-CVE-2026-0394-1 03-CVE-2026-0394-2 \
 			04-CVE-2026-27855-1 05-CVE-2026-27855-2 06-CVE-2026-27855-3 \
 			07-CVE-2026-27855-4 08-CVE-2026-27856-1 09-CVE-2026-27856-2 \
@@ -52,7 +59,16 @@ DOVECOT_CVE_PATCHES=	01-CVE-2022-30550 02-CVE-2026-0394-1 03-CVE-2026-0394-2 \
 			19-CVE-2026-42006 20-CVE-2026-33263 21-CVE-2026-27852-1 \
 			22-CVE-2026-27852-2 23-CVE-2026-27852-3 24-CVE-2026-27852-4 \
 			25-CVE-2026-27852-5 26-CVE-2026-73208 27-CVE-2026-42391 \
-			28-CVE-2026-40018
+			28-CVE-2026-40018 29-lib-test-assert-memcmp \
+			30-lib-test-assert-memcmp-lengths 31-CVE-2026-33604 \
+			32-CVE-2026-33607 33-CVE-2026-33606 34-CVE-2026-40015 \
+			35-CVE-2026-42008 36-CVE-2026-40203 37-CVE-2026-40017 \
+			38-CVE-2026-40017-Makefile.in \
+			39-CVE-2026-40017-xxh64-endian 40-CVE-2026-42395 \
+			41-CVE-2026-40014 42-CVE-2026-42393 \
+			43-CVE-2026-40205-73208-lib-oauth2 44-CVE-2026-73209 \
+			45-CVE-2026-40204 46-CVE-2026-42394 47-CVE-2026-52681 \
+			48-CVE-2026-52687
 EXTRA_PATCHES=	${DOVECOT_CVE_PATCHES:@p@${FILESDIR}/cve/${p}.patch:-p1@}
 
 # zstd of az, with its run path: its headers and library alone in a directory of the
