@@ -1,0 +1,9 @@
+[
+{ type: install
+  message: <<EOM
+Load the module in the main context of nginx.conf:
+
+load_module /usr/local/libexec/nginx/ngx_http_vod_module.so;
+EOM
+}
+]

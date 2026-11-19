@@ -1,0 +1,5 @@
+The VOD module of nginx-devel (nginx-vod-module of kaltura, as the fork of dio-az
+keeps it, its line v1.x): HLS, DASH and the other packagers that cut MP4 and MKV files
+into segments and playlists on the fly, from local files, mapped ones or an upstream
+(vod_mode local, mapped and remote), with HLS AES-128 and SAMPLE-AES and DASH CENC.
+Without FFmpeg: no thumbnails, volume maps or audio filters.

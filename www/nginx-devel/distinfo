@@ -21,3 +21,5 @@ SHA256 (kyprizel-testcookie-nginx-module-de7ca88_GH0.tar.gz) = 4f1c931e44cd7de00
 SIZE (kyprizel-testcookie-nginx-module-de7ca88_GH0.tar.gz) = 23360
 SHA256 (sysadmin-labs-nginx-dav-ext-module-v3.0.1_GH0.tar.gz) = 04ab320549b1b5c85f57226d6d02d924c46b517f13ec74f9d718f0d6ff0c7cb2
 SIZE (sysadmin-labs-nginx-dav-ext-module-v3.0.1_GH0.tar.gz) = 35843
+SHA256 (dio-az-nginx-vod-module-v1.11.2_GH0.tar.gz) = a98bfafa04f631addd311e67bc05487b706af94c83b21b252d6cd32f69c30add
+SIZE (dio-az-nginx-vod-module-v1.11.2_GH0.tar.gz) = 468192

@@ -35,7 +35,10 @@
 # www/nginx-devel-dav-ext (PROPFIND, OPTIONS, LOCK, UNLOCK; aZ, 18.11.2026: «мне в
 # нгингс ещё надо для одного сервера http_webdav, его модулем можешь сделать?»; the
 # review of the patches of the distributions: docs/distro-patches-nginx-dav-2026-11-18.md
-# of azsupport/azsupport). The core is built
+# of azsupport/azsupport), and www/nginx-devel-vod (nginx-vod-module of the fork
+# dio-az, its line v1.x at v1.11.2: HLS and DASH out of MP4 on the fly; aZ, 19.11.2026:
+# «давай ветку VOD: v1.11.2 тянуть, main точно не надо раз там выпилили фичи»: main
+# took out HLS AES-128, the muxed tracks of MP4, HDS and MSS). The core is built
 # --with-compat and with --modules-path, so that a module built apart from it loads into
 # it (nginx loads only a module of its own version: the slaves depend on the core of
 # the same version, and they change together, both reading version.mk).
@@ -50,9 +53,8 @@
 # same archives: their checksums in distinfo), not by those packages of sources, so the
 # build does not depend on them being in the repository of FreeBSD; brotli with the
 # patch of www/nginx-module-brotli (files/extra-patch-brotli-filter_config: the brotli
-# of the system, not that of its git submodule). Not here: VOD (aZ, 15.11.2026: «на vod
-# пока забей тогда. вспомним когда понадобится»), NJS, OTEL, Perl, XSLT, GeoIP 1, the
-# GSSAPI modules and the other third-party modules of the official port.
+# of the system, not that of its git submodule). Not here: NJS, OTEL, Perl, XSLT, GeoIP 1,
+# the GSSAPI modules and the other third-party modules of the official port.
 #
 # The mp4 module with mp4_limit_rate and mp4_limit_rate_after of Angie, the directives
 # of NGINX Plus (aZ, 17.11.2026: «замена стандартного mp4 модуля на его файл из agnie
@@ -135,6 +137,10 @@ GH_TUPLE+=	kyprizel:testcookie-nginx-module:de7ca88:testcookie
 # with LOCK) and extra-patch-dav-ext-propfind-stat (the entry of that child taken back:
 # without it the answer had an empty one)
 GH_TUPLE+=	sysadmin-labs:nginx-dav-ext-module:v3.0.1:dav_ext
+.elif ${NGINX_AZ_MODULE:U} == vod
+# nginx-vod-module 1.11.2 of dio-az (02.11.2026), the maintained fork of kaltura that the
+# official www/nginx-devel takes for its option VOD: the line v1.x, not main
+GH_TUPLE+=	dio-az:nginx-vod-module:v1.11.2:vod
 .endif
 
 NGINX_VARDIR?=	/var
@@ -333,6 +339,14 @@ RUN_DEPENDS+=	${AZ_PREFIX}/lib/libxml2.so:az/az \
 		${AZ_PREFIX}/lib/libxslt.so:az/az \
 		nginx-devel-dav>=${NGINX_VERSION}:www/nginx-devel-dav
 NGINX_AZ_OBJS=	ngx_http_dav_ext_module.so
+. elif ${NGINX_AZ_MODULE} == vod
+# vod hls, dash and the others in vod_mode local, mapped and remote, out of MP4 and MKV on
+# the fly; zlib and iconv of the base system and its EVP of the OpenSSL nginx loads (HLS
+# AES-128 and SAMPLE-AES, DASH CENC); without FFmpeg (libavcodec, libswscale, libavfilter
+# are not in the build): no thumbnails, volume maps or audio filters (ko48: vod hls of
+# vod_mode remote, aZ, 19.11.2026)
+CONFIGURE_ARGS+=	--add-dynamic-module=${WRKSRC_vod}
+NGINX_AZ_OBJS=	ngx_http_vod_module.so
 . else
 IGNORE=		NGINX_AZ_MODULE ${NGINX_AZ_MODULE}: no such module package
 . endif
