@@ -24,6 +24,11 @@ CONFLICTS_INSTALL=	vsftpd-ext-openssl
 # the privileged process of the login in wait(2); and openSUSE's: the client socket
 # was the stderr of a session, so what a library printed there (NSS, PAM, libwrap)
 # went to the FTP client
+# The rc.d script vsftpd: the official files/vsftpd.in with the check of ftp in
+# /etc/inetd.conf only where the file is there (aZ, 19.11.2026: a base built
+# WITHOUT_INETD has none, and grep complained at each start); the patches of the
+# official port stay where they are (PATCHDIR of its directory)
+FILESDIR=	${.CURDIR}/files
 EXTRA_PATCHES=	${.CURDIR}/files/patch-CVE-2021-3618 \
 		${.CURDIR}/files/patch-CVE-2026-119567 \
 		${.CURDIR}/files/patch-deny_file \
