@@ -55,6 +55,8 @@ INSTALL_TARGET=	install-strip
 USE_CXXSTD=	c++11
 USE_LDCONFIG=	yes
 USE_RC_SUBR=	aria2
+# www/aria2-ssh2 is this port with SSH2 (aZ, 19.11.2026): one of the two
+CONFLICTS_INSTALL?=	aria2-ssh2
 
 PORTDOCS=	*
 
