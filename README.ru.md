@@ -17,8 +17,8 @@
 
 - **Оверлей**: только наши порты, поверх официального дерева
   [freebsd-ports](https://github.com/freebsd/freebsd-ports) на закреплённом коммите
-  [`232cb6b34863`](https://github.com/freebsd/freebsd-ports/tree/232cb6b3486322dcd7e1b19bd629064023d4a3ad)
-  (main от 16.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh), перед сборкой
+  [`52d456130ecf`](https://github.com/freebsd/freebsd-ports/tree/52d456130ecf6d8e22aec663f84a7801b6fac3f0)
+  (main от 19.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh), перед сборкой
   переводится на последний main: последние версии портов, aZ). Фреймворк
   портов берёт его как `OVERLAYS`: `bsd.port.mk` включает
   [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk), берёт `Mk/Uses/<имя>.mk` оверлея раньше
@@ -578,8 +578,7 @@
   версиями и путями официальных пакетов. `openjdk21` берёт версию, distinfo и патчи
   официального порта закреплённого коммита как есть (новая версия приходит вместе с
   закреплённым коммитом; из его патчей два, которые линкуют fontconfig, не берутся —
-  по имени и SHA-256; 21.0.13.1+2, выпуск безопасности от 17.11.2026, — раньше
-  закреплённого коммита, пока его там нет) и собирает OpenJDK 21 без графики (`--enable-headless-only`:
+  по имени и SHA-256) и собирает OpenJDK 21 без графики (`--enable-headless-only`:
   `libawt_headless`, нет `libawt_xawt` и `libsplashscreen`, поэтому giflib и libpng
   остаются встроенными и не используются; и без заголовков X11 — с перенесённым
   изменением OpenJDK для этого, JDK-8376684 от 04.02.2026: 21u без графики их
