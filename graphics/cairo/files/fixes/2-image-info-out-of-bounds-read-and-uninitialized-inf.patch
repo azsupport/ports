@@ -1,0 +1,75 @@
+Source: Debian cairo 1.18.6-1 (sid), debian/patches/image-info-Fix-out-of-bounds-read-and-uninitialized-info-.patch
+
+From: Ana Bobillo <anabobillo3@gmail.com>
+Date: Fri, 23 Oct 2026 03:17:25 +0200
+Subject: image-info: Fix out-of-bounds read and uninitialized info for JPEG
+
+At a start of frame marker, _cairo_image_info_get_jpeg_info() checks
+that p[0] to p[7] are within the data, where p points to the second
+byte of the marker, but _jpeg_extract_info() also reads p[8], the
+number of components. Check that p[8] is within the data.
+
+If the data ends without a start of frame segment, the function
+returned success without setting any field of info. The PDF, PS, SVG
+and win32 printing surfaces then used the uninitialized width, height
+and number of components. Return CAIRO_INT_STATUS_UNSUPPORTED instead,
+so that the image is embedded as if it had no JPEG mime data.
+
+Also make _jpeg_skip_segment() return the end of the data instead of a
+pointer beyond it when the segment length is larger than the remaining
+data.
+
+(cherry picked from commit dd4da532e5a25935b08f5324a44b35246aa743e8)
+
+Origin: upstream, after 1.18.6
+---
+ src/cairo-image-info.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cairo-image-info.c b/src/cairo-image-info.c
+index 9693e48..bdfee4e 100644
+--- a/src/cairo-image-info.c
++++ b/src/cairo-image-info.c
+@@ -68,13 +68,16 @@
+ #define SOF15 0xcf
+ 
+ static const unsigned char *
+-_jpeg_skip_segment (const unsigned char *p)
++_jpeg_skip_segment (const unsigned char *p, const unsigned char *end)
+ {
+     int len;
+ 
+     p++;
+     len = (p[0] << 8) | p[1];
+ 
++    if (len > end - p)
++	return end;
++
+     return p + len;
+ }
+ 
+@@ -125,7 +128,7 @@ _cairo_image_info_get_jpeg_info (cairo_image_info_t	*info,
+ 	case SOF14:
+ 	case SOF15:
+ 	    /* Start of frame found. Extract the image parameters. */
+-	    if (p + 8 > data + length)
++	    if (p + 9 > data + length)
+ 		return CAIRO_INT_STATUS_UNSUPPORTED;
+ 
+ 	    _jpeg_extract_info (info, p);
+@@ -140,12 +143,13 @@ _cairo_image_info_get_jpeg_info (cairo_image_info_t	*info,
+ 	    if (p + 3 > data + length)
+ 		return CAIRO_INT_STATUS_UNSUPPORTED;
+ 
+-	    p = _jpeg_skip_segment (p);
++	    p = _jpeg_skip_segment (p, data + length);
+ 	    break;
+ 	}
+     }
+ 
+-    return CAIRO_STATUS_SUCCESS;
++    /* No start of frame found. */
++    return CAIRO_INT_STATUS_UNSUPPORTED;
+ }
+ 
+ /* JPEG 2000 (image/jp2)
