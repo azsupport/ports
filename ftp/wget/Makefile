@@ -5,9 +5,9 @@
 # this tree: our ports link each other's shared libraries (aZ, 10.11.2026), so that
 # it takes no package but az and pcre2 (the official one takes libidn2 and
 # libunistring, libpsl, pcre2). The unistring of IRI is the one wget bundles
-# (--with-included-libunistring); iconv that of libc. Without
-# NLS, NTLM, Metalink, the man page (MANPAGES of the make.conf of the servers) and
-# the info page.
+# (--with-included-libunistring); iconv that of libc. Without NLS, NTLM, OPIE
+# (the S/KEY logins of FTP: aZ, 19.11.2026, never used), Metalink, the man page
+# (MANPAGES of the make.conf of the servers) and the info page.
 
 PORTNAME=	wget
 DISTVERSION=	1.25.0
@@ -54,6 +54,7 @@ CONFIGURE_ARGS=	--with-ssl=openssl \
 		--disable-pcre \
 		--disable-nls \
 		--disable-ntlm \
+		--disable-opie \
 		--without-metalink \
 		--without-libuuid
 CONFIGURE_ENV=	PKG_CONFIG="${AZ_PREFIX}/bin/pkg-config" \
