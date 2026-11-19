@@ -1,0 +1,22 @@
+Origin (azsupport/ports): Debian unzip 6.0-32, https://sources.debian.org/src/unzip/6.0-32/debian/patches/print-newline-on-interrupt.patch/
+From: Adn Ehab Elkawass <elkawasadn@gmail.com>
+Subject: Print a newline when SIGINT interrupts an interactive prompt
+Bug-Debian: https://bugs.debian.org/1144371
+X-Debian-version: 6.0-32
+
+The compile-time condition suppresses the newline on systems defining
+SIGBUS or SIGSEGV, including Linux. Preserve the existing behavior on
+other systems and add the missing newline when SIGINT is received.
+
+--- a/fileio.c
++++ b/fileio.c
+@@ -1654,6 +1654,9 @@
+ 
+ #if !(defined(SIGBUS) || defined(SIGSEGV))      /* add a newline if not at */
+     (*G.message)((zvoid *)&G, slide, 0L, 0x41); /*  start of line (to stderr; */
++#elif defined(SIGINT)
++    if (signal == SIGINT)
++        (*G.message)((zvoid *)&G, slide, 0L, 0x41);
+ #endif                                          /*  slide[] should be safe) */
+ 
+     echon();

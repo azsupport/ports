@@ -1,0 +1,22 @@
+Origin (azsupport/ports): Debian unzip 6.0-32, https://sources.debian.org/src/unzip/6.0-32/debian/patches/harden-parsing-of-up-extra-field.patch/
+From: Paul Marquess <paul.marquess@outlook.com>
+Subject: Harden parsing of "up" extra field
+Bug-Debian: https://bugs.debian.org/1153750
+X-Debian-version: 6.0-32
+
+--- a/process.c
++++ b/process.c
+@@ -2040,6 +2040,13 @@
+         eb_id = makeword(EB_ID + ef_buf);
+         eb_len = makeword(EB_LEN + ef_buf);
+ 
++        if (eb_len < 5) {
++            /* discovered some extra field inconsistency! */
++            Trace((stderr,
++             "getUnicodeData: block length %ld < 5\n", eb_len));
++            break;
++        }
++
+         if (eb_len > (ef_len - EB_HEADSIZE)) {
+             /* discovered some extra field inconsistency! */
+             Trace((stderr,
