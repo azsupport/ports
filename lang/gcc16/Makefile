@@ -19,7 +19,8 @@
 #   instrumented stage that builds the next one as its training, then the final stage
 #   with the profile) with bootstrap-lto-noplugin (LTO with fat objects, as the
 #   official port: bootstrap-lto-lean archives its libraries by gcc-ranlib, which took
-#   the ranlib of the base system, "Invalid option: '--plugin'", build run 44308740075),
+#   the ranlib of the base system, "Invalid option: '--plugin'", build run 44308740075;
+#   fat in the stages of PGO too, post-patch),
 #   and gmp 6.3.0,
 #   mpfr 4.2.2, mpc 1.3.1 and isl 0.24 (Graphite: the loop optimizations -floop-* and
 #   -fgraphite-identity) built in, static, the versions of contrib/download_prerequisites
@@ -140,6 +141,18 @@ SUB_FILES=	pkg-message
 SUB_LIST+=	TARGLIB=${TARGLIB}
 .endif
 
+.if ${GCC_PART:U} != libs
+# the fat LTO objects of stage2 and stage3 in the stages of PGO too: without the plugin of
+# the linker (bootstrap-lto-noplugin) a slim LTO object in an archive gives ld nothing,
+# and isl_test of stagefeedback found no isl_val_* in libisl.a (build run 44369059639 of
+# 13Z0/13Z0, 18.11.2026: "undefined reference to `isl_val_pow2'")
+post-patch:
+	${REINPLACE_CMD} -E 's/^(STAGE(profile|train|feedback)_CFLAGS \+= -flto=jobserver -frandom-seed=1)$$/\1 -ffat-lto-objects/' \
+		${WRKSRC}/config/bootstrap-lto-noplugin.mk
+	@n=$$(${GREP} -c -e '-ffat-lto-objects' ${WRKSRC}/config/bootstrap-lto-noplugin.mk); \
+	[ "$$n" = 5 ] || { ${ECHO_MSG} "bootstrap-lto-noplugin.mk: $$n lines with -ffat-lto-objects, not 5"; exit 1; }
+.endif
+
 # the libraries of the compiler in the tree, as contrib/download_prerequisites puts them
 post-extract:
 .for d in ${GCC_INFRA:C/\.tar\..*//}
@@ -174,6 +187,11 @@ post-stage:
 	${RM} ${STAGEDIR}${TARGLIB}/lib*.so.[0-9]*
 	${RM} -r ${STAGEDIR}${PREFIX}/share/gcc-${PORTVERSION} \
 		${STAGEDIR}${TARGLIB}/gcc/*/${PORTVERSION}/include-fixed
+	# the static libraries without debug information, their symbols kept: libgcc.a,
+	# libgcc_eh.a and libgcov.a come with that of -g of LIBGCC2_DEBUG_CFLAGS, which
+	# install-strip leaves (build run 44385710548 of 13Z0/13Z0, 18.11.2026, debug-check:
+	# .debug_info of 122 KB, 74 KB and 51 KB)
+	${FIND} ${STAGEDIR}${TARGLIB} -name '*.a' -type f -exec ${STRIP_CMD} --strip-debug {} +
 .  for d in ${TARGLIB:S/^${PREFIX}\///} ${LIBEXEC:S/^${PREFIX}\///}
 	cd ${STAGEDIR}${PREFIX} && ${FIND} ${d} -type f -o -type l | \
 		${SORT} >> ${WRKDIR}/PLIST.lib
