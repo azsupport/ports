@@ -1,0 +1,4 @@
+The run-time libraries of GCC 16 alone: libgcc_s.so.1, libstdc++.so.6,
+libatomic.so.1 and libgomp.so.1 (OpenMP) in /usr/local/lib/gcc16, for the
+programs built by GCC 16 (with the ldconfig hints of that directory), without
+the compiler. Of azsupport/ports (lang/gcc16).
