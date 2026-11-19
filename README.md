@@ -447,7 +447,7 @@ Names and origins as the ports, files at the paths of the ports:
   its `-march`), `-trimpath`, `-s -w`. mongosh is not a port: the npm package on our
   node24 when it is needed (aZ, 18.11.2026 11:05).
 - **`www/nginx-devel`**, **`www/nginx-devel-stream`** and **`www/nginx-devel-image-filter`**
-  (aZ, 15.11.2026): nginx 1.31.9 (18.11.2026; 1.31.8 before) with four fixes of freenginx nginx has not (gzip, mp4, charset, the captures of subrequests) and the fix of headers-more after v0.41 (e30b10e, 19.11.2026: `more_set_input_headers -r` of an absent header of several values wrote through an uninitialized pointer), the options the union of those of the servers of aZ.
+  (aZ, 15.11.2026): nginx 1.31.9 (18.11.2026; 1.31.8 before) with four fixes of freenginx nginx has not (gzip, mp4, charset, the captures of subrequests) and headers-more 0.42 (19.11.2026, with its fix of `more_set_input_headers -r`: an absent header of several values was written through an uninitialized pointer), the options the union of those of the servers of aZ.
   Built in: the modules of nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE,
   HTTP_GZIP_STATIC, HTTP_MP4, HTTP_REALIP, HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL,
   HTTP_STATUS (stub_status: its counters are those VTS reads), HTTP_SUB, HTTPV2, HTTPV3, and brotli, headers-more and geoip2 (http), which every server uses; off: the other

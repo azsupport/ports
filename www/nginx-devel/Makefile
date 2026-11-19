@@ -50,7 +50,11 @@
 # with the run path /usr/local/az/lib (our ports link each other's shared libraries).
 # The sources of brotli, headers-more and geoip2 come by GH_TUPLE, the commits of the
 # official www/nginx-module-brotli, -headers-more and -geoip2 of the pinned commit (the
-# same archives: their checksums in distinfo), not by those packages of sources, so the
+# same archives: their checksums in distinfo), headers-more ahead of it at 0.42, that of
+# the official port after the pin, with its fix of more_set_input_headers -r (an absent
+# header of several values, Cookie and the like, written through an uninitialized
+# pointer; aZ, 19.11.2026: 0.42 now, not our patch of that fix on 0.41), not by those
+# packages of sources, so the
 # build does not depend on them being in the repository of FreeBSD; brotli with the
 # patch of www/nginx-module-brotli (files/extra-patch-brotli-filter_config: the brotli
 # of the system, not that of its git submodule). Not here: NJS, OTEL, Perl, XSLT, GeoIP 1,
@@ -102,7 +106,7 @@ CPE_PRODUCT=	nginx_open_source
 
 USE_GITHUB=	nodefault
 GH_TUPLE=	google:ngx_brotli:a71f931:brotli \
-		openresty:headers-more-nginx-module:v0.41:headers_more \
+		openresty:headers-more-nginx-module:v0.42:headers_more \
 		leev:ngx_http_geoip2_module:445df24:geoip2
 .if ${NGINX_AZ_MODULE:U} == lua || ${NGINX_AZ_MODULE:U} == stream-lua
 # ndk, lua-nginx-module and stream-lua-nginx-module: the commits of the official
@@ -409,10 +413,6 @@ post-patch:
 # geoip2: the cached lookup result reset at a reload of the database (from Debian; aZ,
 # 16.11.2026), the http module and that of stream
 	@cd ${WRKSRC_geoip2} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-geoip2-reload-cache
-# headers-more: more_set_input_headers -r of an absent header of several values (Cookie
-# and the like) wrote through an uninitialized pointer (upstream e30b10e0bb1c, after
-# v0.41; 19.11.2026)
-	@cd ${WRKSRC_headers_more} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-headers-more-replace-absent
 	@${REINPLACE_CMD} 's!%%PREFIX%%!${WRKDIR}/az!g' ${WRKSRC_brotli}/filter/config
 .if ${NGINX_AZ_MODULE:U} == stream-lua
 	@cd ${WRKSRC_luastream} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-lua-stream-src_ngx__stream__lua__module.c
