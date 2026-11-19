@@ -113,6 +113,10 @@
 # - a port whose origin has a package with the same az_hash in the repository is not
 #   built again (an incremental build) unless --force; a port that fails stops those
 #   that need it (skipped, with the reason);
+# - a port of a kernel module (USES=kmod) builds against the sources of the kernel in
+#   /usr/src: when one is to be built and the machine has none, gitup of the branch
+#   releng/<release> of the machine (with the fixes of the release) into /usr/src, once
+#   (ksrc_get; results/logs/kernel-sources.log); the chroots get /usr/src read only;
 # - each port in a chroot of its own (work/ch/<key>), made for it in seconds and torn
 #   down after it, whatever its result (unmounted, removed; rm -x): the base system
 #   of the machine read only (nullfs), a copy of its /etc, devfs, an empty /usr/local,
@@ -385,6 +389,9 @@ dep_origins() {
 # machine (pkg -c), a build in it by chroot(8) (ch_run).
 chd="$workr/ch"
 ch_base="/bin /sbin /lib /libexec /usr/bin /usr/sbin /usr/lib /usr/lib32 /usr/libexec /usr/include /usr/share /usr/libdata"
+# and /usr/src, read only, once it is there: the sources of the kernel for the ports of
+# kernel modules (ksrc_get, below)
+ch_base="$ch_base /usr/src"
 # the pkg database (each chroot its own, the catalogs in its repos/ those of the run)
 # and the cache of the packages (shared) at the paths pkg of the machine has
 pkgdb="$(pkg config PKG_DBDIR 2> /dev/null)"; pkgdb="${pkgdb:-/var/db/pkg}"
@@ -1317,6 +1324,42 @@ time_skip() {
 # built), 0 when it is to be built (k, log, pn, ign, h, hs, had set; asked again it
 # says nothing more). A package with the same az_hash that failed the ABI check against
 # the az built in this run ($q/abifail/<key>) is built again; one kept has its
+# ksrc_get: the sources of the kernel for a port of a kernel module (USES=kmod: its
+# SRC_BASE/sys, /usr/src/sys; without them the port says IGNORE "requires kernel source
+# files"), once a run and only when such a port is to be built: gitup (aZ, 19.11.2026:
+# «качай ... через gitup - быстро же») of the branch releng/<release> of the machine,
+# with the fixes of the release (aZ: «с последними исправлениями в релизе»), into
+# /usr/src, which the chroots get read only (ch_base). gitup is that of the official
+# package, unpacked into work/ksrc (pkg fetch, the catalogs of the run): the /usr/local
+# of the machine is not touched. 0 when /usr/src/sys is there, else 1 with ksrc_why;
+# results/logs/kernel-sources.log
+ksrc_state=""
+ksrc_why=""
+ksrc_get() {
+    [ -f /usr/src/sys/Makefile ] && return 0
+    [ -n "$ksrc_state" ] && return 1
+    ksrc_state=tried
+    _kr="$(freebsd-version -u)"; _kr="${_kr%%-*}"
+    _kd="$work/ksrc"; _kl="$res/logs/kernel-sources.log"
+    mkdir -p "$_kd/root" "$_kd/db" || { ksrc_why="cannot make $_kd"; return 1; }
+    say "the sources of the kernel for a port of a kernel module: gitup of releng/$_kr into /usr/src"
+    if ! pkg fetch -U -y -r FreeBSD-ports -o "$_kd" gitup > "$_kl" 2>&1; then
+        ksrc_why="pkg fetch of gitup failed: $(tail -n 1 "$_kl")"; return 1
+    fi
+    _kp="$(ls "$_kd"/All/gitup-*.pkg "$_kd"/gitup-*.pkg 2> /dev/null | head -n 1)"
+    if [ -z "$_kp" ] || ! tar -xf "$_kp" -C "$_kd/root" >> "$_kl" 2>&1 || [ ! -x "$_kd/root/usr/local/bin/gitup" ]; then
+        ksrc_why="no gitup out of the package of pkg fetch ($_kp)"; return 1
+    fi
+    printf '{\n\t"defaults" : {\n\t\t"host" : "git.freebsd.org",\n\t\t"port" : 443,\n\t\t"verbosity" : 1,\n\t\t"work_directory" : "%s",\n\t},\n\t"src" : {\n\t\t"repository_path" : "/src.git",\n\t\t"branch" : "releng/%s",\n\t\t"target_directory" : "/usr/src",\n\t\t"ignores" : [],\n\t},\n}\n' \
+        "$_kd/db" "$_kr" > "$_kd/gitup.conf"
+    _kt0="$(date +%s)"
+    if ! "$_kd/root/usr/local/bin/gitup" -C "$_kd/gitup.conf" src >> "$_kl" 2>&1 || [ ! -f /usr/src/sys/Makefile ]; then
+        ksrc_why="gitup of releng/$_kr failed: $(tail -n 1 "$_kl")"; return 1
+    fi
+    say "the sources of the kernel: releng/$_kr at $(cat /usr/src/.gituprevision 2> /dev/null) in /usr/src in $(( $(date +%s) - _kt0 ))s"
+    return 0
+}
+
 # libraries of az checked against its hash (az_cover_check)
 pre_port() {
     k="$(key "$1")"
@@ -1341,6 +1384,10 @@ pre_port() {
         case "$(st "$d")" in fail|skip) bad="$bad $d" ;; esac
     done
     if [ -n "$bad" ]; then record "$1" skip "$pn: needs$bad, which failed or was skipped"; return 1; fi
+    # a kernel module and no sources of the kernel yet (ksrc_get): kept from the
+    # repository as any port, the sources only when it is to be built (below)
+    kmod_src=0
+    case "$ign" in *"requires kernel source files"*) [ -f /usr/src/sys/Makefile ] || { kmod_src=1; ign=""; } ;; esac
     if [ -n "$ign" ]; then record "$1" fail "$pn: the port says IGNORE: $ign"; return 1; fi
     # no az_hash: it needs az, and az is not built in this dry run (its interfaces decide)
     if [ -z "$h" ]; then
@@ -1372,6 +1419,17 @@ pre_port() {
     if [ "$plan" = 1 ] && ! grep -qxF "$1" "$q/azpre"; then
         record "$1" plan "$pn: to be built, az_hash $hs ($why)$( [ -n "$had" ] && az_cover_check "$1" "$repo/${had#* }")"
         return 1
+    fi
+    # a kernel module (USES=kmod; make -V says IGNORE for want of the sources only when
+    # the target build is defined): the sources of the kernel first
+    if [ "$kmod_src" = 0 ] && [ ! -f /usr/src/sys/Makefile ] &&
+        make -C "$top/$1" AZ_STAMP="$az_stamp" -V USES 2> /dev/null | tr ' ' '\n' | grep -qE '^kmod(:|$)'; then
+        kmod_src=1
+    fi
+    if [ "$kmod_src" = 1 ]; then
+        if ! ksrc_get; then record "$1" fail "$pn: a kernel module, no sources of the kernel: $ksrc_why"; return 1; fi
+        ign="$(make -C "$top/$1" AZ_STAMP="$az_stamp" -V IGNORE 2> /dev/null)"
+        if [ -n "$ign" ]; then record "$1" fail "$pn: the port says IGNORE: $ign"; return 1; fi
     fi
     say "$1: $pn ($why)"
     : > "$q/tobuild-$k"
