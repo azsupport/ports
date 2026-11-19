@@ -373,21 +373,36 @@ jobs:
       # the build tests (tools/test-programs.sh and the *-test.sh) are kept in the
       # private azsupport/azsupport (tests/ports/), not in this public repo; fetch them
       # into tools/ with RUNS_TOKEN so the VM runs them (the workspace is synced into the
-      # VM). They are in .gitignore here. No token: the VM runs no tests.
-      - name: The build tests of azsupport/azsupport, into tools/
+      # VM). They are in .gitignore here. No token: the VM runs no tests. From the same
+      # tarball the distribution files no one may fetch or mirror (distfiles/ there:
+      # arcconf of Microchip), into distfiles/ for the VM; the list of their names in
+      # $AZ_RUNS_STATE/private-distfiles, so that the cache of the distfiles never
+      # keeps them (the step before its save)
+      - name: The build tests and the private distfiles of azsupport/azsupport
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
         run: |
+          mkdir -p "$AZ_RUNS_STATE"; : > "$AZ_RUNS_STATE/private-distfiles"
           if [ -z "$RUNS_TOKEN" ]; then
-            echo "::warning title=tests::no RUNS_TOKEN: the VM runs no tests"
+            echo "::warning title=tests::no RUNS_TOKEN: the VM runs no tests and has no private distfiles"
             exit 0
           fi
           t="$RUNNER_TEMP/az-tests.tgz"
           curl -fsSL -H "Authorization: Bearer $RUNS_TOKEN" -H "Accept: application/vnd.github+json" \
             -o "$t" "https://api.github.com/repos/azsupport/azsupport/tarball/main"
           tar -xzf "$t" -C tools --strip-components=3 --wildcards '*/tests/ports/*'
-          rm -f "$t"
           echo "tests in tools/: $(ls tools/test-programs.sh tools/*-test.sh 2>/dev/null | wc -l) scripts"
+          mkdir -p distfiles "$RUNNER_TEMP/az-dist"
+          tar -xzf "$t" -C "$RUNNER_TEMP/az-dist" --strip-components=2 --wildcards '*/distfiles/*' || true
+          for f in "$RUNNER_TEMP"/az-dist/*; do
+            [ -f "$f" ] || continue
+            n="${f##*/}"
+            case "$n" in README*) continue ;; esac
+            mv "$f" "distfiles/$n"
+            echo "$n" >> "$AZ_RUNS_STATE/private-distfiles"
+            echo "private distfile: $n ($(wc -c < "distfiles/$n") bytes)"
+          done
+          rm -f "$t"
 
       # the time the build in the VM has (tools/build.sh: AZ_TIME_SOFT, AZ_TIME_HARD), from
       # the start of the job, whose limit is 350 minutes: no port starts after 245 minutes,
@@ -419,9 +434,18 @@ jobs:
           # make -j of the 4 vCPUs), about 4 GB left to the host
           mem: 12288
           envs: 'AZ_CPUTYPE AZ_PORTS AZ_FORCE AZ_JOBS AZ_CONFIGURE_CHECK AZ_PLAN AZ_PKG_KEY AZ_TIME_SOFT AZ_TIME_HARD'
+          # the package mirror: every address of its names tried, the first that answers in
+          # /etc/hosts (tools/pkg-mirror.sh; aZ, 18.11.2026 23:23); 10 minutes a try of pkg,
+          # 3 tries 60 s apart, then the job fails instead of waiting for hours
           prepare: |
             if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
-            env ASSUME_ALWAYS_YES=yes pkg install -y git-lite
+            i=1
+            while :; do
+              sh tools/pkg-mirror.sh
+              env ASSUME_ALWAYS_YES=yes timeout 600 pkg install -y git-lite && break
+              [ "$i" -ge 3 ] && { echo "pkg: no git-lite after $i tries"; exit 1; }
+              echo "pkg: try $i failed, again in 60 s"; i=$((i + 1)); sleep 60
+            done
           # the script never stops before its end (vmactions copies results/ and repo/ back
           # only after a script that ended well): what failed goes into results/rc (0: the
           # build and every check passed), and a step after the caches fails the job on it
@@ -670,6 +694,14 @@ jobs:
       # a copy of its own (3.5 GB, its distinfo differs) pushed the repository of packages of
       # main out of the 10 GB of the caches of the repository (13.11.2026: the run of a
       # branch then found no packages of main and built its ports from nothing)
+      # the private distfiles (the step of the tests) never go into a cache of this public
+      # repository: away before its save
+      - name: The private distfiles, out of distfiles/ before its cache
+        if: ${{ always() }}
+        run: |
+          [ -s "$AZ_RUNS_STATE/private-distfiles" ] || exit 0
+          while read -r n; do rm -f "distfiles/$n"; echo "removed: $n"; done < "$AZ_RUNS_STATE/private-distfiles"
+
       - name: The distribution files, kept for the next run
         id: distsave
         if: ${{ always() && github.ref_name == github.event.repository.default_branch && steps.build.outcome != 'skipped' && steps.dist.outputs.cache-hit != 'true' && hashFiles('distfiles/**') != '' }}
