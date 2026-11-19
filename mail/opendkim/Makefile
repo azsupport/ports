@@ -5,7 +5,9 @@
 # without sendmail, as py-pymilter), the stock resolver of the base system
 # (STOCK_RESOLVER in the place of UNBOUND: no libunbound, no dns/unbound), no LUA (no
 # Lua policy scripts: key and signing tables in files); the other options off, as in
-# the official default.
+# the official default. Makefile.options is the file of the official port at the
+# pinned commit, as it is: the official Makefile includes it from ${.CURDIR}, the
+# directory of this port.
 
 AZ_OFFICIAL=	mail/opendkim
 OPTIONS_SLAVE=	STOCK_RESOLVER
