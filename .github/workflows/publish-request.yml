@@ -1,0 +1,38 @@
+# The publish of the drafts of a build that ran on another runner, as soon as that build
+# ends: a repository_dispatch of type "publish" (a token with Contents write of this
+# repository; client_payload: drafts, cputype) starts build.yml of main with publish=true,
+# the same as a dispatch by hand; build.yml takes the drafts of main and of those branches,
+# builds what is missing and publishes only when everything built and every check passed.
+name: Publish on a request
+
+on:
+  repository_dispatch:
+    types: [publish]
+
+# actions: starting build.yml (a dispatch by the token of a run starts a run)
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: build.yml of main with publish=true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          drafts=$(jq -r '.client_payload.drafts // ""' "$GITHUB_EVENT_PATH")
+          cputype=$(jq -r '.client_payload.cputype // "x86-64-v3"' "$GITHUB_EVENT_PATH")
+          case "$cputype" in
+            x86-64-v3|x86-64-v2) ;;
+            *) echo "::error::cputype: x86-64-v3 or x86-64-v2, not $cputype"; exit 1 ;;
+          esac
+          case "$drafts" in
+            *[!A-Za-z0-9._/\ -]*) echo "::error::drafts: names of branches separated by spaces"; exit 1 ;;
+          esac
+          echo "build.yml of main: publish=true cputype=$cputype drafts=$drafts"
+          gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/build.yml/dispatches" \
+            -f ref=main -f 'inputs[publish]=true' -f "inputs[cputype]=$cputype" -f "inputs[drafts]=$drafts"

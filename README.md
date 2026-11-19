@@ -1123,6 +1123,11 @@ az, above). The packages each run built are saved as they come into the draft re
 next run of the branch takes what its cache lacks from those drafts, and they go once a
 publish has their packages (those of a branch with it, `delete-branches.yml`): a cache
 alone is lost when GitHub pushes it out past the 10 GB of the caches of the repository.
+A build that ran on another runner and saved its packages as drafts is published as soon
+as it ends by a `repository_dispatch` of type `publish` (a token with Contents write of
+this repository; `client_payload`: `drafts`, the branches whose drafts the publish takes,
+and `cputype`): [`publish-request.yml`](.github/workflows/publish-request.yml) starts
+this workflow on main with `publish` on, as a dispatch by hand does.
 
 The secrets (https://github.com/azsupport/ports/settings/secrets/actions, the button
 **New repository secret**):
