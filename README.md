@@ -82,7 +82,8 @@ Names and origins as the ports, files at the paths of the ports:
 | `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; GLib of `glib`, libssh2 of az, PCRE2 of `pcre2`; zip, 7z, rar and ISO images through `tar` of the base system (the names of a zip of Windows in CP866); fixes of mc after 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), each with its source): the overflow of `%cd` with a long name in an archive, Reget spoiling the next files of a copy, the mouse with `TERM=xterm` (Gentoo) and a crash of a drag, the exit of the subshell on FreeBSD (NetBSD), the prompt of tcsh kept, a prompt with bytes not UTF-8, the descriptor of the subshell's pipe (Debian), "ls -l" lines with names of one byte (Alpine), ftp: reconnect after an idle timeout, the password of `~/.netrc`; copies that clone the blocks on ZFS (`copy_file_range`, upstream #5082); ours: none of mc's own lines (its cd, its init, the user menu) in the history of a tcsh subshell |
 | `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 and PCRE 8.45, the official ports: the PCRE of every package (PHP, Apache, git, wget, mc, MariaDB; nginx later) |
 | `git` | `devel/git` | git without Perl, Python, Tcl/Tk, gettext, the manual pages and git daemon; HTTPS through our `curl`, `git grep -P` with `pcre2` |
-| `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi, env and headers too), no SSL; APR and libmaxminddb of az |
+| `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi, env, headers and suexec too, suexec with the docroot /var/www), no SSL; APR and libmaxminddb of az |
+| `ap24-mod_fastcgi` | `www/mod_fastcgi` | the FastCGI module of our Apache 2.4 (aZ, 19.11.2026): the official port as it is ([`Mk/az-official.mk`](Mk/az-official.mk)) |
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached without TLS, SASL and DTrace, libevent of az; the variant with TLS; one of the two |
 | `gearmand`, `gearmand-openssl`, `libgearman` | `devel/gearmand`, `devel/gearmand-openssl`, `devel/libgearman` | Gearman 2.2.0 with the fixes of master after it: the job server gearmand (the persistent queue in SQLite of az; libevent of az), its variant with TLS, one of the two; libgearman (the client library, with TLS) and the tools gearman and gearadmin, which the servers and the modules `phpXY-gearman` take |
 | `manticore14`, `manticore14-columnar`, `manticore31`, `manticore31-columnar` | `textproc/manticore14`, `textproc/manticore14-columnar`, `textproc/manticore31`, `textproc/manticore31-columnar` | Manticore Search 14.7.6 (the last of the line 14) and 31.0.24 (the current line), one of the two: searchd with Galera (replication), indexer and the tools, an rc.d script with profiles; ICU of az; their columnar, secondary and vector (KNN, embeddings) libraries |
@@ -298,7 +299,8 @@ Names and origins as the ports, files at the paths of the ports:
   gettext, expat (`git http-push`), the manual pages and the user and rc.d script of git
   daemon; HTTPS through our `curl`, PCRE2 (`git grep -P`) of `pcre2`, iconv of libc.
 - **`www/apache24`** and **`www/mod_maxminddb`**: Apache 2.4.71 with prefork only (a
-  module) and the modules of the servers (cgi, env and headers too; everything else off), no SSL,
+  module) and the modules of the servers (cgi, env, headers and suexec too; everything else off; suexec
+  with the docroot /var/www, the rest of its settings the defaults of the ports), no SSL,
   APR and APR-util of az (shared: those of mod_php too), PCRE2 of `pcre2`;
   mod_maxminddb with libmaxminddb of az.
 - **`databases/memcached`** and **`databases/memcached-openssl`**: memcached without TLS,
