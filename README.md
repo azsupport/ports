@@ -640,7 +640,8 @@ Names and origins as the ports, files at the paths of the ports:
   with the names, origins, versions and paths of the official packages. `openjdk21`
   takes the version, distinfo and patches of the official port of the pinned commit
   as they are (a new version comes with the pin; of its patches the two that link
-  fontconfig are left out, by name and SHA-256) and builds OpenJDK 21 headless
+  fontconfig are left out, by name and SHA-256; 21.0.13.1+2, the security release
+  of 17.11.2026, ahead of the pin, until the pin has it) and builds OpenJDK 21 headless
   (`--enable-headless-only`: `libawt_headless`, no `libawt_xawt` and
   `libsplashscreen`, so giflib and libpng stay bundled and unused; without the
   headers of X11 too, with the change of OpenJDK for that backported, JDK-8376684 of
