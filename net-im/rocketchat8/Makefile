@@ -307,6 +307,22 @@ post-extract:
 	${TAR} -xf ${_DISTDIR}/${f:C/^[^:]*://:C/:.*//}/-/${f:C/^[^:]*://:C/:.*//:T}-${f:C/.*://}.tgz \
 		-C ${RC_NM}/${f:C/:.*//} --strip-components 1 --no-same-owner --no-same-permissions
 .endfor
+	@${ECHO_MSG} "===>  The files of lib/ of nodemailer 8 and 9 over those of dist/cjs/ of 10"
+.for d in ${RC_NPM_LIBCJS}
+	cd ${RC_NM}/${d}/dist/cjs && ${FIND} . -type f \( -name '*.js' -o -name package.json \) | \
+	while read -r f; do \
+		f=$${f#./}; ${MKDIR} "${RC_NM}/${d}/lib/$$(dirname "$$f")"; \
+		case "$$f" in \
+		*package.json) ${CP} "$$f" "${RC_NM}/${d}/lib/$$f" ;; \
+		*) r="$$(${ECHO_CMD} "$$f" | ${SED} -E 's#[^/]+/#../#g; s#[^/]+$$##')"; \
+		   ${PRINTF} "'use strict';\nmodule.exports = require('%s../dist/cjs/%s');\n" "$$r" "$$f" \
+			> "${RC_NM}/${d}/lib/$$f" ;; \
+		esac; \
+	done
+	@[ -f ${RC_NM}/${d}/lib/nodemailer.js ] && [ -f ${RC_NM}/${d}/lib/well-known/index.js ] && \
+		[ -f ${RC_NM}/${d}/lib/package.json ] || \
+		{ ${ECHO_MSG} "${d}: no lib/nodemailer.js, lib/well-known/index.js or lib/package.json"; exit 1; }
+.endfor
 	${CP} ${FILESDIR}/pinyin-Cargo.lock ${RC_NM}/@napi-rs/pinyin/Cargo.lock
 .for e in esb1 esb2
 	${MKDIR} ${WRKSRC_${e}}/vendor/golang.org/x

@@ -224,6 +224,12 @@ RC_NPM_FIX+=	pbkdf2/node_modules/ripemd160/node_modules/hash-base/node_modules/r
 RC_NPM_FIX+=	meteor/email/node_modules/nodemailer:nodemailer:10.6.0
 # nodemailer 9.1.1 -> 10.6.0: GHSA-4ffr-jq9g-5ffx GHSA-g73g-hqqh-jr95 GHSA-4g23-2xm8-66gc GHSA-m943-m63m-w62w GHSA-85x2-q946-cp5h GHSA-g57g-f23g-4646 GHSA-v53p-9fqp-m79j GHSA-6vj9-mwq6-2f5v GHSA-8vvx-rff5-p5rq GHSA-prgh-xp8r-p3m5 GHSA-39m8-27wv-hr27 GHSA-8c8m-p3m8-cjg8 (high)
 RC_NPM_FIX+=	nodemailer:nodemailer:10.6.0
+# nodemailer 10 has its CommonJS files in dist/cjs/ (type module, exports), 8 and 9 in
+# lib/; Meteor resolved the requires of the bundle to the files of those (the test run
+# 44412931202, 18.11.2026: "Cannot find module /node_modules/meteor/email/node_modules/
+# nodemailer/lib/nodemailer.js", Rocket.Chat did not start): lib/ gets a file per file of
+# dist/cjs/ that requires it, and its package.json (type commonjs)
+RC_NPM_LIBCJS=	meteor/email/node_modules/nodemailer nodemailer
 # axios 0.33.0 -> 0.34.0 (webdav, ^0.30.0): GHSA-9fr6-4gfg-395g GHSA-x97p-jq2g-jp4f (high)
 RC_NPM_FIX+=	webdav/node_modules/axios:axios:0.34.0
 # cookie 0.4.1 -> 0.7.2 (cookie-parser 1.4.6 of the webapp of Meteor, 0.4.1; cookie-parser
