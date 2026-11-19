@@ -5,8 +5,9 @@
 # drivers) and PCRE2 the shared library of devel/pcre2 of this tree (one PCRE2
 # for PHP, Apache, nginx), so that it takes no package but that one and perl (apxs
 # and the other scripts; the official one takes apr1, expat and pcre2), and only
-# the modules of aZ's servers (their httpd.conf; cgi and env as well), as shared
-# modules, with prefork the only MPM, a module too.
+# the modules of aZ's servers (their httpd.conf; cgi and env as well; headers for
+# the Header lines of their .htaccess files), as shared modules, with prefork the
+# only MPM, a module too.
 
 PORTNAME=	apache24
 PORTVERSION=	2.4.71
@@ -57,13 +58,15 @@ GROUPS?=	${WWWGRP}
 .include "${.CURDIR}/Makefile.options.desc"
 OPTIONS_SUB=	yes
 # the modules of aZ's servers (aZ, 10.11.2026: those their httpd.conf loads, cgi
-# and env as well; everything else off), prefork as a module (MPM_SHARED, only
-# prefork: MPM_SHARED_CONFIGURE_ON below); log_config and unixd are modules of
-# no option (always built), so is in httpd
+# and env as well; everything else off; aZ, 19.11.2026: headers, for the Header
+# lines in .htaccess files of a server, inside <IfModule mod_headers.c>, which
+# without it set nothing), prefork as a module (MPM_SHARED, only prefork:
+# MPM_SHARED_CONFIGURE_ON below); log_config and unixd are modules of no option
+# (always built), so is in httpd
 OPTIONS_DEFAULT=	ACCESS_COMPAT ACTIONS ALIAS AUTH_BASIC AUTHN_CORE AUTHN_FILE \
 			AUTHZ_CORE AUTHZ_GROUPFILE AUTHZ_HOST AUTHZ_USER CGI DIR DUMPIO \
-			ENV INCLUDE MIME REMOTEIP REQTIMEOUT REWRITE SETENVIF STATUS \
-			MPM_SHARED MPM_PREFORK
+			ENV HEADERS INCLUDE MIME REMOTEIP REQTIMEOUT REWRITE SETENVIF \
+			STATUS MPM_SHARED MPM_PREFORK
 
 # IMPLIES
 AUTHN_DBD_IMPLIES=		DBD

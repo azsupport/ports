@@ -82,7 +82,7 @@
 | `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib из `glib`, libssh2 из az, PCRE2 из `pcre2`; zip, 7z, rar и образы ISO — через `tar` базовой системы (имена zip из Windows — в CP866); исправления mc после 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), у каждого — источник): переполнение `%cd` длинным именем в архиве, Reget, портивший следующие файлы копирования, мышь при `TERM=xterm` (Gentoo) и падение при протаскивании, выход из subshell на FreeBSD (NetBSD), своё приглашение tcsh, приглашение с байтами не UTF-8, дескриптор канала subshell (Debian), строки «ls -l» с именами в один байт (Alpine), ftp: переподключение после простоя, пароль из `~/.netrc`; копии, клонирующие блоки на ZFS (`copy_file_range`, upstream #5082); наши: ни одной своей строки mc (его cd, инициализация, меню пользователя) в истории subshell на tcsh |
 | `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 и PCRE 8.45, официальные порты: PCRE всех пакетов (PHP, Apache, git, wget, mc, MariaDB; потом nginx) |
 | `git` | `devel/git` | git без Perl, Python, Tcl/Tk, gettext, man-страниц и git daemon; HTTPS через наш `curl`, `git grep -P` с `pcre2` |
-| `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 только с prefork и модулями серверов (и cgi, env), без SSL; APR и libmaxminddb из az |
+| `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 только с prefork и модулями серверов (и cgi, env, headers), без SSL; APR и libmaxminddb из az |
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached без TLS, SASL и DTrace, libevent из az; вариант с TLS; ставится один из двух |
 | `gearmand`, `gearmand-openssl`, `libgearman` | `devel/gearmand`, `devel/gearmand-openssl`, `devel/libgearman` | Gearman 2.2.0 с исправлениями master после него: сервер очереди задач gearmand (постоянная очередь — в SQLite из az; libevent из az), его вариант с TLS, ставится один из двух; libgearman (клиентская библиотека, с TLS) и утилиты gearman и gearadmin — их берут оба сервера и модули `phpXY-gearman` |
 | `manticore14`, `manticore14-columnar`, `manticore31`, `manticore31-columnar` | `textproc/manticore14`, `textproc/manticore14-columnar`, `textproc/manticore31`, `textproc/manticore31-columnar` | Manticore Search 14.7.6 (последний выпуск линии 14) и 31.0.24 (текущая линия), ставится один из двух: searchd с Galera (репликация), indexer и утилиты, скрипт rc.d с профилями; ICU из az; их библиотеки columnar, secondary и векторного поиска (KNN, embeddings) |
@@ -288,7 +288,7 @@
   expat (`git http-push`), man-страниц, пользователя и скрипта rc.d git daemon; HTTPS через
   наш `curl`, PCRE2 (`git grep -P`) из `pcre2`, iconv из libc.
 - **`www/apache24`** и **`www/mod_maxminddb`**: Apache 2.4.71 только с prefork (модулем)
-  и модулями серверов (и cgi, env; всё остальное выключено), без SSL, APR и APR-util из az
+  и модулями серверов (и cgi, env, headers; всё остальное выключено), без SSL, APR и APR-util из az
   (разделяемые: те же, что у mod_php), PCRE2 из `pcre2`; mod_maxminddb с libmaxminddb из az.
 - **`databases/memcached`** и **`databases/memcached-openssl`**: memcached без TLS, SASL,
   DTrace и документации, libevent из az; вариант с TLS на OpenSSL базы; ставится один из
