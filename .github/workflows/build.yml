@@ -886,13 +886,26 @@ jobs:
           # this repository it lacks would pass 1000, away first with what this repository
           # has no more (until the new catalog is up, the catalog of the release still names
           # them: a pkg upgrade of a server in those minutes fails and is done again)
+          # a file of the release away: GitHub answers DELETE now and then with HTTP 502 (run
+          # 44530940378, 19.11.2026: the publish stopped halfway through the old files, the
+          # release left without some packages its catalog names), and the file may be gone
+          # all the same: again up to five times, done once the release has it no more
+          drop_asset() {
+            for t in 1 2 3 4 5; do
+              gh release delete-asset "$tag" "$1" --repo "$GITHUB_REPOSITORY" -y && return 0
+              gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | grep -qxF "$1" || return 0
+              sleep $((t * 10))
+            done
+            echo "::warning title=publish::$1 not deleted from $tag"
+            return 1
+          }
           have="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')"
           nhave="$(printf '%s\n' "$have" | grep -c . || :)"
           nnew="$(ls "$dir" | while read -r f; do printf '%s\n' "$have" | grep -qxF "$f" || echo "$f"; done | grep -c . || :)"
           if [ $((nhave + nnew)) -gt 1000 ]; then
             echo "the release has $nhave files and lacks $nnew of this repository: over 1000, its old files away first"
             for a in $have; do
-              [ -e "$dir/$a" ] || gh release delete-asset "$tag" "$a" --repo "$GITHUB_REPOSITORY" -y
+              [ -e "$dir/$a" ] || drop_asset "$a" || :
             done
           fi
           # the packages first, the catalog of pkg repo last (the files that are not
@@ -901,7 +914,7 @@ jobs:
           if [ -n "$pk" ]; then gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber $pk; fi
           gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber $(ls -d "$dir"/* | grep -v -E '/[^/]+-[0-9][^/]*\.pkg$')
           for a in $(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'); do
-            [ -e "$dir/$a" ] || gh release delete-asset "$tag" "$a" --repo "$GITHUB_REPOSITORY" -y
+            [ -e "$dir/$a" ] || drop_asset "$a" || :
           done
           # every file of the repository is in the release under its own name
           have="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')"
