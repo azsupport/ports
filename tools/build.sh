@@ -1346,9 +1346,10 @@ ksrc_get() {
     if ! pkg fetch -U -y -r FreeBSD-ports -o "$_kd" gitup > "$_kl" 2>&1; then
         ksrc_why="pkg fetch of gitup failed: $(tail -n 1 "$_kl")"; return 1
     fi
-    _kp="$(ls "$_kd"/All/gitup-*.pkg "$_kd"/gitup-*.pkg 2> /dev/null | head -n 1)"
+    # pkg fetch -o puts it under All/ or, from a repository of hashed names, All/Hashed/
+    _kp="$(find "$_kd" -type f -name 'gitup-*.pkg' | head -n 1)"
     if [ -z "$_kp" ] || ! tar -xf "$_kp" -C "$_kd/root" >> "$_kl" 2>&1 || [ ! -x "$_kd/root/usr/local/bin/gitup" ]; then
-        ksrc_why="no gitup out of the package of pkg fetch ($_kp)"; return 1
+        ksrc_why="no gitup out of the package of pkg fetch (${_kp:-none}: $(find "$_kd" -type f | head -n 3 | tr '\n' ' '))"; return 1
     fi
     printf '{\n\t"defaults" : {\n\t\t"host" : "git.freebsd.org",\n\t\t"port" : 443,\n\t\t"verbosity" : 1,\n\t\t"work_directory" : "%s",\n\t},\n\t"src" : {\n\t\t"repository_path" : "/src.git",\n\t\t"branch" : "releng/%s",\n\t\t"target_directory" : "/usr/src",\n\t\t"ignores" : [],\n\t},\n}\n' \
         "$_kd/db" "$_kr" > "$_kd/gitup.conf"
