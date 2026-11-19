@@ -6,9 +6,8 @@
 # for PHP, Apache, nginx), so that it takes no package but that one and perl (apxs
 # and the other scripts; the official one takes apr1, expat and pcre2), and only
 # the modules of aZ's servers (their httpd.conf; cgi and env as well; headers for
-# the Header lines of their .htaccess files; suexec for the CGI and FastCGI programs
-# of the sites run as their users), as shared modules, with prefork the only MPM, a
-# module too.
+# the Header lines of their .htaccess files), as shared modules, with prefork the
+# only MPM, a module too.
 
 PORTNAME=	apache24
 PORTVERSION=	2.4.71
@@ -61,21 +60,13 @@ OPTIONS_SUB=	yes
 # the modules of aZ's servers (aZ, 10.11.2026: those their httpd.conf loads, cgi
 # and env as well; everything else off; aZ, 19.11.2026: headers, for the Header
 # lines in .htaccess files of a server, inside <IfModule mod_headers.c>, which
-# without it set nothing; aZ, 19.11.2026: suexec, for a server whose sites in
-# /var/www run their CGI and FastCGI programs as their users), prefork as a module
-# (MPM_SHARED, only prefork: MPM_SHARED_CONFIGURE_ON below); log_config and unixd are
-# modules of no option (always built), so is in httpd
+# without it set nothing), prefork as a module (MPM_SHARED, only prefork:
+# MPM_SHARED_CONFIGURE_ON below); log_config and unixd are modules of no option
+# (always built), so is in httpd
 OPTIONS_DEFAULT=	ACCESS_COMPAT ACTIONS ALIAS AUTH_BASIC AUTHN_CORE AUTHN_FILE \
 			AUTHZ_CORE AUTHZ_GROUPFILE AUTHZ_HOST AUTHZ_USER CGI DIR DUMPIO \
 			ENV HEADERS INCLUDE MIME REMOTEIP REQTIMEOUT REWRITE SETENVIF \
-			STATUS SUEXEC MPM_SHARED MPM_PREFORK
-# suexec (sbin/suexec, setuid root; only the user www may run it): the docroot of
-# the sites of that server, /var/www, in the place of the default of Mk/Uses/apache.mk
-# (${PREFIX}/www/data); its other settings the defaults there: the caller www, the
-# least uid and gid 1000, the log /var/log/httpd-suexec.log, the safe path
-# ${LOCALBASE}/bin:/usr/bin:/bin, the user directory public_html (for ~user URLs of
-# mod_userdir, which this Apache does not build), as the suexec of that server has
-SUEXEC_DOCROOT=	/var/www
+			STATUS MPM_SHARED MPM_PREFORK
 
 # IMPLIES
 AUTHN_DBD_IMPLIES=		DBD

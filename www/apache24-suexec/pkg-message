@@ -1,0 +1,12 @@
+[
+{ type: install
+  message: <<EOM
+suexec of apache24: libexec/apache24/mod_suexec.so and sbin/suexec (setuid root,
+only the user www may run it; the docroot /var/www, suexec -V for the rest).
+Load it into an Apache instance:
+  LoadModule suexec_module libexec/apache24/mod_suexec.so
+and give a virtual host its user and group with SuexecUserGroup (or use it as
+FastCgiWrapper of mod_fastcgi).
+EOM
+}
+]
