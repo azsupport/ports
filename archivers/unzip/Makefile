@@ -48,7 +48,7 @@ AZ_UNZIP_FIXES=	unzip-6.0-close.patch \
 		CVE-2022-0530.patch \
 		unzip-6.0-sast.patch
 
-# Then the fixes of Debian (unzip 6.0-31, 12.11.2026) that neither the official
+# Then the fixes of Debian (unzip 6.0-31 and 6.0-32) that neither the official
 # port nor Fedora has, in files/debian (each says what, its bug and origin), and
 # that of OpenBSD for zipgrep: the heap buffer overflow in memextract() (stored
 # extra fields; CAN-2026-2034442) and the stack one in the SmartZip field of
@@ -59,9 +59,13 @@ AZ_UNZIP_FIXES=	unzip-6.0-close.patch \
 # Windows (no disks in the locator: "attempt to seek before beginning"), the times
 # of an old Unix extra field dropped by a newer one, the 6th byte of 64-bit sizes,
 # the version >= 10 of the program that made an entry (zipinfo), and the patterns
-# of zipgrep with "|" or "\" that found nothing (Debian #1054628, 12.11.2026). Not
-# taken: CAN-2026-2034440 (EF_IZUNIX3 uid/gid, code this build leaves out) and the
-# code page changes of Ubuntu (this port has its own ICONV patches).
+# of zipgrep with "|" or "\" that found nothing (Debian #1054628, 12.11.2026); of
+# 6.0-32 (19.11.2026): the Unicode path extra field ("up") shorter than its 5 bytes of
+# version and CRC (Debian #1153750: ULen = eb_len - 5, an ush, wrapped to 65531-65535
+# and strncpy() read that far past the field, getUnicodeData of process.c) and the
+# newline after a prompt interrupted by SIGINT (Debian #1144371). Not taken:
+# CAN-2026-2034440 (EF_IZUNIX3 uid/gid, code this build leaves out) and the code page
+# changes of Ubuntu (this port has its own ICONV patches).
 AZ_UNZIP_FIXES_DEBIAN=	can-2026-2034442.patch \
 			can-2026-2034443.patch \
 			fix-integer-underflow-csiz-decrypted.patch \
@@ -72,7 +76,9 @@ AZ_UNZIP_FIXES_DEBIAN=	can-2026-2034442.patch \
 			handle-windows-zip64-files.patch \
 			restore-unix-timestamps-accurately.patch \
 			fix-warning-messages-on-big-files.patch \
-			allow-greater-hostver-values.patch
+			allow-greater-hostver-values.patch \
+			harden-parsing-of-up-extra-field.patch \
+			print-newline-on-interrupt.patch
 
 # Then those of OpenBSD (commit 89a66a1), as they are, in files/openbsd: memmove(),
 # not memcpy(), for the copies within the sliding window of explode.c and

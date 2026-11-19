@@ -3,12 +3,20 @@
 # its vulnerabilities (RADIUS replies and PTR answers past buffers on the stack, the
 # match data of pcre rules shared by connections, StringsPlugin past the lines of
 # its string tables ...). The official port has 0.9.5, which upstream no longer
-# supports (SECURITY.md: not before 0.9.8). With the three fixes of the 0.9 branch
-# after 0.9.9.3 (files/patch-src_pcre.c: a pcre rule without an ACL freed as the
-# match data of a connection; files/patch-src_tlspr.c: tlspr past a short
-# ServerHello; files/patch-src_proxy.c: the credentials of an earlier request on a
-# keep-alive connection taken for the next) and users with NT passwords without TLS
-# as in 0.9.5 (files/patch-src_auth.c, files/patch-src_conf.c).
+# supports (SECURITY.md: not before 0.9.8). With the fixes of the 0.9 branch after
+# 0.9.9.3 (files/patch-src_pcre.c: a pcre rule without an ACL freed as the match data
+# of a connection; files/patch-src_tlspr.c: tlspr past a short ServerHello;
+# files/patch-src_proxy.c: the credentials of an earlier request on a keep-alive
+# connection taken for the next; and those of 18.11.2026, f105a27, 4f4862e, 1772ded,
+# 6b3a0f8 and 4f7a611: files/patch-src_common.c, patch-src_proxy.h,
+# patch-src_socks.c, patch-src_smtpp.c, patch-src_udpsockmap.c and
+# patch-src_auth.c-udp-preauth: a host name with a control byte or a space refused
+# where it is read, so it never reaches the request line of a parent proxy or a
+# rule, a login of smtpp of a port alone names no host, a UDP association whose
+# authorization fails or whose parent of the rules does not answer is not relayed
+# direct, the pre-authorization of a UDP ASSOCIATE not cached for later requests, a
+# SOCKS4a request not a connect to the null address) and users with NT passwords
+# without TLS as in 0.9.5 (files/patch-src_auth.c, files/patch-src_conf.c).
 #
 # Built with CMake, as upstream advises (README.md), with the names and paths of the
 # official port: the standalone servers without a prefix (-D3PROXY_BINARY_PREFIX=),
