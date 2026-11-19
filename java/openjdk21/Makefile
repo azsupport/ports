@@ -10,9 +10,8 @@
 # the pinned tree as they are, so that a new version of it comes by the pin by
 # itself: its version (the variables of AZ_OFFICIAL_VARS, read in its Makefile),
 # its distinfo (the source of battleblow/jdk21u and the bootstrap JDK of
-# LOCAL/openjdk) and its patches but two (AZ_PATCHES_OUT); 21.0.13.1+2 ahead of
-# the pin, for security (below AZ_OFFICIAL_VARS). The rest is its Makefile with
-# these changes:
+# LOCAL/openjdk) and its patches but two (AZ_PATCHES_OUT). The rest is its
+# Makefile with these changes:
 # - --enable-headless-only: libawt_headless and no libawt_xawt; no
 #   libsplashscreen, the only user of giflib and libpng
 #   (make/modules/java.desktop/lib/Awt2dLibraries.gmk), so these two are bundled
@@ -92,17 +91,6 @@ IGNORE=		has no ${v} of the official port (${AZ_OFFICIAL_PORT}/Makefile)
 .  endif
 .endfor
 DISTINFO_FILE=	${AZ_OFFICIAL_PORT}/distinfo
-# 21.0.13.1+2 ahead of the pin: the security release of OpenJDK of 17.11.2026
-# (CVE-2026-114938 to CVE-2026-114946), in the official port since freebsd-ports
-# 1c319038bde5 (18.11.2026), after the pin; its version and its distinfo (./distinfo,
-# that of 1c319038bde5) while the official port of the pin has 21.0.13.0.3+1, the
-# patches of the pin (that commit changed none). A pin with a later version takes
-# the official port again by itself: then ./distinfo and this block go
-.if ${JDK_PATCH_VERSION} == "13.0.3" && ${JDK_BUILD_NUMBER} == "1"
-JDK_PATCH_VERSION=	13.1
-JDK_BUILD_NUMBER=	2
-DISTINFO_FILE=	${.CURDIR}/distinfo
-.endif
 # its patches but the two of fontconfig, each with the SHA-256 of the one left out
 # (a change of either stops the build in pre-patch, to be looked at), before those
 # of files/

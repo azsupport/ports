@@ -118,8 +118,15 @@ GROUPS=			gearmand
 SUB_LIST+=		USERS=${USERS} GROUPS=${GROUPS}
 .endif
 
+# AX_AM_JOBSERVER of configure.ac out: automake 1.20 (devel/automake of the pin of
+# 19.11.2026) has an --enable-jobserver of its own, yes or no only ("bad value '64' for
+# --enable-jobserver", 13Z0 run 44469975840), and the configure target of bsd.port.mk
+# adds --enable-jobserver=${MAKE_JOBS_NUMBER} when the help shows the "[=no/yes/#]" of
+# that macro; without it the "no" of CONFIGURE_ARGS goes to that of automake (make -j
+# of the framework as before)
 post-patch:
 	@${ECHO_CMD} 'm4_define([VERSION_NUMBER], [${DISTVERSION}])' > ${WRKSRC}/version.m4
+	@${REINPLACE_CMD} -e '/^AX_AM_JOBSERVER(/d' ${WRKSRC}/configure.ac
 
 pre-configure:
 	@${MKDIR} ${WRKDIR}/deps/include ${WRKDIR}/deps/lib

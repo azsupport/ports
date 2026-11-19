@@ -17,8 +17,8 @@ servers (amd64), so that nothing is built on the servers.
 
 - **An overlay**: only our ports, on top of the official tree
   [freebsd-ports](https://github.com/freebsd/freebsd-ports) at a pinned commit,
-  [`232cb6b34863`](https://github.com/freebsd/freebsd-ports/tree/232cb6b3486322dcd7e1b19bd629064023d4a3ad)
-  (main of 16.11.2026; `ports_commit` in [`tools/build.sh`](tools/build.sh), moved to the
+  [`52d456130ecf`](https://github.com/freebsd/freebsd-ports/tree/52d456130ecf6d8e22aec663f84a7801b6fac3f0)
+  (main of 19.11.2026; `ports_commit` in [`tools/build.sh`](tools/build.sh), moved to the
   latest main before a build: the latest versions of the ports, aZ). The ports
   framework takes it as `OVERLAYS`: `bsd.port.mk` includes
   [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk), takes `Mk/Uses/<name>.mk` of the overlay
@@ -640,8 +640,7 @@ Names and origins as the ports, files at the paths of the ports:
   with the names, origins, versions and paths of the official packages. `openjdk21`
   takes the version, distinfo and patches of the official port of the pinned commit
   as they are (a new version comes with the pin; of its patches the two that link
-  fontconfig are left out, by name and SHA-256; 21.0.13.1+2, the security release
-  of 17.11.2026, ahead of the pin, until the pin has it) and builds OpenJDK 21 headless
+  fontconfig are left out, by name and SHA-256) and builds OpenJDK 21 headless
   (`--enable-headless-only`: `libawt_headless`, no `libawt_xawt` and
   `libsplashscreen`, so giflib and libpng stay bundled and unused; without the
   headers of X11 too, with the change of OpenJDK for that backported, JDK-8376684 of
@@ -927,7 +926,10 @@ What it does, with the logic of poudriere:
   (`FETCH_`, `EXTRACT_`, `PATCH_`, `BUILD_` or `PKG_DEPENDS`) gets the official package
   in its chroot, and the hash of our port is not in its `az_hash`; a port that runs
   with it (`LIB_` or `RUN_DEPENDS`) or builds an extension for it (a `FLAVOR` `py*`)
-  gets ours (`results/hashes.txt` names the tools a port gets official);
+  gets ours (`results/hashes.txt` names the tools a port gets official); automake
+  (`devel/automake`) is ours, the official port as it is: the `Mk/Uses/autoreconf.mk`
+  of a new pin can want an automake the official packages do not have yet (19.11.2026:
+  `automake>=1.20`, az failed without it);
 - up to `AZ_JOBS` ports at once (default 4), in waves: the ports whose ports of this
   tree they need are done form a wave, the biggest first, each in its chroot with its
   log and its own packages directory (two packages with the same files, `php84-mysqlnd`
