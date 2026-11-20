@@ -704,6 +704,23 @@ s_fmt() {
 # APR-util as the port without its options (autoreconf for its patch of
 # build/dbm.m4, as the port), with the expat of this tree and the DBM of its own
 # (SDBM): no Berkeley DB, GDBM or NDBM, no database, LDAP or crypto drivers
+# S-Lang, the screen library of misc/mc (aZ, 20.11.2026): the library alone (src/:
+# libslang.so.2, slang.h, slcurses.h; slang.pc), not slsh and the modules of the port
+# (iconv, onig, pcre, png, zlib); one job, as the port (MAKE_JOBS_UNSAFE); its documents
+# out. The terminal descriptions: the termcap of the base system (USE_TERMCAP, -ltermcap,
+# which is libtinfow), as the port has it: FreeBSD has no terminfo directory, and
+# configure takes S-Lang's own reader of one when the build machine has one, which
+# would find no terminal on a server; so it is checked
+s_slang() {
+    fix_guess "$1"
+    (cd "$1" && ./configure --prefix="$S" --libdir="$S/lib" --includedir="$S/include" \
+        --with-pkgconfigdir="$S/lib/pkgconfig" --without-iconv --without-onig --without-pcre \
+        --without-png --without-z &&
+        { grep -q '^#define USE_TERMCAP 1' src/sysconf.h ||
+            { echo "== slang: no USE_TERMCAP in src/sysconf.h (a terminfo directory on the build machine)"; exit 1; }; } &&
+        gmake -C src elf && gmake -C src install-elf && gmake install-pkgconfig &&
+        rm -rf "$S/share/doc/slang")
+}
 s_apr() {
     fix_guess "$1"
     apu="$(ls -d "$1"/../apr-util-* 2> /dev/null | head -n 1)"

@@ -79,7 +79,7 @@
 | `libimagemagick6` | `graphics/libimagemagick6` | библиотеки ImageMagick 6 (`libMagickCore-6`, `libMagickWand-6` в `/usr/local/az/lib`), их заголовки, `.pc`, `MagickWand-config` (`/usr/local/az/libexec/ImageMagick-6/bin`) и `etc/ImageMagick-6` с нашей политикой; зависимость `ImageMagick6`, `ImageMagick67` и модуля imagick6 |
 | `libimagemagick7` | `graphics/libimagemagick7` | библиотеки ImageMagick 7 (`libMagickCore-7.so`, `libMagickWand-7.so` в `/usr/local/az/lib`), их заголовки, `.pc`, `MagickWand-config` и статическая сборка, и `etc/ImageMagick-7` с нашей политикой; зависимость `ImageMagick7`, `ImageMagick67` и модуля imagick7 |
 | `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) с форматами нашего ImageMagick; его библиотеки в `/usr/local/az/lib`, с ними линкуются `gm` и модуль gmagick |
-| `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; GLib из `glib`, libssh2 из az, PCRE2 из `pcre2`; zip, 7z, rar и образы ISO — через `tar` базовой системы (имена zip из Windows — в CP866); исправления mc после 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), у каждого — источник): переполнение `%cd` длинным именем в архиве, Reget, портивший следующие файлы копирования, мышь при `TERM=xterm` (Gentoo) и падение при протаскивании, выход из subshell на FreeBSD (NetBSD), своё приглашение tcsh, приглашение с байтами не UTF-8, дескриптор канала subshell (Debian), строки «ls -l» с именами в один байт (Alpine), ftp: переподключение после простоя, пароль из `~/.netrc`; копии, клонирующие блоки на ZFS (`copy_file_range`, upstream #5082); наши: ни одной своей строки mc (его cd, инициализация, меню пользователя) в истории subshell на tcsh |
+| `mc` | `misc/mc` | Midnight Commander: редактор, subshell, кодировки, SFTP; экран — S-Lang из az (умолчание mc; без 200 мс ESCDELAY ncurses на каждый Esc), GLib из `glib`, libssh2 из az, PCRE2 из `pcre2`; zip, 7z, rar и образы ISO — через `tar` базовой системы (имена zip из Windows — в CP866); исправления mc после 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), у каждого — источник): переполнение `%cd` длинным именем в архиве, Reget, портивший следующие файлы копирования, мышь при `TERM=xterm` (Gentoo) и падение при протаскивании, выход из subshell на FreeBSD (NetBSD), своё приглашение tcsh, приглашение с байтами не UTF-8, дескриптор канала subshell (Debian), строки «ls -l» с именами в один байт (Alpine), ftp: переподключение после простоя, пароль из `~/.netrc`; копии, клонирующие блоки на ZFS (`copy_file_range`, upstream #5082); наши: ни одной своей строки mc (его cd, инициализация, меню пользователя) в истории subshell на tcsh |
 | `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 и PCRE 8.45, официальные порты: PCRE всех пакетов (PHP, Apache, git, wget, mc, MariaDB; потом nginx) |
 | `git` | `devel/git` | git без Perl, Python, Tcl/Tk, gettext, man-страниц и git daemon; HTTPS через наш `curl`, `git grep -P` с `pcre2` |
 | `apache24`, `ap24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 только с prefork и модулями серверов (и cgi, env, headers), без SSL; APR и libmaxminddb из az |
@@ -263,8 +263,9 @@
 - **`misc/mc`**: пакет `mc` вместо официального: Midnight Commander с редактором,
   subshell, кодировками и SFTP, без X11, переводов и Aspell
   ([`misc/mc/files/mc.conf`](misc/mc/files/mc.conf): что и почему), собирает его
-  [`tools/mc-build.sh`](tools/mc-build.sh) на разделяемых GLib из `devel/glib20` и
-  libssh2 из az, с исправлениями `files/*.patch` (из upstream после 4.8.33, из Gentoo,
+  [`tools/mc-build.sh`](tools/mc-build.sh) на разделяемых GLib из `devel/glib20`,
+  libssh2 и S-Lang из az (экранная библиотека — умолчание mc вместо ncurses базы; aZ,
+  20.11.2026), с исправлениями `files/*.patch` (из upstream после 4.8.33, из Gentoo,
   Debian, NetBSD и Alpine и два наших: в каждом патче — откуда, что и зачем; проверяет
   `tools/mc-test.sh` — то, что видно в терминале script(1)). В
   subshell на tcsh в истории (стрелка вверх, `history`, `~/.history`) остаётся то, что

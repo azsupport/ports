@@ -29,8 +29,8 @@
 # (tests/lib/vfs/vfs_clone_file.c, with check of devel/check, in a build of its own),
 # with files/ubsdtar in libexec/mc/extfs.d, its VERSIONS in
 # share/doc/mc and its licence in share/licenses/mc. So mc needs the packages az and
-# glib (with pcre2) and libraries of the base system (ncursesw, libutil, libz,
-# libthr, libc). The work directory is AZ_WORK/mc (default
+# glib (with pcre2) and libraries of the base system (libutil, libz, libthr, libc;
+# the termcap of libtinfow through the S-Lang of az, the screen of mc). The work directory is AZ_WORK/mc (default
 # /var/tmp/az-work/mc). Results go to AZ_RESULTS (default mc-results/ of the current
 # directory: summary.txt, a log per port, bins.txt, version.txt, VERSIONS); the
 # summary is printed at the end.
@@ -166,8 +166,8 @@ glib_dir() {
 # configure with the paths of the port and the configure lines of mc.conf; the
 # programs its scripts run at the paths of the servers, not those the build machine
 # happens to have (configure takes them from PATH): Perl and zip of the packages,
-# unzip of the base system, Python and Ruby from PATH; ncursesw of the base system
-# with its wide characters (NCURSES_WIDECHAR, as the port); PIE, RELRO, BIND_NOW
+# unzip of the base system, Python and Ruby from PATH; the screen of the S-Lang of az
+# (files/mc.conf; slang.pc among those of PKG_CONFIG_LIBDIR); PIE, RELRO, BIND_NOW
 # need_defines <config.h> <macro>...: each macro defined there (by configure)
 need_defines() {
     _h="$1"; shift
@@ -184,7 +184,7 @@ clone_unit_test() {
     (
         cd "$1" || exit 1
         # shellcheck disable=SC2046
-        CFLAGS="$cflags -DNCURSES_WIDECHAR" CHECK_CFLAGS="-I/usr/local/include" \
+        CFLAGS="$cflags" CHECK_CFLAGS="-I/usr/local/include" \
             CHECK_LIBS="-L/usr/local/lib -lcheck" ./configure --disable-silent-rules --enable-tests \
             PERL=/usr/local/bin/perl PERL_FOR_BUILD=/usr/local/bin/perl $(conf_opts) &&
             grep -q "^#define HAVE_TESTS 1" config.h &&
@@ -221,7 +221,7 @@ b_mc() {
     (
         cd "$1" || exit 1
         # shellcheck disable=SC2046
-        CFLAGS="$cflags -fPIE -DNCURSES_WIDECHAR" LDFLAGS="$LDFLAGS -pie -Wl,-z,relro,-z,now" \
+        CFLAGS="$cflags -fPIE" LDFLAGS="$LDFLAGS -pie -Wl,-z,relro,-z,now" \
             ./configure --prefix="$F" --localstatedir=/var --mandir="$F/share/man" --disable-silent-rules \
             PERL=/usr/local/bin/perl PERL_FOR_BUILD=/usr/local/bin/perl "PYTHON=/usr/bin/env python3" \
             "RUBY=/usr/bin/env ruby" ZIP=/usr/local/bin/zip UNZIP=/usr/bin/unzip $(conf_opts) &&
@@ -285,6 +285,9 @@ manifest() {
         echo "libssh2: the shared library of $A/lib (the package az, with that run path), with the"
         echo "OpenSSL of the base system:"
         awk '$1 == "libssh2" { print "    " $0 }' \
+            "$A/share/doc/az/VERSIONS" 2>/dev/null
+        echo "S-Lang, the screen of mc: the shared library of $A/lib (the package az):"
+        awk '$1 == "slang" { print "    " $0 }' \
             "$A/share/doc/az/VERSIONS" 2>/dev/null
         echo
         while read -r n pkgname port; do
@@ -350,7 +353,7 @@ check_bins() {
     TERM=dumb "$f" --version > "$res/version.txt" 2>&1
     vrc=$?
     miss=""
-    for w in "Built with GLib" "Built with libssh2" "With builtin editor" "With subshell support as default" \
+    for w in "Built with GLib" "Built with S-Lang" "Built with libssh2" "With builtin editor" "With subshell support as default" \
             "With multiple codepages support" sftpfs; do
         grep -q "$w" "$res/version.txt" || miss="$miss, \"$w\""
     done
@@ -409,7 +412,7 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
     echo "mc-build: this CPU ${why:-cannot tell the features of} -march=$cputype" >&2
     exit 1
 fi
-for f in lib/libssh2.so lib/pkgconfig/libssh2.pc include/libssh2.h; do
+for f in lib/libssh2.so lib/pkgconfig/libssh2.pc include/libssh2.h lib/libslang.so lib/pkgconfig/slang.pc include/slang.h; do
     if [ ! -e "$A/$f" ]; then
         printf '%-8s FAIL  no %s of the shared libraries in %s: install the package az first (az/az)\n' libs "$f" "$A" >> "$res/summary.txt"
         echo "mc-build: no $A/$f; install the package az first (the port az/az)" >&2
