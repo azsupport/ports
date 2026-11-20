@@ -84,6 +84,10 @@ post-install:
 	${CHMOD} +x ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR}/buildout/support-binaries/*
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR}/buildout/ruby/*/passenger_native_support.so
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR}/buildout/support-binaries/PassengerAgent
+# the static libraries of buildout (libboost_oxt.a and the others the nginx module links)
+# without the debug information of their objects (rake builds them with -g; no debug in
+# our packages, aZ 17.11.2026)
+	${FIND} ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR}/buildout -type f -name '*.a' -exec ${STRIP_CMD} --strip-debug {} +
 	${FIND} ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR} -type d -empty -delete
 	${RM} ${STAGEDIR}${PREFIX}/bin/passenger-install-apache2-module ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR}/bin/passenger-install-apache2-module
 	${RM} ${STAGEDIR}${PREFIX}/bin/passenger-install-nginx-module ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR}/bin/passenger-install-nginx-module

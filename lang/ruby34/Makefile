@@ -189,6 +189,9 @@ post-install-DEBUG-off:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/ruby${RUBY_SUFFIX}
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/libruby${RUBY_SHLIBVER}.so.${RUBY_SHLIBVER}
 	${FIND} ${STAGEDIR}${RUBY_ARCHLIBDIR} -type f -name '*\.so' -exec ${STRIP_CMD} {} \;
+# the static library without the debug information of its objects (the Rust of YJIT is
+# built with -g; no debug in our packages, aZ 17.11.2026)
+	${STRIP_CMD} --strip-debug ${STAGEDIR}${PREFIX}/lib/libruby${RUBY_SHLIBVER}-static.a
 .endif
 
 post-install-DOCS-on:
