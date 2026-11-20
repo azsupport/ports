@@ -1,7 +1,8 @@
-# textproc/manticore14 of azsupport/ports (aZ, 16.11.2026: Manticore Search 14 and 31,
-# one of the two installed; with Galera; Buddy after his check): Manticore Search 14.7.6
-# of 29.11.2025, the last of the line 14 (textproc/manticore31: the current line). The
-# FreeBSD tree has no port of it (textproc/sphinxsearch only): written for this tree.
+# textproc/manticore14 of azsupport/ports (aZ, 16.11.2026: Manticore Search 14 and the
+# current line, 32 since 20.11.2026, one of the two installed; with Galera; Buddy after
+# his check): Manticore Search 14.7.6 of 29.11.2025, the last of the line 14
+# (textproc/manticore32: the current line). The FreeBSD tree has no port of it
+# (textproc/sphinxsearch only): written for this tree.
 # - searchd, indexer, indextool, spelldump, wordbreaker; the rc.d script manticore with
 #   profiles (manticore_profiles: a config, pid file and data of its own each, as the
 #   profiles of redis); the config /usr/local/etc/manticore.conf (aZ, 16.11.2026; the
@@ -23,7 +24,7 @@
 # - what az has not, in the build only, static, from distfiles (cmake downloads nothing:
 #   FETCHCONTENT_SOURCE_DIR_*, GALERA_SOURCE_DIR, COLUMNAR_LOCATOR): RE2 2015-06-01
 #   patched by Manticore (aZ's recipe: WITH_RE2_FORCE_STATIC), libstemmer (Snowball 3.0.3
-#   of Manticore, that of Manticore 31: the libstemmer_c.tgz of snowballstem.org 14.7.6
+#   of Manticore, that of Manticore 31 and 32: the libstemmer_c.tgz of snowballstem.org 14.7.6
 #   took is no longer there), cctz, CRoaring, uni-algo, nlohmann/json, cppjieba with
 #   limonp (its dictionaries in share/manticore/jieba), the API of columnar c27-s18-k9;
 # - time zones: share/manticore/tzdata a link to /usr/share/zoneinfo (aZ);
@@ -64,7 +65,7 @@ USES=		cmake compiler:c++17-lang mysql ssl
 USE_GITHUB=	yes
 GH_ACCOUNT=	manticoresoftware
 GH_PROJECT=	manticoresearch
-# the line 14 (textproc/manticore31 sets its own): cctz, nlohmann/json and columnar
+# the line 14 (textproc/manticore32 sets its own): cctz, nlohmann/json and columnar
 MC_TUPLES?=	manticoresoftware:cctz:cf11f758e2532161c9e21c3ec2461b0fafb15853:cctz/freebsd-deps/cctz \
 		nlohmann:json:v3.10.5:nljson/freebsd-deps/nljson \
 		manticoresoftware:columnar:c27-s18-k9:columnar/freebsd-deps/columnar
@@ -111,7 +112,7 @@ CMAKE_ARGS=	-DBUILD_TESTING=OFF \
 # configure time in builds of their own: the minimum of CMake 4 and the flags of the
 # make.conf of the build (-O3, the -march of the level; else they have the flags of
 # CMake alone) through the environment; the API of columnar: of the sources here
-# (COLUMNAR_LOCATOR; the line 31 has it in its submodule mcl, MCL_LOCAL_RUNTIME=OFF)
+# (COLUMNAR_LOCATOR; the line 32 has it in its submodule mcl, MCL_LOCAL_RUNTIME=OFF)
 CONFIGURE_ENV=	CMAKE_POLICY_VERSION_MINIMUM=3.5 CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}"
 MC_COLUMNAR_ENV?=	COLUMNAR_LOCATOR="SOURCE_DIR ${MC_DEPS}/columnar"
 CONFIGURE_ENV+=	${MC_COLUMNAR_ENV}
@@ -127,7 +128,7 @@ GID_FILES=	${PORTSDIR}/GIDs ${FILESDIR}/GIDs
 SUB_LIST=	USERS=${USERS} GROUPS=${GROUPS} MC_LINE=${PKGNAMESUFFIX}
 SUB_FILES=	pkg-message
 
-CONFLICTS_INSTALL?=	manticore31
+CONFLICTS_INSTALL?=	manticore32
 
 OPTIONS_DEFINE=	DOCS MANPAGES
 OPTIONS_DEFAULT=	MANPAGES

@@ -1,6 +1,7 @@
 # textproc/manticore14-columnar of azsupport/ports (aZ, 16.11.2026: Manticore Search 14
-# and 31 with embeddings): the libraries of Manticore Columnar 9.0.0 (tag c27-s18-k9,
-# 29.11.2025, the one of Manticore 14.7.6) that searchd of textproc/manticore14 loads
+# and the current line, 32 since 20.11.2026, with embeddings): the libraries of
+# Manticore Columnar 9.0.0 (tag c27-s18-k9, 29.11.2025, the one of Manticore 14.7.6)
+# that searchd of textproc/manticore14 loads
 # from share/manticore/modules: lib_manticore_columnar (columnar storage),
 # lib_manticore_secondary (secondary indexes), lib_manticore_knn (vector search) and
 # lib_manticore_knn_embeddings (auto embeddings: models of HuggingFace, Sentence
@@ -45,7 +46,7 @@ USE_GITHUB=	yes
 GH_ACCOUNT=	manticoresoftware
 GH_PROJECT=	columnar
 GH_TAGNAME?=	c27-s18-k9
-# the line 14 (textproc/manticore31-columnar sets its own): hnswlib
+# the line 14 (textproc/manticore32-columnar sets its own): hnswlib
 MC_HNSW?=	manticoresoftware:hnswlib:d7bb3bbd59220f62203012b2f649aa537cc97cdc:hnsw/freebsd-deps/hnswlib
 GH_TUPLE=	${MC_HNSW} \
 		manticoresoftware:FastPFor:5f6b7df8f0dba402bb616a81ca510bfeb04c42ce:fastpfor/freebsd-deps/fastpfor \
@@ -360,7 +361,7 @@ CMAKE_ARGS=	-DBUILD_TESTING=OFF -DBUILD_EMBEDDINGS_LOCALLY=ON \
 		-DFETCHCONTENT_SOURCE_DIR_STREAMVBYTE=${MC_DEPS}/streamvbyte \
 		${MC_CMAKE_ARGS}
 # in the builds cmake runs: cargo (the vendored crates, Oniguruma of az, opt-level 3; at
-# configure time in the line 14, at build time in the line 31), the minimum of CMake 4
+# configure time in the line 14, at build time in the line 32), the minimum of CMake 4
 # for the dependencies, the cache of the built dependencies; CFLAGS and CXXFLAGS for the
 # dependencies built at configure time (at build time MAKE_ENV has them)
 CONFIGURE_ENV=	${CARGO_ENV} CACHEB=${WRKDIR}/columnar-cache \
@@ -370,7 +371,7 @@ CONFIGURE_ENV=	${CARGO_ENV} CACHEB=${WRKDIR}/columnar-cache \
 MAKE_ENV=	${CARGO_ENV} CACHEB=${WRKDIR}/columnar-cache \
 		CMAKE_POLICY_VERSION_MINIMUM=3.5 PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc \
 		CARGO_PROFILE_RELEASE_OPT_LEVEL=3
-# the builds _avx2 (and _avx512 of the line 31) are ExternalProjects that configure,
+# the builds _avx2 (and _avx512 of the line 32) are ExternalProjects that configure,
 # build and install themselves and their dependencies into the build directory at
 # build time: USES=ninja puts DESTDIR (the stage) in MAKE_ENV, so the build runs
 # without it (with it they install into the stage and find nothing where they look);
@@ -380,10 +381,10 @@ DO_MAKE_BUILD=	${SETENVI} ${WRK_ENV} ${MAKE_ENV:N${DESTDIRNAME}=*} ${MAKE_CMD} \
 # libonig of az by its run path (cargo.mk gives LDFLAGS to rustc as link-arg)
 LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
 
-CONFLICTS_INSTALL?=	manticore31-columnar
+CONFLICTS_INSTALL?=	manticore32-columnar
 
 # the line of Manticore (14, 31), and the builds of the libraries: plain and for AVX2 (the
-# line 31: AVX-512 too); searchd takes the one the CPU runs
+# line 32: AVX-512 too); searchd takes the one the CPU runs
 MC_LINE=	${PKGNAMESUFFIX:S/-columnar//}
 MC_BUILDS?=	plain _avx2
 PLIST_FILES=	${DATADIR_REL}/modules/lib_manticore_knn_embeddings.so

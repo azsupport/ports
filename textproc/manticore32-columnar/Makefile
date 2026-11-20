@@ -1,8 +1,11 @@
-# textproc/manticore31-columnar of azsupport/ports (aZ, 16.11.2026: Manticore Search 14
-# and 31 with embeddings): the libraries of Manticore Columnar for Manticore 31.0.24 (its
-# submodule mcl: columnar b5ffd362 of 03.11.2026, one commit after 14.5.6), searchd of
-# textproc/manticore31 loads them. A slave of textproc/manticore14-columnar (its head says
-# what the build is); here what the line 31 has of its own:
+# textproc/manticore32-columnar of azsupport/ports (aZ, 16.11.2026: Manticore Search 14
+# and the current line with embeddings; 20.11.2026: the line 32 in the place of 31): the
+# libraries of Manticore Columnar for Manticore 32.1.6 (its submodule mcl: columnar
+# 12f86b42 of 16.11.2026, 14.5.8 and two commits; after b5ffd362 of the line 31 only
+# fixes of the accessors: the rows of a chunk in a columnar scan, a slowdown), searchd of
+# textproc/manticore32 loads them. A slave of textproc/manticore14-columnar (its head says
+# what the build is); here what the line 32 has of its own (its embeddings, hnswlib and
+# crates are those of b5ffd362):
 # - hnswlib 65c9db8c; the builds of the libraries plain, _avx2 and _avx512;
 # - the embeddings (candle of manticoresoftware 0051854b) without ONNX Runtime (aZ,
 #   16.11.2026): upstream links a static ONNX Runtime it downloads for Linux, macOS and
@@ -11,9 +14,9 @@
 #   such a model gives an error; safetensors and GGUF models (candle) and the APIs of
 #   OpenAI, Voyage and Jina work.
 
-DISTVERSION=	14.5.6-1
-PKGNAMESUFFIX=	31-columnar
-GH_TAGNAME=	b5ffd36220fdc92b5b06ea706ee4ab22266d2d6f
+DISTVERSION=	14.5.8-2
+PKGNAMESUFFIX=	32-columnar
+GH_TAGNAME=	12f86b4299dcef1495972838b76931bf46e4426f
 MC_HNSW=	manticoresoftware:hnswlib:65c9db8c2c049c6d64318a137c553e06bc3deb5e:hnsw/freebsd-deps/hnswlib
 MC_BUILDS=	plain _avx2 _avx512
 MC_CMAKE_ARGS=	-DEMBEDDINGS_ONNX=OFF

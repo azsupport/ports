@@ -1,10 +1,10 @@
-TIMESTAMP = 1794830066
-SHA256 (manticore/manticoresoftware-manticoresearch-31.0.24_GH0.tar.gz) = f75aa8437743f1d171daf1edec64af096fa804ae56c961ef9a572820016cf05a
-SIZE (manticore/manticoresoftware-manticoresearch-31.0.24_GH0.tar.gz) = 18125278
+TIMESTAMP = 1795210966
+SHA256 (manticore/manticoresoftware-manticoresearch-32.1.6_GH0.tar.gz) = 6af2ab6df0beba7e20c3b9be65f12a6f360a3094c26c647cf309df30fa007524
+SIZE (manticore/manticoresoftware-manticoresearch-32.1.6_GH0.tar.gz) = 18237632
 SHA256 (manticore/manticoresoftware-cctz-8ca8e325cb3d8a0b768f7530d0e31a907982c6d4_GH0.tar.gz) = 7f8b4ab66f5478345357b940b537135970bc8368e95eae762427f7ee78af57cf
 SIZE (manticore/manticoresoftware-cctz-8ca8e325cb3d8a0b768f7530d0e31a907982c6d4_GH0.tar.gz) = 220816
-SHA256 (manticore/manticoresoftware-columnar-b5ffd36220fdc92b5b06ea706ee4ab22266d2d6f_GH0.tar.gz) = 98d21841c399db88e4887ae40702e7122fece4ea2203036471f45311dbfca2a1
-SIZE (manticore/manticoresoftware-columnar-b5ffd36220fdc92b5b06ea706ee4ab22266d2d6f_GH0.tar.gz) = 5827970
+SHA256 (manticore/manticoresoftware-columnar-12f86b4299dcef1495972838b76931bf46e4426f_GH0.tar.gz) = 54c4e48e283280eabbe664627bd6d1cb07306e6a8bf3fe9557dc366f1a9213f0
+SIZE (manticore/manticoresoftware-columnar-12f86b4299dcef1495972838b76931bf46e4426f_GH0.tar.gz) = 5828159
 SHA256 (manticore/manticoresoftware-galera-dfce76623c63da32fe3154dc010bf22a399035e8_GH0.tar.gz) = 6bd23c8cc956348bb7b01c47b18b6039780de2ada70074f1bd3bca3c45d9d3d3
 SIZE (manticore/manticoresoftware-galera-dfce76623c63da32fe3154dc010bf22a399035e8_GH0.tar.gz) = 3318595
 SHA256 (manticore/percona-wsrep-API-2c211e1aad315e3118969beada4d4767118be88f_GH0.tar.gz) = 30ae3908e421e11c584d0537f0886a9074c3b899a83f7bf8ccc19dbaa1d8c927

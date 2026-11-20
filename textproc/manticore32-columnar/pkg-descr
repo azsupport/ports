@@ -1,5 +1,5 @@
-Manticore Columnar Library 14.5.6 and one commit, the one of Manticore Search 31:
-the modules that searchd of manticore31 loads from share/manticore/modules.
+Manticore Columnar Library 14.5.8 and two commits, the one of Manticore Search 32:
+the modules that searchd of manticore32 loads from share/manticore/modules.
 Columnar storage, secondary indexes, vector search (KNN) and auto embeddings
 (safetensors and GGUF models of HuggingFace, or the APIs of OpenAI, Voyage and Jina;
 no ONNX Runtime), each plain and for CPUs with AVX2 and AVX-512; built for
