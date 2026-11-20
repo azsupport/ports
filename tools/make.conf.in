@@ -4,40 +4,72 @@
 #
 # The first part is the make.conf of aZ's servers: the same lines go into the
 # make.conf of poudriere (poudriere.d/make.conf), which sets the paths itself.
+# The style is that of style.Makefile(5) (aZ, 20.11.2026: «сделай читаемое на глаз
+# человека ... по RFC какому-нибудь для подобных конфигов»): VAR= with no space before
+# the =, then one tab (the value in column 9) or, after a longer name, one space; the
+# values sorted; a long list one value a line, each with a trailing backslash, and an
+# empty line after it.
 
 # the x86-64 level of the run (x86-64-v3 or x86-64-v2): bsd.cpu.mk makes -march of it
-CPUTYPE?=@CPUTYPE@
+CPUTYPE?= @CPUTYPE@
 # the framework adds -fstack-protector-strong (bsd.ssp.mk)
-CFLAGS=-O3 -pipe -fno-strict-aliasing
+CFLAGS=	-O3 -pipe -fno-strict-aliasing
 # the kernel of the servers (make buildkernel, sys/conf/kern.pre.mk); the ports and the
 # kernel modules of the ports do not read it (sys/conf/kmod.mk)
-COPTFLAGS=-O3 -pipe
+COPTFLAGS= -O3 -pipe
+
 # the ports with USES=jpeg (gd, ImageMagick) take mozjpeg, as on the servers
-JPEG_PORT=graphics/mozjpeg
-# the ports with USES=mysql take the client of our MariaDB 10.11
-# (databases/mariadb1011-client; the default of the ports is MySQL 8.4), as on the
-# servers (aZ, 15.11.2026); Python 3.12 (lang/python312) and Ruby 3.4 (lang/ruby34)
-# fixed as well, so that a move of PYTHON_DEFAULT or RUBY_DEFAULT of the pinned tree
-# changes no port of ours (aZ, 20.11.2026: «дефолтный руби добавляй в наш make.conf как и
-# марию и питон»; it builds every port again, so it goes in with the build runners)
-DEFAULT_VERSIONS+=mysql=10.11m python=3.12 ruby=3.4
-DISABLE_VULNERABILITIES=yes
-DISABLE_LICENSES=yes
-BATCH=yes
+JPEG_PORT= graphics/mozjpeg
+# The versions fixed, so that neither a move of a default of the pinned tree nor what
+# is installed on a machine changes a port of ours: mysql, the client of our MariaDB
+# 10.11 (databases/mariadb1011-client; the default of the ports is MySQL 8.4), as on
+# the servers (aZ, 15.11.2026); perl5 and ssl, else bsd.default-versions.mk takes the
+# installed perl and an installed OpenSSL of the ports; php, the version of a port
+# with USES=php and no PHP_VER of its own (Mk/Uses/php.mk; aZ, 20.11.2026: «давай
+# лучше 8.3, она более обкатаная»); python and ruby (aZ, 20.11.2026: «дефолтный руби
+# добавляй в наш make.conf как и марию и питон»). It builds every port again, so it
+# goes in with the build runners.
+DEFAULT_VERSIONS+= mysql=10.11m perl5=5.42 php=8.3 python=3.12 ruby=3.4 ssl=base
+
+BATCH=	yes
+DISABLE_LICENSES= yes
+DISABLE_VULNERABILITIES= yes
+
+# No GSSAPI of the base (WITHOUT_KERBEROS in the src.conf of the servers): a port with
+# the single group GSSAPI takes GSSAPI_NONE whatever its default, GSSAPI_BASE being
+# unset below (bsd.options.mk sets OPTIONS_SET, then unsets OPTIONS_UNSET); a port
+# whose group has no GSSAPI_NONE stops at check-config with its message.
+OPTIONS_SET= GSSAPI_NONE
 # DTRACE too (aZ, 11.11.2026): faster, and not needed in production; NLS too (the
 # translations and libintl; aZ, 15.11.2026: off everywhere, from 16.11.2026)
-OPTIONS_UNSET=X11 WAYLAND GUI DBUS CUPS DEBUG TEST DOCS EXAMPLES INFO MAN3 MANPAGES DTRACE NLS
+OPTIONS_UNSET= \
+	CUPS \
+	DBUS \
+	DEBUG \
+	DOCS \
+	DTRACE \
+	EXAMPLES \
+	GSSAPI_BASE \
+	GUI \
+	INFO \
+	MAN3 \
+	MANPAGES \
+	NLS \
+	TEST \
+	WAYLAND \
+	X11 \
+
 # the kernel of the servers where its config is (az.st of aZ; a build machine has none)
 .if exists(/usr/src/sys/amd64/conf/az.st)
-KERNCONF=az.st
+KERNCONF= az.st
 .endif
 
 # The paths of tools/build.sh. PORT_DBDIR is its own and empty, so that the options
 # saved by make config on a build server (/var/db/ports) do not change a build: only
 # the Makefiles of the ports and the lines above decide.
-PORTSDIR=@PORTSDIR@
-OVERLAYS=@OVERLAYS@
-WRKDIRPREFIX=@WRKDIRPREFIX@
-PACKAGES=@PACKAGES@
-DISTDIR=@DISTDIR@
-PORT_DBDIR=@PORT_DBDIR@
+PORTSDIR= @PORTSDIR@
+OVERLAYS= @OVERLAYS@
+WRKDIRPREFIX= @WRKDIRPREFIX@
+PACKAGES= @PACKAGES@
+DISTDIR=	@DISTDIR@
+PORT_DBDIR= @PORT_DBDIR@
