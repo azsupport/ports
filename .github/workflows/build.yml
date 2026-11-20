@@ -491,6 +491,19 @@ jobs:
                 echo "debug: OK ($nd packages of this run: no debug information, stripped)" >> results/checks.txt
               fi
             fi
+            # no manual pages, docs or info pages (aZ, 20.11.2026): every package of the
+            # repository (tools/docs-check.sh in tools/build.sh); a FAIL keeps the run from
+            # being published
+            if [ -s results/docs-check.txt ]; then
+              nd="$(grep -c . results/docs-check.txt || :)"
+              nf="$(grep -c '^FAIL' results/docs-check.txt || :)"
+              if [ "$nf" -gt 0 ]; then
+                echo "docs: FAIL ($nf of $nd packages with manual pages, docs or info pages: $(awk '$1 == "FAIL" { sub(/:$/, "", $2); printf "%s ", $2 }' results/docs-check.txt | cut -c1-600)- results/docs-check.txt)" >> results/checks.txt
+                rc=1
+              else
+                echo "docs: OK ($nd packages of the repository: no manual pages, docs or info pages)" >> results/checks.txt
+              fi
+            fi
             if [ -n "${AZ_PLAN:-}" ]; then
               echo "plan (AZ_PLAN): no checks and no tests (results/plan.txt)" >> results/checks.txt
             elif [ -f results/time-limit ]; then

@@ -2088,6 +2088,14 @@ for f in "$repo"/*,*.pkg; do
     t="$(printf '%s' "${f##*/}" | tr ',' '.')"
     mv -f "$f" "$repo/$t" && say "the repository: ${f##*/} as $t (a comma does not reach the release)"
 done
+# no manual pages, docs or info pages in a package (aZ, 20.11.2026): every package of the
+# repository, built now or kept (tools/docs-check.sh); results/docs-check.txt, of which
+# build.yml makes "docs: OK|FAIL" of the checks (a FAIL keeps the run from being published)
+if [ -f "$top/tools/docs-check.sh" ]; then
+    # shellcheck disable=SC2046
+    sh "$top/tools/docs-check.sh" "$repo"/*.pkg > "$res/docs-check.txt" 2>&1 ||
+        say "docs: $(grep -c '^FAIL' "$res/docs-check.txt") of the packages of the repository with manual pages, docs or info pages (results/docs-check.txt)"
+fi
 nrepo="$(npkg "$repo")"
 sh "$top/tools/pkg-repo-sign.sh" "$repo" "$res/pkg-repo.log"
 src=$?

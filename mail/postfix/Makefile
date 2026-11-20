@@ -448,6 +448,11 @@ do-install:
 	${SED} -i '' -e '/^\$$readme_directory/d' -e '/^\$$html_directory/d' \
 		${STAGEDIR}${META_DIRECTORY}/postfix-files
 .endif
+# No manual pages in our packages (Mk/bsd.overlay.mk, az-no-docs), so no entries of
+# manpage_directory in postfix-files either (aZ, 20.11.2026): the "postfix set-permissions"
+# of the package script chowned $manpage_directory/man1/mailq.1.gz of the main.cf of the
+# server (/usr/local/man of an older main.cf: "No such file or directory")
+	${SED} -i '' -e '/^\$$manpage_directory/d' ${STAGEDIR}${META_DIRECTORY}/postfix-files
 	-@${STRIP_CMD} ${STRIP_LIBEXEC:S|^|${STAGEDIR}${DAEMONDIR}/|}
 	-@${STRIP_CMD} ${STAGEDIR}${PREFIX}/sbin/*
 	-@${STRIP_CMD} ${STAGEDIR}${SHLIB_DIRECTORY}/*.so

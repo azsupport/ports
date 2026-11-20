@@ -42,3 +42,65 @@ PKG_NOTE_az_hash=	${AZ_HASH}
 .if empty(LIB_DIRS:M${AZ_PREFIX}/lib)
 LIB_DIRS+=	${AZ_PREFIX}/lib
 .endif
+
+# AZ_OVERLAY: this tree (the directory above this Mk/), for the files of Mk/ the targets
+# below use
+AZ_OVERLAY:=	${.PARSEDIR:H}
+
+# No manual pages, documentation or info pages in our packages (aZ, 20.11.2026: «и доки и
+# маны мы не юзаем»; DOCS, MAN3 and MANPAGES were off already, but most ports install
+# their manual pages whatever the options, and the package script of postfix chowned the
+# manual pages of the main.cf of a server: "chown: /usr/local/man/man1/mailq.1.gz: No such
+# file or directory"). az-no-docs, a target of POST_PLIST (990 of the stage: after
+# compress-man and the add-plist-* targets), takes out of the stage share/man, man,
+# share/doc and share/info of the prefix and the manual directories of MANDIRS under it
+# (the man3 of Perl), and their lines out of the plist (files, @dir, @info and the other
+# keywords). tools/docs-check.sh (tools/build.sh) fails a repository with such a file.
+.if empty(POST_PLIST:Maz-no-docs)
+POST_PLIST+=	az-no-docs
+.endif
+.if !target(az-no-docs)
+az-no-docs:
+	@for d in ${MANDIRS:M${PREFIX}/*:S,^${PREFIX}/,,} man share/man share/doc share/info; do \
+		[ ! -e "${STAGEDIR}${PREFIX}/$$d" ] || ${RM} -r "${STAGEDIR}${PREFIX}/$$d"; \
+		${SED} -i '' -E -e "\#^(@[^[:space:]]+[[:space:]]+)?(${PREFIX}/)?$$d(/|\$$)#d" ${TMPPLIST}; \
+	done
+.endif
+
+# The keywords of pkg create for our packages: those of the official tree with those of
+# Mk/Keywords over them (pkg takes one directory, PLIST_KEYWORDS_DIR), copied by
+# az-keywords in the stage. Mk/Keywords/sample.ucl: @sample without "You may need to
+# manually remove ... if it is no longer needed." at an upgrade (see its head).
+.if empty(PKG_ENV:MPLIST_KEYWORDS_DIR=*)
+PKG_ENV+=	PLIST_KEYWORDS_DIR=${WRKDIR}/az-keywords
+.endif
+# the files of Mk/ the targets read (not makefiles): in the az_hash of every port
+.if empty(AZ_HASH_FILES:M${AZ_OVERLAY}/Mk/Keywords)
+AZ_HASH_FILES+=	${AZ_OVERLAY}/Mk/Keywords ${AZ_OVERLAY}/Mk/az-services.awk
+.endif
+.if empty(POST_PLIST:Maz-keywords)
+POST_PLIST+=	az-keywords
+.endif
+.if !target(az-keywords)
+az-keywords:
+	@${MKDIR} ${WRKDIR}/az-keywords
+	@${CP} ${KEYWORDS}/*.ucl ${AZ_OVERLAY}/Mk/Keywords/*.ucl ${WRKDIR}/az-keywords/
+.endif
+
+# The services of a package (aZ, 20.11.2026: at the end of pkg upgrade, the commands that
+# restart what was upgraded): an empty directory share/az/services/<service> for each
+# rc.d script of the package and for the service its modules belong to (lib/php/<API>
+# and etc/php<NN>/conf.d: php_fpm<NN>; libexec/nginx: nginx; libexec/apache24:
+# apache24). pkg counts the directories of a package it installs or removes as touched,
+# and the trigger of az (az/az/files/az-services.ucl) names the services touched in the
+# transaction that rc.conf enables.
+.if empty(POST_PLIST:Maz-services)
+POST_PLIST+=	az-services
+.endif
+.if !target(az-services)
+az-services:
+	@for s in $$(${AWK} -v p="${PREFIX}/" -f ${AZ_OVERLAY}/Mk/az-services.awk ${TMPPLIST} | ${SORT} -u); do \
+		${MKDIR} ${STAGEDIR}${PREFIX}/share/az/services/$$s; \
+		${ECHO_CMD} "@dir share/az/services/$$s" >> ${TMPPLIST}; \
+	done
+.endif
