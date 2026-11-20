@@ -26,7 +26,9 @@ name: Build the packages of the repository az
 # dependencies are done; 1: one after another, as before), stage after stage: the
 # groups of "ports" separated by ";", or for all of them the order of aZ (11.11.2026):
 # az, then PHP 5.6, 7.4, 8.1, 8.3, 8.2, 8.4 (each with mod_php and its modules), then
-# the rest; with "both", x86-64-v3 first, then x86-64-v2. With "configure_check"
+# the rest; with "both", x86-64-v3 first, then x86-64-v2; x86-64-v4 only by itself and
+# only where the CPU has AVX-512 (tools/cpu-check.sh: on the runner first, then in the
+# VM, a CPU without it stops the run before anything is built). With "configure_check"
 # each PHP port built is configured once more, with the errors of C of GCC 14+ and
 # clang 16+ as warnings, and compared with its build (AZ_CONFIGURE_CHECK of
 # tools/build.sh: results/configure-check.txt, a section of the report).
@@ -39,10 +41,11 @@ on:
         description: 'FreeBSD release'
         required: true
         default: '15.1'
+      # x86-64-v4 (AVX-512) is not in both: built only on aZ's word, on a CPU that has it
       cputype:
-        description: 'x86-64 level (CPUTYPE of make.conf)'
+        description: 'x86-64 level (CPUTYPE of make.conf); both: x86-64-v3, then x86-64-v2; x86-64-v4 (AVX-512) only by itself, the run stops at once on a CPU without it'
         type: choice
-        options: [x86-64-v3, x86-64-v2, both]
+        options: [x86-64-v3, x86-64-v2, x86-64-v4, both]
         default: x86-64-v3
       ports:
         description: 'Ports to build (category/port, separated by spaces; with the ports of this tree they need), in groups separated by " ; " built one after another; empty: all, az first, then PHP 5.6, 7.4, 8.1, 8.3, 8.2, 8.4, then the rest'
@@ -111,7 +114,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 350
-    # both: x86-64-v3 first, then x86-64-v2 (the order of aZ, 11.11.2026: v3 is needed first)
+    # both: x86-64-v3 first, then x86-64-v2 (the order of aZ, 11.11.2026: v3 is needed first);
+    # x86-64-v4 a job of its own
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -137,6 +141,19 @@ jobs:
         run: echo "AZ_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v5
+
+      # x86-64-v4 needs AVX-512 (AVX512F, AVX512BW, AVX512CD, AVX512DQ, AVX512VL): the
+      # packages of a level run in the build (configure tests, the tools a port builds and
+      # runs) and in the checks after it, and on a CPU without it they die with SIGILL. A
+      # runner without it stops the run here, before anything else; the VM, which can have
+      # less than its runner, is checked before tools/build.sh too (the step of the VM).
+      # The lines go into cpu-check.txt, which the report shows (tools/report.sh). x86-64-v2
+      # and v3 run on every runner (tools/az-build.sh checks the level before az anyway)
+      - name: The CPU of the runner and the level
+        if: ${{ matrix.cputype == 'x86-64-v4' }}
+        env:
+          CPUTYPE: ${{ matrix.cputype }}
+        run: sh tools/cpu-check.sh "$CPUTYPE" runner cpu-check.txt
 
       # the repository of the last run, published or not (a run that fails in PHP keeps
       # az and the libraries for the next one): the newest cache of the level
@@ -469,6 +486,15 @@ jobs:
             if [ -n "${AZ_PKG_KEY:-}" ]; then (umask 077 && printf '%s' "$AZ_PKG_KEY" > /root/.az-pkg-key.b64); fi; unset AZ_PKG_KEY
             trap 'rm -f /root/.az-pkg-key.b64' EXIT
             if [ -s /root/.az-pkg-key.b64 ]; then export AZ_PKG_KEY_FILE=/root/.az-pkg-key.b64; fi
+            # x86-64-v4: the CPU of the VM too, which can have less than its runner (anyvm
+            # takes AVX-512 off on an AMD runner under a hypervisor): without AVX-512 nothing
+            # is built or checked, results/rc is 1 and cpu-check.txt says why (the report)
+            if [ "$AZ_CPUTYPE" = x86-64-v4 ] && ! sh tools/cpu-check.sh "$AZ_CPUTYPE" VM cpu-check.txt; then
+              mkdir -p results
+              echo 1 > results/rc
+              echo "results/rc: 1 (nothing built: the CPU of the VM has not x86-64-v4)"
+              exit 0
+            fi
             rc=0
             sh tools/build.sh ${AZ_FORCE:+--force} --repo repo $AZ_PORTS || rc=$?
             mkdir -p results
@@ -902,7 +928,10 @@ jobs:
           commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
           # the versions of PHP of the repository: its cores phpXY-<version>.pkg
           php="$(ls "$dir" | sed -n 's/^php\([0-9]\)\([0-9]\)-[0-9][^/]*\.pkg$/\1.\2/p' | sort -u | tr '\n' ' ' | sed 's/ $//; s/ /, /g')"
-          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: az (the libraries of /usr/local/az), curl (with SCP and SFTP), ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc, yt-dlp and PHP $php (phpXY with mod_phpXY and the modules phpXY-<module>, phpXY-ssh2 among them). On a server, /usr/local/etc/pkg/repos/az.conf: az: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/az.pub\", priority: 100, enabled: yes } with the key keys/az.pub of $GITHUB_REPOSITORY, then: pkg update -r az, pkg install -r az php84 mod_php84 php84-gd ... (yt-dlp: pkg install yt-dlp, its Python packages are those of FreeBSD; README.md). Each publish is kept also as a release of its own that does not change, $tag-<YYYYMMDD>-<HHMM> (UTC, the newest $AZ_SNAPSHOTS): its url in az.conf takes a server back to it (README.md, A server and the repository az)."
+          # x86-64-v4: its packages run only on a CPU with AVX-512
+          cpu=""
+          if [ "$level" = v4 ]; then cpu=", a CPU with AVX-512 only"; fi
+          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE$cpu) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: az (the libraries of /usr/local/az), curl (with SCP and SFTP), ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc, yt-dlp and PHP $php (phpXY with mod_phpXY and the modules phpXY-<module>, phpXY-ssh2 among them). On a server, /usr/local/etc/pkg/repos/az.conf: az: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/az.pub\", priority: 100, enabled: yes } with the key keys/az.pub of $GITHUB_REPOSITORY, then: pkg update -r az, pkg install -r az php84 mod_php84 php84-gd ... (yt-dlp: pkg install yt-dlp, its Python packages are those of FreeBSD; README.md). Each publish is kept also as a release of its own that does not change, $tag-<YYYYMMDD>-<HHMM> (UTC, the newest $AZ_SNAPSHOTS): its url in az.conf takes a server back to it (README.md, A server and the repository az)."
           # a new release: its tag at the head of main. The token of a run may not make a
           # ref whose files of .github/workflows differ from those of main: HTTP 403
           # "Resource not accessible by integration" for the tag az-fbsd15-amd64-v2 at

@@ -63,6 +63,25 @@ if [ -s "$top/curl-sync-check.txt" ] && grep -q 'FAIL' "$top/curl-sync-check.txt
         printf '::error title=curl-sync-check::%s\n' "$(printf '%s\n' "$l" | escape)"
     done
 fi
+# the CPU of the runner and of the VM against the level (cpu-check.txt of the workflow,
+# tools/cpu-check.sh: x86-64-v4): its lines, and an error for each that failed (then
+# nothing was built)
+if [ -s "$top/cpu-check.txt" ]; then
+    {
+        echo "### $title: the CPU and the level (tools/cpu-check.sh)"
+        echo
+        echo '```'
+        cut -c1-400 "$top/cpu-check.txt"
+        if grep -q ': FAIL' "$top/cpu-check.txt"; then
+            echo "nothing built: the packages of the level die with SIGILL on that CPU"
+        fi
+        echo '```'
+        echo
+    } >> "$summary"
+    grep ': FAIL' "$top/cpu-check.txt" | while read -r l; do
+        printf '::error title=cpu::%s\n' "$(printf '%s\n' "$l" | escape)"
+    done
+fi
 if [ ! -s "$res/summary.txt" ]; then
     echo "::error title=$title::no results: $res/summary.txt is missing (the build did not run to its end)"
     printf '### %s\n\nno results: %s/summary.txt is missing\n' "$title" "$res" >> "$summary"
