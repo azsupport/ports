@@ -199,11 +199,17 @@ clone_unit_test() {
         return 0
     fi
     echo "== unit test vfs_clone_file: FAIL (exit $_rc; mc-unit-test.log):"
-    # what failed first (the check lines of the test, a library not found, a link
-    # error), then the end of the log: the build log shows only its last 40 lines
-    grep -hE ':[EF]:|Shared object|not found|undefined reference|error:|Assertion' \
-        "$1/tests/lib/vfs/vfs_clone_file.log" "$res/mc-unit-test.log" 2>/dev/null | head -n 12
-    tail -n 8 "$res/mc-unit-test.log"
+    # the log of the test itself (its check lines, or what the run-time linker said:
+    # in 44822560074 it matched none of the error patterns), the libraries of its
+    # program, then the end of mc-unit-test.log: the build log shows only its last 40
+    # lines
+    head -n 16 "$1/tests/lib/vfs/vfs_clone_file.log" 2>/dev/null
+    for _t in "$1/tests/lib/vfs/.libs/vfs_clone_file" "$1/tests/lib/vfs/vfs_clone_file"; do
+        [ -f "$_t" ] && file "$_t" | grep -q ELF || continue
+        ldd "$_t" 2>&1 | grep -E 'slang|tinfo|termcap|ncurses|not found' | head -n 4
+        break
+    done
+    tail -n 5 "$res/mc-unit-test.log"
     return 1
 }
 b_mc() {

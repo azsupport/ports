@@ -710,7 +710,11 @@ s_fmt() {
 # out. The terminal descriptions: the termcap of the base system (USE_TERMCAP, -ltermcap,
 # which is libtinfow), as the port has it: FreeBSD has no terminfo directory, and
 # configure takes S-Lang's own reader of one when the build machine has one, which
-# would find no terminal on a server; so it is checked
+# would find no terminal on a server; so it is checked. libslang.so linked with that
+# termcap library (ELF_DEP_LIBS of configure has only $(DL_LIB) -lm -lc, and -ltermcap
+# goes to the programs alone, Libs.private of slang.pc): with BIND_NOW (the -z now of
+# the shared tree) a program that does not link libtinfow itself stops at load with
+# tgetent undefined; the port links -lncurses for it (LDFLAGS)
 s_slang() {
     fix_guess "$1"
     (cd "$1" && ./configure --prefix="$S" --libdir="$S/lib" --includedir="$S/include" \
@@ -718,8 +722,11 @@ s_slang() {
         --without-png --without-z &&
         { grep -q '^#define USE_TERMCAP 1' src/sysconf.h ||
             { echo "== slang: no USE_TERMCAP in src/sysconf.h (a terminfo directory on the build machine)"; exit 1; }; } &&
-        gmake -C src elf && gmake -C src install-elf && gmake install-pkgconfig &&
-        rm -rf "$S/share/doc/slang")
+        gmake -C src elf 'ELF_DEP_LIBS=$(DL_LIB) -ltermcap -lm -lc' &&
+        gmake -C src install-elf 'ELF_DEP_LIBS=$(DL_LIB) -ltermcap -lm -lc' && gmake install-pkgconfig &&
+        rm -rf "$S/share/doc/slang") &&
+        { readelf -d "$S/lib/libslang.so" | grep -qE 'NEEDED.*\[lib(tinfo|ncurses|termcap)' ||
+            { echo "== slang: libslang.so has no NEEDED termcap library (tgetent of USE_TERMCAP)"; return 1; }; }
 }
 s_apr() {
     fix_guess "$1"
