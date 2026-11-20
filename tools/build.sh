@@ -121,8 +121,9 @@
 # - a port that names no file of the static tree of azsupport in its dependencies builds
 #   without its archives (they go from its chroot): only a port that says AZSUPPORT_STATIC_LIBS
 #   (tools/check-tree.sh) can link them;
-# - the build tools of AZSUPPORT_TOOLS_OFFICIAL (below: Python, Perl, meson, GCC 16) come from the
-#   official packages of FreeBSD also when this tree has the origin (aZ, 11.11.2026:
+# - the build tools of AZSUPPORT_TOOLS_OFFICIAL (below: Python, Perl, meson, GCC 16, GNU
+#   make, pkgconf, Rust) come from the official packages of FreeBSD also when this tree
+#   has the origin (aZ, 11.11.2026:
 #   our python312 and perl5.42 link libraries of azsupport, which needs them to build): for a
 #   port that needs such an origin only to build it (FETCH_, EXTRACT_, PATCH_, BUILD_
 #   or PKG_DEPENDS; not LIB_ or RUN_DEPENDS, and the port is no extension of Python, a
@@ -222,7 +223,11 @@ ports_url="https://github.com/freebsd/freebsd-ports"
 # official package until these move to the gcc16 of this tree with the next full build
 # (aZ, 18.11.2026: «а) ... да, давай так»); our lang/gcc16-libs is not a tool and goes
 # to the ports that run with it (sysutils/arcconf)
-AZSUPPORT_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson lang/gcc16"
+# devel/gmake, devel/pkgconf, lang/rust: ours are for the servers, where the native
+# extensions of gems build with them (aZ, 20.11.2026); the builds of this tree keep the
+# official packages, so that adding them builds again only the ports that run with
+# them (www/npm-node18 and www/npm-node24: gmake for node-gyp)
+AZSUPPORT_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson lang/gcc16 devel/gmake devel/pkgconf lang/rust"
 # the ports that build against the sources of the kernel without being kernel modules
 # (no USES=kmod, no IGNORE without them): they get them as a kernel module does
 # (ksrc_get). VirtualBox generates headers of the kernel out of them (VBOX_FREEBSD_SRC=
