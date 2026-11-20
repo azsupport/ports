@@ -63,8 +63,8 @@ jobs:
             if [ -n "$pats" ]; then
               rm -rf dl/x; mkdir -p dl/x
               case "$1" in
-                *.zip|*.jar) unzip -q -o dl/file $pats -d dl/x > /dev/null 2>&1 ;;
-                *) tar -xf dl/file -C dl/x --wildcards $pats > /dev/null 2>&1 ;;
+                *.zip|*.jar) unzip -q -o dl/file $pats -d dl/x > /dev/null 2>&1 || : ;;
+                *) tar -xf dl/file -C dl/x --wildcards $pats > /dev/null 2>&1 || : ;;
               esac
               (cd dl/x && find . -type f | LC_ALL=C sort) | while read -r m; do
                 if [ "$(head -c 4 "dl/x/$m" | od -An -c | tr -d ' ')" = '177ELF' ]; then
@@ -72,10 +72,10 @@ jobs:
                   # header, notes, dynamic section and the versions of the symbols it
                   # takes from other objects (readelf of binutils), not its bytes
                   { echo "### ${m#./} (ELF)"; echo; echo '```'
-                    readelf -h "dl/x/$m" | grep -E 'Class|OS/ABI|Machine|Type:'
-                    readelf -n "dl/x/$m" | grep -vE '^$|^Displaying'
-                    readelf -d "dl/x/$m" | grep -E 'NEEDED|SONAME|RPATH|RUNPATH'
-                    readelf -W --dyn-syms "dl/x/$m" | awk '$7 == "UND" && $8 ~ /@/ { print "UND", $8 }' | LC_ALL=C sort -u
+                    readelf -h "dl/x/$m" | grep -E 'Class|OS/ABI|Machine|Type:' || :
+                    readelf -n "dl/x/$m" | grep -vE '^$|^Displaying' || :
+                    readelf -d "dl/x/$m" | grep -E 'NEEDED|SONAME|RPATH|RUNPATH' || :
+                    readelf -W --dyn-syms "dl/x/$m" | awk '$7 == "UND" && $8 ~ /@/ { print "UND", $8 }' | LC_ALL=C sort -u || :
                     echo '```'; echo; } >> list.md
                 else
                   { echo "### ${m#./}"; echo; echo '```'; head -c 100000 "dl/x/$m"; echo; echo '```'; echo; } >> list.md
