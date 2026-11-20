@@ -18,8 +18,9 @@
 #   level): the dependencies once, in Release (upstream: RelWithDebInfo and Debug, and
 #   the Debug one linked), with those flags (upstream: the -march of the build alone),
 #   the plain build with the -march of the level (upstream: x86-64-v2; the builds with
-#   AVX keep theirs) — files/patch-cmake_*; the embeddings with opt-level 3 (upstream:
-#   "z", for size); the modules stripped.
+#   AVX keep theirs, but _avx2 at the level x86-64-v4 keeps the level, which has AVX2)
+#   — files/patch-cmake_*; the embeddings with opt-level 3 (upstream: "z", for size);
+#   the modules stripped.
 
 PORTNAME=	manticore
 DISTVERSION?=	9.0.0
