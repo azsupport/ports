@@ -27,8 +27,8 @@ jobs:
           drafts=$(jq -r '.client_payload.drafts // ""' "$GITHUB_EVENT_PATH")
           cputype=$(jq -r '.client_payload.cputype // "x86-64-v3"' "$GITHUB_EVENT_PATH")
           case "$cputype" in
-            x86-64-v3|x86-64-v2) ;;
-            *) echo "::error::cputype: x86-64-v3 or x86-64-v2, not $cputype"; exit 1 ;;
+            x86-64-v3|x86-64-v2|x86-64-v4) ;;
+            *) echo "::error::cputype: x86-64-v3, x86-64-v2 or x86-64-v4, not $cputype"; exit 1 ;;
           esac
           case "$drafts" in
             *[!A-Za-z0-9._/\ -]*) echo "::error::drafts: names of branches separated by spaces"; exit 1 ;;

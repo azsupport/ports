@@ -32,6 +32,8 @@
 #    www/yt-dlp, both levels, publish with publish_only (the release takes the new
 #    packages only when nothing else of the repository of the run differs from it;
 #    else they go out with the next publish of aZ: the cache of the run keeps them).
+#    The same for the release -v4 once aZ published it (a run of cputype x86-64-v4 of
+#    its own: not in both, and only on a CPU with AVX-512); without it, nothing of v4.
 #    Not while a run of build.yml of main is queued or running (a new run in its
 #    concurrency group would cancel a pending one; the next check starts it), not again
 #    after a run it started for the same commit of the ports runs or succeeded, nor
@@ -185,11 +187,23 @@ build_check() {
     v="$(mkvar www/yt-dlp/Makefile DISTVERSION)"
     ev=""; [ -f www/py-yt-dlp-ejs/Makefile ] && ev="$(mkvar www/py-yt-dlp-ejs/Makefile DISTVERSION)"
     major="${release%%.*}"
+    # the levels of the releases to build: both (x86-64-v3, then x86-64-v2), and
+    # x86-64-v4 on its own (not in both), only once aZ published it: without the release
+    # az-fbsd<major>-amd64-v4 nothing of it is built (build.yml builds it only on a CPU
+    # with AVX-512); a failure of the API there keeps x86-64-v4 out of this check alone
+    lvs="v3 v2"
+    if gh api "repos/$repo/releases/tags/az-fbsd$major-amd64-v4" --jq '.assets[].name' > "$w/assets-v4" 2> "$w/err"; then
+        lvs="v3 v2 v4"
+    elif ! grep -q 'HTTP 404' "$w/err"; then
+        warn "the files of the release az-fbsd$major-amd64-v4: the API failed ($(tail -n 1 "$w/err")): x86-64-v4 not checked now"
+    fi
     if [ "$committed" = 0 ]; then
-        miss=""
-        for lv in v3 v2; do
+        miss=""; cps=""
+        for lv in $lvs; do
             t="az-fbsd$major-amd64-$lv"
-            if ! gh api "repos/$repo/releases/tags/$t" --jq '.assets[].name' > "$w/assets" 2> "$w/err"; then
+            if [ "$lv" = v4 ]; then
+                cp "$w/assets-v4" "$w/assets"
+            elif ! gh api "repos/$repo/releases/tags/$t" --jq '.assets[].name' > "$w/assets" 2> "$w/err"; then
                 if grep -q 'HTTP 404' "$w/err"; then
                     line "- the build: no release $t yet (its first publish is aZ's): no build"
                     return 0
@@ -197,13 +211,21 @@ build_check() {
                 warn "the files of the release $t: the API failed ($(tail -n 1 "$w/err")): no build now"
                 return 0
             fi
-            grep -q -E "^yt-dlp-$(re "$v")(_[0-9]+)?\.pkg\$" "$w/assets" || miss="$miss yt-dlp-$v ($t)"
+            m=""
+            grep -q -E "^yt-dlp-$(re "$v")(_[0-9]+)?\.pkg\$" "$w/assets" || m="$m yt-dlp-$v ($t)"
             if [ -n "$ev" ]; then
-                grep -q -E "^py[0-9]+-yt-dlp-ejs-$(re "$ev")(_[0-9]+)?\.pkg\$" "$w/assets" || miss="$miss yt-dlp-ejs-$ev ($t)"
+                grep -q -E "^py[0-9]+-yt-dlp-ejs-$(re "$ev")(_[0-9]+)?\.pkg\$" "$w/assets" || m="$m yt-dlp-ejs-$ev ($t)"
             fi
+            [ -n "$m" ] || continue
+            miss="$miss$m"
+            case "$lv:$cps" in
+                v4:*) cps="$cps x86-64-v4" ;;
+                *:*both*) ;;
+                *) cps="$cps both" ;;
+            esac
         done
         if [ -z "$miss" ]; then
-            line "- the build: none needed, the releases az-fbsd$major-amd64-v3 and -v2 have yt-dlp $v${ev:+ and yt-dlp-ejs $ev}"
+            line "- the build: none needed, the releases az-fbsd$major-amd64-$(echo "$lvs" | sed 's/ /, -/g') have yt-dlp $v${ev:+ and yt-dlp-ejs $ev}"
             return 0
         fi
         notable=1
@@ -211,6 +233,8 @@ build_check() {
         line "- not published:$miss"
     else
         since="$(date +%s)"
+        cps="both"
+        case " $lvs " in *" v4 "*) cps="both x86-64-v4" ;; esac
     fi
     # the runs of build.yml of main: id|status|conclusion|created (s)|actor
     gh api "repos/$repo/actions/workflows/build.yml/runs?branch=main&per_page=50" --jq '.workflow_runs[] |
@@ -237,16 +261,19 @@ build_check() {
         return 0
     fi
     notable=1
-    set -- -f ref=main -f 'inputs[cputype]=both' -f 'inputs[ports]=www/yt-dlp' -f 'inputs[publish]=true' -f "inputs[publish_only]=$only"
-    if [ "$dry" = 1 ]; then
-        line "- the build it would start: build.yml of main, cputype both, ports www/yt-dlp, publish with publish_only \"$only\""
-        return 0
-    fi
-    if gh api -X POST "repos/$repo/actions/workflows/build.yml/dispatches" "$@" > "$w/err" 2>&1; then
-        line "- the build: build.yml of main started ($wurl), cputype both, ports www/yt-dlp, publish with publish_only \"$only\": published when nothing else differs from the releases"
-    else
-        warn "the build: build.yml could not be started ($(tail -n 1 "$w/err")): the next check"
-    fi
+    # a run of each: both, and x86-64-v4 (a concurrency group of its own)
+    for c in $cps; do
+        set -- -f ref=main -f "inputs[cputype]=$c" -f 'inputs[ports]=www/yt-dlp' -f 'inputs[publish]=true' -f "inputs[publish_only]=$only"
+        if [ "$dry" = 1 ]; then
+            line "- the build it would start: build.yml of main, cputype $c, ports www/yt-dlp, publish with publish_only \"$only\""
+            continue
+        fi
+        if gh api -X POST "repos/$repo/actions/workflows/build.yml/dispatches" "$@" > "$w/err" 2>&1; then
+            line "- the build: build.yml of main started ($wurl), cputype $c, ports www/yt-dlp, publish with publish_only \"$only\": published when nothing else differs from the releases"
+        else
+            warn "the build: build.yml could not be started, cputype $c ($(tail -n 1 "$w/err")): the next check"
+        fi
+    done
 }
 
 if [ "$tag" = "$cur" ]; then

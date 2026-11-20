@@ -9,7 +9,7 @@
 # (aZ, 11.11.2026: "а почему у тебя нет механизма прогресс сборки смотреть?").
 #
 # Usage: sh tools/runs-progress.sh <part> [<minutes>]   (in the background: nohup ... &)
-#   <part>     the part of the run (x86-64-v3, x86-64-v2...)
+#   <part>     the part of the run (x86-64-v3, x86-64-v2, x86-64-v4...)
 #   <minutes>  how often (10); the first look after 4 minutes (the VM is up and the
 #              queue with its stages is there by then)
 # Environment: RUNS_TOKEN (tools/runs-report.sh), GITHUB_WORKSPACE (the tree, at the

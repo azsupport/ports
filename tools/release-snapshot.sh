@@ -1,6 +1,6 @@
 #!/bin/sh
 # release-snapshot.sh - the repository of pkg of a release of build.yml (az-fbsd15-amd64-v3,
-# az-fbsd15-amd64-v2) kept also as a release of its own for each publish, one that never
+# -v2, -v4) kept also as a release of its own for each publish, one that never
 # changes: <tag>-<YYYYMMDD>-<HHMM> (UTC) with the catalog and every package of that
 # repository, so that a server goes back to it by the url of its repository az, as a
 # publish takes from the release the packages its repository has no more (aZ, 18.11.2026:
