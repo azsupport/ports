@@ -8,8 +8,9 @@
 # shared ones (aZ, 10.11.2026: our ports link each other's shared libraries): PCRE2
 # of devel/pcre2, lz4 (the compression provider provider_lz4) and zstd (that of the
 # client library) of az with the run path /usr/local/az/lib, fmt of az
-# (header-only); of the base system: OpenSSL, zlib (MariaDB would take its own
-# copy: WITH_ZLIB=system), libedit (the line editing of the client), ncurses,
+# (header-only), readline of az (the line editing of the client: aZ, 20.11.2026; see
+# below); of the base system: OpenSSL, zlib (MariaDB would take its own copy:
+# WITH_ZLIB=system), ncurses,
 # libwrap, PAM, bzip2 and lzma (their providers). The official one takes libfmt,
 # liblz4, pcre2, zstd, libedit, libiconv and readline (the client) of the ports. Their
 # headers alone in a directory of the work (pre-configure: no other header of
@@ -202,6 +203,23 @@ CONFIGURE_ENV+=	PKG_CONFIG_LIBDIR=${WRKDIR}/az/pkgconfig:/usr/libdata/pkgconfig
 # MySQL-Client part
 CMAKE_ON+=	CONC_WITH_MYSQLCOMPAT WITHOUT_SERVER
 CMAKE_OFF+=	WITH_WSREP
+# the line editing of mariadb: the GNU readline of az (aZ, 20.11.2026), not the libedit
+# of the base system. MariaDB takes a readline of version 6 or later (GPLv3) only with
+# NOT_FOR_DISTRIBUTION (cmake/readline.cmake; without it libedit), and then warns that
+# the binaries may not be distributed: aZ publishes them in the repository az on his
+# own responsibility, as the non-free FFmpeg (20.11.2026). NOT_FOR_DISTRIBUTION gives
+# nothing else here: the AWS SDK only with AWS_KEY_MANAGEMENT, which is off, and the
+# libbfd of binutils (GPLv3, configure.cmake) kept out by BFD_H_EXISTS=0. The headers of
+# readline: readline.h by READLINE_INCLUDE_DIR, its <readline/...> by the directory of
+# the work (pre-configure).
+CMAKE_ON+=	NOT_FOR_DISTRIBUTION
+CMAKE_ARGS+=	-DREADLINE_INCLUDE_DIR=${WRKDIR}/az/include/readline \
+		-DREADLINE_LIBRARY=${AZ_PREFIX}/lib/libreadline.so \
+		-DBFD_H_EXISTS=0
+CFLAGS+=	-I${WRKDIR}/az/include
+CXXFLAGS+=	-I${WRKDIR}/az/include
+BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libreadline.so:az/az
+RUN_DEPENDS+=	${AZ_PREFIX}/lib/libreadline.so:az/az
 USE_LDCONFIG=	${PREFIX}/lib/mysql
 SUB_FILES+=	my.cnf.sample client.cnf.sample
 
@@ -300,6 +318,9 @@ pre-configure:
 		${AZ_PREFIX}/include/zstd.h ${AZ_PREFIX}/include/zstd_errors.h \
 		${LOCALBASE}/include/pcre2.h ${LOCALBASE}/include/pcre2posix.h \
 		${WRKDIR}/az/include/
+.if ${PKGNAMESUFFIX:M*-client}
+	@${LN} -sf ${AZ_PREFIX}/include/readline ${WRKDIR}/az/include/
+.endif
 	@${LN} -sf ${LOCALBASE}/lib/libpcre2-8.so ${LOCALBASE}/lib/libpcre2-posix.so \
 		${WRKDIR}/az/lib/
 	@${PRINTF} '%s\n' 'prefix=${WRKDIR}/az' 'Name: libpcre2-8' \

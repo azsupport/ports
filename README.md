@@ -351,7 +351,10 @@ Names and origins as the ports, files at the paths of the ports:
   management), the socket `/tmp/mysql.sock` compiled into the server and the client
   library and in `my.cnf.sample` (`/tmp` is a memory disk on the servers, tmpmfs), the
   PID file in `/var/run/mysql`; PCRE2 of `pcre2`, lz4, zstd and fmt of az, zlib (not the
-  copy MariaDB has), OpenSSL and libedit of the base system. 10.11.20 ahead of the
+  copy MariaDB has) and OpenSSL of the base system; the line editing of the client
+  `mariadb` on the GNU readline of az (aZ, 20.11.2026; `NOT_FOR_DISTRIBUTION`, with which
+  MariaDB takes a readline of version 6 or later, GPLv3: published in the repository az
+  on aZ's responsibility, as the non-free FFmpeg). 10.11.20 ahead of the
   official 10.11.19 (aZ, 16.11.2026): MDEV-42025 (before the authentication, the
   database name of the handshake without a limit of its length), MDEV-41432 (a check of
   privileges missing), MDEV-40374, three crashes, the fixes of the CONNECT engine; its
