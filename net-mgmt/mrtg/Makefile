@@ -1,10 +1,12 @@
 # net-mgmt/mrtg of azsupport/ports in the place of the official one (aZ, 20.11.2026, with
 # net-mgmt/net-snmp): MRTG 2.17.10 of Tobias Oetiker, the official port of the pinned tree
 # (its patches, files/mrtg_daemon.in, pkg-install, pkg-deinstall and pkg-message,
-# distinfo, pkg-plist) with its default options: IPV6 on (the default of the ports
-# framework, Mk/bsd.options.mk, as in the official package: IO::Socket::INET6 of
-# net/p5-IO-Socket-INET6 and net/p5-Socket6 of this tree), DOCS and EXAMPLES off (the
-# OPTIONS_UNSET of tools/make.conf.in), SNMPV3 off; but rateup, which draws the graphs, on the libgd and libpng of az (/usr/local/az/lib,
+# distinfo, pkg-plist) with its options DOCS and EXAMPLES off (the OPTIONS_UNSET of
+# tools/make.conf.in) and SNMPV3 off, as in the official package, and without its option
+# IPV6 (on in the official package by the default of the ports framework,
+# Mk/bsd.options.mk: IO::Socket::INET6 and Socket6 for SNMP over IPv6, which MRTG does
+# not do on aZ's servers; aZ, 20.11.2026: «выключай и удаляй зависимости p5 эти»); but
+# rateup, which draws the graphs, on the libgd and libpng of az (/usr/local/az/lib,
 # our ports link each other's shared libraries: aZ, 10.11.2026), not the packages of
 # graphics/gd and graphics/png; SNMP_Session of net-mgmt/p5-SNMP_Session of this tree
 # (aZ, 20.11.2026: «давай в наши порты»), not Pod::Parser and Module::CoreList, which
@@ -86,10 +88,9 @@ IMAGES=		favicon.ico mrtg-l.gif mrtg-l.png mrtg-m.gif mrtg-m.png \
 		mrtg-r.gif mrtg-r.png mrtg-ti.gif mrtg-ti.png
 SCRIPTS=	cfgmaker indexmaker mrtg mrtg-traffic-sum
 
-OPTIONS_DEFINE=	DOCS EXAMPLES IPV6 SNMPV3
+OPTIONS_DEFINE=	DOCS EXAMPLES SNMPV3
 SNMPV3_DESC=	Build with support for SNMPv3
 
-IPV6_RUN_DEPENDS=	p5-IO-Socket-INET6>=0:net/p5-IO-Socket-INET6
 SNMPV3_RUN_DEPENDS=	p5-Net-SNMP>=0:net-mgmt/p5-Net-SNMP
 
 PORTDOCS=	*
