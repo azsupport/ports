@@ -1,0 +1,19 @@
+From: Stephen R. van den Berg <srb@cuci.nl>
+Subject: Cater for mails containing an incomplete From_ line.
+Bug-Debian: https://bugs.debian.org/769938
+X-Debian-version: 3.22-27
+
+--- a/src/from.c
++++ b/src/from.c
+@@ -117,7 +117,10 @@
+ 	      themail.p[extra]='\0';		  /* terminate it for strchr */
+ 	    }
+ 	   while(!(rstart=strchr(themail.p,'\n')));
+-	   extra=rstart?extra-(++rstart-themail.p):0;
++	   if (rstart)
++	     extra -= ++rstart - themail.p;
++	   else
++	     extra = 0, rstart = themail.p;
+ 	 }
+ 	else
+ 	 { size_t tfrl= ++rstart-themail.p; /* length of existing From_ line */

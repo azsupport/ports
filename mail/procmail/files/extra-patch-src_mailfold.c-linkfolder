@@ -1,0 +1,17 @@
+From: Santiago Vila <sanvila@debian.org>
+Subject: Fixed off-by-1 memory allocation error
+Bug-Debian: https://bugs.debian.org/474298
+Bug-Debian: https://bugs.debian.org/484352
+X-Debian-version: 3.22-17
+
+--- a/src/mailfold.c
++++ b/src/mailfold.c
+@@ -205,7 +205,7 @@
+   if(linkfolder)		    /* any additional directories specified? */
+    { size_t blen;
+      if(blen=Tmnate-linkfolder)		       /* copy the names into safety */
+-	Tmnate=(linkfolder=tmemmove(malloc(blen),linkfolder,blen))+blen;
++	Tmnate=(linkfolder=tmemmove(malloc(blen+1),linkfolder,blen))+blen;
+      else
+ 	linkfolder=0;
+    }

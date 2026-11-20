@@ -1,0 +1,25 @@
+From: Jan Darmochwal <jdarmochwal@gmx.de>
+Subject: formail memory corruption fixes
+
+--- a/src/formail.c
++++ b/src/formail.c
+@@ -219,7 +219,7 @@
+   if(i>=0&&(i!=maxindex(sest)||fldp==rdheader))		  /* found anything? */
+    { char*saddr;char*tmp;			     /* determine the weight */
+      nowm=areply&&headreply?headreply==1?sest[i].wrepl:sest[i].wrrepl:i;chp+=j;
+-     tmp=malloc(j=fldp->Tot_len-j);tmemmove(tmp,chp,j);(chp=tmp)[j-1]='\0';
++     tmp=malloc((j=fldp->Tot_len-j) + 1);tmemmove(tmp,chp,j);(chp=tmp)[j-1]='\0';
+      if(sest[i].head==From_)
+       { char*pastad;
+ 	if(strchr(saddr=chp,'\n'))		     /* multiple From_ lines */
+--- a/src/formisc.c
++++ b/src/formisc.c
+@@ -66,7 +66,7 @@
+ retz:	      *target='\0';
+ ret:	      return start;
+ 	    }
+-	   if(*start=='\\')
++	   if(*start=='\\' && *(start + 1))
+ 	      *target++='\\',start++;
+ 	   hitspc=2;
+ 	   goto normal;					      /* normal word */
