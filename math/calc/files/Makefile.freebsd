@@ -17,3 +17,11 @@ USE_READLINE:=	-DUSE_READLINE -I%%AZ%%/include
 # These need to be in this order:
 READLINE_LIBS:=		-L%%AZ%%/lib -Wl,-rpath,%%AZ_PREFIX%%/lib -lreadline
 READLINE_EXTRAS:=	${READLINE_LIBS} -lhistory -lncurses
+
+# The run path of calc: the libraries of az first, then libcalc and libcustcalc of
+# ${LIBDIR}; the LD_SHARE of Makefile.target for FreeBSD put the build directory, /lib,
+# /usr/lib and ${LIBDIR} before them, so that calc took the readline of the ports in
+# /usr/local/lib (libreadline.so.8, libhistory.so.8) wherever one is installed
+# (tests/ports/utils-test.sh of azsupport, run 44807210093); the build directory for
+# the link only (-rpath-link)
+LD_SHARE:=	-Wl,-rpath,%%AZ_PREFIX%%/lib:${LIBDIR} -Wl,-rpath-link,${PWD}
