@@ -148,6 +148,7 @@
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
 | `phpXY-apache` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
 | `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, `phpXY-gearman` (libgearman из `libgearman`), с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). у 7.4 и 8.1 — 71, у 8.2–8.4 — 69, у 5.6 — 66 (с вариантами, ниже); список одной версии: `pkg search -r az '^php84-'` |
+| `phpXY-ioncube` | `devel/phpXY-ioncube` | ionCube Loader 15.5.1 для PHP X.Y (с 56 по 84): бинарник ionCube для FreeBSD как есть (`ioncube_loaders_fre_11_x86-64_15.5.1.tar.gz`, собран на FreeBSD 11 — ядру нужен `COMPAT_FREEBSD11`), `lib/php/<API>/ioncube_loader.so`, грузится первым из `etc/phpXY/conf.d/ext-05-ioncube.ini` (раньше `ext-10-opcache.ini`), лицензия ionCube — в `share/licenses/phpXY-ioncube/`; так же его ставят FreeBSD `devel/ioncube`, Remi `php-ioncube-loader` и Arch `php-ioncube_loader` |
 
 - openssl в двух видах, один из двух: `phpXY-openssl` и `phpXY-openssl-legacy` (с
   legacy-провайдером OpenSSL: RC4, Blowfish, DES, CAST5, MD4).
