@@ -21,8 +21,9 @@
 # man pages of the client off (MANPAGES, as everywhere: no docbook to build them).
 # The libraries of az (ICU, lz4, zstd, libxml2, libxslt) with the run path
 # /usr/local/az/lib, alone in a directory of the work with .pc files of their own (as
-# mail/postfix: no other header or library of /usr/local/az); libedit of the base
-# system for psql.
+# mail/postfix: no other header or library of /usr/local/az); the readline of az for
+# psql (aZ 20.11.2026 19:58: «переводи»: GNU readline in the place of the libedit of the
+# base system, as the PHP and the Python of this tree have it).
 
 PORTNAME?=	postgresql
 DISTVERSION?=	18.7
@@ -68,7 +69,7 @@ PG_USER?=	postgres
 PG_GROUP?=	postgres
 PG_UID?=	770
 
-# the libraries of az of the component (AZ_PG_LIBS: icu lz4 zstd xml2 xslt), alone in
+# the libraries of az of the component (AZ_PG_LIBS: icu lz4 zstd xml2 xslt readline), alone in
 # ${WRKDIR}/az (pre-configure), with the run path of az
 LDFLAGS+=	-L${WRKDIR}/az/lib -Wl,-rpath,${AZ_PREFIX}/lib -L${LOCALBASE}/lib
 INCLUDES+=	-I${WRKDIR}/az/include -I${WRKDIR}/az/include/libxml2 -I${LOCALBASE}/include
@@ -112,8 +113,8 @@ AZ_PG_LIBS=	icu lz4 zstd xml2
 
 # the server and the contrib modules take the client of their chain (not the one
 # USES=pgsql would give: WANT_PGSQL empty); they have no line editing (only psql of
-# the client has it, with the libedit of the base system), so configure looks for no
-# readline in them
+# the client has it, with the readline of az), so configure looks for no readline in
+# them
 .if !defined(CLIENT_ONLY)
 WANT_PGSQL=
 LIB_DEPENDS+=	libpq.so.5:databases/postgresql${PORTVERSION:R}-client${AZ_PG_SSL}
@@ -244,6 +245,7 @@ pre-configure:
 	    zstd) pc="libzstd:-lzstd"; libs="libzstd"; incs="zstd.h zdict.h zstd_errors.h" ;; \
 	    xml2) pc="libxml-2.0:-lxml2"; libs="libxml2"; incs="libxml2" ;; \
 	    xslt) pc=""; libs="libxslt libexslt"; incs="libxslt libexslt" ;; \
+	    readline) pc=""; libs="libreadline libhistory"; incs="readline" ;; \
 	    *) ${ECHO_MSG} "AZ_PG_LIBS: unknown $$l"; exit 1 ;; \
 	    esac; \
 	    for i in $$incs; do ${LN} -sf ${AZ_PREFIX}/include/$$i ${WRKDIR}/az/include/$$i; done; \

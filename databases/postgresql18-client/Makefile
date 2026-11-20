@@ -1,8 +1,9 @@
 # databases/postgresql18-client: the client of PostgreSQL 18 of azsupport/ports (libpq,
 # psql, pg_dump and the tools; databases/postgresql18-server: the design), without
 # OpenSSL; postgresql18-client-openssl with it, one of the two. The line editing of
-# psql by the libedit of the base system (its readline headers in /usr/include/edit),
-# not the official devel/libedit or devel/readline; the man pages only with MANPAGES
+# psql by the GNU readline of az (aZ 20.11.2026 19:58: «переводи»: bracketed paste,
+# UTF-8, the ~/.inputrc of bash), not the libedit of the base system, the official
+# devel/libedit or devel/readline; the man pages only with MANPAGES
 # (off, as everywhere: no docbook to build them).
 
 PORTNAME=	postgresql
@@ -21,8 +22,10 @@ COMPONENT=	-client
 USE_LDCONFIG=	yes
 USES=		pkgconfig
 
-CONFIGURE_ARGS+=--with-libedit-preferred
-INCLUDES+=	-I/usr/include/edit
+# libreadline.so and libhistory.so of az, their headers alone in ${WRKDIR}/az
+AZ_PG_LIBS=	readline
+BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libreadline.so:az/az
+RUN_DEPENDS+=	${AZ_PREFIX}/lib/libreadline.so:az/az
 
 OPTIONS_DEFINE+=MANPAGES DOCS
 MANPAGES_BUILD_DEPENDS=	docbook-xml>0:textproc/docbook-xml \

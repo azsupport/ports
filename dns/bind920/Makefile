@@ -6,10 +6,9 @@
 # TCP_FASTOPEN, IDN (libidn2) and no GSSAPI; DNSTAP, LMDB, STATS_JSON and
 # STATS_XML, on in the official one, off. The libraries of our ports, as shared
 # ones (aZ, 10.11.2026: our ports link each other's shared libraries): libuv,
-# liburcu, nghttp2 (DNS over HTTPS) and libidn2 of az, with the run path
-# /usr/local/az/lib, and by their options libxml2 (STATS_XML) and libmaxminddb
-# (GEOIP) of az; of the base system OpenSSL, zlib and libedit (the line editing of
-# nslookup and nsupdate). The other options take the libraries of the ports, as
+# liburcu, nghttp2 (DNS over HTTPS), libidn2 and readline (the line editing of nslookup
+# and nsupdate) of az, with the run path /usr/local/az/lib, and by their options libxml2
+# (STATS_XML) and libmaxminddb (GEOIP) of az; of the base system OpenSSL and zlib. The other options take the libraries of the ports, as
 # the official one: fstrm and protobuf-c (DNSTAP), lmdb0 (LMDB), json-c
 # (STATS_JSON). No manual pages (MANPAGES of the make.conf of the servers, as the
 # other packages of this tree) and no headers of the libraries of BIND (nothing
@@ -43,10 +42,12 @@ LICENSE_FILE=	${WRKSRC}/COPYRIGHT
 # by a file)
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libuv.so:az/az \
 		${AZ_PREFIX}/lib/liburcu.so:az/az \
-		${AZ_PREFIX}/lib/libnghttp2.so:az/az
+		${AZ_PREFIX}/lib/libnghttp2.so:az/az \
+		${AZ_PREFIX}/lib/libreadline.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libuv.so:az/az \
 		${AZ_PREFIX}/lib/liburcu.so:az/az \
-		${AZ_PREFIX}/lib/libnghttp2.so:az/az
+		${AZ_PREFIX}/lib/libnghttp2.so:az/az \
+		${AZ_PREFIX}/lib/libreadline.so:az/az
 .if !defined(BIND_TOOLS_SLAVE)
 RUN_DEPENDS+=	bind-tools>0:dns/bind-tools
 .endif
@@ -69,13 +70,14 @@ CONFIGURE_ARGS=	--enable-dnsrps \
 		--localstatedir=/var \
 		--sysconfdir=${ETCDIR} \
 		--with-openssl=${OPENSSLBASE} \
-		--with-readline=libedit \
+		--with-readline=readline \
 		--disable-tracing
-# libuv, liburcu, nghttp2 of az and libedit of the base system by hand, their
-# headers alone in directories of the work (pre-configure: the include directory
-# of az has others, GNU iconv.h among them; the code includes <editline/readline.h>,
-# the base system has edit/readline/readline.h), -L of az, which has no other
-# library BIND links; pkg-config only the base system (OpenSSL, zlib), so that
+# libuv, liburcu, nghttp2 and readline of az by hand (readline: aZ 20.11.2026 19:58,
+# «переводи», in the place of the libedit of the base system), their headers alone in
+# directories of the work (pre-configure: the include directory of az has others, GNU
+# iconv.h among them; the code includes <readline/readline.h> and
+# <readline/history.h>), -L of az, which has no other library BIND links; pkg-config
+# only the base system (OpenSSL, zlib), so that
 # nothing of /usr/local is taken (lmdb, libxml2, json-c, libmaxminddb: by their
 # options below)
 CONFIGURE_ENV=	PKG_CONFIG_LIBDIR=/usr/libdata/pkgconfig \
@@ -86,7 +88,7 @@ CONFIGURE_ENV=	PKG_CONFIG_LIBDIR=/usr/libdata/pkgconfig \
 		LIBNGHTTP2_CFLAGS="-I${WRKDIR}/az/include" \
 		LIBNGHTTP2_LIBS="-L${AZ_PREFIX}/lib -lnghttp2" \
 		READLINE_CFLAGS="-I${WRKDIR}/rl" \
-		READLINE_LIBS="-ledit"
+		READLINE_LIBS="-L${AZ_PREFIX}/lib -lreadline"
 LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
 
 MAKE_JOBS_UNSAFE=	yes
@@ -235,7 +237,7 @@ pre-configure:
 	@${MKDIR} ${WRKDIR}/az/include ${WRKDIR}/rl ${WRKDIR}/idn2/include ${WRKDIR}/idn2/lib
 	@${LN} -sf ${AZ_PREFIX}/include/uv.h ${AZ_PREFIX}/include/uv \
 		${AZ_PREFIX}/include/nghttp2 ${AZ_PREFIX}/include/urcu* ${WRKDIR}/az/include/
-	@${LN} -sf /usr/include/edit/readline ${WRKDIR}/rl/editline
+	@${LN} -sf ${AZ_PREFIX}/include/readline ${WRKDIR}/rl/readline
 	@${LN} -sf ${AZ_PREFIX}/include/idn2.h ${WRKDIR}/idn2/include/
 	@${LN} -sf ${AZ_PREFIX}/lib/libidn2.so ${WRKDIR}/idn2/lib/
 
