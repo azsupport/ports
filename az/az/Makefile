@@ -143,7 +143,7 @@ MASTER_SITES=	https://github.com/curl/curl/releases/download/curl-8_23_0/:curl \
 		GNU/libidn:libidn2 \
 		https://github.com/rockdaboot/libpsl/releases/download/0.23.3/:libpsl \
 		https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/:libssh2 \
-		https://codeload.github.com/publicsuffix/list/tar.gz/728555a?dummy=/:psllist \
+		https://codeload.github.com/publicsuffix/list/tar.gz/73f8cc7?dummy=/:psllist \
 		https://github.com/strukturag/libheif/releases/download/v1.23.7/:libheif \
 		https://github.com/strukturag/libde265/releases/download/v1.1.3/:libde265 \
 		https://codeload.github.com/awesomized/libmemcached/tar.gz/1.2.0?dummy=/:libmemcached
@@ -157,7 +157,7 @@ DISTFILES=	curl-8.23.0.tar.xz:curl \
 		libidn2-2.3.8.tar.gz:libidn2 \
 		libpsl-0.23.3.tar.lz:libpsl \
 		libssh2-1.11.1.tar.xz:libssh2 \
-		publicsuffix-list-20260921-728555a_GH0.tar.gz:psllist \
+		publicsuffix-list-20261031-73f8cc7_GH0.tar.gz:psllist \
 		libheif-1.23.7.tar.gz:libheif \
 		libde265-1.1.3.tar.gz:libde265 \
 		awesomized-libmemcached-1.2.0_GH0.tar.gz:libmemcached
