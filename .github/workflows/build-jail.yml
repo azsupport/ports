@@ -6,8 +6,10 @@ name: Build the packages of the repository az in the jails
 # - tools/build.sh runs in the jail itself; each port in its chroot as always, but its
 #   base system is the world of the level of the run (AZ_WORLD of tools/build.sh), built
 #   in the jail from the sources of the release (/usr/src, read only) with make.conf and
-#   src.conf of that level (of the private azsupport/azsupport, secret RUNS_TOKEN): the
-#   step "The world of the level" builds it again when one of the three changed
+#   src.conf of that level (freebsd/<level>/ of the private azsupport/azsupport, secret
+#   RUNS_TOKEN; x86-64-v2, x86-64-v3 and x86-64-v4 alike, each world made only before a
+#   build of its level): the step "The world of the level" builds it again when one of
+#   the three changed
 #   (buildworld, installworld and distribution, then it takes the place of the old one);
 #   the public log says "up to date" or "built" and why, nothing of the files;
 # - the work directory (WRKDIRPREFIX, the chroots, the queue, the packages of the run)
@@ -42,10 +44,10 @@ on:
       cputype:
         description: 'x86-64 level (CPUTYPE of make.conf)'
         type: choice
-        options: [x86-64-v3, x86-64-v2, both]
+        options: [x86-64-v3, x86-64-v2, x86-64-v4, both]
         default: x86-64-v3
       runner:
-        description: 'The runner: level (x86-64-v3 on azbuild1, x86-64-v2 on azbuild2: the caches of a level stay on its runner), any (the first free one), azbuild1 or azbuild2'
+        description: 'The runner: level (x86-64-v3 and x86-64-v4 on azbuild1, x86-64-v2 on azbuild2: the caches of a level stay on its runner), any (the first free one), azbuild1 or azbuild2'
         type: choice
         options: [level, any, azbuild1, azbuild2]
         default: level
