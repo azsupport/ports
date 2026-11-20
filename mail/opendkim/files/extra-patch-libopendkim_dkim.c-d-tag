@@ -1,0 +1,33 @@
+Confirm that the value of "d=" of a signature is a well formed domain name: upstream
+trusteddomainproject/OpenDKIM 14d54524e0a9 (2021-03-16, not in 2.10.3), as Debian carries it
+(cve-2020-12272.patch). Without it a "d=" with other characters goes into the
+Authentication-Results header the milter writes.
+
+--- libopendkim/dkim.c.orig
++++ libopendkim/dkim.c
+@@ -763,6 +763,25 @@
+ 			return DKIM_STAT_SYNTAX;
+ 		}
+ 
++		/* confirm the "d=" domain name is well formed */
++		value = dkim_param_get(set, (u_char *) "d");
++		for (p = value; *p != '\0'; p++)
++		{
++			if (!(isalpha(*p) ||
++			      isdigit(*p) ||
++			      *p == '-' ||
++			      *p == '_' ||
++			      *p == '.'))
++			{
++				dkim_error(dkim, "malformed \"d=\" tag value");
++				if (syntax)
++					dkim_set_free(dkim, set);
++				else
++					set->set_bad = TRUE;
++				return DKIM_STAT_SYNTAX;
++			}
++		}
++
+ 		/* test validity of "t" and "x" */
+ 		value = dkim_param_get(set, (u_char *) "t");
+ 		if (value != NULL)

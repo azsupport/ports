@@ -9,7 +9,11 @@
 # pinned commit, as it is: the official Makefile includes it from ${.CURDIR}, the
 # directory of this port.
 
+# files/extra-patch-libopendkim_dkim.c-d-tag: the check of "d=" of upstream after 2.10.3
+# (14d54524e0a9), as Debian carries it (the patches of the distributions reviewed on
+# 20.11.2026; their other fixes are for 2.11 or for options that are off here).
 AZ_OFFICIAL=	mail/opendkim
+EXTRA_PATCHES=	${.CURDIR}/files/extra-patch-libopendkim_dkim.c-d-tag
 OPTIONS_SLAVE=	STOCK_RESOLVER
 OPTIONS_EXCLUDE=	UNBOUND LUA
 WITH_SENDMAIL_PORT=	yes
