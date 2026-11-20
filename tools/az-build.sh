@@ -685,6 +685,8 @@ s_libmaxminddb() {
 # aZ 17.11.2026)
 s_libuv() { at_so "$1" --disable-maintainer-mode cc_cv_cflags_werror__g=no; }
 s_liburcu() { at_so "$1"; }
+# libyaml: libyaml.so, yaml.h and yaml-0.1.pc, as the port (its one target), for lang/ruby34
+s_libyaml() { at_so "$1"; }
 # fmt, for databases/mariadb1011-server and -client (which take it header-only,
 # FMT_HEADER_ONLY): its headers and libfmt.so, as the port (FMT_OS, no tests, docs
 # or module; FULL_CACHE_DRAGONBOX, its default option)

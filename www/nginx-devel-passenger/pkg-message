@@ -1,0 +1,14 @@
+[
+{ type: install
+  message: <<EOM
+Load the module in the main context of nginx.conf and give it the agent and Ruby:
+
+load_module /usr/local/libexec/nginx/ngx_http_passenger_module.so;
+
+http {
+    passenger_root /usr/local/lib/ruby/gems/3.4/gems/passenger;
+    passenger_ruby /usr/local/bin/ruby;
+}
+EOM
+}
+]

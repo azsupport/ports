@@ -91,6 +91,14 @@ CATEGORIES=	www
 MASTER_SITES=	https://nginx.org/download/
 PKGNAMESUFFIX?=	-devel
 DISTFILES=	${DISTNAME}${EXTRACT_SUFX}
+.if ${NGINX_AZ_MODULE:U} == passenger
+# Phusion Passenger 6.2.2: the release of the version of www/rubygem-passenger, so that
+# the module and the agent it starts are of one version (the official
+# www/nginx-module-passenger, its sources for the official nginx, is 6.2.0)
+NGINX_AZ_PASSENGER=	6.2.2
+MASTER_SITES+=	https://github.com/phusion/passenger/releases/download/release-${NGINX_AZ_PASSENGER}/:passenger
+DISTFILES+=	passenger-${NGINX_AZ_PASSENGER}.tar.gz:passenger
+.endif
 
 MAINTAINER=	github@azsupport.com
 COMMENT?=	Robust and small WWW server (of azsupport/ports)
@@ -351,6 +359,19 @@ NGINX_AZ_OBJS=	ngx_http_dav_ext_module.so
 # vod_mode remote, aZ, 19.11.2026)
 CONFIGURE_ARGS+=	--add-dynamic-module=${WRKSRC_vod}
 NGINX_AZ_OBJS=	ngx_http_vod_module.so
+. elif ${NGINX_AZ_MODULE} == passenger
+# Ruby and Rack applications under nginx (passenger_enabled; aZ, 20.11.2026:
+# «nginx-devel-passenger нужен обязательно»): the module of the release above, its
+# support libraries built by its config script (rake nginx:as_dynamic_module, in the
+# tree of the release), as the option PASSENGER of the official nginx-devel (OPTIMIZE,
+# -DNDEBUG, C++14); the agent is that of rubygem-passenger-nginx
+CONFIGURE_ARGS+=	--add-dynamic-module=${WRKDIR}/passenger-${NGINX_AZ_PASSENGER}/src/nginx_module
+CONFIGURE_ENV+=	OPTIMIZE="yes" EXTRA_PRE_CXXFLAGS="-std=c++14"
+CFLAGS+=	-DNDEBUG
+USES+=		compiler:c++14-lang ruby
+BUILD_DEPENDS+=	${LOCALBASE}/bin/rake:devel/rubygem-rake
+RUN_DEPENDS+=	rubygem-passenger-nginx>=${NGINX_AZ_PASSENGER}:www/rubygem-passenger
+NGINX_AZ_OBJS=	ngx_http_passenger_module.so
 . else
 IGNORE=		NGINX_AZ_MODULE ${NGINX_AZ_MODULE}: no such module package
 . endif

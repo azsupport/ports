@@ -23,3 +23,5 @@ SHA256 (sysadmin-labs-nginx-dav-ext-module-v3.0.1_GH0.tar.gz) = 04ab320549b1b5c8
 SIZE (sysadmin-labs-nginx-dav-ext-module-v3.0.1_GH0.tar.gz) = 35843
 SHA256 (dio-az-nginx-vod-module-v1.11.2_GH0.tar.gz) = a98bfafa04f631addd311e67bc05487b706af94c83b21b252d6cd32f69c30add
 SIZE (dio-az-nginx-vod-module-v1.11.2_GH0.tar.gz) = 468192
+SHA256 (passenger-6.2.2.tar.gz) = 753e74b89ffc7e0e9525b00c936d71da28f279f849e94781be72e7c19c617994
+SIZE (passenger-6.2.2.tar.gz) = 7784212
