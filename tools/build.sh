@@ -29,6 +29,14 @@
 #                    the pinned commit (a build server: its own tree; a warning when it is
 #                    at another commit)
 #   AZ_PKG_KEY_FILE  the signing key of the repository (see tools/pkg-repo-sign.sh)
+#   AZ_WORLD         the base system of the chroots: a world installed in that directory
+#                    (installworld, distribution) for the level of the run, whose
+#                    crt1.o, crti.o, crtbegin.o, crtend.o and libcompiler_rt.a go into
+#                    every package (build-jail.yml: a world of each level next to the
+#                    jail of a build server); its directories of the base below
+#                    ($ch_base but /usr/src, which stays that of the machine) at the same
+#                    paths in each chroot, read only. None: those of the machine (the VM
+#                    of build.yml)
 #   AZ_JOBS          the ports built at once, in waves (default 4); 1: one after
 #                    another in the order of the queue, as before AZ_JOBS
 #   AZ_TIME_SOFT, AZ_TIME_HARD
@@ -59,6 +67,10 @@
 #                    (tools/configure-check.sh; results/configure-check.txt)
 #   AZ_CFLAGS, AZ_GCC_SO, AZ_GCC_BIN, MAKE_CONF  given to the builds (the scripts of
 #                    tools/ read them); a build sees no other variable of the caller
+#   MAKE_JOBS_NUMBER given to the builds too: the make -j of each port (bsd.port.mk;
+#                    none: kern.smp.cpus, all the CPUs of the machine), so that AZ_JOBS
+#                    ports at once take AZ_JOBS times it (build-jail.yml: the cores and
+#                    the memory of the jail; the VM of build.yml sets none)
 #
 # How (the logic of poudriere, with make and pkg of the host, each port in a chroot):
 # - the official tree of freebsd-ports at the pinned commit below (git, depth 1, reused
@@ -242,6 +254,16 @@ jobs="${AZ_JOBS:-4}"
 case "$jobs" in
     ''|*[!0-9]*|0*) die "AZ_JOBS=$jobs: not a number of 1 or more" ;;
 esac
+case "${MAKE_JOBS_NUMBER-1}" in
+    ''|*[!0-9]*|0*) die "MAKE_JOBS_NUMBER=$MAKE_JOBS_NUMBER: not a number of 1 or more" ;;
+esac
+# the world of the chroots (AZ_WORLD; see the head): its real path, or none
+world=""
+if [ -n "${AZ_WORLD:-}" ]; then
+    world="$(cd "$AZ_WORLD" 2> /dev/null && pwd -P)"
+    [ -n "$world" ] && [ -x "$world/bin/sh" ] && [ -f "$world/usr/lib/crt1.o" ] ||
+        die "AZ_WORLD=$AZ_WORLD: no world there (bin/sh, usr/lib/crt1.o)"
+fi
 case "${AZ_DRYRUN:-}" in ''|0) dryrun=0 ;; *) dryrun=1 ;; esac
 case "${AZ_PLAN:-}" in ''|0) plan=0 ;; *) plan=1 ;; esac
 case "${AZ_CONFIGURE_CHECK:-}" in ''|0) ccheck=0 ;; *) ccheck=1 ;; esac
@@ -495,6 +517,12 @@ ch_up() {
     ch_down "$c" > /dev/null || { why="what a chroot before left in $c is still mounted there"; return 1; }
     mkdir -p "$c" || { why="cannot make $c"; return 1; }
     for _d in $ch_base; do
+        # the world of AZ_WORLD at the paths of the base, when there is one
+        if [ -n "$world" ] && [ "$_d" != /usr/src ]; then
+            [ -d "$world$_d" ] || continue
+            ch_mount ro "$world$_d" "$_d" || return 1
+            continue
+        fi
         [ -d "$_d" ] || continue
         ch_mount ro "$_d" || return 1
     done
@@ -573,7 +601,8 @@ ch_run() {
         PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin \
         __MAKE_CONF="$__MAKE_CONF" ASSUME_ALWAYS_YES=yes NOCLEANDEPENDS=yes AZ_CPUTYPE="$cputype" \
         ${AZ_CFLAGS+"AZ_CFLAGS=$AZ_CFLAGS"} ${AZ_GCC_SO+"AZ_GCC_SO=$AZ_GCC_SO"} \
-        ${AZ_GCC_BIN+"AZ_GCC_BIN=$AZ_GCC_BIN"} ${MAKE_CONF+"MAKE_CONF=$MAKE_CONF"} "$@"
+        ${AZ_GCC_BIN+"AZ_GCC_BIN=$AZ_GCC_BIN"} ${MAKE_CONF+"MAKE_CONF=$MAKE_CONF"} \
+        ${MAKE_JOBS_NUMBER+"MAKE_JOBS_NUMBER=$MAKE_JOBS_NUMBER"} "$@"
     if [ -n "$_lk" ]; then lockf -k "$_lk" "$@"; else "$@"; fi
 }
 # the chroots a run before left (stopped), and those of this run at its end, whatever ends it
@@ -1470,7 +1499,7 @@ ch_init() {
     if [ -d "$pkgdb/repos" ]; then (cd "$pkgdb/repos" && tar -cf - .) | (cd "$work/ch-repos" && tar -xpf -); fi
     _t0="$(date +%s)"
     ch_up _setup || die "no chroot for the run: $why"
-    say "a chroot in $(( $(date +%s) - _t0 ))s: $ch_base read only, a copy of /etc, devfs$( [ "$ch_fdesc" = 1 ] && echo ', fdescfs')$( [ "$ch_proc" = 1 ] && echo ', procfs'), this tree, the official tree, packages/ and the repository read only (the chroot of each port the same)"
+    say "a chroot in $(( $(date +%s) - _t0 ))s: $ch_base read only$( [ -z "$world" ] || echo ' (but /usr/src: of the world of AZ_WORLD)'), a copy of /etc, devfs$( [ "$ch_fdesc" = 1 ] && echo ', fdescfs')$( [ "$ch_proc" = 1 ] && echo ', procfs'), this tree, the official tree, packages/ and the repository read only (the chroot of each port the same)"
     {
         echo "== the mounts of a chroot ($c):"
         ch_mounts "$c" | sort
