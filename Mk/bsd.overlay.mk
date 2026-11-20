@@ -53,15 +53,17 @@ AZ_OVERLAY:=	${.PARSEDIR:H}
 # manual pages of the main.cf of a server: "chown: /usr/local/man/man1/mailq.1.gz: No such
 # file or directory"). az-no-docs, a target of POST_PLIST (990 of the stage: after
 # compress-man and the add-plist-* targets), takes out of the stage share/man, man,
-# share/doc and share/info of the prefix and the manual directories of MANDIRS under it
-# (the man3 of Perl), and their lines out of the plist (files, @dir, @info and the other
-# keywords). tools/docs-check.sh (tools/build.sh) fails a repository with such a file.
+# share/doc and share/info of the prefix, the manual directories of MANDIRS under it
+# (the man3 of Perl), the empty site_perl/man/man1 and man3 that lang/perl5.* makes and
+# etc/man.d (the manpath of those pages), and their lines out of the plist (files, @dir,
+# @info and the other keywords). tools/docs-check.sh (tools/build.sh) fails a repository
+# with such a file or directory.
 .if empty(POST_PLIST:Maz-no-docs)
 POST_PLIST+=	az-no-docs
 .endif
 .if !target(az-no-docs)
 az-no-docs:
-	@for d in ${MANDIRS:M${PREFIX}/*:S,^${PREFIX}/,,} man share/man share/doc share/info; do \
+	@for d in ${MANDIRS:M${PREFIX}/*:S,^${PREFIX}/,,} man share/man share/doc share/info etc/man.d lib/perl5/site_perl/man; do \
 		[ ! -e "${STAGEDIR}${PREFIX}/$$d" ] || ${RM} -r "${STAGEDIR}${PREFIX}/$$d"; \
 		${SED} -i '' -E -e "\#^(@[^[:space:]]+[[:space:]]+)?(${PREFIX}/)?$$d(/|\$$)#d" ${TMPPLIST}; \
 	done
