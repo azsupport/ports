@@ -1,0 +1,6 @@
+The ionCube Loader runs the PHP files encoded with the ionCube PHP Encoder.
+
+The loader of ionCube for PHP 8.4 on FreeBSD (ioncube_loaders_fre_11_x86-64,
+binary only) for php84 of azsupport/ports: lib/php/20240924/ioncube_loader.so,
+loaded before the other zend extensions by etc/php84/conf.d/ext-05-ioncube.ini.
+It was built on FreeBSD 11: the kernel needs COMPAT_FREEBSD11.
