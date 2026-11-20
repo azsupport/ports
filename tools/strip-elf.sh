@@ -4,8 +4,7 @@
 # tools/debug-check.sh checks them), for the ports whose install copies the files as
 # they were linked: az/az (its tree), java/openjdk21 (the image of the JDK), devel/git,
 # www/mod_maxminddb (apxs), and the official ports graphics/libimagequant (cargo
-# cinstall), security/sudo (libsudo_util.so), devel/t1lib (libt1.so) and www/fcgi
-# (libfcgi.so.0.0.0 and libfcgi++.so.0.0.0, whose links its port strips).
+# cinstall), security/sudo (libsudo_util.so) and devel/t1lib (libt1.so).
 #
 # The object files (relocatable) keep their symbols. The strip of STRIP_CMD of the
 # environment of the port, else strip. A file with more hard links (the programs of
