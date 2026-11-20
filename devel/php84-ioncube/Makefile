@@ -21,6 +21,7 @@
 
 PORTNAME=	ioncube
 DISTVERSION=	15.5.1
+PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	devel
 MASTER_SITES=	https://downloads2.ioncube.com/loader_downloads/ \
 		https://downloads.ioncube.com/loader_downloads/
