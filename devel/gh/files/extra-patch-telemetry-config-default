@@ -1,0 +1,19 @@
+Description: the default of the config option telemetry "disabled", not "enabled":
+ the patch of Fedora (extra-patch-telemetry-opt-in) takes "enabled" for an opt-in, and
+ with no telemetry in the config file gh takes the default of the option, so without
+ this one gh would still send telemetry where the user never chose it. Opting in:
+ gh config set telemetry enabled, or GH_TELEMETRY=1 (or true, yes, on); log: print
+ the payload instead of sending it.
+Origin: azsupport/ports
+
+--- a/internal/config/config.go
++++ b/internal/config/config.go
+@@ -949,7 +949,7 @@
+ 	{
+ 		Key:           telemetryKey,
+ 		Description:   "whether telemetry is enabled, disabled, or logging",
+-		DefaultValue:  "enabled",
++		DefaultValue:  "disabled",
+ 		AllowedValues: []string{"enabled", "disabled", "log"},
+ 		CurrentValue: func(c gh.Config, hostname string) string {
+ 			return c.Telemetry().Value
