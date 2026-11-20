@@ -11,7 +11,8 @@ name: The distinfo of a new release
 # With "list", what is in each file too, for a port made from a binary archive
 # (textproc/opensearch217: the jars and plugins of the bundle): tar -tv or unzip -l,
 # and the text of the members whose paths match its patterns (of an ELF member, what
-# readelf says of its ABI, libraries and symbol versions), into a report of its own
+# file and readelf say of it, its version strings, libraries and symbol versions), into
+# a report of its own
 # (<run>-list.md).
 # Started by hand: Actions, "The distinfo of a new release", "Run workflow", or
 # gh api -X POST repos/azsupport/ports/actions/workflows/distinfo.yml/dispatches
@@ -72,7 +73,9 @@ jobs:
                   # header, notes, dynamic section and the versions of the symbols it
                   # takes from other objects (readelf of binutils), not its bytes
                   { echo "### ${m#./} (ELF)"; echo; echo '```'
+                    file -b "dl/x/$m" || :
                     readelf -h "dl/x/$m" | grep -E 'Class|OS/ABI|Machine|Type:' || :
+                    strings -a "dl/x/$m" | grep -iE 'version|loader v|^v?[0-9]{1,2}\.[0-9]+\.[0-9]+$' | LC_ALL=C sort -u | head -12 || :
                     readelf -n "dl/x/$m" | grep -vE '^$|^Displaying' || :
                     readelf -d "dl/x/$m" | grep -E 'NEEDED|SONAME|RPATH|RUNPATH' || :
                     readelf -W --dyn-syms "dl/x/$m" | awk '$7 == "UND" && $8 ~ /@/ { print "UND", $8 }' | LC_ALL=C sort -u || :
