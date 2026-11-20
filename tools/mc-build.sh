@@ -199,7 +199,11 @@ clone_unit_test() {
         return 0
     fi
     echo "== unit test vfs_clone_file: FAIL (exit $_rc; mc-unit-test.log):"
-    tail -n 20 "$res/mc-unit-test.log"
+    # what failed first (the check lines of the test, a library not found, a link
+    # error), then the end of the log: the build log shows only its last 40 lines
+    grep -hE ':[EF]:|Shared object|not found|undefined reference|error:|Assertion' \
+        "$1/tests/lib/vfs/vfs_clone_file.log" "$res/mc-unit-test.log" 2>/dev/null | head -n 12
+    tail -n 8 "$res/mc-unit-test.log"
     return 1
 }
 b_mc() {
