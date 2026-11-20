@@ -4,9 +4,10 @@
 # distinfo, pkg-plist) with its default options (DOCS, EXAMPLES, IPV6 and SNMPV3 off),
 # but rateup, which draws the graphs, on the libgd and libpng of az (/usr/local/az/lib,
 # our ports link each other's shared libraries: aZ, 10.11.2026), not the packages of
-# graphics/gd and graphics/png; SNMP_Session, Pod::Parser and Module::CoreList as the
-# official port has them (the p5-* packages of the FreeBSD repository, on the perl5 of
-# this tree).
+# graphics/gd and graphics/png; SNMP_Session of net-mgmt/p5-SNMP_Session of this tree
+# (aZ, 20.11.2026: «давай в наши порты»), not Pod::Parser and Module::CoreList, which
+# the official port takes: the scripts of MRTG use Pod::Usage, which the perl 5.42 of
+# this tree has without Pod::Parser, and Module::CoreList is in its core.
 
 PORTNAME=	mrtg
 DISTVERSION=	2.17.10
@@ -26,9 +27,7 @@ LICENSE=	GPLv2
 # libgd.so and libpng.so of az (rateup links -lgd -lpng -lz: its configure)
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libgd.so:az/az
 RUN_DEPENDS=	${AZ_PREFIX}/lib/libgd.so:az/az \
-		p5-SNMP_Session>=0:net-mgmt/p5-SNMP_Session \
-		p5-Pod-Parser>=0:textproc/p5-Pod-Parser \
-		p5-Module-CoreList>=0:devel/p5-Module-CoreList
+		p5-SNMP_Session>=0:net-mgmt/p5-SNMP_Session
 
 USES=		perl5 shebangfix
 

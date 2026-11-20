@@ -1,0 +1,16 @@
+kill() of the CGI child when a request ends in an error had its arguments swapped:
+kill(SIGTERM, pid) sent the signal numbered pid to the process 15 (or failed), and the
+child was not stopped. Upstream pull request #44 (28.08.2017), as Gentoo carries it
+(www-misc/fcgiwrap files/fcgiwrap-1.1.0-kill.patch).
+
+--- fcgiwrap.c.orig
++++ fcgiwrap.c
+@@ -206,7 +206,7 @@
+ 	if (fc->fd_stderr >= 0) close(fc->fd_stderr);
+ 
+ 	if (fc->cgi_pid)
+-		kill(SIGTERM, fc->cgi_pid);
++		kill(fc->cgi_pid, SIGTERM);
+ }
+ 
+ static const char * fcgi_pass_fd(struct fcgi_context *fc, int *fdp, FCGI_FILE *ffp, char *buf, size_t bufsize)

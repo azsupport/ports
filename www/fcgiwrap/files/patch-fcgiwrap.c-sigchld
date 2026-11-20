@@ -1,0 +1,17 @@
+The parent of the preforked children (-c, more than one) looped in its SIGCHLD handler:
+waitpid(WNOHANG) answers 0 while other children are alive, and the loop ran until -1 (100%
+of a CPU in the parent after the first child ended). The loop ends when it reaped none.
+Upstream after 1.1.0 (2041deb, 09.01.2014, gnosek/fcgiwrap#18), in the snapshot Gentoo
+takes (www-misc/fcgiwrap 1.1.0_p20150419).
+
+--- fcgiwrap.c.orig
++++ fcgiwrap.c
+@@ -639,7 +639,7 @@
+ {
+ 	int status;
+ 
+-	while ((dummy = waitpid(-1, &status, WNOHANG)) != -1) {
++	while ((dummy = waitpid(-1, &status, WNOHANG)) > 0) {
+ 		/* sanity check */
+ 		if (nrunning > 0)
+ 			nrunning--;
