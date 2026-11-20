@@ -5,8 +5,9 @@
 # - the options of aZ: GMP on (the Bignum of Ruby on GMP, as the make.conf of aZ's
 #   servers had GMP in OPTIONS_SET), RDOC off (the ri indexes are documents: DOCS and the
 #   manual pages are off everywhere, tools/make.conf.in), CAPIDOCS, DEBUG, DOCS and
-#   EXAMPLES off, YJIT off (as the Ruby of aZ's servers; with YJIT Rails 7.2 and later
-#   turn it on themselves: faster, more memory);
+#   EXAMPLES off, YJIT on (aZ, 20.11.2026: «включай. У нас же правило - скорость.»: the
+#   JIT of Ruby, which Rails 7.2 and later turn on themselves: faster, more memory;
+#   Rust only to build it, the rustc of the official lang/rust);
 # - libffi (fiddle), GMP and libyaml (psych) of az, with the run path /usr/local/az/lib
 #   (Mk/az-libs.mk: each with its own headers and .pc files), instead of devel/libffi,
 #   math/gmp and textproc/libyaml: the package takes no package but az; OpenSSL, zlib
@@ -81,7 +82,7 @@ RB_SET_CONF_VAR=${SH} -c \
 		RB_SET_CONF_VAR
 
 OPTIONS_DEFINE=	CAPIDOCS DEBUG DOCS EXAMPLES GMP RDOC YJIT
-OPTIONS_DEFAULT=GMP
+OPTIONS_DEFAULT=GMP YJIT
 OPTIONS_SUB=	yes
 CAPIDOCS_DESC=	Build and install C API documents
 GMP_DESC=	Use GMP to accelerate Bignum operations
