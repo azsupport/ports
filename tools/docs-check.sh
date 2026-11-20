@@ -22,6 +22,8 @@ re='^/usr/local/(share/(man|doc|info)|man|etc/man\.d|lib/perl5/[^/]+/(perl/)?man
 rc=0
 for p in "$@"; do
     n="${p##*/}"
+    # the catalog of a repository (pkg repo), not a package
+    case "$n" in data.pkg|packagesite.pkg|digests.pkg|filesite.pkg|meta.pkg) continue ;; esac
     if command -v pkg > /dev/null 2>&1 && files="$(pkg query -F "$p" '%Fp' 2> /dev/null; pkg query -F "$p" '%Dn' 2> /dev/null)"; then
         :
     elif files="$(tar -xOf "$p" +MANIFEST 2> /dev/null | tr ',' '\n' | sed -n 's/^.*"\(\/[^"]*\)":.*$/\1/p')" && [ -n "$files" ]; then
