@@ -104,6 +104,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `aria2`, `aria2-ssh2` | `www/aria2`, `www/aria2-ssh2` | aria2 1.37.0: Metalink and XML-RPC (libxml2 of az), asynchronous DNS (c-ares of az), BitTorrent, HTTPS (the OpenSSL of the base system), the event poll kqueue; no libuv, no SQLite (the cookies of the browsers), no NLS, no static build; SFTP (libssh2 of az) only in `aria2-ssh2`, one of the two |
 | `php56-composer` … `php84-composer` | `devel/php56-composer` … `devel/php84-composer` | Composer 2.11.2 (for PHP 5.6 2.2.32, its LTS line) as `bin/composerXY`, which runs it with `bin/phpXY`: one for each PHP, side by side |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: the DNS server `named` with TCP Fast Open, no GSSAPI, DNSTAP, LMDB and statistics channels; dig, host, nslookup, delv, nsupdate and the DNSSEC tools, with IDN |
+| `unbound` | `dns/unbound` | Unbound 1.26.2, the validating, recursive and caching DNS resolver, in the place of local_unbound of the base system (aZ, 20.11.2026): DNSCrypt, DNS over HTTPS, TCP Fast Open, libevent; the rc.d script unbound |
 | `vips` | `graphics/vips` | libvips 8.18 for the Lua scripts of nginx that convert images on the fly: JPEG (mozjpeg), PNG, WebP, HEIC (load), AVIF (load and save), GIF, with ICC profiles, EXIF and SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
 | `glib`, `libexif`, `cgif`, `libimagequant`, `highway` | `devel/glib20`, `graphics/libexif`, `graphics/cgif`, `graphics/libimagequant`, `devel/highway` | the libraries of `vips` (GLib of `mc` too, libimagequant of the libgd of az too: LIQ, the palette of `imagegif()` and `imagetruecolortopalette()` of PHP 5.6 to 8.4; GPLv3 or later): GLib 2.88 shared, without introspection, NLS, documents and manual pages, on libffi, libintl and libiconv of az and PCRE2 of `pcre2`; the others the official ports as they are (libexif without NLS) |
 | `rocketchat8` | `net-im/rocketchat8` | Rocket.Chat 8.9.1, the Meteor bundle on our node24 (`/usr/local/www/rocketchat8`, rc script `rocketchat8`, the user `rocketchat`), its npm modules checked against the advisory database of npm and fixed as aZ agreed, every native module built here (sharp on a libvips 8.18.7 of its own, static in it) |
@@ -527,6 +528,16 @@ Names and origins as the ports, files at the paths of the ports:
   `/usr/local/etc/namedb` as the official port; the tools (dig, host, nslookup, delv,
   nsupdate, the DNSSEC ones) with IDN. libuv, liburcu, nghttp2 (DNS over HTTPS) and
   libidn2 of az, OpenSSL, zlib and libedit of the base system.
+- **`dns/unbound`**: Unbound 1.26.2 in the place of local_unbound of the base system,
+  which the servers build WITHOUT_UNBOUND (aZ, 20.11.2026: a package is updated as the
+  others, the resolver of the base system only with the system, cut down and with its own
+  startup scripts): the official port with its options on (DNSCRYPT, DYNLIB, ECDSA, EVAPI,
+  GOST, LIBEVENT, THREADS) and TCP Fast Open (TFOCL, TFOSE, as TCP_FASTOPEN of BIND); no
+  DNSTAP, Redis cache, Python, Munin, AAAA filter, client subnet, manual pages and docs.
+  expat, nghttp2 (DNS over HTTPS), libevent and libsodium (DNSCrypt) of az, OpenSSL of
+  the base system. `unbound` with the rc.d script unbound of the official port
+  (unbound_enable, profiles, unbound-anchor before the start), `/usr/local/etc/unbound`
+  with unbound.conf.sample.
 - **`graphics/vips`**: libvips 8.18 (aZ, 11.11.2026: for a Lua script of nginx that
   converts images on the fly) with aZ's formats: JPEG (mozjpeg), PNG (libpng), WebP,
   HEIC/AVIF (libheif of az: both loaded, AVIF saved with SVT-AV1), GIF (load built in, save with cgif and
