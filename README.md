@@ -60,7 +60,9 @@ servers (amd64), so that nothing is built on the servers.
   sqlite3, expat, lcms2 and xxhash of az, Python 3.12 and Redis 8.2 with GCC too ([The
   libraries and programs with GCC](#the-libraries-and-programs-with-gcc)).
 - PHP 5.6, 7.4, 8.1, 8.2, 8.3 and 8.4, for x86-64-v3 and x86-64-v2 (a CPU without
-  AVX2: the release `az-fbsd15-amd64-v2`).
+  AVX2: the release `az-fbsd15-amd64-v2`). x86-64-v4 (AVX-512) has the same tools, built
+  only on request and only on a machine with AVX-512: not built and not published yet
+  ([The level x86-64-v4](#the-level-x86-64-v4)).
 
 ## The packages
 
@@ -351,7 +353,8 @@ Names and origins as the ports, files at the paths of the ports:
   searchd loads from `share/manticore/modules` — columnar storage, secondary indexes, KNN
   and the auto embeddings (Rust: models of HuggingFace by candle, OpenAI, Voyage and Jina
   over HTTPS with rustls; Oniguruma of az) — and their `_avx2` builds, as upstream builds
-  them; Manticore Columnar 9.0.0 for 14.7.6.
+  them (at x86-64-v4 with the `-march` of the level, not the x86-64-v3 of upstream);
+  Manticore Columnar 9.0.0 for 14.7.6.
 - **`databases/mariadb1011-server`** and **`databases/mariadb1011-client`**: MariaDB 10.11
   with the options of aZ (of the engines of the options InnoDB only; no GSSAPI, wsrep,
   RocksDB, Spider, Mroonga, S3, CONNECT with ODBC and XML, HashiCorp Vault, AWS key
@@ -441,7 +444,7 @@ Names and origins as the ports, files at the paths of the ports:
   always (`--thin_lto=True`; the official LTO off), `-O3` and the `-march` of the level
   (`--copt`: Bazel takes no CFLAGS, and the official build has neither), no debug symbols
   (`--//bazel/config:debug_symbols=False`); the AVX2 `memchr` of SpiderMonkey by the level
-  of the build, on v3 and off on v2 (our patch of `SIMD.cpp` in the place of the official
+  of the build, on v3 and v4 and off on v2 (our patch of `SIMD.cpp` in the place of the official
   NOAVX, which leaves the choice to the CPU at run time). As the official port: the
   allocator of the system (the jemalloc of libc), libunwind off (the backtraces by the
   execinfo of the base system), OpenSSL of the base system, no enterprise features; curl
@@ -451,8 +454,8 @@ Names and origins as the ports, files at the paths of the ports:
   100.20.1 of the official port of the pinned tree, its eight programs (bsondump,
   mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat, mongotop)
   without its options: TLS by crypto/tls of Go (the build tag `ssl`), no SASL (no
-  Kerberos), no documents; the Go code for the level of the build (GOAMD64 v3 or v2 by
-  its `-march`), `-trimpath`, `-s -w`. mongosh is not a port: the npm package on our
+  Kerberos), no documents; the Go code for the level of the build (GOAMD64 v3, v2 or v4
+  by its `-march`), `-trimpath`, `-s -w`. mongosh is not a port: the npm package on our
   node24 when it is needed (aZ, 18.11.2026 11:05).
 - **`www/nginx-devel`**, **`www/nginx-devel-stream`** and **`www/nginx-devel-image-filter`**
   (aZ, 15.11.2026): nginx 1.31.9 (18.11.2026; 1.31.8 before) with four fixes of freenginx nginx has not (gzip, mp4, charset, the captures of subrequests) and headers-more 0.42 (19.11.2026, with its fix of `more_set_input_headers -r`: an absent header of several values was written through an uninitialized pointer), the options the union of those of the servers of aZ.
@@ -759,15 +762,19 @@ with their own number, and the API of their modules: 5.6 `20131226`, 8.1 `202109
 ## A server and the repository az
 
 The repository is the files of the release `az-fbsd15-amd64-v3` of this repository
-(`az-fbsd15-amd64-v2` for a CPU without AVX2). Its catalog is signed with the key of
-aZ; [`keys/az.pub`](keys/az.pub) is its public key (the same key as
+(`az-fbsd15-amd64-v2` for a CPU without AVX2; `az-fbsd15-amd64-v4` for a CPU with
+AVX-512 once it is published, not yet: [The level x86-64-v4](#the-level-x86-64-v4)).
+Its catalog is signed with the key of aZ; [`keys/az.pub`](keys/az.pub) is its public
+key (the same key as
 [`freebsd/az.pub`](https://github.com/azsupport/php-src/blob/master/freebsd/az.pub) of
 azsupport/php-src; SHA-256
 `2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6`).
 
 On a server, as root, [`az-menu.sh`](https://github.com/azsupport/php-src#az-menush-the-packages-and-what-goes-into-php)
 of azsupport/php-src writes the repository: x86-64-v3 when `cc -march=native` has AVX2,
-BMI2, FMA, F16C, LZCNT and MOVBE, else x86-64-v2; the public key into
+BMI2, FMA, F16C, LZCNT and MOVBE, else x86-64-v2; x86-64-v4 when it also has AVX512F,
+AVX512BW, AVX512CD, AVX512DQ and AVX512VL and the release `az-fbsd15-amd64-v4` is
+there (else x86-64-v3); the public key into
 `/usr/local/etc/pkg/keys/az.pub`, the repository into
 `/usr/local/etc/pkg/repos/az.conf`, then `pkg update -r az`. It says the level it took
 and why, and the SHA-256 of the key (the one above):
@@ -777,8 +784,8 @@ fetch https://github.com/azsupport/php-src/releases/download/az-menu/az-menu.sh
 sh az-menu.sh --repo
 ```
 
-The same by hand, for x86-64-v3 (for x86-64-v2: `amd64-v2` in the address); `sha256`
-must print the SHA-256 above:
+The same by hand, for x86-64-v3 (for x86-64-v2: `amd64-v2` in the address, for
+x86-64-v4 `amd64-v4`); `sha256` must print the SHA-256 above:
 
 ```sh
 mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
@@ -790,7 +797,7 @@ pkg update -r az
 
 Each publish also keeps the whole repository, its catalog and every package, as a
 release of its own that does not change: `az-fbsd15-amd64-v3-<YYYYMMDD>-<HHMM>` (UTC,
-the time of the publish; `-v2-` for x86-64-v2), the newest 31 of each level
+the time of the publish; `-v2-` for x86-64-v2, `-v4-` for x86-64-v4), the newest 31 of each level
 ([releases](https://github.com/azsupport/ports/releases),
 [`tools/release-snapshot.sh`](tools/release-snapshot.sh)); the release itself has only
 the packages of its catalog, as GitHub keeps at most 1000 files in a release. A server
@@ -1119,7 +1126,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | Input | |
 |---|---|
 | `release` | the FreeBSD release of the VM, `15.1` |
-| `cputype` | `x86-64-v3` (default), `x86-64-v2` or `both` (a job each); one job of a level and a branch at a time, the levels side by side (each has its own release and cache) |
+| `cputype` | `x86-64-v3` (default), `x86-64-v2`, `x86-64-v4` or `both` (`x86-64-v3`, then `x86-64-v2`, a job each; `x86-64-v4` never in it, [The level x86-64-v4](#the-level-x86-64-v4)); one job of a level and a branch at a time, the levels side by side (each has its own release and cache) |
 | `ports` | the ports to build, separated by spaces; empty: all |
 | `force` | build them also when their package with the same `az_hash` is in the release already |
 | `jobs` | the ports built at once (`AZ_JOBS`, default 4; `1`: one after another) |
@@ -1159,8 +1166,9 @@ alone is lost when GitHub pushes it out past the 10 GB of the caches of the repo
 A build that ran on another runner and saved its packages as drafts is published as soon
 as it ends by a `repository_dispatch` of type `publish` (a token with Contents write of
 this repository; `client_payload`: `drafts`, the branches whose drafts the publish takes,
-and `cputype`): [`publish-request.yml`](.github/workflows/publish-request.yml) starts
-this workflow on main with `publish` on, as a dispatch by hand does.
+and `cputype`: `x86-64-v3` by default, `x86-64-v2` or `x86-64-v4`):
+[`publish-request.yml`](.github/workflows/publish-request.yml) starts this workflow on
+main with `publish` on, as a dispatch by hand does.
 
 The secrets (https://github.com/azsupport/ports/settings/secrets/actions, the button
 **New repository secret**):
@@ -1169,6 +1177,28 @@ The secrets (https://github.com/azsupport/ports/settings/secrets/actions, the bu
 |---|---|
 | `PKG_SIGNING_KEY` | the RSA private key (PEM) of `keys/az.pub`: it goes into the VM as a file only, is used by `pkg repo` and removed |
 | `RUNS_TOKEN` | a fine-grained token with Contents read and write on azsupport/azsupport, for the reports |
+
+### The level x86-64-v4
+
+x86-64-v4 (AVX-512: AVX512F, AVX512BW, AVX512CD, AVX512DQ, AVX512VL; all of x86-64-v3
+too) has the tools of x86-64-v3 and x86-64-v2 and is neither built nor published yet:
+it is built only on request, by itself (`cputype` `x86-64-v4`, never in `both`), and
+only on a CPU with AVX-512, as its packages run in the build and in the checks and die
+with SIGILL elsewhere. [`tools/cpu-check.sh`](tools/cpu-check.sh) checks the CPU of the
+runner before anything else and that of the VM before `tools/build.sh` (the features
+`cc -march=x86-64-v4` turns on against those `cc -march=native` finds); a CPU without
+them stops the run there, and the report says why (`cpu-check.txt`). On the runners of
+GitHub the VM of vmactions has AVX-512 only on an Intel runner that has it: anyvm, which
+runs the VM, takes it off on an AMD CPU under a hypervisor. What follows the level is the
+same as for the others: the release `az-fbsd15-amd64-v4` and its snapshots
+`az-fbsd15-amd64-v4-<YYYYMMDD>-<HHMM>`, the drafts `wip-x86-64-v4-*`, the caches
+`repo-x86-64-v4-*` and `portcache-x86-64-v4-*`, the reports of the runs, the publish
+request (`cputype` `x86-64-v4`), the builds of [yt-dlp](#yt-dlp-from-github) once the
+release is there, and `az-menu.sh --repo` of azsupport/php-src on a CPU with AVX-512
+once it is published. By hand on such a machine: `sh tools/cpu-check.sh x86-64-v4`,
+then `env AZ_CPUTYPE=x86-64-v4 sh tools/build.sh`. The ports whose build depends on
+the level take it: the `_avx2` libraries of Manticore Columnar keep its `-march`, the
+AVX2 `memchr` of MongoDB is on, Go builds with GOAMD64 v4.
 
 ### The merged branches
 
@@ -1202,7 +1232,8 @@ the official port (aZ, 12.11.2026); [`tools/ytdlp-update.sh`](tools/ytdlp-update
 - the ports checked with `make -V` ([`tools/check-tree-ci.sh`](tools/check-tree-ci.sh),
   the check of `build.yml`), one commit of aZ pushed to main with the token of the run;
 - the build, when the releases do not have that yt-dlp: `build.yml` of main for
-  `www/yt-dlp`, both levels, `publish` with `publish_only`; not while a run of `build.yml`
+  `www/yt-dlp`, both levels (and a run of `x86-64-v4` of its own once the release
+  `az-fbsd15-amd64-v4` is there), `publish` with `publish_only`; not while a run of `build.yml`
   of main is queued or running (the next check starts it), not again after one it started
   succeeded, nor after three failed.
 

@@ -60,7 +60,9 @@
   sqlite3, expat, lcms2 и xxhash из az, Python 3.12 и Redis 8.2 — тоже на GCC
   ([Библиотеки и программы с GCC](#библиотеки-и-программы-с-gcc)).
 - PHP 5.6, 7.4, 8.1, 8.2, 8.3 и 8.4, под x86-64-v3 и x86-64-v2 (процессор без AVX2 —
-  релиз `az-fbsd15-amd64-v2`).
+  релиз `az-fbsd15-amd64-v2`). Для x86-64-v4 (AVX-512) — тот же инструментарий, сборка
+  только по запросу и только на машине с AVX-512: пока не собирается и не публикуется
+  ([Уровень x86-64-v4](#уровень-x86-64-v4)).
 
 ## Пакеты
 
@@ -341,8 +343,9 @@
 - **`textproc/manticore14-columnar`** и **`textproc/manticore31-columnar`**: библиотеки, которые
   searchd загружает из `share/manticore/modules`, — колоночное хранение, вторичные индексы,
   KNN и автоматические embeddings (Rust: модели HuggingFace через candle, OpenAI, Voyage и
-  Jina по HTTPS с rustls; Oniguruma из az), — и их сборки `_avx2`, как у апстрима; Manticore
-  Columnar 9.0.0 для 14.7.6.
+  Jina по HTTPS с rustls; Oniguruma из az), — и их сборки `_avx2`, как у апстрима (на
+  x86-64-v4 — с `-march` уровня, а не x86-64-v3 апстрима); Manticore Columnar 9.0.0 для
+  14.7.6.
 - **`databases/mariadb1011-server`** и **`databases/mariadb1011-client`**: MariaDB 10.11 с
   опциями aZ (из движков опций только InnoDB; без GSSAPI, wsrep, RocksDB, Spider,
   Mroonga, S3, CONNECT с ODBC и XML, HashiCorp Vault, AWS key management), сокет
@@ -427,7 +430,7 @@
   (`--thin_lto=True`; в официальном LTO выключен), `-O3` и `-march` уровня (`--copt`:
   CFLAGS Bazel не берёт, а в официальной сборке нет ни того, ни другого), без отладочных
   символов (`--//bazel/config:debug_symbols=False`); AVX2-вариант `memchr` SpiderMonkey —
-  по уровню сборки: на v3 включён, на v2 выключен (наш патч `SIMD.cpp` вместо официального
+  по уровню сборки: на v3 и v4 включён, на v2 выключен (наш патч `SIMD.cpp` вместо официального
   NOAVX, который оставляет выбор процессору при запуске). Как в официальном порту:
   аллокатор системы (jemalloc libc), libunwind выключен (трассировки — execinfo базы),
   OpenSSL базы, без enterprise-функций; curl из `ftp/curl`. Дисковый кэш Bazel
@@ -690,8 +693,10 @@
 ## Сервер и репозиторий az
 
 Репозиторий — это файлы релиза `az-fbsd15-amd64-v3` этого репозитория
-(`az-fbsd15-amd64-v2` для процессора без AVX2). Его каталог подписан ключом aZ;
-[`keys/az.pub`](keys/az.pub) — его открытый ключ (тот же ключ, что
+(`az-fbsd15-amd64-v2` для процессора без AVX2; `az-fbsd15-amd64-v4` для процессора с
+AVX-512, когда он будет опубликован, пока нет: [Уровень x86-64-v4](#уровень-x86-64-v4)).
+Его каталог подписан ключом aZ; [`keys/az.pub`](keys/az.pub) — его открытый ключ (тот же
+ключ, что
 [`freebsd/az.pub`](https://github.com/azsupport/php-src/blob/master/freebsd/az.pub) в
 azsupport/php-src; SHA-256
 `2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6`).
@@ -699,7 +704,9 @@ azsupport/php-src; SHA-256
 На сервере от root репозиторий записывает
 [`az-menu.sh`](https://github.com/azsupport/php-src/blob/master/README.ru.md#az-menush-пакеты-и-что-войдёт-в-php)
 из azsupport/php-src: x86-64-v3, если `cc -march=native` знает у процессора AVX2, BMI2,
-FMA, F16C, LZCNT и MOVBE, иначе x86-64-v2; открытый ключ — в
+FMA, F16C, LZCNT и MOVBE, иначе x86-64-v2; x86-64-v4 — если ещё и AVX512F, AVX512BW,
+AVX512CD, AVX512DQ и AVX512VL и релиз `az-fbsd15-amd64-v4` есть (иначе x86-64-v3);
+открытый ключ — в
 `/usr/local/etc/pkg/keys/az.pub`, репозиторий — в `/usr/local/etc/pkg/repos/az.conf`,
 потом `pkg update -r az`. Он пишет, какой уровень взял и почему, и SHA-256 ключа (тот,
 что выше):
@@ -709,8 +716,8 @@ fetch https://github.com/azsupport/php-src/releases/download/az-menu/az-menu.sh
 sh az-menu.sh --repo
 ```
 
-То же вручную, для x86-64-v3 (для x86-64-v2 — `amd64-v2` в адресе); `sha256` должен
-показать SHA-256 выше:
+То же вручную, для x86-64-v3 (для x86-64-v2 — `amd64-v2` в адресе, для x86-64-v4 —
+`amd64-v4`); `sha256` должен показать SHA-256 выше:
 
 ```sh
 mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
@@ -722,7 +729,7 @@ pkg update -r az
 
 Каждая публикация ещё и сохраняет весь репозиторий — каталог и все пакеты — релизом,
 который потом не меняется: `az-fbsd15-amd64-v3-<ГГГГММДД>-<ЧЧММ>` (UTC, время публикации;
-`-v2-` для x86-64-v2), последние 31 на каждый уровень
+`-v2-` для x86-64-v2, `-v4-` для x86-64-v4), последние 31 на каждый уровень
 ([релизы](https://github.com/azsupport/ports/releases),
 [`tools/release-snapshot.sh`](tools/release-snapshot.sh)); в самом релизе — только пакеты
 его каталога: GitHub держит в релизе не больше 1000 файлов. Сервер возвращается к снимку
@@ -1043,7 +1050,7 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 | Вход | |
 |---|---|
 | `release` | релиз FreeBSD для ВМ, `15.1` |
-| `cputype` | `x86-64-v3` (по умолчанию), `x86-64-v2` или `both` (по job на каждый); на уровень и ветку — одна job за раз, уровни — параллельно (у каждого свой релиз и кэш) |
+| `cputype` | `x86-64-v3` (по умолчанию), `x86-64-v2`, `x86-64-v4` или `both` (`x86-64-v3`, потом `x86-64-v2`, по job на каждый; `x86-64-v4` в него не входит никогда, [Уровень x86-64-v4](#уровень-x86-64-v4)); на уровень и ветку — одна job за раз, уровни — параллельно (у каждого свой релиз и кэш) |
 | `ports` | порты для сборки через пробел; пусто — все |
 | `force` | собирать их и тогда, когда их пакет с тем же `az_hash` уже есть в релизе |
 | `jobs` | сколько портов собирать одновременно (`AZ_JOBS`, по умолчанию 4; `1` — порт за портом) |
@@ -1088,6 +1095,28 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 | `PKG_SIGNING_KEY` | закрытый ключ RSA (PEM) к `keys/az.pub`: попадает в ВМ только файлом, используется `pkg repo` и удаляется |
 | `RUNS_TOKEN` | fine-grained токен с Contents на чтение и запись в azsupport/azsupport, для отчётов |
 
+### Уровень x86-64-v4
+
+У x86-64-v4 (AVX-512: AVX512F, AVX512BW, AVX512CD, AVX512DQ, AVX512VL; и всё
+x86-64-v3) — инструментарий x86-64-v3 и x86-64-v2, но он пока не собирается и не
+публикуется: собирается только по запросу, сам по себе (`cputype` `x86-64-v4`, в `both`
+не входит никогда), и только на процессоре с AVX-512 — его пакеты запускаются в сборке и в
+проверках и на другом процессоре падают с SIGILL. [`tools/cpu-check.sh`](tools/cpu-check.sh)
+проверяет процессор раннера раньше всего остального и процессор ВМ перед `tools/build.sh`
+(возможности, которые включает `cc -march=x86-64-v4`, против тех, что находит
+`cc -march=native`); процессор без них останавливает прогон на этом месте, а отчёт пишет
+почему (`cpu-check.txt`). На раннерах GitHub ВМ vmactions получает AVX-512 только на
+раннере Intel, где он есть: anyvm, который запускает ВМ, выключает его на процессоре AMD
+под гипервизором. Всё, что идёт от уровня, — как у остальных: релиз `az-fbsd15-amd64-v4`
+и его снимки `az-fbsd15-amd64-v4-<ГГГГММДД>-<ЧЧММ>`, черновики `wip-x86-64-v4-*`, кэши
+`repo-x86-64-v4-*` и `portcache-x86-64-v4-*`, отчёты прогонов, запрос публикации
+(`cputype` `x86-64-v4`), сборки [yt-dlp](#yt-dlp-из-github), когда релиз есть, и
+`az-menu.sh --repo` из azsupport/php-src на процессоре с AVX-512, когда он опубликован.
+Вручную на такой машине: `sh tools/cpu-check.sh x86-64-v4`, потом
+`env AZ_CPUTYPE=x86-64-v4 sh tools/build.sh`. Порты, сборка которых зависит от уровня,
+берут его: библиотеки `_avx2` Manticore Columnar оставляют его `-march`, AVX2-вариант
+`memchr` MongoDB включён, Go собирается с GOAMD64 v4.
+
 ### Слитые ветки
 
 [`delete-branches.yml`](.github/workflows/delete-branches.yml), «Delete merged branches»:
@@ -1119,7 +1148,8 @@ workflow**. yt-dlp следует релизам github.com/yt-dlp/yt-dlp, а н
 - порты проверяются `make -V` ([`tools/check-tree-ci.sh`](tools/check-tree-ci.sh), проверка
   `build.yml`), один коммит aZ пушится в main токеном прогона;
 - сборка, когда в релизах нет этого yt-dlp: `build.yml` из main для `www/yt-dlp`, оба
-  уровня, `publish` с `publish_only`; не пока прогон `build.yml` из main в очереди или
+  уровня (и отдельный прогон `x86-64-v4`, когда есть релиз `az-fbsd15-amd64-v4`),
+  `publish` с `publish_only`; не пока прогон `build.yml` из main в очереди или
   идёт (запустит следующая проверка), не снова после того, как запущенный ею прогон
   прошёл, и не после трёх упавших.
 
