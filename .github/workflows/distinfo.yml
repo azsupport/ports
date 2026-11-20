@@ -10,8 +10,9 @@ name: The distinfo of a new release
 # of the run and into the branch runs of azsupport/azsupport (tools/runs-report.sh).
 # With "list", what is in each file too, for a port made from a binary archive
 # (textproc/opensearch217: the jars and plugins of the bundle): tar -tv or unzip -l,
-# and the text of the members whose paths match its patterns, into a report of its
-# own (<run>-list.md).
+# and the text of the members whose paths match its patterns (of an ELF member, what
+# readelf says of its ABI, libraries and symbol versions), into a report of its own
+# (<run>-list.md).
 # Started by hand: Actions, "The distinfo of a new release", "Run workflow", or
 # gh api -X POST repos/azsupport/ports/actions/workflows/distinfo.yml/dispatches
 #   -f ref=main -f 'inputs[files]=<name>=<url>' -f 'inputs[sums]=<url>'
@@ -66,7 +67,19 @@ jobs:
                 *) tar -xf dl/file -C dl/x --wildcards $pats > /dev/null 2>&1 ;;
               esac
               (cd dl/x && find . -type f | LC_ALL=C sort) | while read -r m; do
-                { echo "### ${m#./}"; echo; echo '```'; head -c 100000 "dl/x/$m"; echo; echo '```'; echo; } >> list.md
+                if [ "$(head -c 4 "dl/x/$m" | od -An -c | tr -d ' ')" = '177ELF' ]; then
+                  # an ELF file (devel/php84-ioncube: the loaders of a binary archive): its
+                  # header, notes, dynamic section and the versions of the symbols it
+                  # takes from other objects (readelf of binutils), not its bytes
+                  { echo "### ${m#./} (ELF)"; echo; echo '```'
+                    readelf -h "dl/x/$m" | grep -E 'Class|OS/ABI|Machine|Type:'
+                    readelf -n "dl/x/$m" | grep -vE '^$|^Displaying'
+                    readelf -d "dl/x/$m" | grep -E 'NEEDED|SONAME|RPATH|RUNPATH'
+                    readelf -W --dyn-syms "dl/x/$m" | awk '$7 == "UND" && $8 ~ /@/ { print "UND", $8 }' | LC_ALL=C sort -u
+                    echo '```'; echo; } >> list.md
+                else
+                  { echo "### ${m#./}"; echo; echo '```'; head -c 100000 "dl/x/$m"; echo; echo '```'; echo; } >> list.md
+                fi
               done
               rm -rf dl/x
             fi
