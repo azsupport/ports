@@ -13,8 +13,11 @@ CFLAGS=-O3 -pipe -fno-strict-aliasing
 JPEG_PORT=graphics/mozjpeg
 # the ports with USES=mysql take the client of our MariaDB 10.11
 # (databases/mariadb1011-client; the default of the ports is MySQL 8.4), as on the
-# servers (aZ, 15.11.2026)
-DEFAULT_VERSIONS+=mysql=10.11m
+# servers (aZ, 15.11.2026); Python 3.12 (lang/python312) and Ruby 3.4 (lang/ruby34)
+# fixed as well, so that a move of PYTHON_DEFAULT or RUBY_DEFAULT of the pinned tree
+# changes no port of ours (aZ, 20.11.2026: «дефолтный руби добавляй в наш make.conf как и
+# марию и питон»; it builds every port again, so it goes in with the build runners)
+DEFAULT_VERSIONS+=mysql=10.11m python=3.12 ruby=3.4
 DISABLE_VULNERABILITIES=yes
 DISABLE_LICENSES=yes
 BATCH=yes
