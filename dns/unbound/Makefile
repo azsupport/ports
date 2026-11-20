@@ -81,7 +81,9 @@ SUBNET_DESC=		Enable client subnet support
 TFOCL_DESC=		Enable TCP Fast Open for client mode
 TFOSE_DESC=		Enable TCP Fast Open for server mode
 
-STRIP_FILES=	.libs/libunbound.so unbound-checkconf unbound unbound-control \
+# the library itself, not its link .libs/libunbound.so: strip writes a stripped copy in
+# the place of a link, and libtool installs the file the link points to
+STRIP_FILES=	.libs/libunbound.so.8.1.41 unbound-checkconf unbound unbound-control \
 		.libs/unbound-host .libs/unbound-anchor
 
 DEP-RSA1024_CONFIGURE_ON=	--with-deprecate-rsa-1024
