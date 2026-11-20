@@ -7,7 +7,12 @@
 # graphics/gd and graphics/png; SNMP_Session of net-mgmt/p5-SNMP_Session of this tree
 # (aZ, 20.11.2026: «давай в наши порты»), not Pod::Parser and Module::CoreList, which
 # the official port takes: the scripts of MRTG use Pod::Usage, which the perl 5.42 of
-# this tree has without Pod::Parser, and Module::CoreList is in its core.
+# this tree has without Pod::Parser, and Module::CoreList is in its core. With two
+# fixes upstream made after 2.17.10, as Debian carries them: files/patch-CVE-2026-72694
+# (the pid file of mrtg --daemon, which root created and chowned through a symbolic
+# link of the user of the daemon) and files/patch-bin_mrtg-RouterUpTime (the options of
+# a target of RouterUpTime dropped); the other fixes of Debian are in the official port
+# (cfgmaker: ubiquiti, the counter value 0 of noHC) or are of its documents and builds.
 
 PORTNAME=	mrtg
 DISTVERSION=	2.17.10
