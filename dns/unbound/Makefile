@@ -3,15 +3,20 @@
 # свой unbound порт потому как всё равно трудно в системе его обновлять чем пакет,
 # да и он там весь обрезанный и с кривыми стартуп скриптами»; the base system of the
 # servers is built WITHOUT_UNBOUND): the official port of the pinned commit (Unbound
-# 1.26.2, the newest release) with expat, nghttp2 (DNS over HTTPS), libevent and
-# libsodium (DNSCrypt) the shared libraries of az, with the run path
-# /usr/local/az/lib (our ports link each other's shared libraries: aZ, 10.11.2026),
-# so that it takes no package but az (the official one takes expat2, libnghttp2,
-# libevent and libsodium); OpenSSL of the base system. The options of the official
-# port on (DNSCRYPT, DYNLIB, ECDSA, EVAPI, GOST, LIBEVENT, THREADS) and TFOCL, TFOSE
-# (TCP Fast Open, as TCP_FASTOPEN of our dns/bind920); off as there: DEP-RSA1024,
-# DNSTAP, FILTER_AAAA, HIREDIS, MUNIN_PLUGIN, PYTHON, SUBNET; no DOCS and no manual
-# pages (the make.conf of the servers). The rest as the official port: the rc.d
+# 1.26.2, the newest release) with expat and libevent the shared libraries of az,
+# with the run path /usr/local/az/lib (our ports link each other's shared libraries:
+# aZ, 10.11.2026), so that it takes no package but az (the official one takes expat2,
+# libnghttp2, libevent and libsodium); OpenSSL of the base system. A resolver of the
+# server itself (aZ, 20.11.2026 18:20: «а нужны ли EVAPI, GOST? да и DNSCRYPT,
+# DYNLIB?»): ECDSA (the DNSSEC algorithms 13 and 14), LIBEVENT (kqueue, large
+# outgoing ranges), THREADS and TFOCL, TFOSE (TCP Fast Open, as TCP_FASTOPEN of our
+# dns/bind920) on; off: DNSCRYPT (DNSCrypt to clients, libsodium), DYNLIB (modules of
+# other libraries), EVAPI (the event API of libunbound for programs that embed it),
+# GOST (GOST R 34.10-2001 of DNSSEC, RFC 8624: not to be used; the OpenSSL of the
+# base system has no GOST), and as in the official one DEP-RSA1024, DNSTAP,
+# FILTER_AAAA, HIREDIS, MUNIN_PLUGIN, PYTHON, SUBNET; no DNS over HTTPS for clients
+# (nghttp2, always on in the official port); no DOCS and no manual pages (the
+# make.conf of the servers). The rest as the official port: the rc.d
 # script unbound (unbound_enable, profiles, unbound-anchor before the start), the
 # user unbound, /usr/local/etc/unbound with unbound.conf.sample.
 
@@ -29,12 +34,10 @@ WWW=		https://www.nlnetlabs.nl/projects/unbound \
 LICENSE=	BSD3CLAUSE
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-# expat and nghttp2 of az: configure takes the headers and the libraries under the
-# paths of --with-libexpat and --with-libnghttp2
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az \
-		${AZ_PREFIX}/lib/libnghttp2.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az \
-		${AZ_PREFIX}/lib/libnghttp2.so:az/az
+# expat of az (unbound-anchor): configure takes its header and library under the
+# path of --with-libexpat
+BUILD_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az
+RUN_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az
 
 USES=		autoreconf cpe libtool pkgconfig ssl
 CPE_VENDOR=	nlnetlabs
@@ -43,7 +46,7 @@ USE_RC_SUBR=	${PORTNAME}
 
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS=	--with-libexpat=${AZ_PREFIX} \
-		--with-libnghttp2=${AZ_PREFIX} \
+		--without-libnghttp2 \
 		--with-ssl=${OPENSSLBASE}
 LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
 TEST_TARGET=	test
@@ -60,7 +63,7 @@ PORTDOCS=	CNAME-basedRedirectionDesignNotes.pdf CREDITS Changelog \
 OPTIONS_DEFINE=		DEP-RSA1024 DNSCRYPT DNSTAP DOCS DYNLIB ECDSA EVAPI \
 			FILTER_AAAA GOST HIREDIS LIBEVENT MUNIN_PLUGIN PYTHON \
 			SUBNET TFOCL TFOSE THREADS
-OPTIONS_DEFAULT=	DNSCRYPT DYNLIB ECDSA EVAPI GOST LIBEVENT TFOCL TFOSE THREADS
+OPTIONS_DEFAULT=	ECDSA LIBEVENT TFOCL TFOSE THREADS
 OPTIONS_SUB=		yes
 
 DEP-RSA1024_DESC=	Deprecate the use of RSA 1024 keys

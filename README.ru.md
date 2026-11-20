@@ -103,7 +103,7 @@
 | `aria2`, `aria2-ssh2` | `www/aria2`, `www/aria2-ssh2` | aria2 1.37.0: Metalink и XML-RPC (libxml2 из az), асинхронный DNS (c-ares из az), BitTorrent, HTTPS (OpenSSL базы), опрос событий kqueue; без libuv, без SQLite (cookies браузеров), без NLS и статической сборки; SFTP (libssh2 из az) — только в `aria2-ssh2`, ставится один из двух |
 | `php56-composer` … `php84-composer` | `devel/php56-composer` … `devel/php84-composer` | Composer 2.11.2 (для PHP 5.6 — 2.2.32, его LTS-линия) как `bin/composerXY`, который запускает его через `bin/phpXY`: по одному на каждый PHP, рядом друг с другом |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: DNS-сервер `named` с TCP Fast Open, без GSSAPI, DNSTAP, LMDB и каналов статистики; dig, host, nslookup, delv, nsupdate и утилиты DNSSEC, с IDN |
-| `unbound` | `dns/unbound` | Unbound 1.26.2 — валидирующий рекурсивный кеширующий DNS-резолвер, вместо local_unbound базы (aZ, 20.11.2026): DNSCrypt, DNS over HTTPS, TCP Fast Open, libevent; скрипт rc.d unbound |
+| `unbound` | `dns/unbound` | Unbound 1.26.2 — валидирующий рекурсивный кеширующий DNS-резолвер, вместо local_unbound базы (aZ, 20.11.2026): резолвер самого сервера, с ECDSA, libevent, потоками и TCP Fast Open; скрипт rc.d unbound |
 | `vips` | `graphics/vips` | libvips 8.18 для скриптов Lua в nginx, перекодирующих картинки на лету: JPEG (mozjpeg), PNG, WebP, HEIC (чтение), AVIF (чтение и запись), GIF, с ICC-профилями, EXIF и SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
 | `glib`, `libexif`, `cgif`, `libimagequant`, `highway` | `devel/glib20`, `graphics/libexif`, `graphics/cgif`, `graphics/libimagequant`, `devel/highway` | библиотеки `vips` (GLib — и `mc`, libimagequant — и libgd из az: LIQ, палитра `imagegif()` и `imagetruecolortopalette()` PHP 5.6–8.4; GPLv3 или новее): GLib 2.88 разделяемая, без introspection, NLS, документации и man-страниц, на libffi, libintl и libiconv из az и PCRE2 из `pcre2`; остальные — официальные порты как есть (libexif без NLS) |
 | `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (атом moov в начало MP4), возвращён для совместимости: официальный порт удалён 30.06.2022 |
@@ -503,11 +503,12 @@
   (DNS over HTTPS) и libidn2 из az, OpenSSL, zlib и libedit базы.
 - **`dns/unbound`**: Unbound 1.26.2 вместо local_unbound базы, которую серверы собирают
   WITHOUT_UNBOUND (aZ, 20.11.2026: пакет обновляется как остальные, резолвер базы — только с
-  системой, обрезанный и со своими стартовыми скриптами): официальный порт с его
-  включёнными опциями (DNSCRYPT, DYNLIB, ECDSA, EVAPI, GOST, LIBEVENT, THREADS) и TCP Fast
-  Open (TFOCL, TFOSE, как TCP_FASTOPEN у BIND); без DNSTAP, кеша в Redis, Python, Munin,
-  фильтра AAAA, client subnet, man-страниц и документации. expat, nghttp2 (DNS over HTTPS),
-  libevent и libsodium (DNSCrypt) из az, OpenSSL базы. `unbound` со скриптом rc.d unbound
+  системой, обрезанный и со своими стартовыми скриптами): официальный порт как резолвер
+  самого сервера, с ECDSA (алгоритмы DNSSEC 13 и 14), LIBEVENT, THREADS и TCP Fast Open
+  (TFOCL, TFOSE, как TCP_FASTOPEN у BIND); без DNSCrypt и DNS over HTTPS для клиентов,
+  модулей сторонних библиотек (DYNLIB), событийного API libunbound (EVAPI), GOST (RFC 8624),
+  DNSTAP, кеша в Redis, Python, Munin, фильтра AAAA, client subnet, man-страниц и
+  документации. expat и libevent из az, OpenSSL базы. `unbound` со скриптом rc.d unbound
   официального порта (unbound_enable, профили, unbound-anchor перед запуском),
   `/usr/local/etc/unbound` с unbound.conf.sample.
 - **`graphics/vips`**: libvips 8.18 (aZ, 11.11.2026: для скрипта Lua в nginx,
