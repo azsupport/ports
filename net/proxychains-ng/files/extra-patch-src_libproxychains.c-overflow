@@ -1,0 +1,29 @@
+From cc005b7132811c9149e77b5e33cff359fc95512e Mon Sep 17 00:00:00 2001
+From: rofl0r <rofl0r@users.noreply.github.com>
+Date: Sat, 18 Oct 2025 12:13:11 +0000
+Subject: [PATCH] fix potential buffer overflow in config file parsing
+
+could be triggered by using username or password exceeding 255
+bytes for http type proxies.
+
+closes #606
+---
+ src/libproxychains.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/libproxychains.c b/src/libproxychains.c
+index e630e51..40d8a11 100644
+--- a/src/libproxychains.c
++++ b/src/libproxychains.c
+@@ -241,7 +241,7 @@ static int proxy_from_string(const char *proxystring,
+ 		ul = p-u;
+ 		p++;
+ 		pl = at-p;
+-		if(proxytype == RS_PT_SOCKS5 && (ul > 255 || pl > 255))
++		if(ul > 255 || pl > 255)
+ 			return 0;
+ 		memcpy(user_buf, u, ul);
+ 		user_buf[ul]=0;
+-- 
+2.43.0
+
