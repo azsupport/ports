@@ -6,7 +6,10 @@
 # textproc/manticore32 loads them. A slave of textproc/manticore14-columnar (its head says
 # what the build is); here what the line 32 has of its own (its embeddings, hnswlib and
 # crates are those of b5ffd362):
-# - hnswlib 65c9db8c; the builds of the libraries plain, _avx2 and _avx512;
+# - hnswlib 65c9db8c; the builds of the libraries plain, _avx2 and _avx512; _avx2 at the
+#   level x86-64-v4 with the -march of the level (upstream: x86-64-v3, which searchd loads
+#   on a CPU of the level without the AVX512-VPOPCNTDQ of _avx512;
+#   files/patch-cmake_update__bundle.cmake), _avx512 -march=x86-64-v4 -mavx512vpopcntdq;
 # - the embeddings (candle of manticoresoftware 0051854b) without ONNX Runtime (aZ,
 #   16.11.2026): upstream links a static ONNX Runtime it downloads for Linux, macOS and
 #   Windows only, for the models of HuggingFace that have ONNX weights only; here the
