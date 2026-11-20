@@ -6,8 +6,11 @@
 #   - php -v of the core, php -m with the ini files of the modules (no warning);
 #   - per installed phpXY-<module> package: its ini in etc/phpXY/conf.d
 #     (ext-<NN>-<module>.ini, from the @sample of the package: opcache 10 with
-#     zend_extension, session 18, the others 20 or 30; the lines of openswoole and
-#     gmagick off) and the module in php -m (gmagick in its CLI profile instead:
+#     zend_extension, session 18, the others 20 or 30, the ionCube Loader
+#     (devel/phpXY-ioncube) 05 with zend_extension=ioncube_loader.so, before
+#     opcache; the lines of openswoole and gmagick off) and the module in php -m
+#     (the loader as the Zend module "the ionCube PHP Loader"; gmagick in its CLI
+#     profile instead:
 #     php74-profile gmagick -m lists gmagick and not imagick; openswoole loaded on
 #     its own, with the modules of
 #     conf.d but swoole: they define the same classes);
@@ -73,7 +76,9 @@
 #     "GCC: (...) <N>." in .comment and no libgcc_s.so.1 (-static-libgcc); clang
 #     (intl, swoole, openswoole, imagick, gmagick): no GCC in .comment (which the
 #     strip of the base system removes) and no libstdc++ of GCC (C++ with the
-#     libc++ of the base system);
+#     libc++ of the base system); ioncube_loader.so of phpXY-ioncube is the binary
+#     of ionCube, built on FreeBSD 11 (no az_cc): the compiler its .comment names
+#     in an OK line, no check;
 #   - php-fpm -t with the configs of the package (php-fpm.conf, php-fpm.d/www.conf);
 #   - Apache with phpXY-apache: apachectl -t with its sample as
 #     modules.d/280_mod_phpXY.conf (removed again), the module among those Apache
@@ -545,6 +550,7 @@ while read -r p; do
     want="extension=$mod.so"; nnok="20 30"
     case "$mod" in
         opcache) want="zend_extension=opcache.so"; nnok=10 ;;
+        ioncube) want="zend_extension=ioncube_loader.so"; nnok=05 ;;
         session) nnok=18 ;;
         openswoole|gmagick) want="" ;;
     esac
@@ -567,6 +573,7 @@ while read -r p; do
     fi
     mn="$mod"
     [ "$mod" = opcache ] && mn="Zend OPcache"
+    [ "$mod" = ioncube ] && mn="the ionCube PHP Loader"
     if [ "$mod" = openswoole ]; then
         set --
         while read -r l; do set -- "$@" -d "$l"; done < "$tmp/lines"
@@ -607,13 +614,16 @@ while read -r p; do
         qm="$mod"
         [ "$q" = "$p" ] || qm="$(mod_of "$q")"
         [ -n "$qm" ] || continue
+        qf="$qm.so"
         case "$qm" in
             opcache) set -- "$@" -d zend_extension=opcache.so ;;
+            ioncube) qf=ioncube_loader.so; set -- "$@" -d zend_extension=ioncube_loader.so ;;
             *) set -- "$@" -d "extension=$qm.so" ;;
         esac
-        pre="$pre${pre:+ }$extdir/$qm.so"; with="$with${with:+, }$qm.so"
+        pre="$pre${pre:+ }$extdir/$qf"; with="$with${with:+, }$qf"
     done
     bn="$mod.so with LD_BIND_NOW=1"
+    [ "$mod" = ioncube ] && bn="ioncube_loader.so with LD_BIND_NOW=1"
     LD_BIND_NOW=1 LD_PRELOAD="$pre" "$php" -n -d "extension_dir=$extdir" "$@" -m \
         > "$tmp/m-b" 2> "$tmp/m-b.err" < /dev/null
     st=$?
@@ -767,7 +777,14 @@ for f in "$php" "$P/bin/php-cgi$short" "$fpm"; do
     [ -f "$f" ] && cc_check "$f" gcc
 done
 for so in "$extdir"/*.so; do
-    [ -f "$so" ] && cc_check "$so"
+    [ -f "$so" ] || continue
+    case "${so##*/}" in
+        ioncube_loader.so)
+            # the binary of ionCube (devel/phpXY-ioncube), built on FreeBSD 11, not
+            # here: no annotation az_cc to hold it against
+            ok "compiler of ${so#"$P"/}" "the binary of ionCube: $(readelf -p .comment "$so" 2>/dev/null | sed -n 's/^ *\[ *[0-9a-fA-F]*\] *//p' | grep -v '^\$FreeBSD' | sort -u | tr '\n' ' ' | sed 's/ *$//'), $(readelf -p .comment "$so" 2>/dev/null | sed -n 's#.*\$FreeBSD: \([a-z]*/[0-9.]*\)/.*#\1#p' | head -n 1)" ;;
+        *) cc_check "$so" ;;
+    esac
 done
 
 # php-fpm -t with the configs of the package (their @sample lines)
