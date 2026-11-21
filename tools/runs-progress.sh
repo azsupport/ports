@@ -52,6 +52,18 @@ while [ "$(date +%s)" -lt "$end" ]; do
         echo "- the reporter since: $started UTC; now: $(date -u '+%H:%M') UTC"
         # the disk of the VM grows on that of the runner
         echo "- disk: runner $(df -h / 2>/dev/null | awk 'NR == 2 { print $4 " free of " $2 }')$( [ -z "$vm" ] || echo "; VM $(timeout 60 ssh $o "$vm" "df -h / | tail -n 1" < /dev/null 2>/dev/null | awk '{ print $4 " free of " $2 }')")"
+        # the memory of the VM (top: the lines Mem and Swap), and the tests of azsupport
+        # (results/tests, tools/test-programs.sh): the files written last, their names
+        # and times only, so that a test that stops the VM is named (run 44926907394: the
+        # VM stopped answering ssh in the tests, which say nothing until their end)
+        if [ -n "$vm" ]; then
+            # shellcheck disable=SC2086
+            timeout 60 ssh $o "$vm" "top -b -d 1 0 2>/dev/null | grep -E '^(Mem|Swap):'; echo ====; cd '$ws/results/tests' 2>/dev/null && ls -t | head -n 3 | while IFS= read -r f; do printf '%s %s\\n' \"\$(stat -f %Sm -t %H:%M \"\$f\")\" \"\$f\"; done" \
+                < /dev/null > "$w/mt" 2> /dev/null || :
+            awk '/^====$/ { exit } { print "- memory of the VM: " $0 }' "$w/mt"
+            tl="$(awk 'f { printf "%s%s (%s)", (n++ ? ", " : ""), $2, $1 } /^====$/ { f = 1 }' "$w/mt")"
+            [ -z "$tl" ] || echo "- the tests, the files of results/tests written last (UTC): $tl"
+        fi
         # tools/runs-save.sh: the packages built, saved while the VM builds
         st="${AZ_RUNS_STATE:-/tmp/az-runs}"
         if [ -d "$st/runs-save/saved" ]; then
