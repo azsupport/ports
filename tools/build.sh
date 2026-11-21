@@ -114,7 +114,8 @@
 #   built again (an incremental build) unless --force; a port that fails stops those
 #   that need it (skipped, with the reason);
 # - a port of a kernel module (USES=kmod) builds against the sources of the kernel in
-#   /usr/src: when one is to be built and the machine has none, gitup of the branch
+#   /usr/src, as do the ports of AZ_KERNEL_SOURCES (below: VirtualBox): when one is to
+#   be built and the machine has none, gitup of the branch
 #   releng/<release> of the machine (with the fixes of the release) into /usr/src, once
 #   (ksrc_get; results/logs/kernel-sources.log); the chroots get /usr/src read only;
 # - each port in a chroot of its own (work/ch/<key>), made for it in seconds and torn
@@ -198,6 +199,13 @@ ports_url="https://github.com/freebsd/freebsd-ports"
 # (aZ, 18.11.2026: «а) ... да, давай так»); our lang/gcc16-libs is not a tool and goes
 # to the ports that run with it (sysutils/arcconf)
 AZ_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson lang/gcc16"
+# the ports that build against the sources of the kernel without being kernel modules
+# (no USES=kmod, no IGNORE without them): they get them as a kernel module does
+# (ksrc_get). VirtualBox generates headers of the kernel out of them (VBOX_FREEBSD_SRC=
+# ${SRC_BASE}/sys of the official port; without them kmk: «No rule to make target
+# '/usr/src/sys/kern/bus_if.m'», 21.11.2026, when its kernel module came from the
+# repository and no port of the run had fetched the sources)
+AZ_KERNEL_SOURCES="emulators/virtualbox-ose-72"
 
 top="$(cd "$(dirname "$0")/.." && pwd)"
 usage() { sed -n 's/^# \{0,1\}//; 6,16p' "$0" >&2; exit "${1:-2}"; }
@@ -1326,7 +1334,8 @@ time_skip() {
 # the az built in this run ($q/abifail/<key>) is built again; one kept has its
 # ksrc_get: the sources of the kernel for a port of a kernel module (USES=kmod: its
 # SRC_BASE/sys, /usr/src/sys; without them the port says IGNORE "requires kernel source
-# files"), once a run and only when such a port is to be built: gitup (aZ, 19.11.2026:
+# files") and for those of AZ_KERNEL_SOURCES, once a run and only when such a port is to
+# be built: gitup (aZ, 19.11.2026:
 # «качай ... через gitup - быстро же») of the branch releng/<release> of the machine,
 # with the fixes of the release (aZ: «с последними исправлениями в релизе»), into
 # /usr/src, which the chroots get read only (ch_base). gitup is that of the official
@@ -1422,13 +1431,16 @@ pre_port() {
         return 1
     fi
     # a kernel module (USES=kmod; make -V says IGNORE for want of the sources only when
-    # the target build is defined): the sources of the kernel first
-    if [ "$kmod_src" = 0 ] && [ ! -f /usr/src/sys/Makefile ] &&
-        make -C "$top/$1" AZ_STAMP="$az_stamp" -V USES 2> /dev/null | tr ' ' '\n' | grep -qE '^kmod(:|$)'; then
-        kmod_src=1
+    # the target build is defined) or a port of AZ_KERNEL_SOURCES: the sources of the
+    # kernel first
+    if [ "$kmod_src" = 0 ] && [ ! -f /usr/src/sys/Makefile ]; then
+        case " $AZ_KERNEL_SOURCES " in
+        *" ${1%%@*} "*) kmod_src=1 ;;
+        *) make -C "$top/$1" AZ_STAMP="$az_stamp" -V USES 2> /dev/null | tr ' ' '\n' | grep -qE '^kmod(:|$)' && kmod_src=1 ;;
+        esac
     fi
     if [ "$kmod_src" = 1 ]; then
-        if ! ksrc_get; then record "$1" fail "$pn: a kernel module, no sources of the kernel: $ksrc_why"; return 1; fi
+        if ! ksrc_get; then record "$1" fail "$pn: it builds against the sources of the kernel, and there are none: $ksrc_why"; return 1; fi
         ign="$(make -C "$top/$1" AZ_STAMP="$az_stamp" -V IGNORE 2> /dev/null)"
         if [ -n "$ign" ]; then record "$1" fail "$pn: the port says IGNORE: $ign"; return 1; fi
     fi
