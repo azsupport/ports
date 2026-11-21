@@ -12,6 +12,8 @@
 #   - a dependency names an origin that is neither a port of this tree nor one of
 #     the official tree (<origin>/Makefile; a @flavor is left out);
 #   - two ports have the same PKGNAME;
+#   - a dependency on a port of this tree by a package pattern (<name>>=<version>:
+#     <origin>, no @flavor) names another package than that of the port (its PKGBASE);
 #   - the static tree of az (aZ, 12.11.2026): a port whose dependencies name a file of
 #     it (${AZ_STATIC}/...:az/az) without AZ_STATIC_LIBS (the libraries of az whose
 #     archives it links into its package, whose content its az_hash takes, or "none":
@@ -94,6 +96,7 @@ fi
 nok=0; nfail=0; nign=0
 say() { printf '%s\n' "$*"; }
 : > "$tmp/names"
+: > "$tmp/pdeps"
 for mk in "$top"/*/*/Makefile; do
     [ -f "$mk" ] || continue
     d="${mk%/Makefile}"; o="${d#"$top"/}"
@@ -120,6 +123,16 @@ for mk in "$top"/*/*/Makefile; do
             org="$(printf '%s\n' "$dep" | awk -F: '{ print $2 }' | sed 's/@.*//')"
             if [ -z "$org" ]; then unknown="$unknown $dep (${kind}_DEPENDS: no origin);"; continue; fi
             nd=$((nd + 1))
+            # a package pattern (<name><op><version>) of a port of this tree, no @flavor:
+            # its name is to be the PKGBASE of that port (checked after the loop)
+            w="${dep%%:*}"
+            case "$w" in
+            *[\<\>=]*)
+                case "$dep" in
+                *@*) ;;
+                *) [ -f "$top/$org/Makefile" ] && printf '%s %s %s %s\n' "$o" "$kind" "${w%%[<>=]*}" "$org" >> "$tmp/pdeps" ;;
+                esac ;;
+            esac
             if [ -f "$top/$org/Makefile" ] || [ -f "$off/$org/Makefile" ]; then continue; fi
             case " $unknown " in *" $org ("*) ;; *) unknown="$unknown $org (${kind}_DEPENDS);" ;; esac
         done
@@ -216,6 +229,18 @@ for pn in $(awk '{ print $1 }' "$tmp/names" | sort | uniq -d); do
     say "FAIL $pn: the PKGNAME of $(awk -v n="$pn" '$1 == n { print $2 }' "$tmp/names" | tr '\n' ' ' | sed 's/ *$//')"
     nfail=$((nfail + 1))
 done
+# a dependency on a port of this tree by a package pattern: the name of the pattern is
+# the PKGBASE of that port (the depends of bsd.port.mk ask pkg for the pattern; another
+# name is a dependency that the build does not find installed: aZ, 21.11.2026, the
+# packages renamed with the version first)
+while read -r po_ kind_ name_ org_; do
+    pn_="$(awk -v o="$org_" '$2 == o { print $1; exit }' "$tmp/names")"
+    [ -n "$pn_" ] || continue
+    case "$name_" in *[\*\?\[]*) continue ;; esac
+    [ "$name_" = "${pn_%-*}" ] && continue
+    say "FAIL $po_: ${kind_}_DEPENDS names the package $name_ of $org_, whose package is ${pn_%-*}"
+    nfail=$((nfail + 1))
+done < "$tmp/pdeps"
 n="$(wc -l < "$tmp/names" | tr -d ' ')"
 [ "$n" -gt 0 ] || [ "$nfail" -gt 0 ] || { say "FAIL no port in $top (<category>/<port>/Makefile)"; nfail=1; }
 say "result: $nok ok, $nfail failed, $nign ignored ($MAKE, $os; the official tree $off)"
