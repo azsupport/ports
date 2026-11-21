@@ -1,11 +1,9 @@
 #!/bin/sh
 # az-renames.sh - move a server to the names of the packages of az of 21.11.2026: the
 # version first, as php84 and php84-gd (phpXY-fpm, phpXY-cgi, node24-npm, ruby34 ...),
-# the modules of Apache with the Apache first (apache24-phpXY, from 22.11.2026: before
-# mod_phpXY, then phpXY-apache; apache24-mod_fastcgi ...), and the FPM and the CGI of
-# PHP packages of their own (phpXY-fpm with the rc.d script phpXY_fpm, phpXY-cgi), out
-# of the core phpXY. A second run after the newer names is the same: it moves what is
-# under a name of before.
+# the modules of Apache with the Apache first (apache24-phpXY, before mod_phpXY;
+# apache24-mod_fastcgi ...), and the FPM and the CGI of PHP packages of their own
+# (phpXY-fpm with the rc.d script phpXY_fpm, phpXY-cgi), out of the core phpXY.
 #
 # Usage (as root, FreeBSD, the repository az configured):
 #   sh az-renames.sh            what it would do; nothing is changed
@@ -80,9 +78,7 @@ trap 'rm -f "$edits"' EXIT
 
 # the old name and the new one
 map="mod_php56:apache24-php56 mod_php74:apache24-php74 mod_php81:apache24-php81 mod_php82:apache24-php82
-mod_php83:apache24-php83 mod_php84:apache24-php84 php56-apache:apache24-php56 php74-apache:apache24-php74
-php81-apache:apache24-php81 php82-apache:apache24-php82 php83-apache:apache24-php83
-php84-apache:apache24-php84 ap24-mod_fastcgi:apache24-mod_fastcgi
+mod_php83:apache24-php83 mod_php84:apache24-php84 ap24-mod_fastcgi:apache24-mod_fastcgi
 ap24-mod_maxminddb:apache24-mod_maxminddb npm-node18:node18-npm yarn-node18:node18-yarn
 corepack-node18:node18-corepack npm-node24:node24-npm yarn-node24:node24-yarn
 corepack-node24:node24-corepack phpMyAdmin-php56:php56-phpmyadmin
@@ -110,7 +106,7 @@ for m in $map; do
     fi
     say "$o -> $n"
     want="$want $n"
-    case "$o" in mod_php*|php*-apache|ap24-*) apache=1 ;; rubygem-passenger-nginx) nginx=1 ;; esac
+    case "$o" in mod_php*|ap24-*) apache=1 ;; rubygem-passenger-nginx) nginx=1 ;; esac
 done
 
 say "== 3. the FPM and the CGI of PHP"

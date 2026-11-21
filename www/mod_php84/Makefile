@@ -21,12 +21,12 @@ AP2FILTER_CONFIGURE_ON=--with-apxs2filter=${APXS}
 AP2FILTER_CONFIGURE_OFF=--with-apxs2=${APXS}
 
 # The package apache24-php84 (aZ, 22.11.2026: the Apache it is for first, as
-# apache24-mod_fastcgi and apache24-suexec, should an apache22 come beside it; from
-# 21.11.2026 php84-apache): PKGBASE, and PKGNAME on the command line of make
-# (.MAKEFLAGS), which the PKGNAME= of bsd.port.mk does not replace; PKGNAMEPREFIX mod_
-# stays, by it lang/php84 builds the module of Apache.
+# apache24-mod_fastcgi and apache24-suexec, should an apache22 come beside it; before,
+# mod_php84): PKGBASE, and PKGNAME on the command line of make (.MAKEFLAGS), which the
+# PKGNAME= of bsd.port.mk does not replace; PKGNAMEPREFIX mod_ stays, by it lang/php84
+# builds the module of Apache.
 PKGBASE=	apache24-php84
-CONFLICTS_INSTALL=	mod_php84 php84-apache
+CONFLICTS_INSTALL=	mod_php84
 .MAKEFLAGS:	PKGNAME=apache24-php84-$${PKGVERSION}
 
 .include "${MASTERDIR}/Makefile"
