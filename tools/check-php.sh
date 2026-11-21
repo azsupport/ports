@@ -104,7 +104,7 @@ P="${PREFIX:-/usr/local}"
 AZ="${AZ_PREFIX:-/usr/local/az}"
 etc="$P/etc/php$short"
 php="$P/bin/php$short"
-fpm="$P/sbin/php-fpm$short"
+fpm="$P/sbin/php$short-fpm"
 modso="$P/libexec/apache24/libphp$short.so"
 modsample="$P/etc/apache24/modules.d/280_mod_php$short.conf.sample"
 case "$ver" in 5.*) apmod=php5_module ;; 7.*) apmod=php7_module ;; *) apmod=php_module ;; esac
@@ -757,13 +757,13 @@ for so in "$extdir"/*.so; do
     elf_libs "$so"; n=$((n + 1))
 done
 [ "$n" -gt 0 ] || skip "libraries of the modules" "no module in $extdir"
-for f in "$php" "$P/bin/php-cgi$short" "$fpm"; do
+for f in "$php" "$P/bin/php$short-cgi" "$fpm"; do
     [ -f "$f" ] && elf_libs "$f"
 done
 
 # The compiler of the programs (GCC) and of the modules (that of the az_cc of
 # their packages)
-for f in "$php" "$P/bin/php-cgi$short" "$fpm"; do
+for f in "$php" "$P/bin/php$short-cgi" "$fpm"; do
     [ -f "$f" ] && cc_check "$f" gcc
 done
 for so in "$extdir"/*.so; do
@@ -772,12 +772,12 @@ done
 
 # php-fpm -t with the configs of the package (their @sample lines)
 if [ ! -x "$fpm" ]; then
-    skip "php-fpm$short -t" "no $fpm (php$short without FPM)"
+    skip "php$short-fpm -t" "no $fpm (the package php$short-fpm is not installed)"
 elif [ ! -f "$etc/php-fpm.conf" ]; then
-    fail "php-fpm$short -t" "no $etc/php-fpm.conf (the @sample of the package)"
+    fail "php$short-fpm -t" "no $etc/php-fpm.conf (the @sample of php$short-fpm)"
 else
     [ -f "$etc/php-fpm.d/www.conf" ] || say "note: no $etc/php-fpm.d/www.conf (the @sample of the package)"
-    runs "php-fpm$short -t" "$fpm" -t
+    runs "php$short-fpm -t" "$fpm" -t
 fi
 
 # Apache with phpXY-apache: its sample as modules.d/280_mod_phpXY.conf (removed again),

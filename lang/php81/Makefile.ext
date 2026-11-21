@@ -532,7 +532,7 @@ AZ_MSG=		"imagick and gmagick must not be loaded into one PHP: GraphicsMagick" \
 		"To load gmagick in ${AZ_INI:H} instead of imagick:" \
 		"comment out the line of imagick in ext-*-imagick.ini there, remove" \
 		"the ';' before extension=gmagick.so in ${AZ_INI:T}, then" \
-		"restart php_fpm${PHP_VER} or Apache."
+		"restart php${PHP_VER}_fpm or Apache."
 AZ_MSG_REMOVE=	"The CLI profile gmagick, ${AZ_PROFILE}, stays; to" \
 		"remove it: rm -r ${AZ_PROFILE}"
 .endif
@@ -824,7 +824,7 @@ AZ_MSG=		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops" \
 		"comes with its line commented out. To load openswoole: comment out" \
 		"the line of swoole in ${AZ_INI:H}/ext-*-swoole.ini," \
 		"remove the ';' before extension=${PHP_MODNAME}.so in" \
-		"${AZ_INI}, then restart php_fpm${PHP_VER} or Apache."
+		"${AZ_INI}, then restart php${PHP_VER}_fpm or Apache."
 .endif
 
 # The variants with OpenSSL (AZ_OPENSSL above): one of the two per module

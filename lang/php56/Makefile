@@ -1,3 +1,10 @@
+# Since 21.11.2026 the FPM and the CGI of PHP 5.6 are ports of their own,
+# www/php56-fpm and www/php56-cgi (the packages php56-fpm and php56-cgi; aZ,
+# 21.11.2026: «давай еще разделим php-cgi и php-fpm на отдельные порты и
+# соответственно phpXX-cgi phpXX-fpm и подредактируй название rc.d под новые названия
+# в php-fpm»; «тут тоже php84-»), built by this Makefile with the SAPI alone
+# (AZ_PHP_SAPI); this core has the CLI. What follows of the FPM is theirs.
+#
 # PHP 5.6 of azsupport/php-src for the overlay azsupport/ports: the official
 # port lang/php56 of freebsd-ports d2c06ef5efae (the ports commit of PHP 5.6 in
 # php-src freebsd/targets.conf), changed as lang/php74 is (see its head; the
@@ -36,17 +43,17 @@
 #   . patch-sapi_apache2filter_config.m4: the INSTALL_IT of apxs only (make
 #     install), which do-install of mod_php56 does not use, as for
 #     apache2handler; patch-TSRM_threads.m4: no effect on FreeBSD (SKIPPED);
-#   . files/php-fpm.in: the rc.d script is files/php_fpm56.in (below).
+#   . files/php-fpm.in: the rc.d script is files/php56_fpm.in (below).
 # - PORTREVISION is the stamp of the build, AZ_STAMP of the builder (0 without
 #   it; Mk/bsd.overlay.mk); the modules take it from here.
 # - Versions side by side: every path of PHP 5.6 has 56 in it: bin/php56 ...
 #   (--program-suffix=56), etc/php56 (php.ini by @sample from php.ini.sample:
 #   php.ini-production with the defaults of az, files/php.ini-az-56.in, at its
 #   end; errors in /var/log/php56_error.log, made at install when missing; FPM
-#   with /var/run/php-fpm56.pid, /var/log/php-fpm56.log, and the pool www,
-#   which 5.6 has in php-fpm.conf (no php-fpm.d), on /var/run/php-fpm56.sock),
+#   with /var/run/php56-fpm.pid, /var/log/php56-fpm.log, and the pool www,
+#   which 5.6 has in php-fpm.conf (no php-fpm.d), on /var/run/php56-fpm.sock),
 #   the scan dir etc/php56/conf.d, lib/php56 (the build files of phpize56),
-#   include/php56, share/php56, etc/rc.d/php_fpm56,
+#   include/php56, share/php56, etc/rc.d/php56_fpm,
 #   libexec/apache24/libphp56.so (www/mod_php56); the modules in
 #   lib/php/20131226 as the ports. No CONFLICTS with other versions.
 # - Libraries: libxml2 of the package az (${AZ_PREFIX}), by a file, with its
@@ -69,7 +76,7 @@
 # - No DEPRECATED/EXPIRATION_DATE (upstream end of life 31.12.2018 in the
 #   official port): the fork carries the security fixes, as for 7.4.
 # - Profiles: bin/php56-profile (files/php-profile.in, the template of every
-#   version) and the profiles of the rc.d script php_fpm56, as lang/php74.
+#   version) and the profiles of the rc.d script php56_fpm, as lang/php74.
 # - The Apache module (PKGNAMEPREFIX mod_) with the idioms of the framework of
 #   f16b6dd: USES=apache before bsd.port.pre.mk (not the include of
 #   Mk/Uses/apache.mk after it), AP2FILTER by option helpers of www/mod_php56,
@@ -127,9 +134,9 @@ AZ_XML2_CONFIG=	${WRKDIR}/az-xml2-config
 # the files of this port that the ports needing it need not see (tools/build.sh),
 # as in lang/php74: run-time files of the core only (post-install, USE_RC_SUBR,
 # SUB_FILES), read by no module and not by mod_php56: the block of az for
-# php.ini, bin/php56-profile, the rc.d script php_fpm56 and pkg-message
-AZ_HASH_NOT_FOR_DEPENDENTS=	${FILESDIR}/php.ini-az-56.in ${FILESDIR}/php-profile.in \
-				${FILESDIR}/php_fpm56.in ${FILESDIR}/pkg-message.in
+# php.ini, bin/php56-profile and pkg-message
+AZ_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-56.in ${MASTERDIR}/files/php-profile.in \
+				${MASTERDIR}/files/pkg-message.in
 
 .if !defined(PKGNAMESUFFIX)
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libxml2.so:az/az
@@ -169,7 +176,7 @@ PLIST_SUB+=	PHP_EXT_DIR=${PHP_EXT_DIR}
 LDFLAGS_i386=	-Wl,-z,notext
 
 OPTIONS_DEFINE+=CLI CGI FPM EMBED PHPDBG DEBUG DTRACE IPV6 MAILHEAD LINKTHR ZTS
-OPTIONS_DEFAULT=CLI CGI FPM LINKTHR
+OPTIONS_DEFAULT=CLI LINKTHR
 # Bug 197128:  No ASM code for MIPS/MIPS64, disable FPM
 OPTIONS_EXCLUDE_mips=FPM
 OPTIONS_EXCLUDE_mips64=FPM
@@ -203,6 +210,19 @@ SHORTMODNAME=	php5
 WARNING=	"!!! If you have a threaded Apache, you must build ${PHP_PORT} with ZTS support to enable thread-safety in extensions !!!"
 .endif
 
+# the FPM and the CGI of the version, www/php56-fpm and www/php56-cgi (AZ_PHP_SAPI):
+# the SAPI alone, with etc/php56 and the modules of php56
+.if defined(AZ_PHP_SAPI)
+RUN_DEPENDS+=	${LOCALBASE}/include/php56/php/main/php.h:lang/php56
+.  if ${AZ_PHP_SAPI} == fpm
+COMMENT=	FastCGI Process Manager of PHP (5.6.X branch of azsupport/php-src)
+SUB_FILES+=	pkg-message
+SUB_LIST+=	PHP_VER=${PHP_VER}
+.  else
+COMMENT=	CGI of PHP (5.6.X branch of azsupport/php-src)
+.  endif
+.endif
+
 .include <bsd.port.pre.mk>
 
 PATCH_DIST_STRIP=	-p1
@@ -228,7 +248,7 @@ CONFIGURE_ARGS+=--disable-cgi
 
 .if ${PORT_OPTIONS:MFPM}
 PHP_SAPI+=	fpm
-USE_RC_SUBR+=	php_fpm${PHP_VER}
+USE_RC_SUBR+=	php${PHP_VER}_fpm
 CONFIGURE_ARGS+=--enable-fpm \
 		--with-fpm-user=${WWWOWN} \
 		--with-fpm-group=${WWWGRP}
@@ -302,10 +322,10 @@ post-patch:
 .if ${PORT_OPTIONS:MFPM}
 # the FPM of the version: its own pid file and log, and the pool www (in
 # php-fpm.conf in 5.6) on its own socket for the web server
-	@${REINPLACE_CMD} -e "s|^;*pid = .*|pid = /var/run/php-fpm${PHP_VER}.pid|" \
-		-e "s|^;*error_log = .*|error_log = /var/log/php-fpm${PHP_VER}.log|" \
+	@${REINPLACE_CMD} -e "s|^;*pid = .*|pid = /var/run/php${PHP_VER}-fpm.pid|" \
+		-e "s|^;*error_log = .*|error_log = /var/log/php${PHP_VER}-fpm.log|" \
 		-e "s|^;\(pm\.[a-z_]*_servers\)|\1|" \
-		-e "s|^listen = .*|listen = /var/run/php-fpm${PHP_VER}.sock|" \
+		-e "s|^listen = .*|listen = /var/run/php${PHP_VER}-fpm.sock|" \
 		-e "s|^;*listen\.owner = .*|listen.owner = ${WWWOWN}|" \
 		-e "s|^;*listen\.group = .*|listen.group = ${WWWGRP}|" \
 		-e "s|^;*listen\.mode = .*|listen.mode = 0660|" \
@@ -333,7 +353,7 @@ post-configure:
 		-e 's|-R[[:space:]]*${WRKDIR}/pcre/lib\([[:space:]]\)|\1|g' \
 		-e 's|-R[[:space:]]*${WRKDIR}/pcre/lib$$||' ${WRKSRC}/Makefile
 
-.if !defined(PKGNAMEPREFIX)
+.if !defined(PKGNAMEPREFIX) && !defined(AZ_PHP_SAPI)
 post-build:
 	@${ECHO_CMD} "PHP_VER=${PHP_VER}" > ${WRKDIR}/php.conf
 	@${ECHO_CMD} "PHP_VERSION=${PORTVERSION}" >> ${WRKDIR}/php.conf
@@ -370,20 +390,31 @@ post-install:
 
 # the programs stripped, as lang/php84: make install of PHP copies them as they
 # were linked (no debug in our packages, aZ 17.11.2026: tools/debug-check.sh)
-post-install-CGI-on:
-	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/php-cgi${PHP_VER}
-
 post-install-CLI-on:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/php${PHP_VER}
 
 post-install-EMBED-on:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/php${PHP_VER}/libphp5.so
 
-post-install-FPM-on:
-	${STRIP_CMD} ${STAGEDIR}${PREFIX}/sbin/php-fpm${PHP_VER}
-
 post-install-PHPDBG-on:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/phpdbg${PHP_VER}
+.elif defined(AZ_PHP_SAPI)
+# the SAPI alone: sbin/php56-fpm with its configuration and status page, or
+# bin/php56-cgi
+.  if ${AZ_PHP_SAPI} == fpm
+do-install:
+	${MKDIR} ${STAGEDIR}${PREFIX}/sbin ${STAGEDIR}${PREFIX}/etc/php${PHP_VER} \
+		${STAGEDIR}${PREFIX}/share/php${PHP_VER}/fpm
+	${INSTALL_PROGRAM} ${WRKSRC}/sapi/fpm/php-fpm ${STAGEDIR}${PREFIX}/sbin/php${PHP_VER}-fpm
+	${INSTALL_DATA} ${WRKSRC}/sapi/fpm/php-fpm.conf \
+		${STAGEDIR}${PREFIX}/etc/php${PHP_VER}/php-fpm.conf.default
+	${INSTALL_DATA} ${WRKSRC}/sapi/fpm/status.html \
+		${STAGEDIR}${PREFIX}/share/php${PHP_VER}/fpm
+.  else
+do-install:
+	${MKDIR} ${STAGEDIR}${PREFIX}/bin
+	${INSTALL_PROGRAM} ${WRKSRC}/sapi/cgi/php-cgi ${STAGEDIR}${PREFIX}/bin/php${PHP_VER}-cgi
+.  endif
 .else
 do-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/${APACHEMODDIR} \

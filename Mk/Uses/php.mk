@@ -264,13 +264,10 @@ check-makevars::
 .    endif
 .  endif
 
+# cgi: the CGI of the version, the package phpXY-cgi of www/phpXY-cgi (aZ, 21.11.2026:
+# the CGI and the FPM are ports of their own)
 .  if ${php_ARGS:Mcgi}
-.    if defined(PHP_VERSION) && ${PHP_SAPI:Mcgi} == "" && ${PHP_SAPI:Mfpm} == ""
-check-makevars::
-		@${ECHO_CMD} "This port requires the CGI version of PHP, but you have already"
-		@${ECHO_CMD} "installed a PHP port without CGI."
-		@${FALSE}
-.    endif
+RUN_DEPENDS+=	${PHPBASE}/bin/php${PHP_VER}-cgi:www/php${PHP_VER}-cgi
 .  endif
 
 .  if ${php_ARGS:Mcli}
@@ -298,7 +295,11 @@ MOD_PHP_PORT?=	www/mod_php${PHP_VER}
 BUILD_DEPENDS+=	${PHPBASE}/include/php${PHP_VER}/php/main/php.h:${PHP_PORT}
 .  endif
 RUN_DEPENDS+=	${PHPBASE}/include/php${PHP_VER}/php/main/php.h:${PHP_PORT}
-.  if  ${php_ARGS:Mmod} || (${php_ARGS:Mweb} && defined(PHP_VERSION) && ${PHP_SAPI:Mcgi} == "" && ${PHP_SAPI:Mfpm} == "")
+# web: a SAPI of the version for a web server, each a package of its own (phpXY-apache,
+# phpXY-fpm, phpXY-cgi; aZ, 21.11.2026): the server installs the one it runs, so no
+# dependency (a core of the overlay has neither CGI nor FPM: the official rule would
+# take the Apache module for every port of :web)
+.  if ${php_ARGS:Mmod}
 apache_ARGS?=	run
 .include "${USESDIR}/apache.mk"
 # libphpXY.so for every version (aZ), so that the versions do not overwrite each other
@@ -440,5 +441,25 @@ check-makevars::
 			@${FALSE}
 .      endif
 .    endfor
+.  endif
+
+# The service of the modules of PHP NN is the rc.d script of phpNN-fpm, php<NN>_fpm
+# (21.11.2026). Mk/az-services.awk, in the hash of every port, still names it
+# php_fpm<NN>: here its directory in share/az/services takes the new name, until the
+# awk does at the next build of all the ports.
+.  if !target(az-services-php)
+POST_PLIST+=	az-services-php
+az-services-php: az-services
+	@cd ${STAGEDIR}${PREFIX}/share/az/services 2>/dev/null || exit 0; \
+	for d in php_fpm[0-9][0-9]; do \
+		[ -d "$$d" ] || continue; \
+		n="php$${d#php_fpm}_fpm"; \
+		${RMDIR} "$$d"; \
+		${SED} -i '' -e '/^@dir share\/az\/services\/'"$$d"'$$/d' ${TMPPLIST}; \
+		if [ ! -d "$$n" ]; then \
+			${MKDIR} "$$n"; \
+			${ECHO_CMD} "@dir share/az/services/$$n" >> ${TMPPLIST}; \
+		fi; \
+	done
 .  endif
 .endif

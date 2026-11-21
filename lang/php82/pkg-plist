@@ -1,17 +1,13 @@
 %%CLI%%bin/php82
 bin/php82-profile
-%%CGI%%bin/php-cgi82
 bin/php-config82
 %%PHPDBG%%bin/phpdbg82
 bin/phpize82
-%%FPM%%sbin/php-fpm82
 etc/php82/php.conf
 etc/php82/php.ini-development
 etc/php82/php.ini-production
 @sample etc/php82/php.ini.sample etc/php82/php.ini
 @postexec [ -e /var/log/php82_error.log ] || install -m 666 -o www -g www /dev/null /var/log/php82_error.log
-%%FPM%%@sample etc/php82/php-fpm.conf.default etc/php82/php-fpm.conf
-%%FPM%%@sample etc/php82/php-fpm.d/www.conf.default etc/php82/php-fpm.d/www.conf
 @dir etc/php82/conf.d
 include/php82/php/TSRM/TSRM.h
 include/php82/php/TSRM/tsrm_win32.h
@@ -278,10 +274,7 @@ lib/php82/build/pkg.m4
 lib/php82/build/run-tests.php
 lib/php82/build/shtool
 @dir lib/php/%%PHP_EXT_DIR%%
-%%CGI%%share/man/man1/php-cgi82.1.gz
 share/man/man1/php-config82.1.gz
 %%CLI%%share/man/man1/php82.1.gz
 %%PHPDBG%%share/man/man1/phpdbg82.1.gz
 share/man/man1/phpize82.1.gz
-%%FPM%%share/man/man8/php-fpm82.8.gz
-%%FPM%%share/php82/fpm/status.html

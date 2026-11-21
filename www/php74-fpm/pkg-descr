@@ -1,0 +1,3 @@
+The FastCGI Process Manager (FPM) of PHP 7.4 of azsupport/php-src: sbin/php74-fpm, its
+configuration in etc/php74 and the rc.d script php74_fpm, with the profiles of
+php74-profile; php.ini and the modules are those of php74.

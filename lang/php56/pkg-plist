@@ -1,16 +1,13 @@
 %%CLI%%bin/php56
 bin/php56-profile
-%%CGI%%bin/php-cgi56
 bin/php-config56
 %%PHPDBG%%bin/phpdbg56
 bin/phpize56
-%%FPM%%sbin/php-fpm56
 etc/php56/php.conf
 etc/php56/php.ini-development
 etc/php56/php.ini-production
 @sample etc/php56/php.ini.sample etc/php56/php.ini
 @postexec [ -e /var/log/php56_error.log ] || install -m 666 -o www -g www /dev/null /var/log/php56_error.log
-%%FPM%%@sample etc/php56/php-fpm.conf.default etc/php56/php-fpm.conf
 @dir etc/php56/conf.d
 include/php56/php/TSRM/TSRM.h
 include/php56/php/TSRM/readdir.h
@@ -223,10 +220,7 @@ lib/php56/build/run-tests.php
 lib/php56/build/scan_makefile_in.awk
 lib/php56/build/shtool
 @dir lib/php/%%PHP_EXT_DIR%%
-%%CGI%%share/man/man1/php-cgi56.1.gz
 share/man/man1/php-config56.1.gz
 %%CLI%%share/man/man1/php56.1.gz
 %%PHPDBG%%share/man/man1/phpdbg56.1.gz
 share/man/man1/phpize56.1.gz
-%%FPM%%share/man/man8/php-fpm56.8.gz
-%%FPM%%share/php56/fpm/status.html

@@ -7,7 +7,8 @@ you can do much more with PHP.
 
 This is PHP 8.4.28 of https://github.com/azsupport/php-src (the patches of
 the FreeBSD port applied), built as the overlay azsupport/ports. Versions
-side by side: bin/php84, php-fpm84 with the rc.d script php_fpm84, etc/php84
-(the ini files of the modules in etc/php84/conf.d), phpize84 and the headers
-in include/php84; the modules are the packages php84-<module>, in
-lib/php/20240924.
+side by side: bin/php84, etc/php84 (the ini files of the modules in
+etc/php84/conf.d), phpize84 and the headers in include/php84; the modules
+are the packages php84-<module>, in lib/php/20240924; the FPM and the CGI
+are the packages php84-fpm (sbin/php84-fpm, the rc.d script php84_fpm) and
+php84-cgi (bin/php84-cgi).

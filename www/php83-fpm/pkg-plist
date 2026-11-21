@@ -1,0 +1,4 @@
+sbin/php83-fpm
+@sample etc/php83/php-fpm.conf.default etc/php83/php-fpm.conf
+@sample etc/php83/php-fpm.d/www.conf.default etc/php83/php-fpm.d/www.conf
+share/php83/fpm/status.html

@@ -1,17 +1,13 @@
 %%CLI%%bin/php74
 bin/php74-profile
-%%CGI%%bin/php-cgi74
 bin/php-config74
 %%PHPDBG%%bin/phpdbg74
 bin/phpize74
-%%FPM%%sbin/php-fpm74
 etc/php74/php.conf
 etc/php74/php.ini-development
 etc/php74/php.ini-production
 @sample etc/php74/php.ini.sample etc/php74/php.ini
 @postexec [ -e /var/log/php74_error.log ] || install -m 666 -o www -g www /dev/null /var/log/php74_error.log
-%%FPM%%@sample etc/php74/php-fpm.conf.default etc/php74/php-fpm.conf
-%%FPM%%@sample etc/php74/php-fpm.d/www.conf.default etc/php74/php-fpm.d/www.conf
 @dir etc/php74/conf.d
 include/php74/php/TSRM/TSRM.h
 include/php74/php/TSRM/tsrm_win32.h
@@ -245,10 +241,7 @@ lib/php74/build/pkg.m4
 lib/php74/build/run-tests.php
 lib/php74/build/shtool
 @dir lib/php/%%PHP_EXT_DIR%%
-%%CGI%%share/man/man1/php-cgi74.1.gz
 share/man/man1/php-config74.1.gz
 %%CLI%%share/man/man1/php74.1.gz
 %%PHPDBG%%share/man/man1/phpdbg74.1.gz
 share/man/man1/phpize74.1.gz
-%%FPM%%share/man/man8/php-fpm74.8.gz
-%%FPM%%share/php74/fpm/status.html

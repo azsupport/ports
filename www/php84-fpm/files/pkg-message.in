@@ -1,0 +1,8 @@
+[
+{ type: install
+  message: <<EOM
+php%%PHP_VER%%-fpm: the rc.d script php%%PHP_VER%%_fpm (php%%PHP_VER%%_fpm_enable="YES" in /etc/rc.conf, service php%%PHP_VER%%_fpm start), its configuration %%PREFIX%%/etc/php%%PHP_VER%%/php-fpm.conf (pid /var/run/php%%PHP_VER%%-fpm.pid, log /var/log/php%%PHP_VER%%-fpm.log) and php-fpm.d/www.conf (the pool www on /var/run/php%%PHP_VER%%-fpm.sock).
+Its profiles (php%%PHP_VER%%-profile --create <name>), in /etc/rc.conf: php%%PHP_VER%%_fpm_profiles="<name>" and php%%PHP_VER%%_fpm_<name>_enable="YES" (service php%%PHP_VER%%_fpm start <name>).
+EOM
+}
+]

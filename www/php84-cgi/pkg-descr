@@ -1,0 +1,2 @@
+The CGI of PHP 8.4 of azsupport/php-src: bin/php84-cgi, for a web server that runs PHP
+as CGI or FastCGI programs; php.ini and the modules are those of php84.

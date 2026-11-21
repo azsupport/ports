@@ -1,0 +1,4 @@
+sbin/php74-fpm
+@sample etc/php74/php-fpm.conf.default etc/php74/php-fpm.conf
+@sample etc/php74/php-fpm.d/www.conf.default etc/php74/php-fpm.d/www.conf
+share/php74/fpm/status.html

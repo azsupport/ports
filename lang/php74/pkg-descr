@@ -7,7 +7,8 @@ you can do much more with PHP.
 
 This is PHP 7.4.33 of https://github.com/azsupport/php-src (the security
 backports of Remi Collet, the patches of the FreeBSD port applied), built as
-the overlay azsupport/ports. Versions side by side: bin/php74, php-fpm74
-with the rc.d script php_fpm74, etc/php74 (the ini files of the modules in
-etc/php74/conf.d), phpize74 and the headers in include/php74; the modules are
-the packages php74-<module>, in lib/php/20190902.
+the overlay azsupport/ports. Versions side by side: bin/php74, etc/php74
+(the ini files of the modules in etc/php74/conf.d), phpize74 and the headers
+in include/php74; the modules are the packages php74-<module>, in
+lib/php/20190902; the FPM and the CGI are the packages php74-fpm
+(sbin/php74-fpm, the rc.d script php74_fpm) and php74-cgi (bin/php74-cgi).

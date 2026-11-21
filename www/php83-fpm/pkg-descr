@@ -1,0 +1,3 @@
+The FastCGI Process Manager (FPM) of PHP 8.3 of azsupport/php-src: sbin/php83-fpm, its
+configuration in etc/php83 and the rc.d script php83_fpm, with the profiles of
+php83-profile; php.ini and the modules are those of php83.

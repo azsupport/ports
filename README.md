@@ -149,8 +149,10 @@ Names and origins as the ports, files at the paths of the ports:
 | `fcron` | `sysutils/fcron` | fcron 3.4.1 ahead of the official 3.2.1 (aZ, 16.11.2026): the official port on 3.4.1, without the docs and the examples |
 | `ca_root_nss`, `cpu-microcode-intel`, `cpu-microcode-rc`, `rclone`, `fusefs-libs`, `fusefs-sshfs`, `fusefs-libs3`, `libtlsrpt` | their official origins | the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)): the root certificates of Mozilla (NSS 3.134: the official port of freebsd-ports b64078572ff3, after the pinned commit, copied into this tree as it is until the pin moves past it; aZ, 19.11.2026), the microcode of Intel CPUs with RC and SPLIT (its rc.d script `cpu-microcode-rc` and the split files), rclone with `rclone mount` (libfuse 2 of `fusefs-libs`, with the fix of libfuse #571 for `-o remember`), sshfs 3.7.7 (libfuse 3 of `fusefs-libs3`, the GLib of `glib`; with two fixes of master after 3.7.7: bracketed IPv6 sources, readlink targets longer than the FUSE buffer), the TLSRPT library of `postfix` |
 | `cpu-microcode-amd` | `sysutils/cpu-microcode-amd` | the microcode of AMD CPUs: the official port with the options of `cpu-microcode-intel`, RC (the rc.d script of `cpu-microcode-rc`) and SPLIT (the files of the families in `share/cpucontrol`), both on; `/boot/firmware/amd-ucode.bin` always; 20260926 (linux-firmware 9b858e5bb58d: a new `microcode_amd_fam1ah.bin`), ahead of the official 20251202 |
-| `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, php-fpm, phpize |
+| `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, phpize |
 | `phpXY-apache` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
+| `phpXY-fpm` | `www/phpXY-fpm` | the FastCGI Process Manager `sbin/phpXY-fpm` with the rc.d script `phpXY_fpm` (aZ, 21.11.2026: php-cgi and php-fpm as packages of their own) |
+| `phpXY-cgi` | `www/phpXY-cgi` | the CGI `bin/phpXY-cgi` (for suexec and mod_fastcgi of Apache) |
 | `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, `phpXY-gearman` (libgearman of `libgearman`), from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 71 for 7.4 and 8.1, 69 for 8.2 to 8.4, 66 for 5.6 (with the variants below); the list of one: `pkg search -r az '^php84-'` |
 
 - openssl in two kinds, one of the two: `phpXY-openssl` and `phpXY-openssl-legacy` (the
@@ -750,12 +752,12 @@ with their own number, and the API of their modules: 5.6 `20131226`, 8.1 `202109
 
 | | |
 |---|---|
-| Programs | `bin/php74`, `bin/php-cgi74`, `bin/phpize74`, `bin/php-config74`, `sbin/php-fpm74` |
-| Configuration | `etc/php74/`: `php.ini` (from `php.ini-production`, kept when changed), `php.ini-production`, `php.ini-development`, `php-fpm.conf` (pid `/var/run/php-fpm74.pid`, log `/var/log/php-fpm74.log`), `php-fpm.d/www.conf` (`listen /var/run/php-fpm74.sock`, owner and group `www`, mode 0660) |
+| Programs | `bin/php74`, `bin/phpize74`, `bin/php-config74`; `sbin/php74-fpm` (`php74-fpm`), `bin/php74-cgi` (`php74-cgi`) |
+| Configuration | `etc/php74/`: `php.ini` (from `php.ini-production`, kept when changed), `php.ini-production`, `php.ini-development`, `php-fpm.conf` of `php74-fpm` (pid `/var/run/php74-fpm.pid`, log `/var/log/php74-fpm.log`), `php-fpm.d/www.conf` (`listen /var/run/php74-fpm.sock`, owner and group `www`, mode 0660) |
 | Modules | `lib/php/20190902/<module>.so`, loaded by `etc/php74/conf.d/ext-<NN>-<module>.ini` (from its `.ini.sample`, kept when changed; `NN`: 10 OPcache, 18 session, 20 json and a module that needs no other, 30 one that does) |
 | Headers | `include/php74/php/...`; those of a module in `include/php74/php/ext/<module>/` |
 | Build files | `lib/php74/build` |
-| php-fpm | `etc/rc.d/php_fpm74` (`php_fpm74_enable`), so that the php-fpm of several versions run at once |
+| php-fpm | `etc/rc.d/php74_fpm` of `php74-fpm` (`php74_fpm_enable`), so that the php-fpm of several versions run at once |
 | Apache | `libexec/apache24/libphp74.so`, `etc/apache24/modules.d/280_mod_php74.conf` |
 | Data | `share/php74`, the manual pages with the suffix in `share/man` |
 
@@ -878,8 +880,9 @@ owner's responsibility, until the nonfree part goes (a move to open libraries).
 php-fpm of 7.4:
 
 ```sh
-sysrc php_fpm74_enable=YES
-service php_fpm74 start
+pkg install -r az php74-fpm
+sysrc php74_fpm_enable=YES
+service php74_fpm start
 ```
 
 ## How it is built

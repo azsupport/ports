@@ -2,7 +2,7 @@
 # php%%PHP_VER%%-profile - PHP with a profile: another configuration of the same
 # PHP, the directory %%PREFIX%%/etc/php%%PHP_VER%%-<profile> with the layout of
 # %%PREFIX%%/etc/php%%PHP_VER%% (php.ini, conf.d/, and php-fpm.conf with
-# php-fpm.d/ for the rc.d script php_fpm%%PHP_VER%%: php_fpm%%PHP_VER%%_profiles in
+# php-fpm.d/ for the rc.d script php%%PHP_VER%%_fpm: php%%PHP_VER%%_fpm_profiles in
 # /etc/rc.conf). Nothing of a profile is a file of a package. Of the package
 # php%%PHP_VER%% of azsupport/ports (lang/php%%PHP_VER%%/files/php-profile.in).
 #
@@ -84,32 +84,32 @@ list() {
 # fpm <profile> <dir>: php-fpm.conf and php-fpm.d/www.conf of the profile
 fpm() {
     if [ ! -f "$def/php-fpm.conf" ]; then
-        echo "$me: no $def/php-fpm.conf (php$v without FPM): the profile has no php-fpm.conf"
+        echo "$me: no $def/php-fpm.conf (php$v-fpm not installed): the profile has no php-fpm.conf"
         return 0
     fi
     # the listen of a pool in php-fpm.conf too: PHP 5.6 has its pool www there (no
     # php-fpm.d); the php-fpm.conf of 7.0 and later has no listen line
-    sed -e "s|^;*pid = .*|pid = /var/run/php-fpm$v-$1.pid|" \
-        -e "s|^;*error_log = .*|error_log = /var/log/php-fpm$v-$1.log|" \
+    sed -e "s|^;*pid = .*|pid = /var/run/php$v-fpm-$1.pid|" \
+        -e "s|^;*error_log = .*|error_log = /var/log/php$v-fpm-$1.log|" \
         -e "s|^include=$def/php-fpm\.d/|include=$2/php-fpm.d/|" \
-        -e "s|^listen = .*|listen = /var/run/php-fpm$v-$1.sock|" \
+        -e "s|^listen = .*|listen = /var/run/php$v-fpm-$1.sock|" \
         "$def/php-fpm.conf" > "$2/php-fpm.conf" || exit 73
-    echo "$2/php-fpm.conf: pid /var/run/php-fpm$v-$1.pid, error_log /var/log/php-fpm$v-$1.log, its pools in $2/php-fpm.d"
+    echo "$2/php-fpm.conf: pid /var/run/php$v-fpm-$1.pid, error_log /var/log/php$v-fpm-$1.log, its pools in $2/php-fpm.d"
     if grep -q '^listen = ' "$2/php-fpm.conf"; then
-        echo "$2/php-fpm.conf: its pool www (in php-fpm.conf, as PHP 5.6 has it): listen /var/run/php-fpm$v-$1.sock"
+        echo "$2/php-fpm.conf: its pool www (in php-fpm.conf, as PHP 5.6 has it): listen /var/run/php$v-fpm-$1.sock"
     fi
     grep -q '^pid = ' "$2/php-fpm.conf" ||
-        echo "$me: no pid line in $def/php-fpm.conf: the rc.d script gives php-fpm$v -g /var/run/php-fpm$v-$1.pid"
+        echo "$me: no pid line in $def/php-fpm.conf: the rc.d script gives php$v-fpm -g /var/run/php$v-fpm-$1.pid"
     grep -q '^error_log = ' "$2/php-fpm.conf" ||
-        echo "$me: no error_log line in $def/php-fpm.conf: add error_log = /var/log/php-fpm$v-$1.log to $2/php-fpm.conf" >&2
+        echo "$me: no error_log line in $def/php-fpm.conf: add error_log = /var/log/php$v-fpm-$1.log to $2/php-fpm.conf" >&2
     if grep "^include=" "$2/php-fpm.conf" | grep -qv "^include=$2/"; then
         echo "$me: $2/php-fpm.conf includes files outside the profile (the pools of the default?): check its include lines" >&2
     fi
     mkdir "$2/php-fpm.d" || exit 73
     if [ -f "$def/php-fpm.d/www.conf" ]; then
-        sed -e "s|^listen = .*|listen = /var/run/php-fpm$v-$1.sock|" \
+        sed -e "s|^listen = .*|listen = /var/run/php$v-fpm-$1.sock|" \
             "$def/php-fpm.d/www.conf" > "$2/php-fpm.d/www.conf" || exit 73
-        echo "$2/php-fpm.d/www.conf: listen /var/run/php-fpm$v-$1.sock"
+        echo "$2/php-fpm.d/www.conf: listen /var/run/php$v-fpm-$1.sock"
     elif ! grep -q '^listen = ' "$2/php-fpm.conf"; then
         echo "$me: no $def/php-fpm.d/www.conf: the profile has no pool yet" >&2
     fi
@@ -190,7 +190,7 @@ create() {
             fi
         done
     fi
-    echo "$me $p <script> runs PHP with it$([ -n "$cli" ] || echo "; php_fpm${v}_profiles=\"$p\" in /etc/rc.conf runs its php-fpm$v")"
+    echo "$me $p <script> runs PHP with it$([ -n "$cli" ] || echo "; php${v}_fpm_profiles=\"$p\" in /etc/rc.conf runs its php$v-fpm")"
     exit "$bad"
 }
 

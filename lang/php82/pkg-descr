@@ -7,7 +7,8 @@ you can do much more with PHP.
 
 This is PHP 8.2.36 of https://github.com/azsupport/php-src (the patches of
 the FreeBSD port applied), built as the overlay azsupport/ports. Versions
-side by side: bin/php82, php-fpm82 with the rc.d script php_fpm82, etc/php82
-(the ini files of the modules in etc/php82/conf.d), phpize82 and the headers
-in include/php82; the modules are the packages php82-<module>, in
-lib/php/20220829.
+side by side: bin/php82, etc/php82 (the ini files of the modules in
+etc/php82/conf.d), phpize82 and the headers in include/php82; the modules
+are the packages php82-<module>, in lib/php/20220829; the FPM and the CGI
+are the packages php82-fpm (sbin/php82-fpm, the rc.d script php82_fpm) and
+php82-cgi (bin/php82-cgi).

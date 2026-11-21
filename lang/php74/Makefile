@@ -1,3 +1,10 @@
+# Since 21.11.2026 the FPM and the CGI of PHP 7.4 are ports of their own,
+# www/php74-fpm and www/php74-cgi (the packages php74-fpm and php74-cgi; aZ,
+# 21.11.2026: «давай еще разделим php-cgi и php-fpm на отдельные порты и
+# соответственно phpXX-cgi phpXX-fpm и подредактируй название rc.d под новые названия
+# в php-fpm»; «тут тоже php84-»), built by this Makefile with the SAPI alone
+# (AZ_PHP_SAPI); this core has the CLI. What follows of the FPM is theirs.
+#
 # PHP 7.4 of azsupport/php-src for the overlay azsupport/ports: the official
 # port lang/php74 of freebsd-ports 036685c034ba (the ports commit of PHP 7.4 in
 # php-src freebsd/targets.conf), changed only where the overlay needs it, and
@@ -19,10 +26,10 @@
 #   (php.ini by @sample from php.ini.sample: php.ini-production with the
 #   defaults of az, files/php.ini-az-74.in, at its end; errors in
 #   /var/log/php74_error.log, made at install when missing; FPM with
-#   /var/run/php-fpm74.pid, /var/log/php-fpm74.log, the pool www on
-#   /var/run/php-fpm74.sock), the scan
+#   /var/run/php74-fpm.pid, /var/log/php74-fpm.log, the pool www on
+#   /var/run/php74-fpm.sock), the scan
 #   dir etc/php74/conf.d (the ini files of the modules), lib/php74 (the build
-#   files of phpize74), include/php74, share/php74, etc/rc.d/php_fpm74 and
+#   files of phpize74), include/php74, share/php74, etc/rc.d/php74_fpm and
 #   libexec/apache24/libphp74.so (www/mod_php74); the modules in
 #   lib/php/20190902 as the ports. So no CONFLICTS_INSTALL with the other
 #   versions (the modules set theirs in Makefile.ext).
@@ -38,7 +45,7 @@
 #   directory etc/php74-<profile> (php.ini, conf.d, php-fpm.conf), made by
 #   bin/php74-profile (files/php-profile.in, generic: %%PHP_VER%%), which also
 #   runs PHP with one and keeps the profiles that follow etc/php74 up to date
-#   (--sync, from the modules); the rc.d script php_fpm74 runs their php-fpm74
+#   (--sync, from the modules); the rc.d script php74_fpm runs their php74-fpm
 #   as the profiles of www/apache24. Nothing of a profile is a file of the
 #   package; pkg-message says how.
 # - The compiler (aZ, 09.11.2026): GCC of the ports (lang/gcc16) for the C,
@@ -99,9 +106,9 @@ AZ_PHP_RELEASE=	20261121-9a0a020f
 # SUB_FILES of the core) and no module or mod_php74 build reads them, so a change
 # of one builds php74 again, not the modules and mod_php74 (the slaves of this
 # Makefile leave them out of their az_hash too): the block of az for php.ini,
-# bin/php74-profile, the rc.d script php_fpm74 and pkg-message
-AZ_HASH_NOT_FOR_DEPENDENTS=	${FILESDIR}/php.ini-az-74.in ${FILESDIR}/php-profile.in \
-				${FILESDIR}/php_fpm74.in ${FILESDIR}/pkg-message.in
+# bin/php74-profile and pkg-message
+AZ_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-74.in ${MASTERDIR}/files/php-profile.in \
+				${MASTERDIR}/files/pkg-message.in
 
 .if !defined(PKGNAMESUFFIX)
 BUILD_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
@@ -148,7 +155,7 @@ PLIST_SUB+=	PHP_EXT_DIR=${PHP_EXT_DIR}
 LDFLAGS_i386=	-Wl,-z,notext
 
 OPTIONS_DEFINE+=CLI CGI FPM EMBED PHPDBG DEBUG DTRACE IPV6 LINKTHR ZTS
-OPTIONS_DEFAULT=CLI CGI FPM LINKTHR
+OPTIONS_DEFAULT=CLI LINKTHR
 OPTIONS_EXCLUDE_DragonFly=	DTRACE
 # ld(1) fails to link probes: Relocations in generic ELF (EM: 0)
 OPTIONS_EXCLUDE_aarch64=	DTRACE
@@ -183,7 +190,7 @@ EMBED_VARS=	PHP_SAPI+=embed
 FPM_CONFIGURE_ON=--enable-fpm \
 		--with-fpm-user=${WWWOWN} \
 		--with-fpm-group=${WWWGRP}
-FPM_VARS=	PHP_SAPI+=fpm USE_RC_SUBR+=php_fpm74
+FPM_VARS=	PHP_SAPI+=fpm USE_RC_SUBR+=php74_fpm
 IPV6_CONFIGURE_OFF=--disable-ipv6
 LINKTHR_LIBS=		-lpthread
 PHPDBG_CONFIGURE_ON=--enable-phpdbg
@@ -208,6 +215,19 @@ PKGMESSAGE=	${PKGDIR}/pkg-message.mod
 MODULENAME=	libphp74
 SHORTMODNAME=	php7
 WARNING=	"!!! If you have a threaded Apache, you must build ${PHP_PORT} with ZTS support to enable thread-safety in extensions !!!"
+.endif
+
+# the FPM and the CGI of the version, www/php74-fpm and www/php74-cgi (AZ_PHP_SAPI):
+# the SAPI alone, with etc/php74 and the modules of php74
+.if defined(AZ_PHP_SAPI)
+RUN_DEPENDS+=	${LOCALBASE}/include/php74/php/main/php.h:lang/php74
+.  if ${AZ_PHP_SAPI} == fpm
+COMMENT=	FastCGI Process Manager of PHP (7.4.X branch of azsupport/php-src)
+SUB_FILES+=	pkg-message
+SUB_LIST+=	PHP_VER=${PHP_VER}
+.  else
+COMMENT=	CGI of PHP (7.4.X branch of azsupport/php-src)
+.  endif
 .endif
 
 .include <bsd.port.pre.mk>
@@ -241,11 +261,11 @@ post-patch:
 # the FPM of the version: its own pid file and log (php-fpm.conf), the pool www
 # on its own socket for the web server (www.conf)
 post-patch-FPM-on:
-	@${REINPLACE_CMD} -e "s|^;*pid = .*|pid = /var/run/php-fpm74.pid|" \
-		-e "s|^;*error_log = .*|error_log = /var/log/php-fpm74.log|" \
+	@${REINPLACE_CMD} -e "s|^;*pid = .*|pid = /var/run/php74-fpm.pid|" \
+		-e "s|^;*error_log = .*|error_log = /var/log/php74-fpm.log|" \
 		-e "s|^;\(pm\.[a-z_]*_servers\)|\1|" \
 		${WRKSRC}/sapi/fpm/php-fpm.conf.in
-	@${REINPLACE_CMD} -e "s|^listen = .*|listen = /var/run/php-fpm74.sock|" \
+	@${REINPLACE_CMD} -e "s|^listen = .*|listen = /var/run/php74-fpm.sock|" \
 		-e "s|^;*listen\.owner = .*|listen.owner = ${WWWOWN}|" \
 		-e "s|^;*listen\.group = .*|listen.group = ${WWWGRP}|" \
 		-e "s|^;*listen\.mode = .*|listen.mode = 0660|" \
@@ -263,7 +283,7 @@ pre-configure:
 post-configure:
 	@${ECHO_CMD} '#include <ext/php_config.h>' >> ${WRKSRC}/main/php_config.h
 
-.if !defined(PKGNAMEPREFIX)
+.if !defined(PKGNAMEPREFIX) && !defined(AZ_PHP_SAPI)
 post-build:
 	@${ECHO_CMD} "PHP_VER=74" > ${WRKDIR}/php.conf
 	@${ECHO_CMD} "PHP_VERSION=${PORTVERSION}" >> ${WRKDIR}/php.conf
@@ -299,20 +319,34 @@ post-install:
 
 # the programs stripped, as lang/php84: make install of PHP copies them as they
 # were linked (no debug in our packages, aZ 17.11.2026: tools/debug-check.sh)
-post-install-CGI-on:
-	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/php-cgi${PHP_VER}
-
 post-install-CLI-on:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/php${PHP_VER}
 
 post-install-EMBED-on:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/php${PHP_VER}/libphp7.so
 
-post-install-FPM-on:
-	${STRIP_CMD} ${STAGEDIR}${PREFIX}/sbin/php-fpm${PHP_VER}
-
 post-install-PHPDBG-on:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/phpdbg${PHP_VER}
+.elif defined(AZ_PHP_SAPI)
+# the SAPI alone: sbin/php74-fpm with its configuration and status page, or
+# bin/php74-cgi
+.  if ${AZ_PHP_SAPI} == fpm
+do-install:
+	${MKDIR} ${STAGEDIR}${PREFIX}/sbin ${STAGEDIR}${PREFIX}/etc/php${PHP_VER} \
+		${STAGEDIR}${PREFIX}/share/php${PHP_VER}/fpm
+	${INSTALL_PROGRAM} ${WRKSRC}/sapi/fpm/php-fpm ${STAGEDIR}${PREFIX}/sbin/php${PHP_VER}-fpm
+	${INSTALL_DATA} ${WRKSRC}/sapi/fpm/php-fpm.conf \
+		${STAGEDIR}${PREFIX}/etc/php${PHP_VER}/php-fpm.conf.default
+	${MKDIR} ${STAGEDIR}${PREFIX}/etc/php${PHP_VER}/php-fpm.d
+	${INSTALL_DATA} ${WRKSRC}/sapi/fpm/www.conf \
+		${STAGEDIR}${PREFIX}/etc/php${PHP_VER}/php-fpm.d/www.conf.default
+	${INSTALL_DATA} ${WRKSRC}/sapi/fpm/status.html \
+		${STAGEDIR}${PREFIX}/share/php${PHP_VER}/fpm
+.  else
+do-install:
+	${MKDIR} ${STAGEDIR}${PREFIX}/bin
+	${INSTALL_PROGRAM} ${WRKSRC}/sapi/cgi/php-cgi ${STAGEDIR}${PREFIX}/bin/php${PHP_VER}-cgi
+.  endif
 .else
 do-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/${APACHEMODDIR} \

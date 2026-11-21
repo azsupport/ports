@@ -1,0 +1,3 @@
+sbin/php56-fpm
+@sample etc/php56/php-fpm.conf.default etc/php56/php-fpm.conf
+share/php56/fpm/status.html

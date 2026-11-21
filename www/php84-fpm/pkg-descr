@@ -1,0 +1,3 @@
+The FastCGI Process Manager (FPM) of PHP 8.4 of azsupport/php-src: sbin/php84-fpm, its
+configuration in etc/php84 and the rc.d script php84_fpm, with the profiles of
+php84-profile; php.ini and the modules are those of php84.

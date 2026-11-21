@@ -1,0 +1,3 @@
+The FastCGI Process Manager (FPM) of PHP 8.1 of azsupport/php-src: sbin/php81-fpm, its
+configuration in etc/php81 and the rc.d script php81_fpm, with the profiles of
+php81-profile; php.ini and the modules are those of php81.

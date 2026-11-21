@@ -1,17 +1,13 @@
 %%CLI%%bin/php84
 bin/php84-profile
-%%CGI%%bin/php-cgi84
 bin/php-config84
 %%PHPDBG%%bin/phpdbg84
 bin/phpize84
-%%FPM%%sbin/php-fpm84
 etc/php84/php.conf
 etc/php84/php.ini-development
 etc/php84/php.ini-production
 @sample etc/php84/php.ini.sample etc/php84/php.ini
 @postexec [ -e /var/log/php84_error.log ] || install -m 666 -o www -g www /dev/null /var/log/php84_error.log
-%%FPM%%@sample etc/php84/php-fpm.conf.default etc/php84/php-fpm.conf
-%%FPM%%@sample etc/php84/php-fpm.d/www.conf.default etc/php84/php-fpm.d/www.conf
 @dir etc/php84/conf.d
 include/php84/php/TSRM/TSRM.h
 include/php84/php/TSRM/tsrm_win32.h
@@ -286,10 +282,7 @@ lib/php84/build/pkg.m4
 lib/php84/build/run-tests.php
 lib/php84/build/shtool
 @dir lib/php/%%PHP_EXT_DIR%%
-%%CGI%%share/man/man1/php-cgi84.1.gz
 share/man/man1/php-config84.1.gz
 %%CLI%%share/man/man1/php84.1.gz
 %%PHPDBG%%share/man/man1/phpdbg84.1.gz
 share/man/man1/phpize84.1.gz
-%%FPM%%share/man/man8/php-fpm84.8.gz
-%%FPM%%share/php84/fpm/status.html
