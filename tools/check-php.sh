@@ -529,8 +529,11 @@ done
 
 # Per module package: its ini, the module in php -m
 # the glob matches name-version too: php74-7.4.33_... is the core, not a module;
-# php74-composer is Composer, not a module (its check is below)
-pkg query -g '%n' "php$short-*" 2>/dev/null | grep -v -x -e "php$short" -e "php$short-static" -e "php$short-composer" | sort -u > "$tmp/pkgs"
+# php74-composer is Composer and php74-phpmyadmin phpMyAdmin, not modules (the check of
+# Composer is below); php74-apache, php74-fpm and php74-cgi are SAPIs (checked below)
+pkg query -g '%n' "php$short-*" 2>/dev/null |
+    grep -v -x -e "php$short" -e "php$short-static" -e "php$short-composer" -e "php$short-phpmyadmin" \
+        -e "php$short-apache" -e "php$short-fpm" -e "php$short-cgi" | sort -u > "$tmp/pkgs"
 [ -s "$tmp/pkgs" ] || skip "modules" "no package php$short-<module> installed"
 intl_done=""
 while read -r p; do
