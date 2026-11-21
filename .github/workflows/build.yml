@@ -958,8 +958,31 @@ jobs:
             grep -qxF "$f sha256:$(sha256sum "$dir/$f" | cut -d ' ' -f 1)" "$AZ_RUNS_STATE/release-digests.txt" || echo "$dir/$f"
           done)"
           echo "packages to upload: $(printf '%s\n' "$pk" | grep -c . || :) of $(ls "$dir" | grep -cE '^[^/]+-[0-9][^/]*\.pkg$' || :) (the others are in the release with the same sha256)"
-          if [ -n "$pk" ]; then gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber $pk; fi
-          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber $(ls -d "$dir"/* | grep -v -E '/[^/]+-[0-9][^/]*\.pkg$')
+          # in batches of 20 with a pause between them, each batch again up to six times:
+          # GitHub answers a run of uploads with HTTP 403 "You have exceeded a secondary
+          # rate limit" (run 44949024609, 21.11.2026: 526 packages at once, the publish
+          # stopped once the old files were away, the release left with the old catalog
+          # and without some packages it names)
+          up_batch() {
+            for t in 1 2 3 4 5 6; do
+              gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "$@" && return 0
+              echo "the upload of $# files failed (try $t of 6), again in $((t * 60)) s"
+              sleep $((t * 60))
+            done
+            return 1
+          }
+          if [ -n "$pk" ]; then
+            printf '%s\n' "$pk" > "$AZ_RUNS_STATE/upload.txt"
+            split -l 20 "$AZ_RUNS_STATE/upload.txt" "$AZ_RUNS_STATE/upload-part."
+            for part in "$AZ_RUNS_STATE"/upload-part.*; do
+              # shellcheck disable=SC2046
+              up_batch $(cat "$part") || { echo "::error title=publish::the packages of $part not uploaded"; exit 1; }
+              sleep 15
+            done
+          fi
+          # shellcheck disable=SC2046
+          up_batch $(ls -d "$dir"/* | grep -v -E '/[^/]+-[0-9][^/]*\.pkg$') ||
+            { echo "::error title=publish::the catalog not uploaded"; exit 1; }
           for a in $(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'); do
             [ -e "$dir/$a" ] || drop_asset "$a" || :
           done
