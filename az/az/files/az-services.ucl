@@ -4,15 +4,16 @@
 # touched a package of a service, the commands that restart those services rc.conf
 # enables. A package of ours has an empty directory share/az/services/<service> for each
 # rc.d script it has and for the service its modules belong to (Mk/bsd.overlay.mk,
-# az-services: php_fpm<NN> for the modules of PHP NN, nginx for those of nginx, apache24
-# for those of Apache and mod_php<NN>); pkg counts the directories of the packages of the
-# transaction as touched and gives the trigger those that match (arg).
+# az-services: php<NN>_fpm for the modules of PHP NN, the rc.d script of phpNN-fpm
+# (Mk/Uses/php.mk), nginx for those of nginx, apache24 for those of Apache and
+# phpNN-apache); pkg counts the directories of the packages of the transaction as
+# touched and gives the trigger those that match (arg).
 #
 # For each such service whose rc.d script is there: its rcvar (the rcvar= or name= of the
 # script, else <service>_enable), its value as rc.conf, rc.conf.local and the files
 # rc.conf.d/<name> of /etc and /usr/local/etc set it (the last one wins); YES, TRUE, ON or
 # 1: enabled. A module of PHP NN also names apache24 when libexec/apache24/libphp<NN>.so
-# is there (mod_php<NN>). Nothing is printed when no such service is enabled. The
+# is there (phpNN-apache). Nothing is printed when no such service is enabled. The
 # sandbox of pkg (capsicum): it reads files of the root of pkg only, runs nothing.
 description: "the commands that restart the services of the packages of az of this transaction"
 path_glob: [ "/usr/local/share/az/services/*" ]
@@ -101,7 +102,7 @@ for _, dir in ipairs(arg) do
   local service = dir:match("/share/az/services/([^/]+)$")
   if service ~= nil then
     want(service)
-    local v = service:match("^php_fpm(%d%d)$")
+    local v = service:match("^php(%d%d)_fpm$")
     if v ~= nil and pkg.stat(localbase .. "/libexec/apache24/libphp" .. v .. ".so") ~= nil then
       want("apache24")
     end
