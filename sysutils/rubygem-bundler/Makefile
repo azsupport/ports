@@ -7,4 +7,12 @@
 
 AZ_OFFICIAL=	sysutils/rubygem-bundler
 
+# The package ruby34-bundler (aZ, 21.11.2026: the name with the version first, as
+# php84): PKGNAMEPREFIX of Ruby, which USES=gem sets to rubygem- only when it is not
+# set; the conflicts on the command line of make (.MAKEFLAGS), which the assignment of
+# the official Makefile does not replace: its go-tools (bin/bundle) and the official
+# rubygem-bundler (the same files).
+PKGNAMEPREFIX=	${RUBY_PKGNAMEPREFIX}
+.MAKEFLAGS:	CONFLICTS_INSTALL="go-tools rubygem-bundler"
+
 .include "${.CURDIR:H:H}/Mk/az-official.mk"
