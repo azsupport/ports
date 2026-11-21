@@ -9,7 +9,7 @@
 #   sh az-renames.sh --apply    do it
 #
 # What it does, in this order:
-#   1. pkg update -r az;
+#   1. pkg update -r az, in both modes (it changes no package);
 #   2. the packages of the repository az installed under an old name: the new name
 #      for each (a package of another repository under an old name is left alone:
 #      the official ruby is not ours);
@@ -89,12 +89,8 @@ rubygem-rake:ruby34-rake rubygem-bundler:ruby34-bundler
 rubygem-passenger-nginx:ruby34-passenger-nginx virtualbox-ose-nox11-72:virtualbox72
 virtualbox-ose-kmod-72:virtualbox72-kmod virtualbox-ose-additions-nox11-72:virtualbox72-additions"
 
-say "== 1. the catalog of the repository az"
-if [ "$apply" = 1 ]; then
-    pkg update -r az || { say "pkg update -r az failed: is the repository az configured?"; exit 1; }
-else
-    say "# pkg update -r az"
-fi
+say "== 1. the catalog of the repository az (pkg update changes no package)"
+pkg update -q -r az || { say "pkg update -r az failed: is the repository az configured?"; exit 1; }
 
 say "== 2. the packages of az under an old name"
 want=""
@@ -114,13 +110,16 @@ done
 
 say "== 3. the FPM and the CGI of PHP"
 fpm_was=""
+fpm_new=""
 for v in 56 74 81 82 83 84; do
     pkg info -e "php$v" || continue
     r="$(repo_of "php$v")"
     [ "$r" = az ] || { say "php$v: from the repository ${r:-unknown}, not az: left alone"; continue; }
     # the FPM: phpXY-fpm when rc.conf enables php_fpmXY (or a profile of it), it runs or
     # a file names sbin/php-fpmXY
-    if [ -e "$P/sbin/php-fpm$v" ] || [ -e "$P/etc/rc.d/php_fpm$v" ]; then
+    # (rc.conf alone: a run cut short after pkg upgrade, the core without its FPM)
+    if [ -e "$P/sbin/php-fpm$v" ] || [ -e "$P/etc/rc.d/php_fpm$v" ] ||
+        [ -n "$(sysrc -n "php_fpm${v}_enable" "php_fpm${v}_profiles" 2> /dev/null)" ]; then
         used=""
         sysrc -n "php_fpm${v}_enable" 2> /dev/null | grep -qiE '^(yes|true|on|1)$' && used="enabled in rc.conf"
         [ -n "$(sysrc -n "php_fpm${v}_profiles" 2> /dev/null)" ] && used="${used:-its profiles in rc.conf}"
@@ -133,6 +132,7 @@ for v in 56 74 81 82 83 84; do
         if [ -n "$used" ]; then
             say "php$v: its FPM ($used) -> php$v-fpm (sbin/php$v-fpm, the rc.d script php${v}_fpm)"
             want="$want php$v-fpm"
+            fpm_new="$fpm_new $v"
             [ -n "$refs" ] && printf '%s\n' "$refs" | while IFS= read -r f; do
                 say "  $f names sbin/php-fpm$v: sbin/php$v-fpm in step 5"
                 printf '%s\t%s\t%s\n' "sbin/php-fpm$v" "sbin/php$v-fpm" "$f" >> "$edits"
@@ -164,6 +164,17 @@ for v in 56 74 81 82 83 84; do
 done
 [ -n "$want" ] || { say "nothing to move: no package of az under an old name, no FPM or CGI in a core of PHP"; exit 0; }
 
+# every new package in the catalog of az before anything is changed: a catalog of before
+# the new names (one level of x86-64 published before the other) stops it here
+miss=""
+for p in $want; do
+    [ -n "$(pkg rquery -r az '%n' "$p" 2> /dev/null)" ] || miss="$miss $p"
+done
+if [ -n "$miss" ]; then
+    say "not in the catalog of the repository az:$miss (its new names are not published for this server yet): nothing changed"
+    exit 1
+fi
+
 for v in $fpm_was; do
     say "php_fpm$v runs: stopped now, php${v}_fpm started at the end"
     run service "php_fpm$v" stop || { say "service php_fpm$v stop failed"; exit 1; }
@@ -171,9 +182,19 @@ done
 
 say "== 4. pkg upgrade -r az, then the new names"
 if [ "$apply" = 1 ]; then
-    pkg upgrade -r az || { say "pkg upgrade -r az failed or was refused: nothing more done"; exit 1; }
+    if ! pkg upgrade -r az; then
+        say "pkg upgrade -r az failed or was refused: nothing more done"
+        for v in $fpm_was; do
+            [ -e "$P/etc/rc.d/php_fpm$v" ] && { service "php_fpm$v" start || say "service php_fpm$v start failed"; }
+        done
+        exit 1
+    fi
     # shellcheck disable=SC2086
-    pkg install -r az $want || { say "pkg install -r az$want failed or was refused: nothing more done"; exit 1; }
+    if ! pkg install -r az $want; then
+        say "pkg install -r az$want failed or was refused: nothing more done"
+        [ -n "$fpm_was" ] && say "the FPM stopped:$fpm_was: sh $0 --apply again (it finds them in rc.conf)"
+        exit 1
+    fi
 else
     say "# pkg upgrade -r az"
     say "# pkg install -r az$want"
@@ -213,7 +234,17 @@ for v in 56 74 81 82 83 84; do
 done
 
 say "== 7. the FPM again"
-for v in $fpm_was; do
+# where it ran, and where rc.conf enables it and it does not run (a run cut short)
+for v in $fpm_new; do
+    if [ "$apply" = 1 ]; then
+        [ -e "$P/etc/rc.d/php${v}_fpm" ] || { say "no $P/etc/rc.d/php${v}_fpm: is php$v-fpm installed?"; continue; }
+        case " $fpm_was " in
+        *" $v "*) ;;
+        *) sysrc -n "php${v}_fpm_enable" 2> /dev/null | grep -qiE '^(yes|true|on|1)$' ||
+               [ -n "$(sysrc -n "php${v}_fpm_profiles" 2> /dev/null)" ] || continue ;;
+        esac
+        service "php${v}_fpm" status > /dev/null 2>&1 && { say "php${v}_fpm runs already"; continue; }
+    fi
     run service "php${v}_fpm" start || say "service php${v}_fpm start failed"
 done
 [ "$apache" = 1 ] && say "Apache: a module of it was renamed (php-apache, mod_fastcgi, mod_maxminddb): restart its instances"
