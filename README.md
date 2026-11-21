@@ -150,7 +150,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `ca_root_nss`, `cpu-microcode-intel`, `cpu-microcode-rc`, `rclone`, `fusefs-libs`, `fusefs-sshfs`, `fusefs-libs3`, `libtlsrpt` | their official origins | the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)): the root certificates of Mozilla (NSS 3.134: the official port of freebsd-ports b64078572ff3, after the pinned commit, copied into this tree as it is until the pin moves past it; aZ, 19.11.2026), the microcode of Intel CPUs with RC and SPLIT (its rc.d script `cpu-microcode-rc` and the split files), rclone with `rclone mount` (libfuse 2 of `fusefs-libs`, with the fix of libfuse #571 for `-o remember`), sshfs 3.7.7 (libfuse 3 of `fusefs-libs3`, the GLib of `glib`; with two fixes of master after 3.7.7: bracketed IPv6 sources, readlink targets longer than the FUSE buffer), the TLSRPT library of `postfix` |
 | `cpu-microcode-amd` | `sysutils/cpu-microcode-amd` | the microcode of AMD CPUs: the official port with the options of `cpu-microcode-intel`, RC (the rc.d script of `cpu-microcode-rc`) and SPLIT (the files of the families in `share/cpucontrol`), both on; `/boot/firmware/amd-ucode.bin` always; 20260926 (linux-firmware 9b858e5bb58d: a new `microcode_amd_fam1ah.bin`), ahead of the official 20251202 |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, phpize |
-| `phpXY-apache` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
+| `apache24-phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
 | `phpXY-fpm` | `www/phpXY-fpm` | the FastCGI Process Manager `sbin/phpXY-fpm` with the rc.d script `phpXY_fpm` (aZ, 21.11.2026: php-cgi and php-fpm as packages of their own) |
 | `phpXY-cgi` | `www/phpXY-cgi` | the CGI `bin/phpXY-cgi` (for suexec and mod_fastcgi of Apache) |
 | `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, `phpXY-gearman` (libgearman of `libgearman`), from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 71 for 7.4 and 8.1, 69 for 8.2 to 8.4, 66 for 5.6 (with the variants below); the list of one: `pkg search -r az '^php84-'` |
@@ -827,37 +827,37 @@ official package.
 PHP 7.4 with its modules:
 
 ```sh
-pkg install -r az php74 php74-apache php74-opcache php74-gd php74-mbstring php74-openssl-legacy
+pkg install -r az php74 apache24-php74 php74-opcache php74-gd php74-mbstring php74-openssl-legacy
 ```
 
 PHP 8.3 with its modules (installs side by side with 7.4: its own `etc/php83`, `lib/php/20230831`, `include/php83`):
 
 ```sh
-pkg install -r az php83 php83-apache php83-opcache php83-gd php83-mbstring php83-openssl-legacy
+pkg install -r az php83 apache24-php83 php83-opcache php83-gd php83-mbstring php83-openssl-legacy
 ```
 
 PHP 8.1 with its modules (side by side as well: `etc/php81`, `lib/php/20210902`, `include/php81`):
 
 ```sh
-pkg install -r az php81 php81-apache php81-opcache php81-gd php81-mbstring php81-openssl-legacy
+pkg install -r az php81 apache24-php81 php81-opcache php81-gd php81-mbstring php81-openssl-legacy
 ```
 
 PHP 5.6 with its modules (side by side as well: `etc/php56`, `lib/php/20131226`, `include/php56`):
 
 ```sh
-pkg install -r az php56 php56-apache php56-opcache php56-gd php56-mbstring php56-openssl-legacy
+pkg install -r az php56 apache24-php56 php56-opcache php56-gd php56-mbstring php56-openssl-legacy
 ```
 
 PHP 8.2 with its modules (side by side as well: `etc/php82`, `lib/php/20220829`, `include/php82`):
 
 ```sh
-pkg install -r az php82 php82-apache php82-opcache php82-gd php82-mbstring php82-openssl-legacy
+pkg install -r az php82 apache24-php82 php82-opcache php82-gd php82-mbstring php82-openssl-legacy
 ```
 
 PHP 8.4 with its modules (side by side as well: `etc/php84`, `lib/php/20240924`, `include/php84`):
 
 ```sh
-pkg install -r az php84 php84-apache php84-opcache php84-gd php84-mbstring php84-openssl-legacy
+pkg install -r az php84 apache24-php84 php84-opcache php84-gd php84-mbstring php84-openssl-legacy
 ```
 
 The programs:
@@ -990,7 +990,7 @@ What it does, with the logic of poudriere:
 - a `NEED_ROOT` port (`az/az`: it builds into `/usr/local/az`): into that of its own
   chroot, as any port;
 - `AZ_CONFIGURE_CHECK=1`, the configure check: after the build of each PHP port (the
-  cores, `phpXY-apache`, every module, the PECL ones and those of clang too), also when
+  cores, `apache24-phpXY`, every module, the PECL ones and those of clang too), also when
   the build fails after its configure, `make configure` once more in a work directory
   of its own, with the same compiler and the errors of C of GCC 14+ and clang 16+ as
   warnings (`-Wno-error=implicit-function-declaration` and the like, as many as the
@@ -1034,7 +1034,7 @@ a port builds it and every port that needs it again (a change of `az/az`: all th
 link it). The files a port lists in `AZ_HASH_NOT_FOR_DEPENDENTS` (installed and used
 at run time only) count in its own `az_hash` but not in that of the ports that need it
 or of its slaves: a change of the php.ini block, the profile script, the rc.d script or
-the pkg-message of `lang/php74` builds `php74` again, not the modules and `php74-apache`
+the pkg-message of `lang/php74` builds `php74` again, not the modules and `apache24-php74`
 (pkg takes a dependency by its name, not its version). No revisions bumped by hand.
 
 `az/az` is built again when anything of it changes; a port that needs it takes into its
@@ -1107,7 +1107,7 @@ Nothing slips by unseen:
   ports kept by interface while az was built again (a line `az:` of the summary).
 
 [`tools/install-php.sh`](tools/install-php.sh) `<version>` installs the PHP packages of
-a version from that repository, as a server does (the core, `php74-apache` and the
+a version from that repository, as a server does (the core, `apache24-php74` and the
 modules, with `php74-openssl`), and [`tools/check-php.sh`](tools/check-php.sh)
 `<version>` checks them (`results/check-php-<version>.txt`); `install-php.sh --openssl`
 puts the variants with OpenSSL in the places of their modules, for

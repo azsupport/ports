@@ -146,7 +146,7 @@
 | `ca_root_nss`, `cpu-microcode-intel`, `cpu-microcode-rc`, `rclone`, `fusefs-libs`, `fusefs-sshfs`, `fusefs-libs3`, `libtlsrpt` | их официальные origin | официальные порты как есть ([`Mk/az-official.mk`](Mk/az-official.mk)): корневые сертификаты Mozilla (NSS 3.134: официальный порт freebsd-ports b64078572ff3, после закреплённого коммита, скопирован в это дерево как есть, пока пин не сдвинется дальше него; aZ, 19.11.2026), микрокод процессоров Intel с RC и SPLIT (скрипт rc.d `cpu-microcode-rc` и разделённые файлы), rclone с `rclone mount` (libfuse 2 из `fusefs-libs`, с исправлением libfuse #571 для `-o remember`), sshfs 3.7.7 (libfuse 3 из `fusefs-libs3`, GLib из `glib`; с двумя исправлениями master после 3.7.7: скобочные IPv6-источники, цели readlink длиннее буфера FUSE), библиотека TLSRPT для `postfix` |
 | `cpu-microcode-amd` | `sysutils/cpu-microcode-amd` | микрокод процессоров AMD: официальный порт с опциями `cpu-microcode-intel`, RC (скрипт rc.d из `cpu-microcode-rc`) и SPLIT (файлы семейств в `share/cpucontrol`), обе включены; `/boot/firmware/amd-ucode.bin` всегда; 20260926 (linux-firmware 9b858e5bb58d: новый `microcode_amd_fam1ah.bin`), новее официального 20251202 |
 | `phpXY` | `lang/phpXY` | ядро PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, phpize |
-| `phpXY-apache` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
+| `apache24-phpXY` | `www/mod_phpXY` | модуль Apache `libphpXY.so` |
 | `phpXY-fpm` | `www/phpXY-fpm` | FastCGI Process Manager `sbin/phpXY-fpm` с rc.d-скриптом `phpXY_fpm` (aZ, 21.11.2026: php-cgi и php-fpm — отдельными пакетами) |
 | `phpXY-cgi` | `www/phpXY-cgi` | CGI `bin/phpXY-cgi` (для suexec и mod_fastcgi Apache) |
 | `phpXY-<модуль>` | `<категория>/phpXY-<модуль>` | по пакету на модуль (`php84-gd`: `graphics/php84-gd`): модули официальных портов коммита версии и PECL, встроенные в исходники форка, без «pecl»: `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, `phpXY-gearman` (libgearman из `libgearman`), с 7.4 — `phpXY-swoole`, `phpXY-openswoole` и `phpXY-excimer`; OPcache — тоже модуль (`phpXY-opcache`), json — до 7.4 (`php74-json`), mysqlnd тоже (`phpXY-mysqlnd`: на нём модули баз данных). у 7.4 и 8.1 — 71, у 8.2–8.4 — 69, у 5.6 — 66 (с вариантами, ниже); список одной версии: `pkg search -r az '^php84-'` |
@@ -758,37 +758,37 @@ pkg upgrade -r az
 PHP 7.4 с модулями:
 
 ```sh
-pkg install -r az php74 php74-apache php74-opcache php74-gd php74-mbstring php74-openssl-legacy
+pkg install -r az php74 apache24-php74 php74-opcache php74-gd php74-mbstring php74-openssl-legacy
 ```
 
 PHP 8.3 с модулями (ставится рядом с 7.4: свои `etc/php83`, `lib/php/20230831`, `include/php83`):
 
 ```sh
-pkg install -r az php83 php83-apache php83-opcache php83-gd php83-mbstring php83-openssl-legacy
+pkg install -r az php83 apache24-php83 php83-opcache php83-gd php83-mbstring php83-openssl-legacy
 ```
 
 PHP 8.1 с модулями (так же рядом: `etc/php81`, `lib/php/20210902`, `include/php81`):
 
 ```sh
-pkg install -r az php81 php81-apache php81-opcache php81-gd php81-mbstring php81-openssl-legacy
+pkg install -r az php81 apache24-php81 php81-opcache php81-gd php81-mbstring php81-openssl-legacy
 ```
 
 PHP 5.6 с модулями (так же рядом: `etc/php56`, `lib/php/20131226`, `include/php56`):
 
 ```sh
-pkg install -r az php56 php56-apache php56-opcache php56-gd php56-mbstring php56-openssl-legacy
+pkg install -r az php56 apache24-php56 php56-opcache php56-gd php56-mbstring php56-openssl-legacy
 ```
 
 PHP 8.2 с модулями (так же рядом: `etc/php82`, `lib/php/20220829`, `include/php82`):
 
 ```sh
-pkg install -r az php82 php82-apache php82-opcache php82-gd php82-mbstring php82-openssl-legacy
+pkg install -r az php82 apache24-php82 php82-opcache php82-gd php82-mbstring php82-openssl-legacy
 ```
 
 PHP 8.4 с модулями (так же рядом: `etc/php84`, `lib/php/20240924`, `include/php84`):
 
 ```sh
-pkg install -r az php84 php84-apache php84-opcache php84-gd php84-mbstring php84-openssl-legacy
+pkg install -r az php84 apache24-php84 php84-opcache php84-gd php84-mbstring php84-openssl-legacy
 ```
 
 Программы:
@@ -918,7 +918,7 @@ env AZ_CONFIGURE_CHECK=1 sh tools/build.sh --force
 - порт с `NEED_ROOT` (`az/az`: собирается прямо в `/usr/local/az`): в `/usr/local/az`
   своего chroot, как любой порт;
 - `AZ_CONFIGURE_CHECK=1`, проверка configure: после сборки каждого порта PHP (ядра,
-  `phpXY-apache`, все модули, и PECL, и те, что собирает clang), и тогда, когда сборка
+  `apache24-phpXY`, все модули, и PECL, и те, что собирает clang), и тогда, когда сборка
   упала после своего configure, — ещё раз `make configure` в своём рабочем каталоге,
   тем же компилятором, с ошибками C из GCC 14+ и clang 16+ как предупреждениями
   (`-Wno-error=implicit-function-declaration` и подобные, сколько их знает компилятор,
@@ -960,7 +960,7 @@ env AZ_CONFIGURE_CHECK=1 sh tools/build.sh --force
 перечисляет в `AZ_HASH_NOT_FOR_DEPENDENTS` (ставятся и нужны только при работе), входят
 в его собственный `az_hash`, но не в хеш портов, которым он нужен, и не в хеш его
 slave-портов: изменение блока php.ini, скрипта профилей, rc.d-скрипта или pkg-message
-`lang/php74` пересобирает `php74`, а не модули и `php74-apache` (pkg берёт зависимость по
+`lang/php74` пересобирает `php74`, а не модули и `apache24-php74` (pkg берёт зависимость по
 имени, не по версии). Ревизии руками не поднимаются.
 
 `az/az` пересобирается, когда в нём меняется что угодно; порт, которому он нужен, берёт
@@ -1032,7 +1032,7 @@ makefile этого дерева, читаемые портом, называю�
   когда az пересобран (строка `az:` сводки).
 
 [`tools/install-php.sh`](tools/install-php.sh) `<версия>` ставит пакеты PHP версии из
-этого репозитория, как сервер (ядро, `php74-apache` и модули, с `php74-openssl`), а
+этого репозитория, как сервер (ядро, `apache24-php74` и модули, с `php74-openssl`), а
 [`tools/check-php.sh`](tools/check-php.sh) `<версия>` их проверяет
 (`results/check-php-<версия>.txt`); `install-php.sh --openssl` ставит варианты с OpenSSL
 на места их модулей, для `CHECK_TAG=openssl check-php.sh` (`check-php-<версия>-openssl.txt`),

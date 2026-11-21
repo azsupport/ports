@@ -1,8 +1,11 @@
 #!/bin/sh
 # az-renames.sh - move a server to the names of the packages of az of 21.11.2026: the
-# version first, as php84 and php84-gd (phpXY-apache, phpXY-fpm, phpXY-cgi, node24-npm,
-# ruby34 ...), and the FPM and the CGI of PHP packages of their own (phpXY-fpm with the
-# rc.d script phpXY_fpm, phpXY-cgi), out of the core phpXY.
+# version first, as php84 and php84-gd (phpXY-fpm, phpXY-cgi, node24-npm, ruby34 ...),
+# the modules of Apache with the Apache first (apache24-phpXY, from 22.11.2026: before
+# mod_phpXY, then phpXY-apache; apache24-mod_fastcgi ...), and the FPM and the CGI of
+# PHP packages of their own (phpXY-fpm with the rc.d script phpXY_fpm, phpXY-cgi), out
+# of the core phpXY. A second run after the newer names is the same: it moves what is
+# under a name of before.
 #
 # Usage (as root, FreeBSD, the repository az configured):
 #   sh az-renames.sh            what it would do; nothing is changed
@@ -76,8 +79,10 @@ edits="$(mktemp "${TMPDIR:-/tmp}/az-renames.XXXXXXXX")" || { echo "$0: mktemp fa
 trap 'rm -f "$edits"' EXIT
 
 # the old name and the new one
-map="mod_php56:php56-apache mod_php74:php74-apache mod_php81:php81-apache mod_php82:php82-apache
-mod_php83:php83-apache mod_php84:php84-apache ap24-mod_fastcgi:apache24-mod_fastcgi
+map="mod_php56:apache24-php56 mod_php74:apache24-php74 mod_php81:apache24-php81 mod_php82:apache24-php82
+mod_php83:apache24-php83 mod_php84:apache24-php84 php56-apache:apache24-php56 php74-apache:apache24-php74
+php81-apache:apache24-php81 php82-apache:apache24-php82 php83-apache:apache24-php83
+php84-apache:apache24-php84 ap24-mod_fastcgi:apache24-mod_fastcgi
 ap24-mod_maxminddb:apache24-mod_maxminddb npm-node18:node18-npm yarn-node18:node18-yarn
 corepack-node18:node18-corepack npm-node24:node24-npm yarn-node24:node24-yarn
 corepack-node24:node24-corepack phpMyAdmin-php56:php56-phpmyadmin
@@ -105,7 +110,7 @@ for m in $map; do
     fi
     say "$o -> $n"
     want="$want $n"
-    case "$o" in mod_php*|ap24-*) apache=1 ;; rubygem-passenger-nginx) nginx=1 ;; esac
+    case "$o" in mod_php*|php*-apache|ap24-*) apache=1 ;; rubygem-passenger-nginx) nginx=1 ;; esac
 done
 
 say "== 3. the FPM and the CGI of PHP"
@@ -247,7 +252,7 @@ for v in $fpm_new; do
     fi
     run service "php${v}_fpm" start || say "service php${v}_fpm start failed"
 done
-[ "$apache" = 1 ] && say "Apache: a module of it was renamed (php-apache, mod_fastcgi, mod_maxminddb): restart its instances"
+[ "$apache" = 1 ] && say "Apache: a module of it was renamed (apache24-phpXY, apache24-mod_fastcgi, apache24-mod_maxminddb): restart its instances"
 [ "$nginx" = 1 ] && say "nginx: its Passenger agent is ruby34-passenger-nginx now: restart nginx"
 [ "$apply" = 1 ] || say "nothing changed: sh $0 --apply does it"
 exit 0

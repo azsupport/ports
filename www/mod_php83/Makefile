@@ -20,12 +20,13 @@ AP2FILTER_DESC=	Use Apache 2.x filter interface (experimental)
 AP2FILTER_CONFIGURE_ON=--with-apxs2filter=${APXS}
 AP2FILTER_CONFIGURE_OFF=--with-apxs2=${APXS}
 
-# The package php83-apache (aZ, 21.11.2026: the name with the version first, as
-# php84-gd): PKGBASE, and PKGNAME on the command line of make (.MAKEFLAGS), which the
-# PKGNAME= of bsd.port.mk does not replace; PKGNAMEPREFIX mod_ stays, by it lang/php83
-# builds the module of Apache.
-PKGBASE=	php83-apache
-CONFLICTS_INSTALL=	mod_php83
-.MAKEFLAGS:	PKGNAME=php83-apache-$${PKGVERSION}
+# The package apache24-php83 (aZ, 22.11.2026: the Apache it is for first, as
+# apache24-mod_fastcgi and apache24-suexec, should an apache22 come beside it; from
+# 21.11.2026 php83-apache): PKGBASE, and PKGNAME on the command line of make
+# (.MAKEFLAGS), which the PKGNAME= of bsd.port.mk does not replace; PKGNAMEPREFIX mod_
+# stays, by it lang/php83 builds the module of Apache.
+PKGBASE=	apache24-php83
+CONFLICTS_INSTALL=	mod_php83 php83-apache
+.MAKEFLAGS:	PKGNAME=apache24-php83-$${PKGVERSION}
 
 .include "${MASTERDIR}/Makefile"

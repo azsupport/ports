@@ -1,7 +1,7 @@
 #!/bin/sh
 # check-php.sh - check the PHP packages of one version installed on this machine
 # (the FreeBSD VM of tools/build.sh, as root, after pkg add of the packages): the
-# core phpXY, phpXY-apache and the phpXY-<module> packages, with the checks of
+# core phpXY, apache24-phpXY and the phpXY-<module> packages, with the checks of
 # php-src tools/build-pkg.sh:
 #   - php -v of the core, php -m with the ini files of the modules (no warning);
 #   - per installed phpXY-<module> package: its ini in etc/phpXY/conf.d
@@ -64,14 +64,14 @@
 #     ftp_ssl_connect(), mysqlnd by its login sha256_password (its extended SSL)
 #     among the plugins of phpinfo(), swoole and openswoole by SWOOLE_SSL;
 #   - readelf -d of every module of lib/php/<API> and of php, php-cgi, php-fpm and
-#     libphp of phpXY-apache: the libraries they name (NEEDED) in /lib, /usr/lib or
+#     libphp of apache24-phpXY: the libraries they name (NEEDED) in /lib, /usr/lib or
 #     /usr/local/az/lib, the run path (RUNPATH) none or /usr/local/az/lib, which it
 #     needs when it links a library there (no ldconfig hints); /usr/local/lib only
 #     for a library of a package the package of the file depends on (libpcre2-8 of
-#     devel/pcre2 for the core and phpXY-apache, libcurl.so.4 of ftp/curl for curl);
+#     devel/pcre2 for the core and apache24-phpXY, libcurl.so.4 of ftp/curl for curl);
 #   - the compiler of the same files (Mk/Uses/azgcc.mk), by the annotation az_cc
 #     of the package of each, its section .comment (the compilers of its objects)
-#     and its NEEDED: php, php-cgi, php-fpm and libphp of phpXY-apache GCC <N> (az_cc
+#     and its NEEDED: php, php-cgi, php-fpm and libphp of apache24-phpXY GCC <N> (az_cc
 #     gcc<N>; N is AZ_GCC of Mk/Uses/azgcc.mk), a module that of its az_cc; GCC:
 #     "GCC: (...) <N>." in .comment and no libgcc_s.so.1 (-static-libgcc); clang
 #     (intl, swoole, openswoole, imagick, gmagick): no GCC in .comment (which the
@@ -80,7 +80,7 @@
 #     of ionCube, built on FreeBSD 11 (no az_cc): the compiler its .comment names
 #     in an OK line, no check;
 #   - php-fpm -t with the configs of the package (php-fpm.conf, php-fpm.d/www.conf);
-#   - Apache with phpXY-apache: apachectl -t with its sample as
+#   - Apache with apache24-phpXY: apachectl -t with its sample as
 #     modules.d/280_mod_phpXY.conf (removed again), the module among those Apache
 #     loads;
 #   - a note (no check) with the time of Zend/bench.php without OPcache (php -n),
@@ -530,10 +530,11 @@ done
 # Per module package: its ini, the module in php -m
 # the glob matches name-version too: php74-7.4.33_... is the core, not a module;
 # php74-composer is Composer and php74-phpmyadmin phpMyAdmin, not modules (the check of
-# Composer is below); php74-apache, php74-fpm and php74-cgi are SAPIs (checked below)
+# Composer is below); php74-fpm and php74-cgi are SAPIs (checked below, as the module of
+# Apache, apache24-php74)
 pkg query -g '%n' "php$short-*" 2>/dev/null |
     grep -v -x -e "php$short" -e "php$short-static" -e "php$short-composer" -e "php$short-phpmyadmin" \
-        -e "php$short-apache" -e "php$short-fpm" -e "php$short-cgi" | sort -u > "$tmp/pkgs"
+        -e "php$short-fpm" -e "php$short-cgi" | sort -u > "$tmp/pkgs"
 [ -s "$tmp/pkgs" ] || skip "modules" "no package php$short-<module> installed"
 intl_done=""
 while read -r p; do
@@ -800,16 +801,16 @@ else
     runs "php$short-fpm -t" "$fpm" -t
 fi
 
-# Apache with phpXY-apache: its sample as modules.d/280_mod_phpXY.conf (removed again),
+# Apache with apache24-phpXY: its sample as modules.d/280_mod_phpXY.conf (removed again),
 # apachectl -t and the module among those Apache loads (-D DUMP_MODULES)
 an="apachectl -t with libphp$short.so"
 ac="$P/sbin/apachectl"
-if ! pkg info -e "php$short-apache"; then
-    skip "$an" "the package php$short-apache is not installed"
+if ! pkg info -e "apache24-php$short"; then
+    skip "$an" "the package apache24-php$short is not installed"
 elif [ ! -x "$ac" ]; then
     fail "$an" "no $ac (the package apache24)"
 elif [ ! -f "$modso" ] || [ ! -f "$modsample" ]; then
-    fail "$an" "php$short-apache is installed without $modso or $modsample"
+    fail "$an" "apache24-php$short is installed without $modso or $modsample"
 else
     elf_libs "$modso"
     cc_check "$modso" gcc
