@@ -14,17 +14,22 @@
 #      for each (a package of another repository under an old name is left alone:
 #      the official ruby is not ours);
 #   3. PHP XY of az with the FPM or the CGI in its core (sbin/php-fpmXY, bin/php-cgiXY,
-#      etc/rc.d/php_fpmXY): phpXY-fpm when rc.conf enables php_fpmXY (or profiles of it)
-#      or it runs, phpXY-cgi when a file of etc names php-cgiXY (it is bin/phpXY-cgi
-#      then: the files said, to change); the php-fpm of the old rc.d script php_fpmXY
-#      stopped when it runs (with its profiles), started again as phpXY_fpm;
+#      etc/rc.d/php_fpmXY): phpXY-fpm when rc.conf enables php_fpmXY (or profiles of it),
+#      it runs or a file names sbin/php-fpmXY; phpXY-cgi when php-cgiXY runs or a file
+#      names it: a file of /etc or /usr/local/etc (spawn-fcgi, the FastCGI of Apache), a
+#      crontab, or a wrapper of a site with it on its #! line (the php-bin/php of
+#      suexec), a small file at most 4 levels under /var/www, /home or /usr/local/www;
+#      the php-fpm of the old rc.d script php_fpmXY stopped when it runs (with its
+#      profiles), started again as phpXY_fpm;
 #   4. pkg upgrade -r az (the core of PHP without its FPM and CGI), then pkg install -r
 #      az of the new names (pkg takes the packages of the old names away: the same
 #      files); pkg asks before each;
-#   5. the variables php_fpmXY_* of rc.conf (sysrc) as phpXY_fpm_* (enable, profiles,
+#   5. in the files of 3, php-cgiXY becomes phpXY-cgi and sbin/php-fpmXY sbin/phpXY-fpm
+#      (sed, each file said);
+#   6. the variables php_fpmXY_* of rc.conf (sysrc) as phpXY_fpm_* (enable, profiles,
 #      the profiles' enable and flags, umask ...); a file /etc/rc.conf.d/php_fpmXY or
 #      /usr/local/etc/rc.conf.d/php_fpmXY is said, not changed;
-#   6. phpXY_fpm started where php_fpmXY ran.
+#   7. phpXY_fpm started where php_fpmXY ran.
 # The configuration files are kept as they are: php-fpm.conf of before keeps its pid,
 # log and socket (/var/run/php-fpmXY.pid, /var/log/php-fpmXY.log,
 # /var/run/php-fpmXY.sock), which the rc.d script phpXY_fpm takes from it; the web
@@ -52,6 +57,23 @@ run() {
 }
 # the repository a package came from (its annotation repository)
 repo_of() { pkg query '%At %Av' "$1" 2> /dev/null | awk '$1 == "repository" { print $2; exit }'; }
+# the files that name $1 (php-cgiXY or sbin/php-fpmXY), a line each: those of /etc and
+# /usr/local/etc (not the rc.d scripts, which go with their packages) and the crontabs;
+# for php-cgiXY also the wrappers of sites, a small file with it on a #! line
+refs_of() {
+    grep -rlsF "$1" /etc "$P/etc" /var/cron/tabs 2> /dev/null | grep -v "^$P/etc/rc\.d/"
+    case "$1" in
+    php-cgi*)
+        for d in /var/www /home "$P/www"; do
+            [ -d "$d" ] || continue
+            find "$d" -maxdepth 4 -type f -size -4k -exec grep -lsE "^#!.*$1([^0-9]|\$)" {} + 2> /dev/null
+        done
+        ;;
+    esac
+}
+tab="$(printf '\t')"
+edits="$(mktemp "${TMPDIR:-/tmp}/az-renames.XXXXXXXX")" || { echo "$0: mktemp failed" >&2; exit 1; }
+trap 'rm -f "$edits"' EXIT
 
 # the old name and the new one
 map="mod_php56:php56-apache mod_php74:php74-apache mod_php81:php81-apache mod_php82:php82-apache
@@ -96,7 +118,8 @@ for v in 56 74 81 82 83 84; do
     pkg info -e "php$v" || continue
     r="$(repo_of "php$v")"
     [ "$r" = az ] || { say "php$v: from the repository ${r:-unknown}, not az: left alone"; continue; }
-    # the FPM: phpXY-fpm when rc.conf enables php_fpmXY (or a profile of it) or it runs
+    # the FPM: phpXY-fpm when rc.conf enables php_fpmXY (or a profile of it), it runs or
+    # a file names sbin/php-fpmXY
     if [ -e "$P/sbin/php-fpm$v" ] || [ -e "$P/etc/rc.d/php_fpm$v" ]; then
         used=""
         sysrc -n "php_fpm${v}_enable" 2> /dev/null | grep -qiE '^(yes|true|on|1)$' && used="enabled in rc.conf"
@@ -105,22 +128,34 @@ for v in 56 74 81 82 83 84; do
         for pf in "/var/run/php-fpm$v.pid" /var/run/php-fpm"$v"-*.pid; do
             [ -f "$pf" ] && kill -0 "$(cat "$pf")" 2> /dev/null && { fpm_was="$fpm_was $v"; used="${used:-it runs}"; break; }
         done
+        refs="$(refs_of "sbin/php-fpm$v")"
+        [ -n "$refs" ] && used="${used:-files name sbin/php-fpm$v}"
         if [ -n "$used" ]; then
-            say "php$v: its FPM ($used) -> php$v-fpm (the rc.d script php${v}_fpm)"
+            say "php$v: its FPM ($used) -> php$v-fpm (sbin/php$v-fpm, the rc.d script php${v}_fpm)"
             want="$want php$v-fpm"
+            [ -n "$refs" ] && printf '%s\n' "$refs" | while IFS= read -r f; do
+                say "  $f names sbin/php-fpm$v: sbin/php$v-fpm in step 5"
+                printf '%s\t%s\t%s\n' "sbin/php-fpm$v" "sbin/php$v-fpm" "$f" >> "$edits"
+            done
         else
-            say "php$v: its FPM is neither enabled nor running: no php$v-fpm (pkg install -r az php$v-fpm when it is needed)"
+            say "php$v: its FPM is neither enabled nor running, no file names it: no php$v-fpm (pkg install -r az php$v-fpm when it is needed)"
         fi
     fi
-    # the CGI: phpXY-cgi when a file of etc names bin/php-cgiXY (the wrappers of suexec,
-    # the FastCGI of Apache), which is bin/phpXY-cgi then
+    # the CGI: phpXY-cgi when php-cgiXY runs or a file names it (bin/phpXY-cgi then)
     if [ -e "$P/bin/php-cgi$v" ]; then
-        refs="$(grep -rlsF "php-cgi$v" "$P/etc" 2> /dev/null | head -n 20 | tr '\n' ' ')"
-        if [ -n "$refs" ]; then
-            say "php$v: its CGI -> php$v-cgi; these files name php-cgi$v, which is $P/bin/php$v-cgi then: change them: $refs"
+        refs="$(refs_of "php-cgi$v")"
+        runs=""
+        pgrep -f "php-cgi$v" > /dev/null 2>&1 && runs=" (php-cgi$v runs now)"
+        if [ -n "$refs" ] || [ -n "$runs" ]; then
+            say "php$v: its CGI$runs -> php$v-cgi ($P/bin/php$v-cgi)"
             want="$want php$v-cgi"
+            [ -n "$refs" ] && printf '%s\n' "$refs" | while IFS= read -r f; do
+                say "  $f names php-cgi$v: php$v-cgi in step 5"
+                printf '%s\t%s\t%s\n' "php-cgi$v" "php$v-cgi" "$f" >> "$edits"
+            done
+            [ -n "$refs" ] || say "  no file found that names php-cgi$v: change by hand what runs it to $P/bin/php$v-cgi"
         else
-            say "php$v: no file of $P/etc names php-cgi$v: no php$v-cgi (pkg install -r az php$v-cgi when a wrapper elsewhere runs it; it is $P/bin/php$v-cgi then)"
+            say "php$v: php-cgi$v does not run, no file names it (/etc, $P/etc, /var/cron/tabs, the #! lines of small files 4 levels under /var/www, /home, $P/www): no php$v-cgi (pkg install -r az php$v-cgi when it is needed: $P/bin/php$v-cgi)"
         fi
     fi
     for f in "/etc/rc.conf.d/php_fpm$v" "$P/etc/rc.conf.d/php_fpm$v"; do
@@ -150,7 +185,18 @@ for m in $map; do
 done
 [ -n "$left" ] && say "still installed under an old name:$left (pkg delete them once their new packages are there)"
 
-say "== 5. the variables of rc.conf"
+say "== 5. the files that name the programs of before"
+if [ -s "$edits" ]; then
+    while IFS="$tab" read -r o n f; do
+        say "$f: $o -> $n"
+        [ "$apply" = 1 ] || continue
+        sed -i '' "s|$o|$n|g" "$f" || say "$f: sed failed: change $o to $n there by hand"
+    done < "$edits"
+else
+    say "none"
+fi
+
+say "== 6. the variables of rc.conf"
 for v in 56 74 81 82 83 84; do
     sysrc -a 2> /dev/null | sed -n "s/^php_fpm${v}_\([A-Za-z0-9_]*\): \(.*\)\$/\1 \2/p" | while read -r k val; do
         say "php_fpm${v}_$k=\"$val\" -> php${v}_fpm_$k"
@@ -166,7 +212,7 @@ for v in 56 74 81 82 83 84; do
     done
 done
 
-say "== 6. the FPM again"
+say "== 7. the FPM again"
 for v in $fpm_was; do
     run service "php${v}_fpm" start || say "service php${v}_fpm start failed"
 done
