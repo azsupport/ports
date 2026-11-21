@@ -12,6 +12,9 @@ MAINTAINER=	github@azsupport.com
 
 PHP_PORT=	lang/php74
 MASTERDIR=	${.CURDIR}/../../${PHP_PORT}
+# lang/php74 sets PHP_VER for its core only (its block of the core): the CGI
+# takes it here, for the name of its program (bin/php74-cgi, as its plist)
+PHP_VER=	74
 PKGDIR=		${.CURDIR}
 AZ_PHP_SAPI=	cgi
 

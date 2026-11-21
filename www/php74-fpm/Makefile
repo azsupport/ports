@@ -14,6 +14,10 @@ MAINTAINER=	github@azsupport.com
 
 PHP_PORT=	lang/php74
 MASTERDIR=	${.CURDIR}/../../${PHP_PORT}
+# lang/php74 sets PHP_VER for its core only (its block of the core): the FPM
+# takes it here, for the names of its files (sbin/php74-fpm, etc/php74, as its
+# plist) and its pkg-message
+PHP_VER=	74
 PKGDIR=		${.CURDIR}
 FILESDIR=	${.CURDIR}/files
 AZ_PHP_SAPI=	fpm
