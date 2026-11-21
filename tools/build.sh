@@ -141,8 +141,9 @@
 # - AZ_JOBS above 1: waves, each of the ports whose ports of this tree they need are
 #   done, up to AZ_JOBS ports at once, the biggest first (the size of the package in
 #   the repository), each with its chroot, its log and its own PACKAGES directory (its
-#   distfiles fetched under lockf(1), one build at a time); the summary in the order
-#   of the queue, results/waves.txt;
+#   distfiles fetched under lockf(1), one build at a time); a port of AZ_ALONE (below:
+#   GCC 16) starts when no other build is going, and none starts beside it; the
+#   summary in the order of the queue, results/waves.txt;
 # - a NEED_ROOT port (az/az builds into the real prefix and refuses files of a package
 #   there): into the /usr/local/az of its own chroot, as any port;
 # - the repository: one package per origin (of two in <dir> at the start, the newer
@@ -206,6 +207,10 @@ AZ_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson lang/gc
 # '/usr/src/sys/kern/bus_if.m'», 21.11.2026, when its kernel module came from the
 # repository and no port of the run had fetched the sources)
 AZ_KERNEL_SOURCES="emulators/virtualbox-ose-72"
+# the ports built with no other build beside them (AZ_JOBS above 1), for their memory:
+# lang/gcc16, the LTO of its profiledbootstrap («xg++: fatal error: Killed signal
+# terminated program lto1» beside databases/mongodb80 on a free runner, 21.11.2026)
+AZ_ALONE="lang/gcc16"
 
 top="$(cd "$(dirname "$0")/.." && pwd)"
 usage() { sed -n 's/^# \{0,1\}//; 6,16p' "$0" >&2; exit "${1:-2}"; }
@@ -1868,8 +1873,14 @@ else
             echo "$sz $o"
         done | sort -s -k1,1nr | awk '{ print $2 }' > "$q/wave.order"
         running=0
+        # the key of a port of AZ_ALONE that builds: nothing starts beside it, and it
+        # starts when nothing else builds
+        alone_k=""
         for o in $(cat "$q/wave.order") ''; do
-            while [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; }; do
+            alone=0
+            if [ -n "$o" ]; then case " $AZ_ALONE " in *" ${o%%@*} "*) alone=1 ;; esac; fi
+            while [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; } ||
+                { [ "$running" -gt 0 ] && { [ "$alone" = 1 ] || [ -n "$alone_k" ]; }; }; do
                 for dn in "$q"/jobs/*.done; do
                     [ -f "$dn" ] || continue
                     jk="${dn##*/}"; jk="${jk%.done}"
@@ -1886,8 +1897,10 @@ else
                     fi
                     rm -f "$dn" "$q/jobs/$jk.pid" "$q/jobs/$jk.out" "$q/jobs/$jk.origin"
                     running=$((running - 1))
+                    if [ "$jk" = "$alone_k" ]; then alone_k=""; fi
                 done
-                [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; } || break
+                [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; } ||
+                    { [ "$running" -gt 0 ] && { [ "$alone" = 1 ] || [ -n "$alone_k" ]; }; } || break
                 # AZ_TIME_HARD: the builds still going are stopped once (the tree of each
                 # job under its subshell, which then writes its .done); they have no state
                 # and come again as not built (time_skip). A job whose subshell is gone
@@ -1912,7 +1925,12 @@ else
             if time_over; then time_skip "$o"; continue; fi
             # what it gets in its chroot, worked out here (not in the jobs beside it)
             dep_lists "$o"
-            say "$o: make package (logs/$k.log)"
+            if [ "$alone" = 1 ]; then
+                alone_k="$k"
+                say "$o: make package (logs/$k.log), alone (AZ_ALONE: no other build beside it)"
+            else
+                say "$o: make package (logs/$k.log)"
+            fi
             # .done after the subshell of the build, also if it ends early: the loop
             # above would otherwise wait for it until the timeout of the job; the traps
             # of the run (all chroots away) are not those of a job
