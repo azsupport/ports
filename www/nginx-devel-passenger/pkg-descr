@@ -1,3 +1,3 @@
 The Phusion Passenger module of nginx-devel: Ruby on Rails and other Rack
 applications served by nginx, their processes started and managed by the agent of
-rubygem-passenger-nginx (PassengerAgent).
+ruby34-passenger-nginx (PassengerAgent).

@@ -1,5 +1,5 @@
 # databases/phpmyadmin5-php81: databases/phpmyadmin5 for PHP 8.1, the package
-# phpMyAdmin5-php81.
+# php81-phpmyadmin.
 
 PHP_VER=	81
 

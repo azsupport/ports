@@ -4,4 +4,10 @@
 
 AZ_OFFICIAL=	devel/rubygem-rake
 
+# The package ruby34-rake (aZ, 21.11.2026: the name with the version first, as php84):
+# PKGNAMEPREFIX of Ruby, which USES=gem sets to rubygem- only when it is not set; it
+# conflicts with the official rubygem-rake (the same files).
+PKGNAMEPREFIX=	${RUBY_PKGNAMEPREFIX}
+CONFLICTS_INSTALL=	rubygem-rake
+
 .include "${.CURDIR:H:H}/Mk/az-official.mk"

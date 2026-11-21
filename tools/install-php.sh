@@ -6,7 +6,7 @@
 # Usage (as root on FreeBSD, after tools/build.sh):
 #   sh tools/install-php.sh [--repo <dir>] [--openssl] <version>
 #
-#   <version>     7.4: the core php74, mod_php74 and every module php74-<module> of the
+#   <version>     7.4: the core php74, php74-apache and every module php74-<module> of the
 #                 repository but php74-openssl-legacy (of the two kinds of openssl the
 #                 standard one; the other stays in the repository for a swap:
 #                 pkg install -y php74-openssl-legacy) and the variants with OpenSSL,
@@ -67,9 +67,9 @@ conf=/usr/local/etc/pkg/repos/azbuild.conf
 mkdir -p "${conf%/*}" || die "cannot make ${conf%/*}"
 printf 'azbuild: { url: "file://%s", signature_type: "none", priority: 100, enabled: yes }\n' "$repo" > "$conf"
 pkg update -f -r azbuild >> "$log" 2>&1 || { say "pkg update of the repository $repo failed ($log)"; exit 1; }
-names="$(pkg rquery -r azbuild '%n' 2>> "$log" | grep -E "^(php$short|mod_php$short|php$short-.+)\$" | LC_ALL=C sort -u)"
+names="$(pkg rquery -r azbuild '%n' 2>> "$log" | grep -E "^(php$short|php$short-.+)\$" | LC_ALL=C sort -u)"
 
-# what goes in: the core, mod_php and the modules, with the standard openssl, and
+# what goes in: the core, phpXY-apache and the modules, with the standard openssl, and
 # of each module with a variant with OpenSSL (php74-<module>-openssl: php74-openssl
 # is the module openssl) the module, or with --openssl the variant
 printf '%s\n' "$names" | grep -qx "php$short" || { say "no package php$short in the repository $repo"; exit 3; }

@@ -1,6 +1,6 @@
 # www/corepack-node18 of azsupport/ports: corepack of www/node18, made as our
 # www/corepack-node24 (the official www/corepack; its pkg-plist and pkg-descr, the
-# same files), which node18 depends on: corepack-node18 and corepack-node24, one of
+# same files), which node18 depends on: node18-corepack and node24-corepack, one of
 # the two, as npm and yarn (aZ, 11.11.2026). corepack 0.33.0 is the last that runs
 # on Node 18 (its engines: ^18.17.1 || ^20.10.0 || >=22.11.0; 0.34 and later need
 # Node 20 or later), and newer than the 0.32.0 that Node 18.20.8 bundles. Its
@@ -14,7 +14,9 @@ PORTVERSION=	0.33.0
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	www
 MASTER_SITES=	https://registry.npmjs.org/${PORTNAME}/-/
-PKGNAMESUFFIX=	-node18
+# the package node18-corepack (aZ, 21.11.2026: the name with the version first, as
+# php84)
+PKGNAMEPREFIX=	node18-
 
 MAINTAINER=	github@azsupport.com
 COMMENT=	Bridge between Node projects and their package managers (of azsupport/ports)
@@ -25,7 +27,7 @@ LICENSE=	MIT
 LICENSE_FILE=	${WRKSRC}/package/LICENSE.md
 
 # the same files: one corepack at a time (the official package corepack too)
-CONFLICTS_INSTALL=	corepack corepack-node[0-9][0-9]
+CONFLICTS_INSTALL=	corepack corepack-node[0-9][0-9] node[0-9][0-9]-corepack
 
 USES=		tar:tgz
 

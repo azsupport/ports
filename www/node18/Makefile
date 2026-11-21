@@ -117,7 +117,7 @@ AZ_NODE_LIBS=	libbrotlidec.so libcares.so libicui18n.so libnghttp2.so libuv.so
 BUILD_DEPENDS=	${AZ_NODE_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
 LIB_DEPENDS=	libllhttp.so:www/llhttp
 RUN_DEPENDS=	${AZ_NODE_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@} \
-		corepack-node18>=0:www/corepack-node18
+		node18-corepack>=0:www/corepack-node18
 
 # python: the configure of Node 18 takes Python 3.6 to 3.13
 USES=		compiler:c++11-lib gmake localbase pkgconfig python:3.9-3.13,build \

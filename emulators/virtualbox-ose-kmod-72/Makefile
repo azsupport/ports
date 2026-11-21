@@ -11,6 +11,12 @@
 # that origin (it has none), so PATCHDIR is given on the command line of make
 # (.MAKEFLAGS), which the assignment of the official Makefile does not replace.
 
+# The package virtualbox72-kmod (aZ, 21.11.2026: the name with the version, as
+# php84): PKGBASE and PKGNAME as in emulators/virtualbox-ose-72; it conflicts with
+# the official virtualbox-ose-kmod* (the same kernel modules).
+PKGBASE=	virtualbox72-kmod
+.MAKEFLAGS:	PKGNAME=virtualbox72-kmod-$${PKGVERSION} CONFLICTS_INSTALL=virtualbox-ose-kmod*
+
 AZ_OFFICIAL=	emulators/virtualbox-ose-kmod-72
 OPTIONS_SLAVE=	VIMAGE
 OPTIONS_EXCLUDE=	DEBUG INVARIANTS

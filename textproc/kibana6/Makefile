@@ -107,7 +107,7 @@ LICENSE_PERMS_ELASTIC10=	none
 
 # uv.h, which nan includes: of the libuv of az, which our node24 links (the
 # official kibana8 has devel/libuv for it)
-BUILD_DEPENDS=	npm-node24>0:www/npm-node24 \
+BUILD_DEPENDS=	node24-npm>0:www/npm-node24 \
 		${AZ_PREFIX}/include/uv.h:az/az
 
 USES=		compiler:c++20-lang cpe dos2unix gmake nodejs:24,build,run python:build

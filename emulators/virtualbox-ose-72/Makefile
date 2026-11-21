@@ -27,6 +27,15 @@
 # /usr/local/az/lib in the run path of every program and library of VirtualBox after
 # its own directory. post-stage checks what they link.
 
+# The package virtualbox72 (aZ, 21.11.2026: the name with the version, as php84):
+# PKGBASE, and PKGNAME on the command line of make (.MAKEFLAGS), as the PKGNAME= of
+# bsd.port.mk would replace it; PORTNAME stays virtualbox-ose, so the files are where
+# the official port puts them (lib/virtualbox, share/virtualbox-ose) and the origin
+# stays emulators/virtualbox-ose-72. The CONFLICTS_INSTALL of the official port names
+# its packages (virtualbox-ose, -legacy, -70, -71, -72 and the -nox11 of each).
+PKGBASE=	virtualbox72
+.MAKEFLAGS:	PKGNAME=virtualbox72-$${PKGVERSION}
+
 FLAVOR=		nox11
 AZ_OFFICIAL=	emulators/virtualbox-ose-72
 OPTIONS_SLAVE=	AIO TPM UDPTUNNEL VNC

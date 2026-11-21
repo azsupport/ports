@@ -12,6 +12,12 @@
 # that origin (it has none), so PATCHDIR is given on the command line of make
 # (.MAKEFLAGS), which the assignment of the official Makefile does not replace.
 
+# The package virtualbox72-additions (aZ, 21.11.2026: the name with the version, as
+# php84): PKGBASE and PKGNAME as in emulators/virtualbox-ose-72; it conflicts with
+# the official virtualbox-ose-additions* (the same files).
+PKGBASE=	virtualbox72-additions
+.MAKEFLAGS:	PKGNAME=virtualbox72-additions-$${PKGVERSION} CONFLICTS_INSTALL=virtualbox-ose-additions*
+
 FLAVOR=		nox11
 AZ_OFFICIAL=	emulators/virtualbox-ose-additions-72
 .MAKEFLAGS:	PATCHDIR=${PORTSDIR:U/usr/ports}/emulators/virtualbox-ose-72/files

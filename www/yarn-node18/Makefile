@@ -4,7 +4,7 @@
 # pkg-descr), the same Yarn 1.22.19 as our yarn-node24, so that a project keeps its
 # Yarn when it moves between node18 and node24. Without USES=nodejs, as
 # www/npm-node18 (its Makefile says why): the RUN_DEPENDS on node of www/node18 and
-# the suffix -node18 written here. yarn-node18 and yarn-node24, one of the two
+# the prefix node18- written here. node18-yarn and node24-yarn, one of the two
 # (CONFLICTS_INSTALL, the same files).
 
 PORTNAME=	yarn
@@ -13,7 +13,8 @@ PORTVERSION=	1.22.19
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	www
 MASTER_SITES=	https://yarnpkg.com/downloads/${PORTVERSION}/
-PKGNAMESUFFIX=	-node18
+# the package node18-yarn (aZ, 21.11.2026: the name with the version first, as php84)
+PKGNAMEPREFIX=	node18-
 
 MAINTAINER=	github@azsupport.com
 COMMENT=	Package manager for node, alternative to npm (of azsupport/ports)
@@ -28,7 +29,7 @@ RUN_DEPENDS=	node:www/node18
 USES=		cpe
 CPE_VENDOR=	${PORTNAME}pkg
 
-CONFLICTS_INSTALL=	yarn-node[0-9][0-9]
+CONFLICTS_INSTALL=	yarn-node[0-9][0-9] node[0-9][0-9]-yarn
 
 OPTIONS_DEFINE=	HADOOPCOMPAT
 HADOOPCOMPAT_DESC=	hadoop2 compatibility, the yarn script is excluded

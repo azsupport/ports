@@ -8,9 +8,9 @@
 # yarn-node24 too (in their az_hash: they would build again with each change) and
 # have to follow the official one at each move of the pin, for what
 # USES=nodejs:18,run gives: the RUN_DEPENDS on node of www/node18 and the suffix
-# -node18, written here. npm-node18 and npm-node24, one of the two
-# (CONFLICTS_INSTALL, the same files). Of what it takes, gmake and Python (node-gyp)
-# are official packages.
+# -node18, written here (the prefix node18-). node18-npm and node24-npm, one of the
+# two (CONFLICTS_INSTALL, the same files). Of what it takes, gmake and Python
+# (node-gyp) are official packages.
 # The vulnerabilities of what npm 10.9.10 bundles (the audit database of the
 # registry, 13.11.2026; no npm 10.x release has their fixes): CVE-2026-9496 of its
 # pacote 19.0.3 and of the pacote 20.0.1 of @npmcli/metavuln-calculator (fixed in
@@ -60,7 +60,8 @@ MASTER_SITES=	https://registry.npmjs.org/${PORTNAME}/-/ \
 		https://registry.npmjs.org/ip-address/-/:ipaddress \
 		https://registry.npmjs.org/picomatch/-/:picomatch \
 		https://registry.npmjs.org/postcss-selector-parser/-/:postcss
-PKGNAMESUFFIX=	-node18
+# the package node18-npm (aZ, 21.11.2026: the name with the version first, as php84)
+PKGNAMEPREFIX=	node18-
 DISTFILES=	${DISTNAME}${EXTRACT_SUFX} \
 		brace-expansion-${BRACE_EXPANSION_VERSION}.tgz:brace \
 		ip-address-${IP_ADDRESS_VERSION}.tgz:ipaddress \
@@ -85,7 +86,7 @@ USES=		cpe python shebangfix tar:tgz
 CPE_VENDOR=	npmjs
 SHEBANG_GLOB=	*.py
 
-CONFLICTS_INSTALL=	npm-node[0-9][0-9]
+CONFLICTS_INSTALL=	npm-node[0-9][0-9] node[0-9][0-9]-npm
 
 REINPLACE_ARGS=	-i ''
 NO_ARCH=	yes

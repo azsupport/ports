@@ -1,7 +1,9 @@
-# lang/ruby34 of azsupport/ports: Ruby 3.4, the RUBY_DEFAULT of the ports tree, under
-# the name of the official package (ruby), in its place (aZ, 20.11.2026: «пока добавляй
-# lang/ruby34 и devel/ruby-gems»). The official port (its patches, pkg-plist,
-# pkg-descr, pkg-message) with:
+# lang/ruby34 of azsupport/ports: Ruby 3.4, the RUBY_DEFAULT of the ports tree, in the
+# place of the official one (aZ, 20.11.2026: «пока добавляй lang/ruby34 и
+# devel/ruby-gems»), the package ruby34 (aZ, 21.11.2026: the name with the version
+# first, as php84; the official package of the default Ruby is ruby, which the official
+# gems depend on: they go with the official ruby, not with this one). The official
+# port (its patches, pkg-plist, pkg-descr, pkg-message) with:
 # - the options of aZ: GMP on (the Bignum of Ruby on GMP, as the make.conf of aZ's
 #   servers had GMP in OPTIONS_SET), RDOC off (the ri indexes are documents: DOCS and the
 #   manual pages are off everywhere, tools/make.conf.in), CAPIDOCS, DEBUG, DOCS and
@@ -136,10 +138,12 @@ CONFIGURE_ARGS+=--with-setjmp-type=_setjmp
 CONFIGURE_ENV+=	ac_cv_func__setjmp=yes
 .endif
 
+# the package ruby34 for the default Ruby too (the official one is then ruby); the
+# default keeps its links bin/ruby, irb ... (IF_DEFAULT)
+PKGNAMESUFFIX=	${RUBY_SUFFIX}
 .if ${RUBY_VER} == ${RUBY_DEFAULT_VER}
 PLIST_SUB+=	IF_DEFAULT=""
 .else
-PKGNAMESUFFIX=	${RUBY_SUFFIX}
 PLIST_SUB+=	IF_DEFAULT="@comment "
 .endif
 

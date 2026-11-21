@@ -9,7 +9,10 @@ PORTNAME=	mod_maxminddb
 PORTVERSION=	1.3.0
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	www
-PKGNAMEPREFIX=	${APACHE_PKGNAMEPREFIX}
+# the package apache24-mod_maxminddb (aZ, 21.11.2026: the name with the version first,
+# as php84, as apache24-suexec), in the place of the official ap24-mod_maxminddb
+PKGNAMEPREFIX=	apache24-
+CONFLICTS_INSTALL=	ap24-mod_maxminddb
 
 MAINTAINER=	github@azsupport.com
 COMMENT=	MaxMind DB Apache Module (of azsupport/ports)

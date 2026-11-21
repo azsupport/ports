@@ -1,5 +1,5 @@
 # databases/phpmyadmin5-php82: databases/phpmyadmin5 for PHP 8.2, the package
-# phpMyAdmin5-php82.
+# php82-phpmyadmin.
 
 PHP_VER=	82
 

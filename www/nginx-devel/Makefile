@@ -364,13 +364,13 @@ NGINX_AZ_OBJS=	ngx_http_vod_module.so
 # «nginx-devel-passenger нужен обязательно»): the module of the release above, its
 # support libraries built by its config script (rake nginx:as_dynamic_module, in the
 # tree of the release), as the option PASSENGER of the official nginx-devel (OPTIMIZE,
-# -DNDEBUG, C++14); the agent is that of rubygem-passenger-nginx
+# -DNDEBUG, C++14); the agent is that of ruby34-passenger-nginx
 CONFIGURE_ARGS+=	--add-dynamic-module=${WRKDIR}/passenger-${NGINX_AZ_PASSENGER}/src/nginx_module
 CONFIGURE_ENV+=	OPTIMIZE="yes" EXTRA_PRE_CXXFLAGS="-std=c++14"
 CFLAGS+=	-DNDEBUG
 USES+=		compiler:c++14-lang ruby
 BUILD_DEPENDS+=	${LOCALBASE}/bin/rake:devel/rubygem-rake
-RUN_DEPENDS+=	rubygem-passenger-nginx>=${NGINX_AZ_PASSENGER}:www/rubygem-passenger
+RUN_DEPENDS+=	${RUBY_PKGNAMEPREFIX}passenger-nginx>=${NGINX_AZ_PASSENGER}:www/rubygem-passenger
 NGINX_AZ_OBJS=	ngx_http_passenger_module.so
 . else
 IGNORE=		NGINX_AZ_MODULE ${NGINX_AZ_MODULE}: no such module package

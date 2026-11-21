@@ -1,5 +1,5 @@
 # databases/phpmyadmin5-php83: databases/phpmyadmin5 for PHP 8.3, the package
-# phpMyAdmin5-php83.
+# php83-phpmyadmin.
 
 PHP_VER=	83
 

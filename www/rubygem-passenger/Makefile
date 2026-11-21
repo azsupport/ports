@@ -1,18 +1,20 @@
 # www/rubygem-passenger of azsupport/ports: Phusion Passenger 6.2.2 for nginx, the package
-# rubygem-passenger-nginx (PassengerAgent, passenger-config, its Ruby part), which the
+# ruby34-passenger-nginx (PassengerAgent, passenger-config, its Ruby part), which the
 # module package www/nginx-devel-passenger needs (aZ, 20.11.2026: «nginx-devel-passenger
 # нужен обязательно. www/rubygem-passenger добавляй если у него к нему зависимость»).
 # The official port (its patches, pkg-descr, pkg-message of nginx) with:
 # - the flavor nginx alone (the Apache module of the flavor apache is not needed: the
-#   Apache of aZ runs PHP), so the package name is that of the official nginx flavor;
+#   Apache of aZ runs PHP), the package ruby34-passenger-nginx (aZ, 21.11.2026: the
+#   name with the version first, as php84), not rubygem-passenger-nginx;
 # - no APR (devel/apr1): only the Apache module links it, not the agent; libcurl of
 #   ftp/curl of this tree (the agent), OpenSSL of the base system;
-# - our gems: rubygem-etc, -logger, -rack, -rackup and -rake of this tree, on lang/ruby34.
+# - our gems: ruby34-etc, -logger, -rack, -rackup and -rake of this tree, on lang/ruby34.
 
 PORTNAME=	passenger
 PORTVERSION=	6.2.2
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	www rubygems
+PKGNAMEPREFIX=	${RUBY_PKGNAMEPREFIX}
 MASTER_SITES=	RG \
 		https://github.com/phusion/passenger/releases/download/release-${PORTVERSION}/
 
@@ -25,16 +27,16 @@ WWW=		https://www.phusionpassenger.com/ \
 LICENSE=	MIT
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-BUILD_DEPENDS=	rubygem-logger>=1.7.0:devel/rubygem-logger \
-		rubygem-rack>=1.6.13,3:www/rubygem-rack \
-		rubygem-rake>=12.3.3:devel/rubygem-rake \
+BUILD_DEPENDS=	${RUBY_PKGNAMEPREFIX}logger>=1.7.0:devel/rubygem-logger \
+		${RUBY_PKGNAMEPREFIX}rack>=1.6.13,3:www/rubygem-rack \
+		${RUBY_PKGNAMEPREFIX}rake>=12.3.3:devel/rubygem-rake \
 		utf8cpp>=4.0.3:devel/utf8cpp
 LIB_DEPENDS=	libcurl.so:ftp/curl
-RUN_DEPENDS=	rubygem-etc>=0:devel/rubygem-etc \
-		rubygem-logger>=1.7.0:devel/rubygem-logger \
-		rubygem-rack>=1.6.13,3:www/rubygem-rack \
-		rubygem-rackup>=1.0.1:www/rubygem-rackup \
-		rubygem-rake>=12.3.3:devel/rubygem-rake
+RUN_DEPENDS=	${RUBY_PKGNAMEPREFIX}etc>=0:devel/rubygem-etc \
+		${RUBY_PKGNAMEPREFIX}logger>=1.7.0:devel/rubygem-logger \
+		${RUBY_PKGNAMEPREFIX}rack>=1.6.13,3:www/rubygem-rack \
+		${RUBY_PKGNAMEPREFIX}rackup>=1.0.1:www/rubygem-rackup \
+		${RUBY_PKGNAMEPREFIX}rake>=12.3.3:devel/rubygem-rake
 
 USES=		compiler:c++14-lang cpe gem libtool python:env ssl
 
