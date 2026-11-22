@@ -144,9 +144,14 @@ MASTER_SITES=	https://github.com/curl/curl/releases/download/curl-8_23_0/:curl \
 		https://github.com/rockdaboot/libpsl/releases/download/0.23.3/:libpsl \
 		https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/:libssh2 \
 		https://codeload.github.com/publicsuffix/list/tar.gz/73f8cc7?dummy=/:psllist \
-		https://github.com/strukturag/libheif/releases/download/v1.23.7/:libheif \
 		https://github.com/strukturag/libde265/releases/download/v1.1.3/:libde265 \
-		https://codeload.github.com/awesomized/libmemcached/tar.gz/1.2.0?dummy=/:libmemcached
+		https://github.com/libffi/libffi/releases/download/v3.8.1/:libffi \
+		https://github.com/fmtlib/fmt/releases/download/12.2.1/:fmt \
+		https://gitlab.freedesktop.org/api/v4/projects/890/packages/generic/fontconfig/2.18.4/:fontconfig \
+		https://code.videolan.org/videolan/dav1d/-/archive/1.5.5/:dav1d \
+		https://download.savannah.gnu.org/releases/freetype/:freetype \
+		https://downloads.sourceforge.net/project/freetype/freetype2/2.15.0/:freetype \
+		https://dist.libuv.org/dist/v1.53.0/:libuv
 # The names are those tools/az-curl-sources.sh keeps them under (the distfile of
 # curl-deps.conf, / made _) and the take lines of files/deps.conf give.
 DISTFILES=	curl-8.23.0.tar.xz:curl \
@@ -158,9 +163,13 @@ DISTFILES=	curl-8.23.0.tar.xz:curl \
 		libpsl-0.23.3.tar.lz:libpsl \
 		libssh2-1.11.1.tar.xz:libssh2 \
 		publicsuffix-list-20261031-73f8cc7_GH0.tar.gz:psllist \
-		libheif-1.23.7.tar.gz:libheif \
 		libde265-1.1.3.tar.gz:libde265 \
-		awesomized-libmemcached-1.2.0_GH0.tar.gz:libmemcached
+		libffi-3.8.1.tar.gz:libffi \
+		fmt-12.2.1.zip:fmt \
+		fontconfig-2.18.4.tar.xz:fontconfig \
+		dav1d-1.5.5.tar.bz2:dav1d \
+		freetype-2.15.0.tar.xz:freetype \
+		libuv-v1.53.0-dist.tar.gz:libuv
 
 COMMENT=	Static and shared libraries of /usr/local/az, for PHP and the programs
 WWW=		https://github.com/azsupport/ports

@@ -4,11 +4,20 @@
 # 16.11.2026): the ada that Node.js 24.22.3 bundles, with the fixes of 3.4.4..4.0.0 (a
 # denial of service of the URLPattern tokenizer on malformed UTF-8, #1125; the length
 # limit of href_from_file and of search params, #1193; parsing fixes, #1156, #1157,
-# #1167, #1186); its library libada.so.4, one header more (url_ip-inl.h).
+# #1167, #1186); its library libada.so.4, one header more (url_ip-inl.h). 4.1.1 since
+# 22.11.2026 (a release of the major version we have that fixes vulnerabilities, rule
+# of aZ of that day): memory safety fixes, a use-after-free of the inputs of a URLPattern
+# result (#1360), the iterators and reset of the search params of the C API (#1310), the
+# input of a setter that aliases the buffer of the URL (#1320), the members of a moved
+# url_pattern_result (#1358), set_host grown past the length limit by IDNA (#1328), the
+# strings of the C API NUL-terminated (#1353), the index of ada_strings_get checked
+# (#1293); the same API and libada.so.4, two headers more (url_pattern_list.h,
+# url_pattern_list-inl.h). SHA-256 of the archive as in the ada-url formula of
+# Homebrew (distinfo.yml of 22.11.2026, run 45027832708).
 
 PORTNAME=	libada
 DISTVERSIONPREFIX=	v
-DISTVERSION=	4.0.0
+DISTVERSION=	4.1.1
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	devel www
 
