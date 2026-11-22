@@ -9,6 +9,9 @@ response of the backend (502, or the next upstream), by proxy, fastcgi, scgi and
 alike. A WebSocket location with "proxy_set_header Upgrade $http_upgrade" is as
 before: the tests of nginx-tests for it pass.
 
+The request body after an error and after it was discarded (pull request 1943 of
+nginx/nginx; aZ, 23.11.2026: «бери»): see patch-src_http_ngx__http__request__body.c.
+
 --- src/http/modules/ngx_http_proxy_module.c.orig
 +++ src/http/modules/ngx_http_proxy_module.c
 @@ -1183,6 +1183,7 @@ ngx_http_proxy_create_key(ngx_http_request_t *r)
@@ -19,6 +22,15 @@ before: the tests of nginx-tests for it pass.
      size_t                        len, uri_len, loc_len, body_len, headers_len,
                                    key_len, val_len;
      uintptr_t                     escape;
+@@ -1308,7 +1309,7 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+         ctx->internal_chunked = 1;
+ 
+     } else if (r->discard_body) {
+-        ctx->internal_body_length = 0;
++        ctx->internal_body_length = -1;
+ 
+     } else {
+         ctx->internal_body_length = r->headers_in.content_length_n;
 @@ -1468,6 +1469,8 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
              continue;
          }

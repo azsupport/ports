@@ -117,6 +117,15 @@
 # sends a 200 with the slice the range begins in for the whole object, and fetches every
 # slice to the end of the object for it.
 #
+# The compression filters give way to the other connections (aZ, 23.11.2026 00:11, on
+# pull request 1808 of nginx, which is of gzip alone: «ну значит надо брать и делать для
+# zstd и brotli»; files/patch-src_http_modules_ngx__http__gzip__filter__module.c,
+# extra-patch-brotli-yield, extra-patch-zstd-yield): no more than sendfile_max_chunk bytes
+# of a response (2m unless set) compressed in one iteration of the event loop. A worker
+# compressed a large file whole before it turned to its other connections: beside a file
+# of 33 MB the slowest small request waited 258 ms with zstd, 645 with brotli and 938
+# with gzip (a build with ASan), 41 to 46, 80 to 123 and 116 to 141 with the patches.
+#
 # No "Server" line of nginx itself (aZ, 22.11.2026 21:10: every configuration of his has
 # more_clear_headers 'server', most of them nothing else of headers-more): built with
 # -DNGX_HTTP_AZ_SERVER=0 (files/patch-src_http_ngx__http__header__filter__module.c and
@@ -132,10 +141,19 @@
 # length of a slice response checked (1966: an origin that sends a slice too long or too
 # short had its bytes go out among those of the object, nothing in the log), a 101 of a
 # backend taken only where an upgrade is under way (1941), the lengths of names in the
-# resolver (1858). Not taken: 1624 and 1766 (the body of an HTTP/3 request: nginx 1.31.9
-# has it fixed its own way, st->skip); 1943, the request body series of freenginx, waits
-# for nginx: it changes $content_length after a discarded body and the meaning of
-# r->discard_body, which lua-nginx-module reads.
+# resolver (1858); of 23.11.2026 (aZ, 00:21: «бери»): the context of a slice subrequest
+# that an error_page sends to a named location (1611: $slice_range was empty there, and
+# the whole object of the origin went into the response at the offset of the slice), no
+# signed overflow with a Content-Range near the largest offset (1942), and the request
+# body series of freenginx (1943, files/patch-src_http_ngx__http__request__body.c and
+# those it names: what a request carries of its body after an error of the reading of it
+# or after it was discarded; error_page 413 over HTTP/2 and HTTP/3; a discarded body is
+# no body: no Content-Length to a proxied backend, where it was "Content-Length: 0", and
+# $content_length empty, where it was the header of the client; r->discard_body stays
+# set after a discard, which lua-nginx-module reads: after one, ngx.req.set_body_data(),
+# set_body_file(), init_body() and ngx.req.socket() fail and ngx.req.get_post_args()
+# gives an empty table, as its documentation has it). Not taken: 1624 and 1766 (the body
+# of an HTTP/3 request: nginx 1.31.9 has it fixed its own way, st->skip).
 #
 # Libraries: OpenSSL of the base system (HTTP/3 too: the configure of nginx finds the
 # QUIC API of OpenSSL 3.5, SSL_set_quic_tls_cbs, else it builds its compatibility layer),
@@ -557,6 +575,9 @@ post-patch:
 	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-static-gzip
 # a ranged response of the slice filter not compressed (aZ, 22.11.2026), as by gzip and zstd
 	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-slice-range
+# no more than sendfile_max_chunk bytes of a response compressed in one iteration of the
+# event loop (aZ, 23.11.2026), as by gzip (pull request 1808 of nginx) and zstd
+	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-yield
 # headers-more: more_clear_headers 'server' with nothing to clear does nothing (aZ,
 # 22.11.2026): this nginx adds no Server line of its own (-DNGX_HTTP_AZ_SERVER=0)
 	@cd ${WRKSRC_headers_more} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-headers-more-server
@@ -567,8 +588,10 @@ post-patch:
 # zstd (aZ, 22.11.2026): the static module out of the config of the module (a module of
 # its own, above), the length as a hint and the capped window, the q-values of
 # Accept-Encoding, h->next of the Content-Encoding line, the static module, no flush
-# after every buffer of input, a ranged response of the slice filter not compressed
-.for p in config window accept-encoding header-next static continue slice-range
+# after every buffer of input, a ranged response of the slice filter not compressed, no
+# more than sendfile_max_chunk bytes compressed in one iteration of the event loop (aZ,
+# 23.11.2026)
+.for p in config window accept-encoding header-next static continue slice-range yield
 	@cd ${WRKSRC_zstd} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-zstd-${p}
 .endfor
 .if ${NGINX_AZ_MODULE:U} == stream-lua

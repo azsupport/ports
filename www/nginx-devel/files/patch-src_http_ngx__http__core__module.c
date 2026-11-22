@@ -22,6 +22,9 @@ Checked under ASan and UBSan (44 sets of Vary lines of an upstream, well-formed,
 and large, three kinds of locations, HTTP/1.1 and HTTP/2: 440 requests against a model),
 and by tests/ports/servers-test.sh of azsupport/azsupport in the build (HTTP/3 too).
 
+The request body after an error and after it was discarded (pull request 1943 of
+nginx/nginx; aZ, 23.11.2026: «бери»): see patch-src_http_ngx__http__request__body.c.
+
 --- src/http/ngx_http_core_module.c.orig
 +++ src/http/ngx_http_core_module.c
 @@ -2293,6 +2293,258 @@ ok:
@@ -283,3 +286,11 @@ and by tests/ports/servers-test.sh of azsupport/azsupport in the build (HTTP/3 t
  /*
   * gzip is enabled for the following quantities:
   *     "gzip; q=0.001" ... "gzip; q=1.000"
+@@ -2577,6 +2829,7 @@ ngx_http_subrequest(ngx_http_request_t *r,
+     sr->internal = 1;
+ 
+     sr->discard_body = r->discard_body;
++    sr->discarding_body = r->discarding_body;
+     sr->expect_tested = 1;
+     sr->main_filter_need_in_memory = r->main_filter_need_in_memory;
+ 

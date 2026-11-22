@@ -1,0 +1,109 @@
+No more than sendfile_max_chunk bytes of input compressed in one iteration of the
+event loop (aZ, 23.11.2026 00:11, on pull request 1808 of nginx/nginx, which is of the
+gzip filter alone: «ну значит надо брать и делать для zstd и brotli»). A large response
+that the client reads fast enough never blocks, and the worker compressed all of it
+before it turned to its other connections; a file is read and compressed in such a loop
+(a proxied response is not: the reading of the backend goes through the event loop).
+Now, after sendfile_max_chunk bytes of input (2m unless set; 0 turns it off), the filter
+posts the write event for the next iteration and compresses on when it is handled, as
+the write filter of nginx does with what it sends. Checked 23.11.2026, a file of 33 MB,
+one worker, small requests beside it (a build with ASan and UBSan): the slowest of them
+waited 258 ms with zstd, 645 with brotli and 938 with gzip before; 41 to 46, 80 to 123
+and 116 to 141 with the patches (two runs); 30 such responses, from a file, proxied, in
+slices and with limit_rate, over HTTP/1.1, HTTP/2 and HTTP/3, by the three encodings,
+the same as the file.
+Here: the same as that pull request does in the gzip filter
+(files/patch-src_http_modules_ngx__http__gzip__filter__module.c), by the input the filter has taken.
+Applied by post-patch in WRKSRC_zstd after extra-patch-zstd-slice-range, -p0.
+
+--- src/ngx_http_zstd_filter_module.c.orig
++++ src/ngx_http_zstd_filter_module.c
+@@ -80,12 +80,16 @@
+     size_t                       bytes_in;
+     size_t                       bytes_out;
+ 
++    /* bytes_in when the filter last gave way to the other connections */
++    size_t                       limit;
++
+     /* Content-Length of the response before the header filter cleared it, -1 */
+     off_t                        content_length;
+ 
+     unsigned                     action:2;
+     unsigned                     last:1;
+     unsigned                     redo:1;
++    unsigned                     yield:1;
+     unsigned                     flush:1;
+     unsigned                     done:1;
+     unsigned                     nomem:1;
+@@ -295,10 +299,11 @@
+ static ngx_int_t
+ ngx_http_zstd_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
+ {
+-    size_t                rv;
+-    ngx_int_t             flush, rc;
+-    ngx_chain_t          *cl;
+-    ngx_http_zstd_ctx_t  *ctx;
++    size_t                     rv;
++    ngx_int_t                  flush, rc;
++    ngx_chain_t               *cl;
++    ngx_http_zstd_ctx_t       *ctx;
++    ngx_http_core_loc_conf_t  *clcf;
+ 
+ 
+     ctx = ngx_http_get_module_ctx(r, ngx_http_zstd_filter_module);
+@@ -325,6 +330,17 @@
+         r->connection->buffered |= NGX_HTTP_GZIP_BUFFERED;
+     }
+ 
++    if (ctx->yield) {
++
++        /* nothing more until the write event posted below is handled */
++
++        if (r->connection->write->posted) {
++            return NGX_AGAIN;
++        }
++
++        ctx->yield = 0;
++    }
++
+     if (ctx->nomem) {
+ 
+         /* flush busy buffers */
+@@ -345,6 +361,8 @@
+         flush = ctx->busy ? 1 : 0;
+     }
+ 
++    clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
++
+     for ( ;; ) {
+ 
+         /* cycle while we can write to a client */
+@@ -413,6 +431,28 @@
+ 
+             return rc;
+         }
++
++        /*
++         * A large response that the client reads fast enough never blocks,
++         * and the worker would compress all of it before it turns to its
++         * other connections: after sendfile_max_chunk bytes of input the
++         * rest waits for the next iteration of the event loop, as the gzip
++         * filter of nginx does (pull request 1808 of nginx/nginx) and its
++         * write filter with what it sends
++         */
++
++        if (clcf->sendfile_max_chunk
++            && ctx->bytes_in - ctx->limit >= clcf->sendfile_max_chunk
++            && r->connection->write->ready
++            && !r->connection->write->delayed)
++        {
++            ctx->limit = ctx->bytes_in;
++            ctx->yield = 1;
++
++            ngx_post_event(r->connection->write, &ngx_posted_next_events);
++
++            return NGX_AGAIN;
++        }
+     }
+ 
+ failed:

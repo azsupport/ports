@@ -9,6 +9,9 @@ the decoder stream exists already, so no connection is asked for there (read in 
 22.11.2026); the line is a guard that keeps it so whatever the functions called do: nginx
 1.31.9 itself fixed a reuse of this kind in ngx_quic_create_stream() (b5252dae1).
 
+The request body after an error and after it was discarded (pull request 1943 of
+nginx/nginx; aZ, 23.11.2026: «бери»): see patch-src_http_ngx__http__request__body.c.
+
 --- src/http/v3/ngx_http_v3_request.c.orig
 +++ src/http/v3/ngx_http_v3_request.c
 @@ -410,6 +410,8 @@ ngx_http_v3_reset_stream(ngx_connection_t *c)
@@ -20,3 +23,14 @@ the decoder stream exists already, so no connection is asked for there (read in 
      h3c = ngx_http_v3_get_session(c);
  
      if (!c->read->eof && !h3c->hq
+@@ -1350,6 +1352,10 @@ ngx_http_v3_read_client_request_body_handler(ngx_http_request_t *r)
+     rc = ngx_http_v3_do_read_client_request_body(r);
+ 
+     if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
++
++        r->discard_body = 1;
++        r->request_body->bufs = NULL;
++
+         ngx_http_finalize_request(r, rc);
+     }
+ }

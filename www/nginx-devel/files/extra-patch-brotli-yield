@@ -1,0 +1,89 @@
+No more than sendfile_max_chunk bytes of input compressed in one iteration of the
+event loop (aZ, 23.11.2026 00:11, on pull request 1808 of nginx/nginx, which is of the
+gzip filter alone: «ну значит надо брать и делать для zstd и brotli»). A large response
+that the client reads fast enough never blocks, and the worker compressed all of it
+before it turned to its other connections; a file is read and compressed in such a loop
+(a proxied response is not: the reading of the backend goes through the event loop).
+Now, after sendfile_max_chunk bytes of input (2m unless set; 0 turns it off), the filter
+posts the write event for the next iteration and compresses on when it is handled, as
+the write filter of nginx does with what it sends. Checked 23.11.2026, a file of 33 MB,
+one worker, small requests beside it (a build with ASan and UBSan): the slowest of them
+waited 258 ms with zstd, 645 with brotli and 938 with gzip before; 41 to 46, 80 to 123
+and 116 to 141 with the patches (two runs); 30 such responses, from a file, proxied, in
+slices and with limit_rate, over HTTP/1.1, HTTP/2 and HTTP/3, by the three encodings,
+the same as the file.
+Here: the same as that pull request does in the gzip filter
+(files/patch-src_http_modules_ngx__http__gzip__filter__module.c), before more input goes to the encoder,
+when it has no output left and what it gave is taken.
+Applied by post-patch in WRKSRC_brotli after extra-patch-brotli-slice-range, -p0.
+
+--- filter/ngx_http_brotli_filter_module.c.orig
++++ filter/ngx_http_brotli_filter_module.c
+@@ -53,6 +53,9 @@
+   /* (compressed) bytes pulled from encoder. */
+   size_t bytes_out;
+ 
++  /* bytes_in when the filter last gave way to the other connections. */
++  size_t limit;
++
+   /* Input buffer chain. */
+   ngx_chain_t* in;
+ 
+@@ -80,6 +83,9 @@
+   unsigned end_of_input : 1;
+   unsigned end_of_block : 1;
+ 
++  /* 1 if the rest of the input waits for the write event that was posted. */
++  unsigned yield : 1;
++
+   ngx_http_request_t* request;
+ } ngx_http_brotli_ctx_t;
+ 
+@@ -357,6 +363,7 @@
+   BROTLI_BOOL ok;
+   u_char* out;
+   ngx_chain_t* link;
++  ngx_http_core_loc_conf_t* clcf;
+ 
+   ctx = ngx_http_get_module_ctx(r, ngx_http_brotli_filter_module);
+ 
+@@ -381,6 +388,16 @@
+     r->connection->buffered |= NGX_HTTP_BROTLI_BUFFERED;
+   }
+ 
++  /* Nothing more until the write event posted below is handled. */
++  if (ctx->yield) {
++    if (r->connection->write->posted) {
++      return NGX_AGAIN;
++    }
++    ctx->yield = 0;
++  }
++
++  clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
++
+   /* Main loop:
+      - if output is not yet consumed - stop; encoder should not be touched,
+        until all the output is consumed
+@@ -483,6 +500,22 @@
+       return NGX_OK;
+     }
+ 
++    /* A large response that the client reads fast enough never blocks, and the
++       worker would compress all of it before it turns to its other
++       connections: after sendfile_max_chunk bytes of input the rest waits for
++       the next iteration of the event loop, as the gzip filter of nginx does
++       (pull request 1808 of nginx/nginx) and its write filter with what it
++       sends. Here the encoder has no output left and the consumer has taken
++       what it was given. */
++    if (clcf->sendfile_max_chunk &&
++        ctx->bytes_in - ctx->limit >= clcf->sendfile_max_chunk &&
++        r->connection->write->ready && !r->connection->write->delayed) {
++      ctx->limit = ctx->bytes_in;
++      ctx->yield = 1;
++      ngx_post_event(r->connection->write, &ngx_posted_next_events);
++      return NGX_AGAIN;
++    }
++
+     /* TODO: coalesce tiny inputs, if they are not last/flush. */
+     input_size = ngx_buf_size(ctx->in->buf);
+     if (input_size == 0) {

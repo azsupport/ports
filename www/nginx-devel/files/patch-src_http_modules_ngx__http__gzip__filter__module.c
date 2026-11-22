@@ -21,9 +21,44 @@ without a Range is compressed whole, as before. The same in the gzip filter of n
 (files/extra-patch-brotli-slice-range) and nginx-zstd-module
 (files/extra-patch-zstd-slice-range).
 
+No more than sendfile_max_chunk bytes of input compressed in one iteration of the
+event loop (aZ, 23.11.2026 00:11, on pull request 1808 of nginx/nginx, which is of the
+gzip filter alone: «ну значит надо брать и делать для zstd и brotli»). A large response
+that the client reads fast enough never blocks, and the worker compressed all of it
+before it turned to its other connections; a file is read and compressed in such a loop
+(a proxied response is not: the reading of the backend goes through the event loop).
+Now, after sendfile_max_chunk bytes of input (2m unless set; 0 turns it off), the filter
+posts the write event for the next iteration and compresses on when it is handled, as
+the write filter of nginx does with what it sends. Checked 23.11.2026, a file of 33 MB,
+one worker, small requests beside it (a build with ASan and UBSan): the slowest of them
+waited 258 ms with zstd, 645 with brotli and 938 with gzip before; 41 to 46, 80 to 123
+and 116 to 141 with the patches (two runs); 30 such responses, from a file, proxied, in
+slices and with limit_rate, over HTTP/1.1, HTTP/2 and HTTP/3, by the three encodings,
+the same as the file.
+Here: pull request 1808 of Vadim Zhestikov of F5 (its commit of 13.11.2026), as it is. The same
+in ngx_brotli (files/extra-patch-brotli-yield) and nginx-zstd-module
+(files/extra-patch-zstd-yield), which this port serves before gzip.
+
 --- src/http/modules/ngx_http_gzip_filter_module.c.orig
 +++ src/http/modules/ngx_http_gzip_filter_module.c
-@@ -263,6 +263,18 @@ ngx_http_gzip_header_filter(ngx_http_request_t *r)
+@@ -55,6 +55,7 @@ typedef struct {
+     unsigned             redo:1;
+     unsigned             done:1;
+     unsigned             nomem:1;
++    unsigned             yield:1;
+     unsigned             buffering:1;
+     unsigned             zlib_ng:1;
+     unsigned             state_allocated:1;
+@@ -62,6 +63,8 @@ typedef struct {
+     size_t               zin;
+     size_t               zout;
+ 
++    size_t               limit;
++
+     z_stream             zstream;
+     ngx_http_request_t  *request;
+ } ngx_http_gzip_ctx_t;
+@@ -263,6 +266,18 @@ ngx_http_gzip_header_filter(ngx_http_request_t *r)
          return ngx_http_next_header_filter(r);
      }
  
@@ -42,7 +77,72 @@ without a Range is compressed whole, as before. The same in the gzip filter of n
      ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_gzip_ctx_t));
      if (ctx == NULL) {
          return NGX_ERROR;
-@@ -891,6 +903,7 @@ ngx_http_gzip_filter_deflate_end(ngx_http_request_t *r,
+@@ -299,10 +314,11 @@ ngx_http_gzip_header_filter(ngx_http_request_t *r)
+ static ngx_int_t
+ ngx_http_gzip_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
+ {
+-    int                   rc;
+-    ngx_uint_t            flush;
+-    ngx_chain_t          *cl;
+-    ngx_http_gzip_ctx_t  *ctx;
++    int                        rc;
++    ngx_uint_t                 flush;
++    ngx_chain_t               *cl;
++    ngx_http_gzip_ctx_t       *ctx;
++    ngx_http_core_loc_conf_t  *clcf;
+ 
+     ctx = ngx_http_get_module_ctx(r, ngx_http_gzip_filter_module);
+ 
+@@ -357,6 +373,15 @@ ngx_http_gzip_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
+         r->connection->buffered |= NGX_HTTP_GZIP_BUFFERED;
+     }
+ 
++    if (ctx->yield) {
++
++        if (r->connection->write->posted) {
++            return NGX_AGAIN;
++        }
++
++        ctx->yield = 0;
++    }
++
+     if (ctx->nomem) {
+ 
+         /* flush busy buffers */
+@@ -376,6 +401,8 @@ ngx_http_gzip_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
+         flush = ctx->busy ? 1 : 0;
+     }
+ 
++    clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
++
+     for ( ;; ) {
+ 
+         /* cycle while we can write to a client */
+@@ -445,6 +472,23 @@ ngx_http_gzip_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
+         if (ctx->done) {
+             return rc;
+         }
++
++        /*
++         * compressing a large response which the client reads fast enough
++         * never blocks, so limit the input compressed in one iteration
++         * of the event loop, similarly to sendfile_max_chunk
++         */
++
++        if (clcf->sendfile_max_chunk
++            && ctx->zstream.total_in - ctx->limit >= clcf->sendfile_max_chunk
++            && r->connection->write->ready
++            && !r->connection->write->delayed)
++        {
++            ctx->limit = ctx->zstream.total_in;
++            ctx->yield = 1;
++            ngx_post_event(r->connection->write, &ngx_posted_next_events);
++            return NGX_AGAIN;
++        }
+     }
+ 
+     /* unreachable */
+@@ -891,6 +935,7 @@ ngx_http_gzip_filter_deflate_end(ngx_http_request_t *r,
      }
  
      ngx_pfree(r->pool, ctx->preallocated);
