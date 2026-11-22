@@ -36,6 +36,8 @@
 #                    starts its build (it is "not built: the time of this run is
 #                    over", the next run builds it); at AZ_TIME_HARD the builds still
 #                    going are stopped and not built either (one after another too);
+#                    a port of tools/build-minutes.conf does not start when less time
+#                    than its usual build is left until AZ_TIME_HARD (the same);
 #                    results/time-limit says so, and the result is FAIL. The packages
 #                    built until then go into the repository as always (build.yml of
 #                    azsupport/ports: its job has 350 minutes, and a run that reached
@@ -275,6 +277,19 @@ if [ -n "$t_soft" ]; then
 fi
 time_over() { [ -n "$deadline" ] && [ "$(date +%s)" -ge "$deadline" ]; }
 hard_over() { [ -n "$deadline_hard" ] && [ "$(date +%s)" -ge "$deadline_hard" ]; }
+# time_short <origin>: true when the port (pre_port said 0: k set) usually builds longer
+# than is left until AZ_TIME_HARD (its minutes in tools/build-minutes.conf), so that it is
+# not started only to be stopped there (aZ, 22.11.2026: lang/gcc16 lost 2 h so); a port
+# with a cache between the runs (AZ_PORT_CACHE) goes on from it and is never held back;
+# bm and left: its minutes and the seconds left, for the message
+time_short() {
+    [ -n "$deadline_hard" ] || return 1
+    bm="$(awk -v o="${1%%@*}" '$1 == o && $2 ~ /^[0-9]+$/ { print $2; exit }' "$top/tools/build-minutes.conf" 2> /dev/null)"
+    [ -n "$bm" ] || return 1
+    [ -z "$(port_cache "$k")" ] || return 1
+    left=$((deadline_hard - $(date +%s)))
+    [ $((bm * 60)) -gt "$left" ]
+}
 # tree_pids <pid>: the process and all its descendants; kill_tree <pid>: stop them all
 # (stopped first, so that none starts another meanwhile), TERM, and KILL what is left
 tree_pids() { echo "$1"; for _tp in $(pgrep -P "$1" 2> /dev/null); do tree_pids "$_tp"; done; }
@@ -1783,6 +1798,10 @@ if [ "$serial" = 1 ]; then
         az_resolve
         pre_port "$o" || continue
         if time_over; then time_skip "$o"; continue; fi
+        if time_short "$o"; then
+            say "$o: not started: its build takes about $bm minutes (tools/build-minutes.conf), $((left / 60)) are left until AZ_TIME_HARD"
+            time_skip "$o"; continue
+        fi
         dep_lists "$o"
         say "$o: make package (logs/$k.log)"
         # in a subshell, so that AZ_TIME_HARD stops it as in the waves: it has no line of
@@ -1923,6 +1942,10 @@ else
             [ -n "$o" ] || break
             pre_port "$o"
             if time_over; then time_skip "$o"; continue; fi
+            if time_short "$o"; then
+                say "$o: not started: its build takes about $bm minutes (tools/build-minutes.conf), $((left / 60)) are left until AZ_TIME_HARD"
+                time_skip "$o"; continue
+            fi
             # what it gets in its chroot, worked out here (not in the jobs beside it)
             dep_lists "$o"
             if [ "$alone" = 1 ]; then
