@@ -102,7 +102,9 @@ for n in "$@"; do
         # for its dots (FreeType: VER-2-15-0)
         for c in "$ver" "v$ver" "release-$ver" "$srcdir" "$n-$ver" ${pre:+"$pre$ver"} \
             ${pre:+"$pre$(echo "$ver" | tr . -)"} ${pre:+"$pre$(echo "$ver" | tr . _)"}; do
-            grep -q "	refs/tags/$c\$" "$w/tags" && { tag="$c"; break; }
+            # the name as it is (grep would take the dots of a version for any character:
+            # VER-2.15.0 for VER-2-15-0)
+            awk -F'\t' -v t="refs/tags/$c" '$2 == t { f = 1 } END { exit !f }' "$w/tags" && { tag="$c"; break; }
         done
     fi
     case "$up" in
