@@ -43,12 +43,27 @@
 # it (nginx loads only a module of its own version: the slaves depend on the core of
 # the same version, and they change together, both reading version.mk).
 #
+# zstd built in, as brotli (aZ, 22.11.2026 17:03: «и давай все таки и zstd добавим в
+# nginx-devel без модуля»; 15.11.2026 it was not, a third-party module): nginx 1.31.9,
+# freenginx and Angie 1.12.5 have no zstd of their own (their src/ and auto/, 22.11.2026),
+# so it is nginx-zstd-module of the fork sysadmin-labs at 0.1.3, that of the official
+# www/nginx-module-zstd (the option ZSTD of www/nginx and www/freenginx): the module of
+# tokers (0.1.1, the last commit 23.06.2025) with three defects of its body filter fixed
+# (20ac276, FreeBSD bug 299100: a worker spinning forever on an empty flush buffer, as an
+# upstream that fails after the header gives; a response cut at 131072 bytes; a full
+# output buffer dropped at the end of the frame), each call of libzstd checked, and a
+# suite with the sanitizers, valgrind, a misbehaving upstream and reloads; 1466 lines
+# of C. Not the module of tokers as Alpine (with its fix of the spin, tokers PR #23),
+# Arch, NixOS and openSUSE build it, nor myguard-labs 0.90.9 of Debian
+# (libnginx-mod-http-zstd) and www/angie-module-zstd: 23495 lines of C, with dictionary
+# transport. Vary: Accept-Encoding by gzip_vary, as gzip and brotli.
+#
 # Libraries: OpenSSL of the base system (HTTP/3 too: the configure of nginx finds the
 # QUIC API of OpenSSL 3.5, SSL_set_quic_tls_cbs, else it builds its compatibility layer),
-# PCRE2 of devel/pcre2 of this tree, zlib of the base system; brotli and libmaxminddb
-# (and the libgd of image_filter) of az: only their headers and libraries in ${WRKDIR}/az,
+# PCRE2 of devel/pcre2 of this tree, zlib of the base system; brotli, zstd and
+# libmaxminddb (and the libgd of image_filter) of az: only their headers and libraries in ${WRKDIR}/az,
 # with the run path /usr/local/az/lib (our ports link each other's shared libraries).
-# The sources of brotli, headers-more and geoip2 come by GH_TUPLE, the commits of the
+# The sources of brotli, headers-more, geoip2 and zstd come by GH_TUPLE, the commits of the
 # official www/nginx-module-brotli, -headers-more and -geoip2 of the pinned commit (the
 # same archives: their checksums in distinfo), headers-more ahead of it at 0.42, that of
 # the official port after the pin, with its fix of more_set_input_headers -r (an absent
@@ -115,7 +130,8 @@ CPE_PRODUCT=	nginx_open_source
 USE_GITHUB=	nodefault
 GH_TUPLE=	google:ngx_brotli:a71f931:brotli \
 		openresty:headers-more-nginx-module:v0.42:headers_more \
-		leev:ngx_http_geoip2_module:445df24:geoip2
+		leev:ngx_http_geoip2_module:445df24:geoip2 \
+		sysadmin-labs:nginx-zstd-module:0.1.3:zstd
 .if ${NGINX_AZ_MODULE:U} == lua || ${NGINX_AZ_MODULE:U} == stream-lua
 # ndk, lua-nginx-module and stream-lua-nginx-module: the commits of the official
 # www/nginx-module-ndk, -lua and -lua-stream of the pinned commit
@@ -190,7 +206,7 @@ OPTIONS_GROUP_HTTPGRP=	HTTP HTTP_ADDITION HTTP_AUTH_REQ HTTP_CACHE HTTP_DAV \
 	HTTP_RANDOM_INDEX HTTP_REALIP HTTP_SECURE_LINK HTTP_SLICE HTTP_SSL \
 	HTTP_STATUS HTTP_SUB HTTPV2 HTTPV3
 OPTIONS_GROUP_MAILGRP=	MAIL MAIL_IMAP MAIL_POP3 MAIL_SMTP MAIL_SSL
-OPTIONS_GROUP_THIRDPARTYGRP=	BROTLI HEADERS_MORE HTTP_GEOIP2
+OPTIONS_GROUP_THIRDPARTYGRP=	BROTLI HEADERS_MORE HTTP_GEOIP2 ZSTD
 
 OPTIONS_DEFINE=		DEBUG DEBUGLOG FILE_AIO IPV6 THREADS WWW
 # the options of aZ: the union of three of his servers, and HTTP_GZIP_STATIC (aZ,
@@ -202,7 +218,7 @@ OPTIONS_DEFINE=		DEBUG DEBUGLOG FILE_AIO IPV6 THREADS WWW
 # official port has HTTP_STATUS on by default
 OPTIONS_DEFAULT=	BROTLI FILE_AIO HEADERS_MORE HTTP HTTP_CACHE HTTP_GEOIP2 \
 		HTTP_GZIP_STATIC HTTP_MP4 HTTP_REALIP HTTP_SECURE_LINK HTTP_SLICE \
-		HTTP_SSL HTTP_STATUS HTTP_SUB HTTPV2 HTTPV3 IPV6 THREADS WWW
+		HTTP_SSL HTTP_STATUS HTTP_SUB HTTPV2 HTTPV3 IPV6 THREADS WWW ZSTD
 
 OPTIONS_SUB=	yes
 
@@ -212,7 +228,7 @@ OPTIONS_SUB=	yes
 ${opt}_IMPLIES=	MAIL
 .endfor
 
-.for opt in ${OPTIONS_GROUP_HTTPGRP:NHTTP} WWW BROTLI HEADERS_MORE HTTP_GEOIP2
+.for opt in ${OPTIONS_GROUP_HTTPGRP:NHTTP} WWW BROTLI HEADERS_MORE HTTP_GEOIP2 ZSTD
 ${opt}_IMPLIES=	HTTP
 .endfor
 
@@ -258,8 +274,8 @@ MAIL_SMTP_CONFIGURE_OFF=	--without-mail_smtp_module
 MAIL_SSL_USES=			ssl
 MAIL_SSL_CONFIGURE_ON=		--with-mail_ssl_module
 
-# brotli and libmaxminddb of az (only the headers and the libraries they need, in
-# ${WRKDIR}/az: pre-configure)
+# brotli, libzstd and libmaxminddb of az (only the headers and the libraries they need,
+# in ${WRKDIR}/az: pre-configure)
 BROTLI_BUILD_DEPENDS=		${AZ_PREFIX}/lib/libbrotlienc.so:az/az
 BROTLI_RUN_DEPENDS=		${AZ_PREFIX}/lib/libbrotlienc.so:az/az
 BROTLI_CONFIGURE_ON=		--add-module=${WRKSRC_brotli}
@@ -267,6 +283,12 @@ HEADERS_MORE_CONFIGURE_ON=	--add-module=${WRKSRC_headers_more}
 HTTP_GEOIP2_BUILD_DEPENDS=	${AZ_PREFIX}/lib/libmaxminddb.so:az/az
 HTTP_GEOIP2_RUN_DEPENDS=	${AZ_PREFIX}/lib/libmaxminddb.so:az/az
 HTTP_GEOIP2_CONFIGURE_ON=	--add-module=${WRKSRC_geoip2}
+# the shared libzstd of az: only libzstd.so in ZSTD_LIB, so the config of the module, which
+# takes an archive first for a module built in, finds none and links the shared library
+ZSTD_BUILD_DEPENDS=		${AZ_PREFIX}/lib/libzstd.so:az/az
+ZSTD_RUN_DEPENDS=		${AZ_PREFIX}/lib/libzstd.so:az/az
+ZSTD_CONFIGURE_ENV=		ZSTD_INC=${WRKDIR}/az/include ZSTD_LIB=${WRKDIR}/az/lib
+ZSTD_CONFIGURE_ON=		--add-module=${WRKSRC_zstd}
 
 .if defined(NGINX_AZ_MODULE)
 # a package of one dynamic module (the slaves www/nginx-devel-${NGINX_AZ_MODULE}): the
@@ -274,7 +296,7 @@ HTTP_GEOIP2_CONFIGURE_ON=	--add-module=${WRKSRC_geoip2}
 # third-party modules of the core are not in it, so neither are their libraries
 PKGNAMESUFFIX=	-devel-${NGINX_AZ_MODULE}
 OPTIONS_EXCLUDE=	BROTLI HEADERS_MORE HTTP_GEOIP2 MAIL MAIL_IMAP MAIL_POP3 \
-		MAIL_SMTP MAIL_SSL
+		MAIL_SMTP MAIL_SSL ZSTD
 RUN_DEPENDS+=	nginx-devel>=${NGINX_VERSION}:www/nginx-devel
 ALL_TARGET=	modules
 PLIST=		${.CURDIR}/pkg-plist
@@ -406,6 +428,10 @@ pre-configure:
 .if !empty(PORT_OPTIONS:MBROTLI) && !defined(NGINX_AZ_MODULE)
 	@${LN} -sfh ${AZ_PREFIX}/include/brotli ${WRKDIR}/az/include/brotli
 	@${LN} -sf ${AZ_PREFIX}/lib/libbrotlienc.so ${AZ_PREFIX}/lib/libbrotlicommon.so ${WRKDIR}/az/lib/
+.endif
+.if !empty(PORT_OPTIONS:MZSTD) && !defined(NGINX_AZ_MODULE)
+	@${LN} -sf ${AZ_PREFIX}/include/zstd.h ${AZ_PREFIX}/include/zstd_errors.h ${WRKDIR}/az/include/
+	@${LN} -sf ${AZ_PREFIX}/lib/libzstd.so ${WRKDIR}/az/lib/
 .endif
 .if (!empty(PORT_OPTIONS:MHTTP_GEOIP2) && !defined(NGINX_AZ_MODULE)) || ${NGINX_AZ_MODULE:U} == stream
 	@${LN} -sf ${AZ_PREFIX}/include/maxminddb.h ${AZ_PREFIX}/include/maxminddb_config.h ${WRKDIR}/az/include/

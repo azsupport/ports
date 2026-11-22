@@ -1,4 +1,4 @@
-TIMESTAMP = 1795018956
+TIMESTAMP = 1795363930
 SHA256 (nginx-1.31.9.tar.gz) = a11c5eeee2e257f4478f0e649f84b0040787d277d2d3e5233952aa6b6dcb80ad
 SIZE (nginx-1.31.9.tar.gz) = 1388470
 SHA256 (google-ngx_brotli-a71f931_GH0.tar.gz) = b3312a045d5303a40d02beb34711b8ca27f7b72d647e9ee2012a8eddd14d9b22
@@ -25,3 +25,5 @@ SHA256 (dio-az-nginx-vod-module-v1.11.2_GH0.tar.gz) = a98bfafa04f631addd311e67bc
 SIZE (dio-az-nginx-vod-module-v1.11.2_GH0.tar.gz) = 468192
 SHA256 (passenger-6.2.2.tar.gz) = 753e74b89ffc7e0e9525b00c936d71da28f279f849e94781be72e7c19c617994
 SIZE (passenger-6.2.2.tar.gz) = 7784212
+SHA256 (sysadmin-labs-nginx-zstd-module-0.1.3_GH0.tar.gz) = 9d379dfd10b2d12966930f6f254565ae2cef756a66fd3e0c17b73274827452fa
+SIZE (sysadmin-labs-nginx-zstd-module-0.1.3_GH0.tar.gz) = 75854
