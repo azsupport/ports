@@ -14,7 +14,20 @@
 # (CVE-2026-48142) and the positional captures of cloned subrequests after a non-match
 # (files/patch-*: each its origin in its head). Those nginx 1.31.9 fixed its own way are
 # not taken: DAV with alias (r->valid_location), the lengths of HTTP/2 and gRPC headers,
-# r->main->blocked (the limit of pending operations), the session ticket keys.
+# r->main->blocked (the limit of pending operations), the session ticket keys. And of the
+# older fixes of freenginx, those of 2024 and 2025 that F5 carries to nginx in the open
+# pull request 1696 (27 commits, read whole 22.11.2026; aZ: «бери»): a limit on chunk
+# extensions and trailer headers of a request body (they were skipped without an end, past
+# client_max_body_size), the reading of a request body blocked when an error is returned,
+# and no reuse of the connection of an HTTP/3 stream while it is reset. Of the others of
+# that pull request: gzip and mp4 above; three are in nginx 1.31.9 already (the explicit
+# NGX_AGAIN and the zero Content-Length of a discarded request body, the counter of
+# limit_conn); HTTP/2 connections that come during a shutdown and the destination of COPY
+# and MOVE of DAV with "alias" nginx handles its own way (ngx_http_v2_init(),
+# ngx_http_dav_copy_move_handler()); the rest is left: mail, gRPC, uwsgi and scgi, SSI,
+# auth_request, platforms without pread(), 32 bits, OpenSSL 4, Valgrind, and three of
+# narrow use (open_file_cache_events with disable_symlinks, a redefinition of variables in
+# a configuration, the AD bit in an answer to the resolver).
 #
 # The core has the modules of nginx itself built in (nginx can build only a few of
 # them dynamic, here stream and image_filter, and DAV with files/patch-auto_options and
