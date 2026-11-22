@@ -57,8 +57,7 @@
 # Arch, NixOS and openSUSE build it, nor myguard-labs 0.90.9 of Debian
 # (libnginx-mod-http-zstd) and www/angie-module-zstd: 23495 lines of C, with dictionary
 # transport. In the core, not a package of a module (no load_module, no .so in
-# libexec/nginx), its filter alone (files/extra-patch-zstd-config: not
-# ngx_http_zstd_static_module, aZ 22.11.2026 17:57), with the length of a response
+# libexec/nginx), with the length of a response
 # pledged to zstd and the window of a response without a length capped at 512 KiB
 # (files/extra-patch-zstd-pledged-size: 1068 KiB of memory for a response of 100 KB at
 # level 3 in place of 3577 KiB) and the q-values of Accept-Encoding as nginx takes them
@@ -66,6 +65,33 @@
 # in the chain of the filters: configure takes zstd before brotli (below), so that a
 # client of "zstd, br" gets zstd, and post-configure checks it. Vary: Accept-Encoding by
 # gzip_vary, as gzip and brotli.
+#
+# The ready files (aZ, 22.11.2026: «идея - врубать статик для всех трех компрессий»):
+# gzip_static (of nginx), brotli_static (of ngx_brotli) and zstd_static
+# (ngx_http_zstd_static_module of nginx-zstd-module, files/extra-patch-zstd-static), each
+# off until a server turns it on, and each one alike: a .zst before a .br before a .gz
+# among those that are on, that the client takes and that are there (nginx calls the
+# handler it registered last first: zstd_static is configured after ngx_brotli, as a
+# module of its own, files/extra-patch-zstd-config, and post-configure checks it), then
+# the filters in the same order; q=0 a refusal; "Vary: Accept-Encoding" with gzip_vary
+# wherever the ready file is, also for the client that does not take it
+# (files/extra-patch-brotli-static-vary of Debian and extra-patch-brotli-static-gzip);
+# none of them takes the gzip filter away from a response it did not serve
+# (r->gzip_tested and r->gzip_ok, extra-patch-zstd-static and
+# extra-patch-brotli-static-gzip). Every combination of the three static modules and the
+# three filters on and off, for clients of every set of the encodings and with q=0, is
+# checked: 1920 requests under ASan and UBSan before the commit, and
+# tests/ports/servers-test.sh of azsupport/azsupport in the build. A ready file is not
+# compared with the file it was made of: whoever makes them makes them again when the
+# file changes.
+#
+# One Vary line (aZ, 22.11.2026; files/patch-src_http_ngx__http__core__module.c and the
+# four next to it): the Vary lines of a response and the "Accept-Encoding" of gzip_vary
+# in a single line, each member once, where nginx added its own line without a look at
+# those of the response (twice "Vary: Accept-Encoding" behind an upstream that sends it).
+# And the two fixes of the cache of pull request 1948 of nginx (CERT Polska: a tab
+# between the members of Vary, "*" among them; files/patch-src_http_ngx__http__file__cache.c
+# and patch-src_http_ngx__http__upstream.c).
 #
 # Libraries: OpenSSL of the base system (HTTP/3 too: the configure of nginx finds the
 # QUIC API of OpenSSL 3.5, SSL_set_quic_tls_cbs, else it builds its compatibility layer),
@@ -441,6 +467,11 @@ CONFIGURE_ARGS+=	--add-module=${WRKSRC_zstd}
 .if !empty(PORT_OPTIONS:MBROTLI) && !defined(NGINX_AZ_MODULE)
 CONFIGURE_ARGS+=	--add-module=${WRKSRC_brotli}
 .endif
+# zstd_static after brotli_static (aZ, 22.11.2026): nginx calls the handler registered
+# last first, so the module configured last: a .zst before a .br for a client of both
+.if !empty(PORT_OPTIONS:MZSTD) && !defined(NGINX_AZ_MODULE)
+CONFIGURE_ARGS+=	--add-module=${WRKSRC_zstd}/static
+.endif
 
 # the headers and libraries of az the port needs, and only them
 pre-configure:
@@ -475,15 +506,19 @@ post-patch:
 		s!%%NGINX_ERRORLOG%%!${NGINX_ERRORLOG}!' \
 		${WRKSRC}/conf/nginx.conf
 	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-filter_config
-# brotli_static: Vary only where a .br file is, as gzip_static (from Debian; aZ, 16.11.2026)
+# brotli_static: Vary only where a .br file is, as gzip_static (from Debian; aZ, 16.11.2026),
+# and there also for the client that does not take br; the gzip filter left to gzip (aZ,
+# 22.11.2026)
 	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-static-vary
+	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-static-gzip
 # geoip2: the cached lookup result reset at a reload of the database (from Debian; aZ,
 # 16.11.2026), the http module and that of stream
 	@cd ${WRKSRC_geoip2} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-geoip2-reload-cache
 	@${REINPLACE_CMD} 's!%%PREFIX%%!${WRKDIR}/az!g' ${WRKSRC_brotli}/filter/config
-# zstd (aZ, 22.11.2026): the filter alone, the pledged length and the capped window, the
-# q-values of Accept-Encoding
-.for p in config pledged-size accept-encoding
+# zstd (aZ, 22.11.2026): the static module out of the config of the module (a module of
+# its own, above), the pledged length and the capped window, the q-values of
+# Accept-Encoding, h->next of the Content-Encoding line, the static module
+.for p in config pledged-size accept-encoding header-next static
 	@cd ${WRKSRC_zstd} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-zstd-${p}
 .endfor
 .if ${NGINX_AZ_MODULE:U} == stream-lua
@@ -505,6 +540,15 @@ post-configure:
 		exit 1; \
 	fi; \
 	${ECHO_MSG} "===>  the filter of zstd (line $$z of objs/ngx_modules.c) after that of brotli ($$b): zstd first"
+# and the static modules: the handler of zstd_static after that of brotli_static, or a
+# client of "zstd, br" would get the .br where both files are
+	@z=$$(${GREP} -n '&ngx_http_zstd_static_module,' ${WRKSRC}/objs/ngx_modules.c | ${CUT} -d: -f1); \
+	b=$$(${GREP} -n '&ngx_http_brotli_static_module,' ${WRKSRC}/objs/ngx_modules.c | ${CUT} -d: -f1); \
+	if [ -z "$$z" ] || [ -z "$$b" ] || [ "$$z" -le "$$b" ]; then \
+		${ECHO_MSG} "objs/ngx_modules.c: zstd_static (line $$z) not after brotli_static (line $$b): a client of zstd, br would get the .br"; \
+		exit 1; \
+	fi; \
+	${ECHO_MSG} "===>  zstd_static (line $$z of objs/ngx_modules.c) after brotli_static ($$b): the .zst first"
 .endif
 
 .if defined(NGINX_AZ_MODULE)

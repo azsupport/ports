@@ -1,7 +1,11 @@
-Only the filter of nginx-zstd-module (sysadmin-labs 0.1.3), not its
-ngx_http_zstd_static_module (the .zst files next to the files: not used, aZ,
-22.11.2026: «ngx_http_zstd_static_module не нужен»). Applied by post-patch in
-WRKSRC_zstd, -p0.
+ngx_http_zstd_static_module of nginx-zstd-module (sysadmin-labs 0.1.3) not from the
+config of the module: there it is configured with the filter, before ngx_brotli (the
+filter of zstd has to be), so its handler stood before that of brotli_static and nginx,
+which calls the handler registered last first, gave a client of "zstd, br" the .br. It
+is a module of its own, --add-module=<module>/static after ngx_brotli (the Makefile;
+files/extra-patch-zstd-static: its config, and the module). aZ, 22.11.2026 17:57:
+«ngx_http_zstd_static_module не нужен», 19:52: back, «если это технически грамотно».
+Applied by post-patch in WRKSRC_zstd, -p0.
 
 --- config.orig
 +++ config

@@ -1,0 +1,215 @@
+ngx_http_zstd_static_module of nginx-zstd-module (sysadmin-labs 0.1.3) back (aZ,
+22.11.2026: all three static modules, .zst before .br), as a module of its own
+(--add-module=<module>/static after ngx_brotli in the Makefile: its handler is
+then registered after that of brotli_static and nginx calls it first; from the
+config of the module it stood before brotli_static and a client of "zstd, br" got
+the .br), so its source one directory up. In the module:
+- the q-values of Accept-Encoding, as in the filter
+  (extra-patch-zstd-accept-encoding): "zstd;q=0" got the .zst file;
+- r->gzip_tested and r->gzip_ok left alone: set to "tested, not ok" for a client
+  that takes zstd, they kept the gzip filter from a response without a .zst file
+  that the zstd filter does not compress (zstd off there, or another type), and
+  the client of "zstd, gzip" got it as it is;
+- h->next of its Content-Encoding line set (NULL), as nginx does since 1.23.0 for
+  every line it makes (ngx_http_gzip_static_module.c).
+Applied by post-patch in WRKSRC_zstd, -p0.
+
+--- static/config.orig
++++ static/config
+@@ -4,7 +4,8 @@
+ # library.  Probing for them here only put a needless libzstd on the
+ # module and made every build carry the dependency.
+ 
+-HTTP_ZSTD_SRCS="$ngx_addon_dir/src/ngx_http_zstd_static_module.c"
++# its own --add-module=<module>/static (after ngx_brotli), the source one up
++HTTP_ZSTD_SRCS="$ngx_addon_dir/../src/ngx_http_zstd_static_module.c"
+ 
+ ngx_addon_name=ngx_http_zstd_static_module
+ ngx_module_type=HTTP
+--- src/ngx_http_zstd_static_module.c.orig
++++ src/ngx_http_zstd_static_module.c
+@@ -41,6 +41,7 @@
+ 
+ static ngx_int_t ngx_http_zstd_static_handler(ngx_http_request_t *r);
+ static ngx_int_t ngx_http_zstd_accept_encoding(ngx_str_t *ae);
++static ngx_uint_t ngx_http_zstd_quantity(u_char *p, u_char *last);
+ static ngx_int_t ngx_http_zstd_ok(ngx_http_request_t *r);
+ static void * ngx_http_zstd_static_create_loc_conf(ngx_conf_t *cf);
+ static char * ngx_http_zstd_static_merge_loc_conf(ngx_conf_t *cf, void *parent,
+@@ -241,6 +242,7 @@
+     }
+ 
+     h->hash = 1;
++    h->next = NULL;
+     ngx_str_set(&h->key, "Content-Encoding");
+     ngx_str_set(&h->value, "zstd");
+     r->headers_out.content_encoding = h;
+@@ -298,40 +300,156 @@
+         return NGX_DECLINED;
+     }
+ 
+-    if (ngx_memcmp(ae->value.data, "zstd", 4) != 0
++    /*
++     * the most common case first, "zstd,..." as nginx tests "gzip,...";
++     * "zstd" alone or with a q-value goes through the parser
++     */
++
++    if (ngx_memcmp(ae->value.data, "zstd,", 5) != 0
+         && ngx_http_zstd_accept_encoding(&ae->value) != NGX_OK)
+     {
+         return NGX_DECLINED;
+     }
+ 
+-
+-    r->gzip_tested = 1;
+-    r->gzip_ok = 0;
++    /*
++     * r->gzip_tested and r->gzip_ok are left to gzip: set here to "tested,
++     * not ok" they kept the gzip filter from a response without a .zst
++     * file that the zstd filter does not compress (zstd off, or another
++     * type)
++     */
+ 
+     return NGX_OK;
+ }
+ 
+ 
++/*
++ * "zstd" in Accept-Encoding as ngx_http_gzip_accept_encoding() of nginx
++ * (src/http/ngx_http_core_module.c) takes "gzip": the first "zstd" that is a
++ * token of its own, and its q-value, so that "zstd;q=0" is a refusal
++ * (RFC 9110, 12.5.3); before, any "zstd" followed by ";" was an acceptance
++ */
++
+ static ngx_int_t
+ ngx_http_zstd_accept_encoding(ngx_str_t *ae)
+ {
+-    u_char  *p;
++    u_char  *p, *start, *last;
+ 
+-    p = ngx_strcasestrn(ae->data, "zstd", sizeof("zstd") - 1);
+-    if (p == NULL) {
++    start = ae->data;
++    last = start + ae->len;
++
++    for ( ;; ) {
++        p = ngx_strcasestrn(start, "zstd", 4 - 1);
++        if (p == NULL) {
++            return NGX_DECLINED;
++        }
++
++        if (p == start || (*(p - 1) == ',' || *(p - 1) == ' ')) {
++            break;
++        }
++
++        start = p + 4;
++    }
++
++    p += 4;
++
++    while (p < last) {
++        switch (*p++) {
++        case ',':
++            return NGX_OK;
++        case ';':
++            goto quantity;
++        case ' ':
++            continue;
++        default:
++            return NGX_DECLINED;
++        }
++    }
++
++    return NGX_OK;
++
++quantity:
++
++    while (p < last) {
++        switch (*p++) {
++        case 'q':
++        case 'Q':
++            goto equal;
++        case ' ':
++            continue;
++        default:
++            return NGX_DECLINED;
++        }
++    }
++
++    return NGX_OK;
++
++equal:
++
++    if (p + 2 > last || *p++ != '=') {
++        return NGX_DECLINED;
++    }
++
++    if (ngx_http_zstd_quantity(p, last) == 0) {
+         return NGX_DECLINED;
+     }
+ 
+-    if (p == ae->data || (*(p - 1) == ',' || *(p - 1) == ' ')) {
++    return NGX_OK;
++}
+ 
+-        p += sizeof("zstd") - 1;
+ 
+-        if (p == ae->data + ae->len || *p == ',' || *p == ' ' || *p == ';') {
+-            return NGX_OK;
++/* ngx_http_gzip_quantity() of nginx: 0 for q=0 (and a malformed q-value) */
++
++static ngx_uint_t
++ngx_http_zstd_quantity(u_char *p, u_char *last)
++{
++    u_char      c;
++    ngx_uint_t  n, q;
++
++    c = *p++;
++
++    if (c != '0' && c != '1') {
++        return 0;
++    }
++
++    q = (c - '0') * 100;
++
++    if (p == last) {
++        return q;
++    }
++
++    c = *p++;
++
++    if (c == ',' || c == ' ') {
++        return q;
++    }
++
++    if (c != '.') {
++        return 0;
++    }
++
++    n = 0;
++
++    while (p < last) {
++        c = *p++;
++
++        if (c == ',' || c == ' ') {
++            break;
++        }
++
++        if (c >= '0' && c <= '9') {
++            q += c - '0';
++            n++;
++            continue;
+         }
++
++        return 0;
++    }
++
++    if (q > 100 || n > 3) {
++        return 0;
+     }
+ 
+-    return NGX_DECLINED;
++    return q;
+ }
+ 
+ 

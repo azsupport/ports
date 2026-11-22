@@ -1,0 +1,60 @@
+brotli_static on as gzip_static on (aZ, 22.11.2026: every combination of the
+static modules and the filters checked):
+- the gzip filter left to gzip: for a client that takes br the module set
+  r->gzip_tested and r->gzip_ok to "tested, not ok" before it looked for the .br
+  file, so without that file (and without gzip_static on, which tests again) the
+  response went out not compressed where the brotli filter does not compress it
+  (brotli off there, or another type), though the client of "br, gzip" takes gzip
+  and gzip is on. A response that brotli_static or the brotli filter does serve
+  has its Content-Encoding, and gzip passes it by that;
+- Vary for the client that does not take br: with gzip_vary on, the .br file is
+  looked for also for it, and where the file is its response (the file as it is,
+  or another encoding) has "Vary: Accept-Encoding", as with gzip_static and its
+  .gz; before, only the response with the .br itself had it, and a cache kept
+  the other one for every client.
+Applied by post-patch in WRKSRC_brotli after extra-patch-brotli-static-vary, -p0.
+
+--- static/ngx_http_brotli_static_module.c.orig
++++ static/ngx_http_brotli_static_module.c
+@@ -136,14 +136,14 @@
+ static ngx_int_t check_eligility(ngx_http_request_t* req) {
+   if (req != req->main) return NGX_DECLINED;
+   if (check_accept_encoding(req) != NGX_OK) return NGX_DECLINED;
+-  req->gzip_tested = 1;
+-  req->gzip_ok = 0;
++  /* gzip_tested and gzip_ok are left to gzip (az) */
+   return NGX_OK;
+ }
+ 
+ static ngx_int_t handler(ngx_http_request_t* req) {
+   configuration_t* cfg;
+   ngx_int_t rc;
++  ngx_int_t taken;
+   u_char* last;
+   ngx_str_t path;
+   size_t root;
+@@ -166,10 +166,14 @@
+ 
+   if (cfg->enable == NGX_HTTP_BROTLI_STATIC_ALWAYS) {
+     /* Ignore request properties (e.g. Accept-Encoding). */
++    taken = NGX_OK;
+   } else {
+     /* NGX_HTTP_BROTLI_STATIC_ON */
+-    rc = check_eligility(req);
+-    if (rc != NGX_OK) return NGX_DECLINED;
++    taken = check_eligility(req);
++    /* As gzip_static: with gzip_vary on the .br file is looked for also for a
++       client that does not take br, for the Vary of what it gets instead (az). */
++    location_cfg = ngx_http_get_module_loc_conf(req, ngx_http_core_module);
++    if (taken != NGX_OK && !location_cfg->gzip_vary) return NGX_DECLINED;
+   }
+ 
+   /* Get path and append the suffix. */
+@@ -228,6 +232,7 @@
+ 
+   if (cfg->enable == NGX_HTTP_BROTLI_STATIC_ON) {
+     req->gzip_vary = 1;
++    if (taken != NGX_OK) return NGX_DECLINED;
+   }
+ 
+   /* So far so good. */
