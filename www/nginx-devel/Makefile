@@ -128,9 +128,14 @@
 # говно написали»; each read against the code of 1.31.9, its files/patch-* says how it
 # was checked): ACK frames with ECN counts of QUIC handled (949 and 1005; a client that
 # sends them got no response), no use of a QUIC path retired while its packet is handled
-# (1634), no busy loop when SSL_write() wants to read (2004, with ssl_early_data). Not
-# taken: 1624 and 1766 (the body of an HTTP/3 request: nginx 1.31.9 has it fixed its own
-# way, st->skip).
+# (1634), no busy loop when SSL_write() wants to read (2004, with ssl_early_data), the
+# length of a slice response checked (1966: an origin that sends a slice too long or too
+# short had its bytes go out among those of the object, nothing in the log), a 101 of a
+# backend taken only where an upgrade is under way (1941), the lengths of names in the
+# resolver (1858). Not taken: 1624 and 1766 (the body of an HTTP/3 request: nginx 1.31.9
+# has it fixed its own way, st->skip); 1943, the request body series of freenginx, waits
+# for nginx: it changes $content_length after a discarded body and the meaning of
+# r->discard_body, which lua-nginx-module reads.
 #
 # Libraries: OpenSSL of the base system (HTTP/3 too: the configure of nginx finds the
 # QUIC API of OpenSSL 3.5, SSL_set_quic_tls_cbs, else it builds its compatibility layer),
