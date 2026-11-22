@@ -1,0 +1,34 @@
+more_clear_headers 'Server' with nothing to clear does nothing (aZ, 22.11.2026 21:10:
+«чтобы модуль more_clear_headers лишнюю работу не делал»). The nginx-devel of this tree
+adds no "Server" line of its own (NGX_HTTP_AZ_SERVER 0,
+files/patch-src_http_ngx__http__header__filter__module.c), so where the response has
+none there is nothing to clear: the module does not go through the header lines for
+it, nor make the empty line by which it kept nginx from adding its own. A "Server"
+that is in the response (of a backend that is passed) is cleared as before. Built
+against an nginx that adds the line (the macro not there, or 1), the module as it is.
+Applied by post-patch in WRKSRC_headers_more, -p0.
+
+--- src/ngx_http_headers_more_headers_out.c.orig
++++ src/ngx_http_headers_more_headers_out.c
+@@ -315,6 +315,21 @@
+     }
+ 
+     if (old == NULL || *old == NULL) {
++
++#if defined(NGX_HTTP_AZ_SERVER) && !(NGX_HTTP_AZ_SERVER)
++        /*
++         * az: the nginx-devel of azsupport/ports writes no Server line of its
++         * own, so where no backend and no module has set one there is nothing
++         * to clear: no search of the header lines and no empty line made to
++         * keep nginx from adding its own
++         */
++        if (value->len == 0
++            && hv->offset == offsetof(ngx_http_headers_out_t, server))
++        {
++            return NGX_OK;
++        }
++#endif
++
+         return ngx_http_set_header_helper(r, hv, value, old, 0);
+     }
+ 

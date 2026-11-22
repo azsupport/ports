@@ -1,0 +1,169 @@
+No flush after every buffer of input (aZ, 22.11.2026; found by the review of that
+day). The filter took what ZSTD_compressStream() returns, a hint of the size of the
+next input and never 0, for data left to flush, and called ZSTD_flushStream() after
+every buffer it compressed: each buffer of input ended a block of zstd, and the
+smaller the buffers, the worse the compression. A page of 255 KB at level 3 was 65414
+bytes from a file (buffers of 32 KB), 68613 proxied and 77936 through sub_filter,
+where zstd -3 of the file gives 64663; a page of 134 KB of lines alike was 59743
+bytes through sub_filter, 2960 from a file. Now ZSTD_compressStream2() with
+ZSTD_e_continue, whose return is the data left to flush, and a flush only where a
+buffer asks for one (proxy_buffering off, ngx.flush()) or the response ends, as the
+gzip filter: the data stays with zstd until a block of it is full. The first page:
+65209 from a file and proxied, 64657 through sub_filter; the other 2785 through
+sub_filter. And the end of the response before a flush where a buffer has both: the
+filter flushed and never ended the frame.
+Applied by post-patch in WRKSRC_zstd after extra-patch-zstd-static, -p0.
+
+--- src/ngx_http_zstd_filter_module.c.orig
++++ src/ngx_http_zstd_filter_module.c
+@@ -422,7 +422,7 @@
+ {
+     size_t        rc, pos_in, pos_out;
+     char         *hint;
+-    ngx_uint_t    end;
++    ngx_uint_t    action, flushed, end;
+     ngx_chain_t  *cl;
+     ngx_buf_t    *b;
+ 
+@@ -436,7 +436,9 @@
+     pos_in = ctx->buffer_in.pos;
+     pos_out = ctx->buffer_out.pos;
+ 
+-    switch (ctx->action) {
++    action = ctx->action;
++
++    switch (action) {
+ 
+     case NGX_HTTP_ZSTD_FILTER_FLUSH:
+         hint = "ZSTD_flushStream() ";
+@@ -449,9 +451,16 @@
+         break;
+ 
+     default:
+-        hint = "ZSTD_compressStream() ";
+-        rc = ZSTD_compressStream(ctx->cstream, &ctx->buffer_out,
+-                                 &ctx->buffer_in);
++
++        /*
++         * ZSTD_compressStream2(): what it returns is the data left to
++         * flush, as the two calls above; ZSTD_compressStream() returns a
++         * hint of the size of the next input, which is never 0
++         */
++
++        hint = "ZSTD_compressStream2() ";
++        rc = ZSTD_compressStream2(ctx->cstream, &ctx->buffer_out,
++                                  &ctx->buffer_in, ZSTD_e_continue);
+         break;
+     }
+ 
+@@ -473,26 +482,37 @@
+     ctx->out_buf->last += ctx->buffer_out.pos - pos_out;
+     ctx->redo = 0;
+ 
+-    /* the frame is complete only when ZSTD_endStream() has flushed it all */
++    /*
++     * a flush is done, and the frame is complete, only when
++     * ZSTD_flushStream() or ZSTD_endStream() has flushed it all
++     */
+ 
+-    end = (rc == 0 && ctx->action == NGX_HTTP_ZSTD_FILTER_END);
++    flushed = (rc == 0 && action == NGX_HTTP_ZSTD_FILTER_FLUSH);
++    end = (rc == 0 && action == NGX_HTTP_ZSTD_FILTER_END);
+ 
+     if (rc > 0) {
+-        if (ctx->action == NGX_HTTP_ZSTD_FILTER_COMPRESS) {
+-            ctx->action = NGX_HTTP_ZSTD_FILTER_FLUSH;
+-        }
++
++        /* zstd has more for the next output buffer: the same call again */
+ 
+         ctx->redo = 1;
+ 
+-    } else if (ctx->last && ctx->action != NGX_HTTP_ZSTD_FILTER_END
++    } else if (action == NGX_HTTP_ZSTD_FILTER_COMPRESS
++               && (ctx->last || ctx->flush)
+                && ctx->buffer_in.pos == ctx->buffer_in.size)
+     {
+-        /* end the frame only after the whole input has been consumed */
++        /*
++         * the whole input is with zstd: now the end of the frame, or the
++         * flush its buffer asks for. Without either the data stays with
++         * zstd until a block of it is full, as with gzip: a flush after
++         * every buffer of input ends a block there, and many small
++         * buffers (a proxied response, sub_filter, SSI) compress badly
++         */
+ 
+         ctx->redo = 1;
+-        ctx->action = NGX_HTTP_ZSTD_FILTER_END;
++        ctx->action = ctx->last ? NGX_HTTP_ZSTD_FILTER_END
++                                : NGX_HTTP_ZSTD_FILTER_FLUSH;
+ 
+-        /* pending to call the ZSTD_endStream() */
++        /* pending to call ZSTD_endStream() or ZSTD_flushStream() */
+ 
+         if (ctx->buffer_out.pos < ctx->buffer_out.size) {
+             return NGX_AGAIN;
+@@ -509,7 +529,7 @@
+ 
+     if (ngx_buf_size(ctx->out_buf) == 0) {
+ 
+-        if (rc == 0 && ctx->flush) {
++        if (flushed || end) {
+ 
+             /*
+              * nothing to flush: pass an empty flush buf downstream,
+@@ -522,7 +542,8 @@
+                 return NGX_ERROR;
+             }
+ 
+-            b->flush = 1;
++            b->flush = flushed;
++            b->last_buf = end;
+ 
+             cl = ngx_alloc_chain_link(r->pool);
+             if (cl == NULL) {
+@@ -535,12 +556,13 @@
+             *ctx->last_out = cl;
+             ctx->last_out = &cl->next;
+ 
++            ctx->done = end;
+             ctx->flush = 0;
+ 
+             r->connection->buffered &= ~NGX_HTTP_GZIP_BUFFERED;
+         }
+ 
+-        return NGX_AGAIN;
++        return end ? NGX_OK : NGX_AGAIN;
+     }
+ 
+     cl = ngx_alloc_chain_link(r->pool);
+@@ -550,10 +572,10 @@
+ 
+     b = ctx->out_buf;
+ 
+-    if (rc == 0 && (ctx->flush || end)) {
++    if (flushed || end) {
+         r->connection->buffered &= ~NGX_HTTP_GZIP_BUFFERED;
+ 
+-        b->flush = ctx->flush;
++        b->flush = flushed;
+         b->last_buf = end;
+ 
+         ctx->done = end;
+@@ -595,11 +617,13 @@
+     ctx->in_buf = ctx->in->buf;
+     ctx->in = ctx->in->next;
+ 
+-    if (ctx->in_buf->flush) {
+-        ctx->flush = 1;
++    /* the end of the response first, as gzip: it flushes too */
+ 
+-    } else if (ctx->in_buf->last_buf) {
++    if (ctx->in_buf->last_buf) {
+         ctx->last = 1;
++
++    } else if (ctx->in_buf->flush) {
++        ctx->flush = 1;
+     }
+ 
+     ctx->buffer_in.src = ctx->in_buf->pos;

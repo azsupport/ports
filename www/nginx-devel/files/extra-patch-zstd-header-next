@@ -6,7 +6,7 @@ Applied by post-patch in WRKSRC_zstd after extra-patch-zstd-accept-encoding, -p0
 
 --- src/ngx_http_zstd_filter_module.c.orig
 +++ src/ngx_http_zstd_filter_module.c
-@@ -249,6 +249,7 @@
+@@ -264,6 +264,7 @@
      }
  
      h->hash = 1;

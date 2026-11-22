@@ -70,11 +70,16 @@
 # Arch, NixOS and openSUSE build it, nor myguard-labs 0.90.9 of Debian
 # (libnginx-mod-http-zstd) and www/angie-module-zstd: 23495 lines of C, with dictionary
 # transport. In the core, not a package of a module (no load_module, no .so in
-# libexec/nginx), with the length of a response
-# pledged to zstd and the window of a response without a length capped at 512 KiB
-# (files/extra-patch-zstd-pledged-size: 1068 KiB of memory for a response of 100 KB at
-# level 3 in place of 3577 KiB) and the q-values of Accept-Encoding as nginx takes them
-# for gzip ("zstd;q=0" a refusal; files/extra-patch-zstd-accept-encoding). Before brotli
+# libexec/nginx), with the length of a response given to zstd as a hint and the window
+# of a response without a length capped at 512 KiB (files/extra-patch-zstd-window:
+# 1273 KiB of memory for a response of 100 KB at level 3 in place of 3577 KiB; a hint,
+# not a pledge: zstd fails a stream that is not of the pledged length, and the
+# Content-Length of a response is not always that of its body, where gzip and brotli
+# compress it whole), no flush after every buffer of input (files/extra-patch-zstd-continue:
+# the module ended a block of zstd with each one, and a proxied page was 5 to 9 percent
+# larger than the same page from a file, one through sub_filter 20 percent) and the
+# q-values of Accept-Encoding as nginx takes them for gzip ("zstd;q=0" a refusal;
+# files/extra-patch-zstd-accept-encoding). Before brotli
 # in the chain of the filters: configure takes zstd before brotli (below), so that a
 # client of "zstd, br" gets zstd, and post-configure checks it. Vary: Accept-Encoding by
 # gzip_vary, as gzip and brotli.
@@ -105,6 +110,27 @@
 # And the two fixes of the cache of pull request 1948 of nginx (CERT Polska: a tab
 # between the members of Vary, "*" among them; files/patch-src_http_ngx__http__file__cache.c
 # and patch-src_http_ngx__http__upstream.c).
+#
+# A response the slice filter puts together for a request with a Range is not compressed
+# (aZ, 22.11.2026: «делай»; files/patch-src_http_modules_ngx__http__gzip__filter__module.c,
+# extra-patch-brotli-slice-range, extra-patch-zstd-slice-range): compressed, nginx 1.31.9
+# sends a 200 with the slice the range begins in for the whole object, and fetches every
+# slice to the end of the object for it.
+#
+# No "Server" line of nginx itself (aZ, 22.11.2026 21:10: every configuration of his has
+# more_clear_headers 'server', most of them nothing else of headers-more): built with
+# -DNGX_HTTP_AZ_SERVER=0 (files/patch-src_http_ngx__http__header__filter__module.c and
+# those of HTTP/2 and HTTP/3), nginx adds none, and the headers-more module has nothing
+# to do for that directive where no backend has sent one
+# (files/extra-patch-headers-more-server).
+#
+# Of the open pull requests of nginx (aZ, 22.11.2026: «бери разобрав их сам, вдруг там
+# говно написали»; each read against the code of 1.31.9, its files/patch-* says how it
+# was checked): ACK frames with ECN counts of QUIC handled (949 and 1005; a client that
+# sends them got no response), no use of a QUIC path retired while its packet is handled
+# (1634), no busy loop when SSL_write() wants to read (2004, with ssl_early_data). Not
+# taken: 1624 and 1766 (the body of an HTTP/3 request: nginx 1.31.9 has it fixed its own
+# way, st->skip).
 #
 # Libraries: OpenSSL of the base system (HTTP/3 too: the configure of nginx finds the
 # QUIC API of OpenSSL 3.5, SSL_set_quic_tls_cbs, else it builds its compatibility layer),
@@ -232,7 +258,7 @@ MODULESDIR=	${PREFIX}/libexec/${PORTNAME}
 
 HAS_CONFIGURE=	yes
 CONFIGURE_ARGS+=--prefix=${ETCDIR} \
-		--with-cc-opt="-I ${WRKDIR}/az/include -I ${LOCALBASE}/include" \
+		--with-cc-opt="-DNGX_HTTP_AZ_SERVER=0 -I ${WRKDIR}/az/include -I ${LOCALBASE}/include" \
 		--with-ld-opt="-L ${WRKDIR}/az/lib -Wl,-rpath,${AZ_PREFIX}/lib -L ${LOCALBASE}/lib" \
 		--conf-path=${ETCDIR}/nginx.conf \
 		--sbin-path=${PREFIX}/sbin/nginx \
@@ -284,7 +310,7 @@ DEBUG_CFLAGS=		-g
 DEBUG_VARS=		STRIP=#do not strip if nginx with debug information
 DEBUGLOG_CONFIGURE_ON=	--with-debug
 FILE_AIO_CONFIGURE_ON=	--with-file-aio
-IPV6_CONFIGURE_OFF=	--with-cc-opt="-DNGX_HAVE_INET6=0 -I ${WRKDIR}/az/include -I ${LOCALBASE}/include"
+IPV6_CONFIGURE_OFF=	--with-cc-opt="-DNGX_HAVE_INET6=0 -DNGX_HTTP_AZ_SERVER=0 -I ${WRKDIR}/az/include -I ${LOCALBASE}/include"
 THREADS_CONFIGURE_ON=	--with-threads
 
 HTTP_CONFIGURE_ON=		--http-client-body-temp-path=${NGINX_TMPDIR}/client_body_temp \
@@ -524,14 +550,20 @@ post-patch:
 # 22.11.2026)
 	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-static-vary
 	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-static-gzip
+# a ranged response of the slice filter not compressed (aZ, 22.11.2026), as by gzip and zstd
+	@cd ${WRKSRC_brotli} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-brotli-slice-range
+# headers-more: more_clear_headers 'server' with nothing to clear does nothing (aZ,
+# 22.11.2026): this nginx adds no Server line of its own (-DNGX_HTTP_AZ_SERVER=0)
+	@cd ${WRKSRC_headers_more} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-headers-more-server
 # geoip2: the cached lookup result reset at a reload of the database (from Debian; aZ,
 # 16.11.2026), the http module and that of stream
 	@cd ${WRKSRC_geoip2} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-geoip2-reload-cache
 	@${REINPLACE_CMD} 's!%%PREFIX%%!${WRKDIR}/az!g' ${WRKSRC_brotli}/filter/config
 # zstd (aZ, 22.11.2026): the static module out of the config of the module (a module of
-# its own, above), the pledged length and the capped window, the q-values of
-# Accept-Encoding, h->next of the Content-Encoding line, the static module
-.for p in config pledged-size accept-encoding header-next static
+# its own, above), the length as a hint and the capped window, the q-values of
+# Accept-Encoding, h->next of the Content-Encoding line, the static module, no flush
+# after every buffer of input, a ranged response of the slice filter not compressed
+.for p in config window accept-encoding header-next static continue slice-range
 	@cd ${WRKSRC_zstd} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-zstd-${p}
 .endfor
 .if ${NGINX_AZ_MODULE:U} == stream-lua

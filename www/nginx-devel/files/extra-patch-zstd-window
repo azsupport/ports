@@ -1,0 +1,198 @@
+The memory of a response by its length (aZ, 22.11.2026), the length a hint to zstd
+and not a promise. ZSTD_initCStream(cstream, level) took the window of the level
+whatever the response, and the context had the memory of it: at level 3 (libzstd
+1.5.5 and 1.5.7) 3577 KiB a response. Now a response of a known length has that
+length given to zstd by ZSTD_c_srcSizeHint, and zstd sizes its window and tables to
+it (libzstd 1.5.5: 1273 KiB for a response of 100 KB, 325 KiB for one of 10 KB), and
+one without a length has the window capped at 2^19 (2041 KiB; 512 KiB in place of
+2 MiB). The Content-Length is taken in the header filter before
+ngx_http_clear_content_length() clears it, as HanadaLee 9113bbb and myguard-labs do.
+Not ZSTD_CCtx_setPledgedSrcSize(), which this patch had first (1068 KiB for 100 KB):
+zstd fails a stream whose input is not of the pledged length ("Src size is
+incorrect"), and the Content-Length of a response is not always that of its body: a
+body filter of Lua that does not clear it, a Content-Length of content_by_lua or of
+more_set_headers. gzip and brotli size their windows by the same length and compress
+such a body whole, and so does zstd with the hint (the review of 22.11.2026: 12
+responses of 12 cut with the pledge, none with the hint, over HTTP/1.1, HTTP/2 and
+HTTP/3). No hint above 8 MB: a client of the "zstd" content coding takes a window of
+up to 8 MB (RFC 9659), and the levels 20 to 22 have larger ones for a longer
+response. With a dictionary (zstd_dict_file, not used) the module as it is. A libzstd
+that does not take the hint (before 1.4.4): the window by the length.
+Applied by post-patch in WRKSRC_zstd after extra-patch-zstd-config, -p0.
+
+--- src/ngx_http_zstd_filter_module.c.orig
++++ src/ngx_http_zstd_filter_module.c
+@@ -15,6 +15,29 @@
+ #define NGX_HTTP_ZSTD_FILTER_FLUSH          1
+ #define NGX_HTTP_ZSTD_FILTER_END            2
+ 
++/*
++ * The memory of a response by its length. A response of a known length has
++ * that length given to zstd as a hint (ZSTD_c_srcSizeHint), and zstd sizes
++ * its window and tables to it; one whose length is not known (chunked, from
++ * a filter that changes the body, a proxied response without
++ * Content-Length) has the window 2^19, 512 KiB, instead of that of the
++ * level (2^21 at level 3). The length is not pledged
++ * (ZSTD_CCtx_setPledgedSrcSize()): zstd fails a stream whose input is not
++ * of the pledged length, and the Content-Length of a response is not always
++ * that of its body (a body filter that does not clear it, a Content-Length
++ * set by a header module); with the hint such a body is compressed whole,
++ * as gzip and brotli do with the window they size by the same length.
++ */
++#define NGX_HTTP_ZSTD_WINDOW_LOG_UNKNOWN    19
++#define NGX_HTTP_ZSTD_WINDOW_LOG_MIN        10
++
++/*
++ * A client of the "zstd" content coding has to take a window of up to
++ * 8 MB and no more (RFC 9659): no hint above it, so no window above 2^23
++ * whatever the level
++ */
++#define NGX_HTTP_ZSTD_SIZE_HINT_MAX         (8 * 1024 * 1024)
++
+ 
+ typedef struct {
+     ngx_str_t                    dict_file;
+@@ -57,6 +80,9 @@
+     size_t                       bytes_in;
+     size_t                       bytes_out;
+ 
++    /* Content-Length of the response before the header filter cleared it, -1 */
++    off_t                        content_length;
++
+     unsigned                     action:2;
+     unsigned                     last:1;
+     unsigned                     redo:1;
+@@ -86,6 +112,8 @@
+     ngx_http_zstd_ctx_t *ctx);
+ static ZSTD_CStream *ngx_http_zstd_filter_create_cstream(ngx_http_request_t *r,
+     ngx_http_zstd_ctx_t *ctx);
++static ngx_int_t ngx_http_zstd_filter_set_size(ngx_http_request_t *r,
++    ngx_http_zstd_ctx_t *ctx, ZSTD_CStream *cstream);
+ static ngx_int_t ngx_http_zstd_filter_compress(ngx_http_request_t *r,
+     ngx_http_zstd_ctx_t *ctx);
+ static ngx_int_t ngx_http_zstd_accept_encoding(ngx_str_t *ae);
+@@ -241,6 +269,8 @@
+ 
+     r->main_filter_need_in_memory = 1;
+ 
++    ctx->content_length = r->headers_out.content_length_n;
++
+     ngx_http_clear_content_length(r);
+     ngx_http_clear_accept_ranges(r);
+     ngx_http_weak_etag(r);
+@@ -679,14 +709,33 @@
+ #endif
+ 
+     } else {
+-        rc = ZSTD_initCStream(cstream, zlcf->level);
++        /*
++         * ZSTD_initCStream() by the calls it stands for, to give zstd the
++         * length of the response too: the level, then the hint of the
++         * length or else the window for an unknown length
++         */
++        rc = ZSTD_CCtx_reset(cstream, ZSTD_reset_session_only);
+         if (ZSTD_isError(rc)) {
+             ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
+-                          "ZSTD_initCStream() failed: %s",
++                          "ZSTD_CCtx_reset() failed: %s",
+                           ZSTD_getErrorName(rc));
+ 
+             goto failed;
+         }
++
++        rc = ZSTD_CCtx_setParameter(cstream, ZSTD_c_compressionLevel,
++                                    (int) zlcf->level);
++        if (ZSTD_isError(rc)) {
++            ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
++                          "ZSTD_CCtx_setParameter(ZSTD_c_compressionLevel) "
++                          "failed: %s", ZSTD_getErrorName(rc));
++
++            goto failed;
++        }
++
++        if (ngx_http_zstd_filter_set_size(r, ctx, cstream) != NGX_OK) {
++            goto failed;
++        }
+     }
+ 
+     return cstream;
+@@ -702,6 +751,79 @@
+ }
+ 
+ 
++/*
++ * The length of the response to zstd: a hint of it when it is known, the
++ * window for an unknown one else
++ */
++
++static ngx_int_t
++ngx_http_zstd_filter_set_size(ngx_http_request_t *r, ngx_http_zstd_ctx_t *ctx,
++    ZSTD_CStream *cstream)
++{
++    int     wlog;
++    off_t   len;
++    size_t  rc;
++
++    len = ctx->content_length;
++
++#ifdef ZSTD_c_srcSizeHint
++
++    if (len >= 0) {
++
++        /* zstd takes 0 for no hint: the smallest one for an empty response */
++
++        if (len == 0) {
++            len = 1;
++
++        } else if (len > NGX_HTTP_ZSTD_SIZE_HINT_MAX) {
++            len = NGX_HTTP_ZSTD_SIZE_HINT_MAX;
++        }
++
++        rc = ZSTD_CCtx_setParameter(cstream, ZSTD_c_srcSizeHint, (int) len);
++        if (!ZSTD_isError(rc)) {
++            return NGX_OK;
++        }
++
++        /* a libzstd that does not take the hint: the window by the length */
++
++        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
++                       "ZSTD_CCtx_setParameter(ZSTD_c_srcSizeHint) failed: %s",
++                       ZSTD_getErrorName(rc));
++    }
++
++#endif
++
++    wlog = NGX_HTTP_ZSTD_WINDOW_LOG_UNKNOWN;
++
++    if (len >= 0) {
++
++        /*
++         * the smallest window that holds the response, and not above that
++         * of an unknown length, which no level is below
++         */
++
++        wlog = NGX_HTTP_ZSTD_WINDOW_LOG_MIN;
++
++        while (wlog < NGX_HTTP_ZSTD_WINDOW_LOG_UNKNOWN
++               && ((off_t) 1 << wlog) < len)
++        {
++            wlog++;
++        }
++    }
++
++    rc = ZSTD_CCtx_setParameter(cstream, ZSTD_c_windowLog, wlog);
++    if (ZSTD_isError(rc)) {
++        ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
++                      "ZSTD_CCtx_setParameter(ZSTD_c_windowLog) failed: %s",
++                      ZSTD_getErrorName(rc));
++
++        return NGX_ERROR;
++    }
++
++    return NGX_OK;
++}
++
++
+ static ngx_int_t
+ ngx_http_zstd_accept_encoding(ngx_str_t *ae)
+ {

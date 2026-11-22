@@ -4,11 +4,11 @@ Now as nginx takes "gzip" (ngx_http_gzip_ok, ngx_http_gzip_accept_encoding and
 ngx_http_gzip_quantity of src/http/ngx_http_core_module.c of nginx 1.31.9, for
 "zstd"): the common "zstd,..." first, else the first "zstd" that is a token
 of its own, refused with q=0 (RFC 9110, 12.5.3), as HanadaLee f81c5f8 does.
-Applied by post-patch in WRKSRC_zstd after extra-patch-zstd-pledged-size, -p0.
+Applied by post-patch in WRKSRC_zstd after extra-patch-zstd-window, -p0.
 
 --- src/ngx_http_zstd_filter_module.c.orig
 +++ src/ngx_http_zstd_filter_module.c
-@@ -102,6 +102,7 @@
+@@ -117,6 +117,7 @@
  static ngx_int_t ngx_http_zstd_filter_compress(ngx_http_request_t *r,
      ngx_http_zstd_ctx_t *ctx);
  static ngx_int_t ngx_http_zstd_accept_encoding(ngx_str_t *ae);
@@ -16,7 +16,7 @@ Applied by post-patch in WRKSRC_zstd after extra-patch-zstd-pledged-size, -p0.
  static ngx_int_t ngx_http_zstd_ok(ngx_http_request_t *r);
  static ngx_int_t ngx_http_zstd_filter_init(ngx_conf_t *cf);
  static void * ngx_http_zstd_create_main_conf(ngx_conf_t *cf);
-@@ -766,26 +767,134 @@
+@@ -824,26 +825,134 @@
  }
  
  
@@ -41,7 +41,9 @@ Applied by post-patch in WRKSRC_zstd after extra-patch-zstd-pledged-size, -p0.
 +        if (p == NULL) {
 +            return NGX_DECLINED;
 +        }
-+
+ 
+-    p = ngx_strcasestrn(ae->data, "zstd", sizeof("zstd") - 2);
+-    if (p == NULL) {
 +        if (p == start || (*(p - 1) == ',' || *(p - 1) == ' ')) {
 +            break;
 +        }
@@ -79,9 +81,7 @@ Applied by post-patch in WRKSRC_zstd after extra-patch-zstd-pledged-size, -p0.
 +            return NGX_DECLINED;
 +        }
 +    }
- 
--    p = ngx_strcasestrn(ae->data, "zstd", sizeof("zstd") - 2);
--    if (p == NULL) {
++
 +    return NGX_OK;
 +
 +equal:
@@ -159,7 +159,7 @@ Applied by post-patch in WRKSRC_zstd after extra-patch-zstd-pledged-size, -p0.
  }
  
  
-@@ -807,7 +916,12 @@
+@@ -865,7 +974,12 @@
          return NGX_DECLINED;
      }
  
