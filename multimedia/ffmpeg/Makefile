@@ -14,7 +14,7 @@
 # to open libraries, within a month); its package is published on his responsibility.
 
 PORTNAME=	ffmpeg
-DISTVERSION=	9.0.2
+DISTVERSION=	9.1
 PORTEPOCH=	1
 CATEGORIES=	multimedia audio net
 # the distfiles are those of the official port (its make fetch in post-fetch)

@@ -1,0 +1,23 @@
+FFmpeg master 46dd03dabace (2026-11-12), not in 9.1:
+https://github.com/FFmpeg/FFmpeg/commit/46dd03dabacea4b35ef1b3853c80920ec67efb43
+
+The AAC encoder: the number of windows of the psychoacoustic model (1 or 8)
+checked before it indexes the arrays of the windows; no change of the output.
+
+diff --git a/libavcodec/aacenc.c b/libavcodec/aacenc.c
+index aadb9e6e..96612625 100644
+--- a/libavcodec/aacenc.c
++++ b/libavcodec/aacenc.c
+@@ -1358,6 +1358,12 @@ static int aac_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
+                 wi[ch] = s->psy.model->window(&s->psy, samples2, la, s->cur_channel,
+                                               ics->window_sequence[0]);
+             }
++            if (wi[ch].num_windows != 1 && wi[ch].num_windows != 8) {
++                av_log(avctx, AV_LOG_ERROR,
++                       "Psychoacoustic model returned invalid window count %d\n",
++                       wi[ch].num_windows);
++                return AVERROR_BUG;
++            }
+             ics->window_sequence[1] = ics->window_sequence[0];
+             ics->window_sequence[0] = wi[ch].window_type[0];
+             ics->use_kb_window[1]   = ics->use_kb_window[0];

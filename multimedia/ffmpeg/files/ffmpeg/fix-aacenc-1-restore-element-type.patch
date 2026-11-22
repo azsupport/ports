@@ -1,0 +1,23 @@
+FFmpeg master 8876f61947bf (2026-11-07), not in 9.1:
+https://github.com/FFmpeg/FFmpeg/commit/8876f61947bf922e6e30c1c2df83fd7f55759b9a
+
+The AAC encoder (aac: the conversions of the sites, -acodec aac): when the rate
+loop encoded a frame again, it restored the coefficients of each element by the
+type of the last element, not of the element restored; for layouts that do not
+end in a channel pair (4.0, 5.1, 6.1, 7.1: a 5.1 upload converted without -ac 2)
+the second channel of each pair was encoded from coefficients already filtered:
+wrong sound. fix-aacenc-2 to -4 apply after this one.
+
+diff --git a/libavcodec/aacenc.c b/libavcodec/aacenc.c
+index 5b1e3eff..50a1460e 100644
+--- a/libavcodec/aacenc.c
++++ b/libavcodec/aacenc.c
+@@ -1650,7 +1650,7 @@ static int aac_encode_frame(AVCodecContext *avctx, AVPacket *avpkt,
+                 if (is_mode || ms_mode || tns_mode || pred_mode) {
+                     for (i = 0; i < s->chan_map[0]; i++) {
+                         // Must restore coeffs
+-                        chans = tag == TYPE_CPE ? 2 : 1;
++                        chans = s->chan_map[i + 1] == TYPE_CPE ? 2 : 1;
+                         cpe = &s->cpe[i];
+                         for (ch = 0; ch < chans; ch++)
+                             memcpy(cpe->ch[ch].coeffs, cpe->ch[ch].pcoeffs, sizeof(cpe->ch[ch].coeffs));

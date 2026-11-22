@@ -60,6 +60,12 @@ for n in "$@"; do
     t="$(awk -v n="$n" '$1 == "take" && $2 == n { print $3, $4, $5, $6; exit }' $confs)"
     # shellcheck disable=SC2086
     up="$(awk -v n="$n" '$1 == "upstream" && $2 == n { print $4; exit }' $confs)"
+    # the literal text before the version in the tag pattern of the upstream line
+    # (n of FFmpeg's n(\d+...)): one more name the tag of the release may have
+    # shellcheck disable=SC2086
+    pre="$(awk -v n="$n" '$1 == "upstream" && $2 == n { print $5; exit }' $confs)"
+    pre="${pre%%(*}"
+    case "$pre" in *[!A-Za-z0-9._-]*) pre="" ;; esac
     [ -n "$t" ] || { out "## $n"; out ""; out "FAIL: no take line of $n in the conf files of az, ffmpeg and ImageMagick"; out ""; rc=1; continue; }
     # shellcheck disable=SC2086
     set -- $t
@@ -91,7 +97,7 @@ for n in "$@"; do
     # the GitHub release of the upstream line: its tag, its asset of the same name
     tag=""; gh_digest=""; assets=""
     if [ -n "$up" ] && git ls-remote --tags "$up" >"$w/tags" 2>/dev/null; then
-        for c in "$ver" "v$ver" "release-$ver" "$srcdir" "$n-$ver"; do
+        for c in "$ver" "v$ver" "release-$ver" "$srcdir" "$n-$ver" ${pre:+"$pre$ver"}; do
             grep -q "	refs/tags/$c\$" "$w/tags" && { tag="$c"; break; }
         done
     fi

@@ -227,13 +227,15 @@
   `bin/ffprobe` (библиотеки FFmpeg внутри них), только с тем, что нужно видеосайтам
   ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
   линкуются с x264, dav1d, SVT-AV1 (запись AV1 и AVIF, aZ 11.11.2026) и libwebp из az.
-  С исправлениями безопасности FFmpeg после 9.0.2, до выхода 9.0.3
-  ([`files/ffmpeg/fix-*.patch`](multimedia/ffmpeg/files/ffmpeg), в каждом — коммит
-  апстрима, что и зачем): из release/9.0 (H.264, AAC USAC, Matroska, ошибка в конце
-  записи файла) и из master — для CVE 2026 года, которые достают до собранного здесь
-  (HDR10+ в Matroska, pssh в mp4, HEVC, film grain AFGS1, EXIF, парсер Vorbis, альфа
-  WebP, aac_adtstoasc, Dolby Vision для SVT-AV1), и для ошибок памяти mov/mp4, IAMF,
-  AAC USAC, многослойного HEVC и MJPEG Avid, найденных в октябре 2026.
+  FFmpeg 9.1 раньше его порта (строка take в `ffmpeg.conf`; aZ, 22.11.2026: выпуск той же
+  старшей ветки берём, когда в нём есть исправления безопасности): в нём исправления,
+  которые патчи 9.0.2 здесь брали из release/9.0 и master (среди них CVE 2026 года,
+  которые достают до собранного здесь), и исправления master по 19.11.2026; поверх —
+  исправления кодера AAC из master
+  ([`files/ffmpeg/fix-aacenc-*.patch`](multimedia/ffmpeg/files/ffmpeg), в каждом — коммит
+  апстрима, что и зачем: восстановление коэффициентов раскладки 5.1, допустимая цепочка
+  масштабных множителей кодера NMR, который в 9.1 по умолчанию, ограниченное число
+  повторных кодирований кадра, который не помещается, вместо бесконечного).
   Сборка и работа: az.
 - **`graphics/libimagemagick6`** и **`graphics/libimagemagick7`** (aZ, 14.11.2026):
   библиотеки ImageMagick 6 и 7 отдельными пакетами, чтобы модулю imagick PHP не нужны были

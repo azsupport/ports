@@ -235,13 +235,15 @@ Names and origins as the ports, files at the paths of the ports:
   `bin/ffmpeg` and `bin/ffprobe` (the libraries of FFmpeg in them) with only what the
   video sites need ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
   linking x264, dav1d, SVT-AV1 (AV1 and AVIF written, aZ 11.11.2026) and libwebp of az.
-  With the security fixes of FFmpeg after 9.0.2, until 9.0.3
-  ([`files/ffmpeg/fix-*.patch`](multimedia/ffmpeg/files/ffmpeg), each with its upstream
-  commit, what and why): those of release/9.0 (H.264, AAC USAC, Matroska, an error at
-  the end of a mux) and of master for the CVEs of 2026 that reach what is built here
-  (HDR10+ in Matroska, pssh of mp4, HEVC, AFGS1 film grain, EXIF, the Vorbis parser,
-  WebP alpha, aac_adtstoasc, Dolby Vision for SVT-AV1) and for the memory errors of
-  mov/mp4, IAMF, AAC USAC, multilayer HEVC and Avid MJPEG found in October 2026.
+  FFmpeg 9.1 before its port (a take line of `ffmpeg.conf`; aZ, 22.11.2026: a release
+  of the same major line is taken when it has security fixes): it has the fixes the
+  patches of 9.0.2 here brought from release/9.0 and master (the CVEs of 2026 that reach
+  what is built here among them), and those of master up to 19.11.2026; after it, the
+  fixes of master for the AAC encoder
+  ([`files/ffmpeg/fix-aacenc-*.patch`](multimedia/ffmpeg/files/ffmpeg), each with its
+  upstream commit, what and why: the coefficients of a 5.1 layout restored, the
+  scalefactor chain of the NMR coder, the default of 9.1, kept legal, the re-encoding
+  of a frame that does not fit bounded instead of endless).
   Build and run: az.
 - **`graphics/libimagemagick6`** and **`graphics/libimagemagick7`** (aZ, 14.11.2026): the
   libraries of ImageMagick 6 and 7 in packages of their own, so that the module imagick of
