@@ -9,11 +9,11 @@
 # bin/qt-faststart only; FFmpeg's has the same use (qt-faststart <in> <out>, the
 # same message and exit when moov is first already) and the fixes since (sizes of
 # the atoms checked, a limit on ftyp, stco made co64 when the offsets pass 4 GB).
-# One file of C, no library: bin/qt-faststart (PIE, RELRO, BIND_NOW); 9.0.2 is
+# One file of C, no library: bin/qt-faststart (PIE, RELRO, BIND_NOW); 9.1 is
 # above 0.2, so pkg upgrades an old one.
 
 PORTNAME=	qt-faststart
-DISTVERSION=	9.0.2
+DISTVERSION=	9.1
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	multimedia
 MASTER_SITES=	https://ffmpeg.org/releases/

@@ -603,7 +603,7 @@ Names and origins as the ports, files at the paths of the ports:
   them the fonts of `openjdk21` failed: no libfontconfig). `rocketchat8` needs them (the
   sans-serif of the letters of its avatars).
 - **`multimedia/qt-faststart`**: `bin/qt-faststart`, `tools/qt-faststart.c` of FFmpeg
-  9.0.2 (public domain): the official port expired on 30.06.2022 (ffmpeg `-movflags
+  9.1 (public domain): the official port expired on 30.06.2022 (ffmpeg `-movflags
   +faststart` does the same); kept for compatibility until it is no longer needed (aZ,
   10.11.2026).
 - These: tests after the install, `tools/servers-test.sh` (git

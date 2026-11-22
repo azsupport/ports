@@ -540,7 +540,7 @@
   анимированных GIF, WebP и HEIF (переполнение int в неверный размер), входной профиль
   `icc_import` (использование после освобождения), коды LZW через подблоки GIF, PNG из
   libpng 1.6.0–1.6.2, фото HEIC больше чем из 256 элементов.
-- **`multimedia/qt-faststart`**: `bin/qt-faststart` из `tools/qt-faststart.c` FFmpeg 9.0.2
+- **`multimedia/qt-faststart`**: `bin/qt-faststart` из `tools/qt-faststart.c` FFmpeg 9.1
   (public domain): официальный порт удалён 30.06.2022 (то же делает ffmpeg `-movflags
   +faststart`); оставлен для совместимости, пока нужен (aZ, 10.11.2026).
 - У этих: тесты после установки — `tools/servers-test.sh` (git
