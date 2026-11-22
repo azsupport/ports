@@ -1,0 +1,123 @@
+The length of a response pledged to zstd when it is known, and the window of one
+whose length is not known capped at 2^19 (aZ, 22.11.2026). ZSTD_initCStream(cstream,
+level) took the window of the level whatever the response, and the context had the
+memory of it: at level 3 (libzstd 1.5.5 and 1.5.7) 3577 KiB a response, 1068 KiB
+for one of 100 KB with its length pledged, 2041 KiB without a length with the
+window capped (512 KiB in place of 2 MiB). The Content-Length is taken in the
+header filter before ngx_http_clear_content_length() clears it, as HanadaLee
+9113bbb and myguard-labs do; ZSTD_CCtx_setPledgedSrcSize() with the level by
+ZSTD_CCtx_setParameter() is ZSTD_initCStream_srcSize() of zstd, which it
+deprecates. With a dictionary (zstd_dict_file, not used) the length pledged too.
+Applied by post-patch in WRKSRC_zstd, -p0.
+
+--- src/ngx_http_zstd_filter_module.c.orig
++++ src/ngx_http_zstd_filter_module.c
+@@ -15,6 +15,16 @@
+ #define NGX_HTTP_ZSTD_FILTER_FLUSH          1
+ #define NGX_HTTP_ZSTD_FILTER_END            2
+ 
++/*
++ * The window of a response whose length is not known (chunked, from a
++ * filter that changes the body, a proxied response without
++ * Content-Length): 2^19, 512 KiB, instead of that of the level (2^21 at
++ * level 3), so that such a response does not take the memory of the whole
++ * window of the level; a response of a known length has its length
++ * pledged, and zstd sizes its window and tables to it.
++ */
++#define NGX_HTTP_ZSTD_WINDOW_LOG_UNKNOWN    19
++
+ 
+ typedef struct {
+     ngx_str_t                    dict_file;
+@@ -57,6 +67,9 @@
+     size_t                       bytes_in;
+     size_t                       bytes_out;
+ 
++    /* Content-Length of the response before the header filter cleared it, -1 */
++    off_t                        content_length;
++
+     unsigned                     action:2;
+     unsigned                     last:1;
+     unsigned                     redo:1;
+@@ -241,6 +254,8 @@
+ 
+     r->main_filter_need_in_memory = 1;
+ 
++    ctx->content_length = r->headers_out.content_length_n;
++
+     ngx_http_clear_content_length(r);
+     ngx_http_clear_accept_ranges(r);
+     ngx_http_weak_etag(r);
+@@ -667,6 +682,17 @@
+                           ZSTD_getErrorName(rc));
+             goto failed;
+         }
++
++        if (ctx->content_length >= 0) {
++            rc = ZSTD_CCtx_setPledgedSrcSize(cstream,
++                                       (unsigned long long) ctx->content_length);
++            if (ZSTD_isError(rc)) {
++                ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
++                              "ZSTD_CCtx_setPledgedSrcSize() failed: %s",
++                              ZSTD_getErrorName(rc));
++                goto failed;
++            }
++        }
+ #else
+         rc = ZSTD_initCStream_usingCDict(cstream, zlcf->dict);
+         if (ZSTD_isError(rc)) {
+@@ -679,14 +705,52 @@
+ #endif
+ 
+     } else {
+-        rc = ZSTD_initCStream(cstream, zlcf->level);
++        /*
++         * ZSTD_initCStream() with the length when it is known (that of
++         * ZSTD_initCStream_srcSize(), which zstd deprecates): the level, and
++         * the pledged length or else the window for an unknown length
++         */
++        rc = ZSTD_CCtx_reset(cstream, ZSTD_reset_session_only);
+         if (ZSTD_isError(rc)) {
+             ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
+-                          "ZSTD_initCStream() failed: %s",
++                          "ZSTD_CCtx_reset() failed: %s",
+                           ZSTD_getErrorName(rc));
+ 
+             goto failed;
+         }
++
++        rc = ZSTD_CCtx_setParameter(cstream, ZSTD_c_compressionLevel,
++                                    (int) zlcf->level);
++        if (ZSTD_isError(rc)) {
++            ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
++                          "ZSTD_CCtx_setParameter(ZSTD_c_compressionLevel) "
++                          "failed: %s", ZSTD_getErrorName(rc));
++
++            goto failed;
++        }
++
++        if (ctx->content_length >= 0) {
++            rc = ZSTD_CCtx_setPledgedSrcSize(cstream,
++                                       (unsigned long long) ctx->content_length);
++            if (ZSTD_isError(rc)) {
++                ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
++                              "ZSTD_CCtx_setPledgedSrcSize() failed: %s",
++                              ZSTD_getErrorName(rc));
++
++                goto failed;
++            }
++
++        } else {
++            rc = ZSTD_CCtx_setParameter(cstream, ZSTD_c_windowLog,
++                                        NGX_HTTP_ZSTD_WINDOW_LOG_UNKNOWN);
++            if (ZSTD_isError(rc)) {
++                ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
++                              "ZSTD_CCtx_setParameter(ZSTD_c_windowLog) "
++                              "failed: %s", ZSTD_getErrorName(rc));
++
++                goto failed;
++            }
++        }
+     }
+ 
+     return cstream;

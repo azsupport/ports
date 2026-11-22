@@ -445,13 +445,13 @@
   nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE, HTTP_GZIP_STATIC, HTTP_MP4, HTTP_REALIP,
   HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL, HTTP_STATUS (stub_status: его счётчики читает VTS),
   HTTP_SUB, HTTPV2, HTTPV3, а также brotli,
-  headers-more и geoip2 (http) — они на всех серверах, и zstd (aZ, 22.11.2026: nginx-zstd-module 0.1.3 форка sysadmin-labs, тот же, что в `www/nginx-module-zstd` FreeBSD: модуль tokers с исправленными зацикливанием воркера на пустом буфере flush, обрезкой ответа на 131072 байтах и потерей последнего буфера; своего zstd нет ни в nginx, ни во freenginx, ни в Angie); выключены: остальные модули nginx
+  headers-more и geoip2 (http) — они на всех серверах, и zstd (aZ, 22.11.2026: nginx-zstd-module 0.1.3 форка sysadmin-labs, тот же, что в `www/nginx-module-zstd` FreeBSD: модуль tokers с исправленными зацикливанием воркера на пустом буфере flush, обрезкой ответа на 131072 байтах и потерей последнего буфера; своего zstd нет ни в nginx, ни во freenginx, ни в Angie): только его фильтр, в ядре (без `load_module`, без `zstd_static`), в цепочке фильтров раньше brotli (клиент с `zstd, br` получает zstd, с `br, gzip` — br), с длиной ответа, заявленной zstd, и окном ответа без длины не больше 512 КиБ (на уровне 3 — 1068 КиБ памяти на ответ в 100 КБ вместо 3577), q-значения Accept-Encoding — как у gzip в nginx (`zstd;q=0` — отказ); `Vary: Accept-Encoding` — по `gzip_vary`; выключены: остальные модули nginx
   (в том числе MAIL), NJS, OTEL, Perl, XSLT, GeoIP 1, GSSAPI, VOD и прочие сторонние.
   `--with-compat`: модули, нужные не всем серверам, — отдельные пакеты из того же nginx:
   `nginx-devel-stream` (stream с realip, ssl и ssl_preread, geoip2 для stream) и
   `nginx-devel-image-filter` (image_filter), подключаются через `load_module`. OpenSSL
   базы, PCRE2 из `devel/pcre2`, zlib базы; brotli, libzstd, libmaxminddb и libgd — из az.
-  Проверки в `servers-test.sh`: brotli, zstd и zstd_static, gzip_static, headers-more, geoip2, прокси stream,
+  Проверки в `servers-test.sh`: brotli; zstd (после `zstd -d` — те же байты, Vary, HTTP/1.1, HTTP/2 и HTTP/3, проксированный ответ, большой без длины, `zstd, br` — zstd, `br, gzip` — br, `gzip` — gzip, `zstd;q=0` — не zstd); gzip_static, headers-more, geoip2, прокси stream,
   image_filter. Патчи Debian (aZ, 16.11.2026): `brotli_static` ставит `Vary` только там,
   где есть `.br`, как `gzip_static`; geoip2 не берёт кэшированный результат базы, которую
   закрыл `auto_reload`. Из Gentoo (aZ, 16.11.2026): `HTTP_PROXY ""` в `fastcgi_params`,

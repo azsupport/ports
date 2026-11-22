@@ -466,14 +466,14 @@ Names and origins as the ports, files at the paths of the ports:
   (aZ, 15.11.2026): nginx 1.31.9 (18.11.2026; 1.31.8 before) with four fixes of freenginx nginx has not (gzip, mp4, charset, the captures of subrequests) and headers-more 0.42 (19.11.2026, with its fix of `more_set_input_headers -r`: an absent header of several values was written through an uninitialized pointer), the options the union of those of the servers of aZ.
   Built in: the modules of nginx FILE_AIO, IPV6, THREADS, WWW, HTTP, HTTP_CACHE,
   HTTP_GZIP_STATIC, HTTP_MP4, HTTP_REALIP, HTTP_SECURE_LINK, HTTP_SLICE, HTTP_SSL,
-  HTTP_STATUS (stub_status: its counters are those VTS reads), HTTP_SUB, HTTPV2, HTTPV3, and brotli, headers-more and geoip2 (http), which every server uses, and zstd (aZ, 22.11.2026: nginx-zstd-module 0.1.3 of the fork sysadmin-labs, that of the FreeBSD `www/nginx-module-zstd`: the module of tokers with the spin of a worker on an empty flush buffer, the cut at 131072 bytes and the dropped last buffer fixed; nginx, freenginx and Angie have no zstd of their own); off: the other
+  HTTP_STATUS (stub_status: its counters are those VTS reads), HTTP_SUB, HTTPV2, HTTPV3, and brotli, headers-more and geoip2 (http), which every server uses, and zstd (aZ, 22.11.2026: nginx-zstd-module 0.1.3 of the fork sysadmin-labs, that of the FreeBSD `www/nginx-module-zstd`: the module of tokers with the spin of a worker on an empty flush buffer, the cut at 131072 bytes and the dropped last buffer fixed; nginx, freenginx and Angie have no zstd of their own): its filter alone in the core (no `load_module`, no `zstd_static`), before brotli in the chain of the filters (a client of `zstd, br` gets zstd, of `br, gzip` br), with the length of a response pledged to zstd and the window of one without a length capped at 512 KiB (at level 3: 1068 KiB of memory for a response of 100 KB in place of 3577), and the q-values of Accept-Encoding as nginx takes them for gzip (`zstd;q=0` a refusal); `Vary: Accept-Encoding` by `gzip_vary`; off: the other
   modules of nginx (MAIL among them), NJS, OTEL, Perl, XSLT, GeoIP 1, GSSAPI, VOD and
   every other third-party module. `--with-compat`: the modules only some servers use
   are packages of their own, built from the same nginx: `nginx-devel-stream` (stream
   with realip, ssl and ssl_preread, and geoip2 for stream) and
   `nginx-devel-image-filter` (image_filter), loaded by `load_module`. OpenSSL of the base
   system, PCRE2 of `devel/pcre2`, zlib of the base system; brotli, libzstd, libmaxminddb and
-  libgd of az. Tested by `servers-test.sh`: brotli, zstd and zstd_static, gzip_static, headers-more, geoip2, the
+  libgd of az. Tested by `servers-test.sh`: brotli; zstd (the same bytes after `zstd -d`, Vary, HTTP/1.1, HTTP/2 and HTTP/3, a proxied response, a large one without a length, `zstd, br` zstd, `br, gzip` br, `gzip` gzip, `zstd;q=0` not zstd); gzip_static, headers-more, geoip2, the
   stream proxy, image_filter. Patches from Debian (aZ, 16.11.2026): `brotli_static` sets
   `Vary` only where a `.br` file is, as `gzip_static`; geoip2 takes no cached lookup
   result of a database `auto_reload` has closed. From Gentoo (aZ, 16.11.2026): `HTTP_PROXY ""`

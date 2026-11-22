@@ -1,0 +1,18 @@
+Only the filter of nginx-zstd-module (sysadmin-labs 0.1.3), not its
+ngx_http_zstd_static_module (the .zst files next to the files: not used, aZ,
+22.11.2026: «ngx_http_zstd_static_module не нужен»). Applied by post-patch in
+WRKSRC_zstd, -p0.
+
+--- config.orig
++++ config
+@@ -2,10 +2,6 @@
+ ngx_addon_name=ngx_zstd
+ . $ngx_addon_dir/filter/config
+ 
+-# Make sure the module knows it is a submodule.
+-ngx_addon_name=ngx_zstd
+-. $ngx_addon_dir/static/config
+-
+ # The final name for reporting.
+ ngx_addon_name=ngx_zstd
+ 

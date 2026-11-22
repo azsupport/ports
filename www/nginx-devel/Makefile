@@ -56,7 +56,16 @@
 # of C. Not the module of tokers as Alpine (with its fix of the spin, tokers PR #23),
 # Arch, NixOS and openSUSE build it, nor myguard-labs 0.90.9 of Debian
 # (libnginx-mod-http-zstd) and www/angie-module-zstd: 23495 lines of C, with dictionary
-# transport. Vary: Accept-Encoding by gzip_vary, as gzip and brotli.
+# transport. In the core, not a package of a module (no load_module, no .so in
+# libexec/nginx), its filter alone (files/extra-patch-zstd-config: not
+# ngx_http_zstd_static_module, aZ 22.11.2026 17:57), with the length of a response
+# pledged to zstd and the window of a response without a length capped at 512 KiB
+# (files/extra-patch-zstd-pledged-size: 1068 KiB of memory for a response of 100 KB at
+# level 3 in place of 3577 KiB) and the q-values of Accept-Encoding as nginx takes them
+# for gzip ("zstd;q=0" a refusal; files/extra-patch-zstd-accept-encoding). Before brotli
+# in the chain of the filters: configure takes zstd before brotli (below), so that a
+# client of "zstd, br" gets zstd, and post-configure checks it. Vary: Accept-Encoding by
+# gzip_vary, as gzip and brotli.
 #
 # Libraries: OpenSSL of the base system (HTTP/3 too: the configure of nginx finds the
 # QUIC API of OpenSSL 3.5, SSL_set_quic_tls_cbs, else it builds its compatibility layer),
@@ -278,7 +287,6 @@ MAIL_SSL_CONFIGURE_ON=		--with-mail_ssl_module
 # in ${WRKDIR}/az: pre-configure)
 BROTLI_BUILD_DEPENDS=		${AZ_PREFIX}/lib/libbrotlienc.so:az/az
 BROTLI_RUN_DEPENDS=		${AZ_PREFIX}/lib/libbrotlienc.so:az/az
-BROTLI_CONFIGURE_ON=		--add-module=${WRKSRC_brotli}
 HEADERS_MORE_CONFIGURE_ON=	--add-module=${WRKSRC_headers_more}
 HTTP_GEOIP2_BUILD_DEPENDS=	${AZ_PREFIX}/lib/libmaxminddb.so:az/az
 HTTP_GEOIP2_RUN_DEPENDS=	${AZ_PREFIX}/lib/libmaxminddb.so:az/az
@@ -288,7 +296,7 @@ HTTP_GEOIP2_CONFIGURE_ON=	--add-module=${WRKSRC_geoip2}
 ZSTD_BUILD_DEPENDS=		${AZ_PREFIX}/lib/libzstd.so:az/az
 ZSTD_RUN_DEPENDS=		${AZ_PREFIX}/lib/libzstd.so:az/az
 ZSTD_CONFIGURE_ENV=		ZSTD_INC=${WRKDIR}/az/include ZSTD_LIB=${WRKDIR}/az/lib
-ZSTD_CONFIGURE_ON=		--add-module=${WRKSRC_zstd}
+# the --add-module of zstd and brotli: after bsd.port.pre.mk, in their order
 
 .if defined(NGINX_AZ_MODULE)
 # a package of one dynamic module (the slaves www/nginx-devel-${NGINX_AZ_MODULE}): the
@@ -422,6 +430,18 @@ IGNORE=		requires at least HTTP or MAIL to \
 CFLAGS+=	-Wno-error=cast-function-type-mismatch
 .endif
 
+# zstd before brotli (aZ, 22.11.2026): the config of each puts its filter right after that
+# of gzip in the list of the filters, so the one configure takes first ends up last in the
+# list, and nginx calls the last filter first: zstd first, so that a client of "zstd, br"
+# gets zstd and one of "br, gzip" br (the option helpers would give them in the order of
+# the names of the options, brotli first). post-configure checks the order.
+.if !empty(PORT_OPTIONS:MZSTD) && !defined(NGINX_AZ_MODULE)
+CONFIGURE_ARGS+=	--add-module=${WRKSRC_zstd}
+.endif
+.if !empty(PORT_OPTIONS:MBROTLI) && !defined(NGINX_AZ_MODULE)
+CONFIGURE_ARGS+=	--add-module=${WRKSRC_brotli}
+.endif
+
 # the headers and libraries of az the port needs, and only them
 pre-configure:
 	@${MKDIR} ${WRKDIR}/az/include ${WRKDIR}/az/lib
@@ -461,6 +481,11 @@ post-patch:
 # 16.11.2026), the http module and that of stream
 	@cd ${WRKSRC_geoip2} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-geoip2-reload-cache
 	@${REINPLACE_CMD} 's!%%PREFIX%%!${WRKDIR}/az!g' ${WRKSRC_brotli}/filter/config
+# zstd (aZ, 22.11.2026): the filter alone, the pledged length and the capped window, the
+# q-values of Accept-Encoding
+.for p in config pledged-size accept-encoding
+	@cd ${WRKSRC_zstd} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-zstd-${p}
+.endfor
 .if ${NGINX_AZ_MODULE:U} == stream-lua
 	@cd ${WRKSRC_luastream} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-lua-stream-src_ngx__stream__lua__module.c
 .endif
@@ -469,7 +494,21 @@ post-patch:
 	@cd ${WRKSRC_dav_ext} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-dav-ext-propfind-stat
 .endif
 
+# the filters of zstd and brotli in objs/ngx_modules.c, where nginx calls the last one
+# first: that of zstd after that of brotli, or a client of "zstd, br" would get br
+post-configure:
+.if !empty(PORT_OPTIONS:MZSTD) && !empty(PORT_OPTIONS:MBROTLI) && !defined(NGINX_AZ_MODULE)
+	@z=$$(${GREP} -n '&ngx_http_zstd_filter_module,' ${WRKSRC}/objs/ngx_modules.c | ${CUT} -d: -f1); \
+	b=$$(${GREP} -n '&ngx_http_brotli_filter_module,' ${WRKSRC}/objs/ngx_modules.c | ${CUT} -d: -f1); \
+	if [ -z "$$z" ] || [ -z "$$b" ] || [ "$$z" -le "$$b" ]; then \
+		${ECHO_MSG} "objs/ngx_modules.c: the filter of zstd (line $$z) not after that of brotli (line $$b): a client of zstd, br would get br"; \
+		exit 1; \
+	fi; \
+	${ECHO_MSG} "===>  the filter of zstd (line $$z of objs/ngx_modules.c) after that of brotli ($$b): zstd first"
+.endif
+
 .if defined(NGINX_AZ_MODULE)
+
 do-install:
 	${MKDIR} ${STAGEDIR}${MODULESDIR}
 .for o in ${NGINX_AZ_OBJS}
