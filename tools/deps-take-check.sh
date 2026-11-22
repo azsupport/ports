@@ -6,7 +6,7 @@
 #
 # Usage: sh tools/deps-take-check.sh [<name>...]     (default: every take line)
 # Runs on Linux or FreeBSD from the top of a checkout of this tree (workflow
-# deps-take-check.yml); needs git, curl or fetch, patch and diff.
+# deps-take-check.yml); needs git, curl or fetch, patch, diff and unzip.
 #
 # For each take line: fetches the release file, checks its SHA-256, extracts it and
 # applies the patches as the ports framework does (patch -p0 in the source dir),
@@ -71,7 +71,11 @@ for n in $names; do
     [ "$got" = "$sha" ] || { echo "FAIL $f: SHA-256 $got, not $sha as in deps.conf"; rc=1; continue; }
     x="$work/x-$n"; o="$work/o-$n"
     rm -rf "$x" "$o"; mkdir -p "$x" "$o"
-    tar -xf "$f" -C "$x" && tar -xf "$f" -C "$o" || { echo "FAIL extract $f"; rc=1; continue; }
+    # a zip (fmt): unzip, as GNU tar of the runner reads no zip (bsdtar of the framework does)
+    case "$f" in
+        *.zip) unzip -q "$f" -d "$x" && unzip -q "$f" -d "$o" ;;
+        *) tar -xf "$f" -C "$x" && tar -xf "$f" -C "$o" ;;
+    esac || { echo "FAIL extract $f"; rc=1; continue; }
     src="$x/$srcdir"; orig="$o/$srcdir"
     [ -d "$src" ] || { echo "FAIL no $srcdir in the release (the top: $(ls "$x"))"; rc=1; continue; }
     pdir="$top/az/az/files/deps/$n-$ver"

@@ -16,10 +16,11 @@
 # whether it is that of the take line; the publisher's checksum when there is one
 # (digest.rdf, SHA256SUMS or <file>.sha256 next to an address, the digest GitHub
 # keeps for the asset); a .asc signature, checked with gpg against every distinct
-# file. When the files are not all the same, compares their trees, and compares
-# each tree with the git tag of the upstream line (the generated files, configure
-# and the like, are expected only in the release; a source file that differs from
-# the tag is not).
+# file. When the files are not all the same, compares their trees; compares each
+# tree with the git tag of the upstream line, also when every source gave the same
+# file (a release of one host only: libuv, fontconfig), as the second source (the
+# generated files, configure and the like, are expected only in the release; a
+# source file that differs from the tag is not).
 #
 # The report goes to report.md for tools/runs-report.sh. Exit status 0: every
 # source gave the file of the take line; 1 otherwise; 2 usage.
@@ -97,7 +98,10 @@ for n in "$@"; do
     # the GitHub release of the upstream line: its tag, its asset of the same name
     tag=""; gh_digest=""; assets=""
     if [ -n "$up" ] && git ls-remote --tags "$up" >"$w/tags" 2>/dev/null; then
-        for c in "$ver" "v$ver" "release-$ver" "$srcdir" "$n-$ver" ${pre:+"$pre$ver"}; do
+        # with the prefix of the tag pattern, the version also with dashes or underscores
+        # for its dots (FreeType: VER-2-15-0)
+        for c in "$ver" "v$ver" "release-$ver" "$srcdir" "$n-$ver" ${pre:+"$pre$ver"} \
+            ${pre:+"$pre$(echo "$ver" | tr . -)"} ${pre:+"$pre$(echo "$ver" | tr . _)"}; do
             grep -q "	refs/tags/$c\$" "$w/tags" && { tag="$c"; break; }
         done
     fi
@@ -147,15 +151,30 @@ for n in "$@"; do
     names_of() { echo "$got" | tr ' ' '\n' | awk -F: -v s="$1" '$2 == s { printf " %s", $1 }'; }
 
     # a signature next to an address or among the assets
-    sig=""
-    for d in $dirs; do probe "$w/sig" "$d/$f.asc" && { sig="$d/$f.asc"; break; }; done
+    # (.asc, .sig of GNU and FreeType, .sign of libuv): an OpenPGP signature, not a page
+    # a host gives for any name (the archives of GitLab)
+    sig=""; k=""
+    if command -v gpg >/dev/null 2>&1; then
+        export GNUPGHOME="$w/gnupg"; mkdir -p "$GNUPGHOME"; chmod 700 "$GNUPGHOME"
+    fi
+    keyid() { gpg --list-packets "$1" 2>/dev/null | sed -n 's/.*keyid \([0-9A-Fa-f]*\).*/\1/p' | head -1; }
+    for d in $dirs; do
+        for x in asc sig sign; do
+            probe "$w/sig" "$d/$f.$x" || continue
+            if command -v gpg >/dev/null 2>&1 && [ -z "$(keyid "$w/sig")" ]; then
+                out "- $d/$f.$x: not an OpenPGP signature, ignored"; continue
+            fi
+            sig="$d/$f.$x"; break 2
+        done
+    done
     if [ -z "$sig" ] && [ -f "$w/assets" ]; then
-        a="$(awk -F'\t' -v f="$f.asc" '$1 == f { print $2; exit }' "$w/assets")"
-        [ -n "$a" ] && get "$w/sig" "$a" && sig="$a"
+        for x in asc sig sign; do
+            a="$(awk -F'\t' -v f="$f.$x" '$1 == f { print $2; exit }' "$w/assets")"
+            [ -n "$a" ] && get "$w/sig" "$a" && { sig="$a"; break; }
+        done
     fi
     if [ -n "$sig" ] && command -v gpg >/dev/null 2>&1; then
-        export GNUPGHOME="$w/gnupg"; mkdir -p "$GNUPGHOME"; chmod 700 "$GNUPGHOME"
-        k="$(gpg --list-packets "$w/sig" 2>/dev/null | sed -n 's/.*keyid \([0-9A-Fa-f]*\).*/\1/p' | head -1)"
+        k="$(keyid "$w/sig")"
         [ -z "$k" ] || gpg -q --keyserver hkps://keyserver.ubuntu.com --recv-keys "$k" >/dev/null 2>&1 ||
             gpg -q --keyserver hkps://keys.openpgp.org --recv-keys "$k" >/dev/null 2>&1
         for m in $distinct; do
@@ -169,16 +188,17 @@ for n in "$@"; do
     fi
     out ""
 
-    if [ "$nd" -le 1 ]; then
-        out "every source gave the same file"
-        out ""
-        continue
-    fi
+    [ "$nd" -gt 1 ] || { out "every source gave the same file"; out ""; }
+    [ "$nd" -gt 0 ] || continue
 
-    # the trees of the distinct files, against each other and against the git tag
+    # the trees of the distinct files, against each other and against the git tag (a
+    # zip as fmt's: unzip; GNU tar of the runner reads no zip)
     for m in $distinct; do
         mkdir -p "$w/x-$m"
-        tar -xf "$w/$m" -C "$w/x-$m" 2>"$w/x-$m.err" || out "- $m: extract failed: $(head -c 200 "$w/x-$m.err")"
+        case "$f" in
+            *.zip) unzip -q -o "$w/$m" -d "$w/x-$m" >"$w/x-$m.err" 2>&1 ;;
+            *) tar -xf "$w/$m" -C "$w/x-$m" 2>"$w/x-$m.err" ;;
+        esac || out "- $m: extract failed: $(head -c 200 "$w/x-$m.err")"
     done
     first="$(echo "$distinct" | head -1)"
     for m in $(echo "$distinct" | sed 1d); do
@@ -188,7 +208,8 @@ for n in "$@"; do
         if [ -s "$w/d-$m" ]; then out '```'; head -60 "$w/d-$m" | tee -a "$rep"; out '```'; else
             out "the same files and contents: only the archive differs"
             for x in "$w/$first" "$w/$m"; do
-                out "- $(basename "$x"): $(tar -tvf "$x" 2>/dev/null | head -1 | cut -c1-100)"
+                case "$f" in *.zip) l="$(unzip -l "$x" 2>/dev/null | sed -n 4p)" ;; *) l="$(tar -tvf "$x" 2>/dev/null | head -1)" ;; esac
+                out "- $(basename "$x"): $(echo "$l" | cut -c1-100)"
             done
         fi
         out ""
