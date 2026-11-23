@@ -1,4 +1,4 @@
-# azsupport/ports: the official Keywords/sample.ucl (freebsd-ports 52d456130e) with one
+# azsupport/ports: the official Keywords/sample.ucl (freebsd-ports c833fb1acd) with one
 # change: the deinstall of an upgrade keeps quiet about a changed configuration file. pkg
 # gives its Lua scripts the global pkg_upgrade (libpkg/lua_scripts.c:
 # lua_setglobal(L, "pkg_upgrade")); the official file tests pkg.pkg_upgrade, a field the

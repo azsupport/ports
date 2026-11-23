@@ -17,8 +17,8 @@ servers (amd64), so that nothing is built on the servers.
 
 - **An overlay**: only our ports, on top of the official tree
   [freebsd-ports](https://github.com/freebsd/freebsd-ports) at a pinned commit,
-  [`52d456130ecf`](https://github.com/freebsd/freebsd-ports/tree/52d456130ecf6d8e22aec663f84a7801b6fac3f0)
-  (main of 19.11.2026; `ports_commit` in [`tools/build.sh`](tools/build.sh), moved to the
+  [`c833fb1acd60`](https://github.com/freebsd/freebsd-ports/tree/c833fb1acd60997aa3fe6fb9b0234bbc9ba90102)
+  (main of 23.11.2026; `ports_commit` in [`tools/build.sh`](tools/build.sh), moved to the
   latest main before a build: the latest versions of the ports, aZ). The ports
   framework takes it as `OVERLAYS`: `bsd.port.mk` includes
   [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk), takes `Mk/Uses/<name>.mk` of the overlay
