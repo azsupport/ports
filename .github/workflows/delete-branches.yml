@@ -8,7 +8,8 @@
 # them any more, and in the 10 GB of the caches of the repository they pushed out
 # those of main (caches.yml lists them).
 # So do its draft releases wip-*-<branch>-* of the packages build.yml saved as they were
-# built (tools/runs-save.sh, 17.11.2026).
+# built (tools/runs-save.sh, 17.11.2026). A branch that is gone already: only its drafts
+# (23.11.2026: those a run before could not list stayed).
 name: Delete merged branches
 
 on:
@@ -42,12 +43,54 @@ jobs:
         run: |
           set -u
           rc=0
+          # the drafts of a branch: wip-<level>-<branch>-<run>-<attempt>, the packages
+          # build.yml saved as they were built (tools/runs-save.sh), which only a next run
+          # of the branch, or one with drafts=<branch>, would have taken and deleted. Every
+          # page of the releases (at most 100 a page; the snapshots of the publishes are
+          # releases too), each page tried 5 times 20 s apart: the API answered pages with
+          # HTTP 504 and cancelled streams, and the drafts of a branch stayed (23.11.2026);
+          # the branch by its name exactly
+          drop_drafts() {
+            bn="$(printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '-')"
+            : > /tmp/releases-all
+            p=1
+            while [ "$p" -le 30 ]; do
+              n=1
+              until gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100&page=$p" --jq '.[] | "\(.draft) \(.id) \(.tag_name)"' > /tmp/releases-page; do
+                if [ "$n" -ge 5 ]; then
+                  echo "::warning title=$1::the releases (page $p) not listed after 5 tries: its drafts, if any, kept"
+                  return 1
+                fi
+                n=$((n + 1)); sleep 20
+              done
+              [ -s /tmp/releases-page ] || break
+              cat /tmp/releases-page >> /tmp/releases-all
+              p=$((p + 1))
+            done
+            awk -v b="$bn" '$1 == "true" && match($3, /^wip-x86-64-v[0-9]+-/) {
+                r = substr($3, RLENGTH + 1)
+                if (match(r, /-[0-9]+-[0-9]+$/) && substr(r, 1, RSTART - 1) == b) print $2, $3
+              }' /tmp/releases-all > /tmp/releases-drafts
+            if [ ! -s /tmp/releases-drafts ]; then
+              echo "$1: no draft"
+              return 0
+            fi
+            while read -r id tag; do
+              if sh tools/release-drop.sh "$id" "$tag" < /dev/null; then
+                echo "$1: its draft $tag deleted" | tee -a "$GITHUB_STEP_SUMMARY"
+              else
+                echo "::warning title=$1::its draft $tag not deleted"
+              fi
+            done < /tmp/releases-drafts
+          }
           for b in $BRANCHES; do
             case "$b" in
               main|HEAD|-*) echo "::error title=$b::never deleted"; rc=1; continue ;;
             esac
+            # a branch deleted before: only its drafts, which stayed
             if ! git ls-remote --exit-code --heads origin "refs/heads/$b" > /dev/null; then
-              echo "$b: no such branch"
+              echo "$b: no such branch; its drafts"
+              drop_drafts "$b" || :
               continue
             fi
             git fetch -q origin "+refs/heads/$b:refs/remotes/origin/$b" "+refs/heads/main:refs/remotes/origin/main"
@@ -69,30 +112,7 @@ jobs:
                   echo "::warning title=$b::its cache $key not deleted"
                 fi
               done
-              # its drafts of the packages saved as they were built (tools/runs-save.sh of
-              # build.yml: wip-<level>-<branch>-<run>-<attempt>), which only a next run of
-              # the branch would have taken and deleted
-              # every page of the releases (the API gives at most 100 a page; the snapshots
-              # of the publishes are releases too); the branch by its name exactly
-              bn="$(printf '%s' "$b" | tr -c 'A-Za-z0-9._-' '-')"
-              p=1
-              while [ "$p" -le 30 ]; do
-                gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100&page=$p" --jq '.[] | "\(.draft) \(.id) \(.tag_name)"' > /tmp/releases-page || break
-                [ -s /tmp/releases-page ] || break
-                cat /tmp/releases-page
-                p=$((p + 1))
-              done |
-              awk -v b="$bn" '$1 == "true" && match($3, /^wip-x86-64-v[0-9]+-/) {
-                  r = substr($3, RLENGTH + 1)
-                  if (match(r, /-[0-9]+-[0-9]+$/) && substr(r, 1, RSTART - 1) == b) print $2, $3
-                }' |
-              while read -r id tag; do
-                if sh tools/release-drop.sh "$id" "$tag"; then
-                  echo "$b: its draft $tag deleted" | tee -a "$GITHUB_STEP_SUMMARY"
-                else
-                  echo "::warning title=$b::its draft $tag not deleted"
-                fi
-              done
+              drop_drafts "$b" || :
             else
               echo "::error title=$b::not deleted"
               rc=1
