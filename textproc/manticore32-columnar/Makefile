@@ -1,6 +1,6 @@
 # textproc/manticore32-columnar of azsupport/ports (aZ, 16.11.2026: Manticore Search 14
 # and the current line with embeddings; 20.11.2026: the line 32 in the place of 31): the
-# libraries of Manticore Columnar for Manticore 32.1.6 (its submodule mcl: columnar
+# libraries of Manticore Columnar for Manticore 32.1.10 (its submodule mcl: columnar
 # 12f86b42 of 16.11.2026, 14.5.8 and two commits; after b5ffd362 of the line 31 only
 # fixes of the accessors: the rows of a chunk in a columnar scan, a slowdown), searchd of
 # textproc/manticore32 loads them. A slave of textproc/manticore14-columnar (its head says

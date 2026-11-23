@@ -87,7 +87,7 @@ Names and origins as the ports, files at the paths of the ports:
 | `apache24-suexec` | `www/apache24-suexec` | suexec of our Apache 2.4 apart from it, for the one server that runs the CGI and FastCGI programs of its sites as their users (aZ, 19.11.2026): `libexec/apache24/mod_suexec.so` and `sbin/suexec` (setuid root, only the user `www` may run it) of the same Apache built with SUEXEC, on the httpd of `apache24`; the docroot `/var/www`, the rest the defaults of the ports |
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached without TLS, SASL and DTrace, libevent of az; the variant with TLS; one of the two |
 | `gearmand`, `gearmand-openssl`, `libgearman` | `devel/gearmand`, `devel/gearmand-openssl`, `devel/libgearman` | Gearman 2.2.0 with the fixes of master after it: the job server gearmand (the persistent queue in SQLite of az; libevent of az), its variant with TLS, one of the two; libgearman (the client library, with TLS) and the tools gearman and gearadmin, which the servers and the modules `phpXY-gearman` take |
-| `manticore14`, `manticore14-columnar`, `manticore32`, `manticore32-columnar` | `textproc/manticore14`, `textproc/manticore14-columnar`, `textproc/manticore32`, `textproc/manticore32-columnar` | Manticore Search 14.7.6 (the last of the line 14) and 32.1.6 (the current line), one of the two: searchd with Galera (replication), indexer and the tools, an rc.d script with profiles; ICU of az; their columnar, secondary and vector (KNN, embeddings) libraries |
+| `manticore14`, `manticore14-columnar`, `manticore32`, `manticore32-columnar` | `textproc/manticore14`, `textproc/manticore14-columnar`, `textproc/manticore32`, `textproc/manticore32-columnar` | Manticore Search 14.7.6 (the last of the line 14) and 32.1.10 (the current line), one of the two: searchd with Galera (replication), indexer and the tools, an rc.d script with profiles; ICU of az; their columnar, secondary and vector (KNN, embeddings) libraries |
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11.20 (ahead of the official 10.11.19): of the engines of the options InnoDB only, no GSSAPI; the socket `/tmp/mysql.sock` compiled in and in `my.cnf` |
 | `postgresql18-server`, `postgresql18-client`, `postgresql18-contrib` and their `-openssl` | `databases/postgresql18-server`, `-server-openssl`, `-client`, `-client-openssl`, `-contrib`, `-contrib-openssl` | PostgreSQL 18.7 in two chains, one of each component: without OpenSSL, and `-openssl` with that of the base system (pgcrypto and sslinfo only in `contrib-openssl`); the JIT of LLVM (`devel/llvm19`), ICU, LZ4, ZSTD, XML, `-O3 -funroll-loops`; no PAM, LDAP, GSSAPI, pl*, NLS, DTrace; the time zones of the base system; ICU, lz4, zstd, libxml2 and libxslt of az, libedit of the base system for psql |
 | `llvm19` | `devel/llvm19` | LLVM 19.1.7 for the JIT of PostgreSQL: the backend of X86 and clang only (no lld, lldb, MLIR, OpenMP, Polly, Flang, compiler-rt, extra tools), libLLVM whole with its optimization, Release; no zstd |
@@ -341,7 +341,7 @@ Names and origins as the ports, files at the paths of the ports:
   `gearmand_queue`; TLS by `gearmand_flags`).
 - **`textproc/manticore14`** and **`textproc/manticore32`** (aZ, 16.11.2026; the line 32 in the
   place of 31 since 20.11.2026): Manticore Search 14.7.6 of 29.11.2025 (the last of the line 14)
-  and 32.1.6 of 20.11.2026 (upstream fixes no older line), one of the two;
+  and 32.1.10 of 23.11.2026 (upstream fixes no older line), one of the two;
   the FreeBSD tree has no port of it (`textproc/sphinxsearch` only). searchd, indexer,
   indextool, spelldump, wordbreaker, index_converter; Galera (replication: `CREATE
   CLUSTER`), its module in `share/manticore/modules` (Boost 1.89+ fixed); ICU of az; OpenSSL
@@ -360,7 +360,7 @@ Names and origins as the ports, files at the paths of the ports:
   searchd loads from `share/manticore/modules` — columnar storage, secondary indexes, KNN
   and the auto embeddings (Rust: models of HuggingFace by candle, OpenAI, Voyage and Jina
   over HTTPS with rustls; Oniguruma of az) — and their `_avx2` builds, as upstream builds
-  them; Manticore Columnar 9.0.0 for 14.7.6, 14.5.8 and two commits (`12f86b42`) for 32.1.6.
+  them; Manticore Columnar 9.0.0 for 14.7.6, 14.5.8 and two commits (`12f86b42`) for 32.1.10.
 - **`databases/mariadb1011-server`** and **`databases/mariadb1011-client`**: MariaDB 10.11
   with the options of aZ (of the engines of the options InnoDB only; no GSSAPI, wsrep,
   RocksDB, Spider, Mroonga, S3, CONNECT with ODBC and XML, HashiCorp Vault, AWS key

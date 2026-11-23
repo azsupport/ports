@@ -87,7 +87,7 @@
 | `apache24-suexec` | `www/apache24-suexec` | suexec нашего Apache 2.4 отдельным пакетом, для одного сервера, где CGI и FastCGI сайтов работают от их пользователей (aZ, 19.11.2026): `libexec/apache24/mod_suexec.so` и `sbin/suexec` (setuid root, запускать может только `www`) того же Apache, собранного с SUEXEC, к httpd пакета `apache24`; каталог `/var/www`, остальное — умолчания портов |
 | `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached без TLS, SASL и DTrace, libevent из az; вариант с TLS; ставится один из двух |
 | `gearmand`, `gearmand-openssl`, `libgearman` | `devel/gearmand`, `devel/gearmand-openssl`, `devel/libgearman` | Gearman 2.2.0 с исправлениями master после него: сервер очереди задач gearmand (постоянная очередь — в SQLite из az; libevent из az), его вариант с TLS, ставится один из двух; libgearman (клиентская библиотека, с TLS) и утилиты gearman и gearadmin — их берут оба сервера и модули `phpXY-gearman` |
-| `manticore14`, `manticore14-columnar`, `manticore32`, `manticore32-columnar` | `textproc/manticore14`, `textproc/manticore14-columnar`, `textproc/manticore32`, `textproc/manticore32-columnar` | Manticore Search 14.7.6 (последний выпуск линии 14) и 32.1.6 (текущая линия), ставится один из двух: searchd с Galera (репликация), indexer и утилиты, скрипт rc.d с профилями; ICU из az; их библиотеки columnar, secondary и векторного поиска (KNN, embeddings) |
+| `manticore14`, `manticore14-columnar`, `manticore32`, `manticore32-columnar` | `textproc/manticore14`, `textproc/manticore14-columnar`, `textproc/manticore32`, `textproc/manticore32-columnar` | Manticore Search 14.7.6 (последний выпуск линии 14) и 32.1.10 (текущая линия), ставится один из двух: searchd с Galera (репликация), indexer и утилиты, скрипт rc.d с профилями; ICU из az; их библиотеки columnar, secondary и векторного поиска (KNN, embeddings) |
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11.20 (новее официальной 10.11.19): из движков опций только InnoDB, без GSSAPI; сокет `/tmp/mysql.sock` вкомпилирован и прописан в `my.cnf` |
 | `postgresql18-server`, `postgresql18-client`, `postgresql18-contrib` и их `-openssl` | `databases/postgresql18-server`, `-server-openssl`, `-client`, `-client-openssl`, `-contrib`, `-contrib-openssl` | PostgreSQL 18.7 двумя цепочками, ставится одна каждого компонента: без OpenSSL и `-openssl` с OpenSSL базовой системы (pgcrypto и sslinfo — только в `contrib-openssl`); JIT на LLVM (`devel/llvm19`), ICU, LZ4, ZSTD, XML, `-O3 -funroll-loops`; без PAM, LDAP, GSSAPI, pl*, NLS, DTrace; часовые пояса базовой системы; ICU, lz4, zstd, libxml2 и libxslt из az, libedit базовой системы для psql |
 | `llvm19` | `devel/llvm19` | LLVM 19.1.7 для JIT PostgreSQL: только бэкенд X86 и clang (без lld, lldb, MLIR, OpenMP, Polly, Flang, compiler-rt, доп. утилит), libLLVM целиком со всей оптимизацией, Release; без zstd |
@@ -331,8 +331,8 @@
   двух. Скрипт rc.d: на 127.0.0.1:4730, очередь в `/var/db/gearmand/gearmand.sqlite`
   (`gearmand_listen`, `gearmand_port`, `gearmand_queue`; TLS — через `gearmand_flags`).
 - **`textproc/manticore14`** и **`textproc/manticore32`** (aZ, 16.11.2026; линия 32 вместо 31 с
-  20.11.2026): Manticore Search 14.7.6 от 29.11.2025 (последний выпуск линии 14) и 32.1.6 от
-  20.11.2026 (старые линии апстрим не исправляет), ставится один из двух; в дереве FreeBSD порта нет (только `textproc/sphinxsearch`). searchd, indexer,
+  20.11.2026): Manticore Search 14.7.6 от 29.11.2025 (последний выпуск линии 14) и 32.1.10 от
+  23.11.2026 (старые линии апстрим не исправляет), ставится один из двух; в дереве FreeBSD порта нет (только `textproc/sphinxsearch`). searchd, indexer,
   indextool, spelldump, wordbreaker, index_converter; Galera (репликация: `CREATE CLUSTER`),
   её модуль в `share/manticore/modules` (исправлена под Boost 1.89+); ICU из az; OpenSSL базы
   (разделяемый, а не статический, как у апстрима); Boost.Context и Boost.Filesystem
@@ -350,7 +350,7 @@
   searchd загружает из `share/manticore/modules`, — колоночное хранение, вторичные индексы,
   KNN и автоматические embeddings (Rust: модели HuggingFace через candle, OpenAI, Voyage и
   Jina по HTTPS с rustls; Oniguruma из az), — и их сборки `_avx2`, как у апстрима; Manticore
-  Columnar 9.0.0 для 14.7.6, 14.5.8 и два коммита (`12f86b42`) для 32.1.6.
+  Columnar 9.0.0 для 14.7.6, 14.5.8 и два коммита (`12f86b42`) для 32.1.10.
 - **`databases/mariadb1011-server`** и **`databases/mariadb1011-client`**: MariaDB 10.11 с
   опциями aZ (из движков опций только InnoDB; без GSSAPI, wsrep, RocksDB, Spider,
   Mroonga, S3, CONNECT с ODBC и XML, HashiCorp Vault, AWS key management), сокет
