@@ -52,6 +52,11 @@ while [ "$(date +%s)" -lt "$end" ]; do
         echo "- the reporter since: $started UTC; now: $(date -u '+%H:%M') UTC"
         # the disk of the VM grows on that of the runner
         echo "- disk: runner $(df -h / 2>/dev/null | awk 'NR == 2 { print $4 " free of " $2 }')$( [ -z "$vm" ] || echo "; VM $(timeout 60 ssh $o "$vm" "df -h / | tail -n 1" < /dev/null 2>/dev/null | awk '{ print $4 " free of " $2 }')")"
+        # the memory of the runner (16 GB, 12 GB of them the VM) and the size of QEMU in
+        # it: the VM stopped answering ssh in the tests of Dashboards 2.19 twice
+        # (45085390886, 45130779702, 23.11.2026) with its own memory not short (Inact
+        # 8 GB, Free 921M), so whether the runner is short of memory then
+        echo "- memory of the runner: $(free -m 2>/dev/null | awk '/^Mem:/ { printf "%sM used, %sM available of %sM", $3, $7, $2 } /^Swap:/ { printf "; swap %sM used of %sM", $3, $2 }')$(ps -C qemu-system-x86_64 -o rss= 2>/dev/null | awk '{ s += $1 } END { if (s) printf "; QEMU %dM", s / 1024 }')"
         # the memory of the VM (top: the lines Mem and Swap), and the tests of azsupport
         # (results/tests, tools/test-programs.sh): the files written last, their names
         # and times only, so that a test that stops the VM is named (run 44926907394: the
