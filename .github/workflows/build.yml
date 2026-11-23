@@ -58,9 +58,11 @@ on:
         default: '4'
       # the memory of the VM in MB: the runner has 16 GB and no swap; with 12 GB for the VM,
       # QEMU holds 12.3 GB from the start (the page cache of the VM fills its memory) and
-      # the runner keeps 2.2 GB (run 45150597203, 23.11.2026); the VM stopped answering
-      # ssh in the tests of OpenSearch Dashboards 2.19 in 2 of 4 runs that day. Less for
-      # a run that builds nothing heavy (a publish of packages already built)
+      # the runner keeps 2.2 GB (run 45150597203, 23.11.2026). Less for a run that builds
+      # nothing heavy (a publish of packages already built): with 10 GB the runner keeps
+      # 4.2-4.5 GB (runs 45158786947 and 45171925669). The VM that stopped answering ssh at
+      # the end of the tests in three runs of 23.11.2026 was not short of memory, with
+      # 10 GB either
       vm_mem:
         description: 'Memory of the VM in MB (12288; 10240 leaves the runner 2 GB more, for a run that builds nothing heavy)'
         required: false
