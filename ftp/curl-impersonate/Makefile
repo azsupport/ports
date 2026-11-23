@@ -26,7 +26,10 @@
 # - the fixes these lack (files/bundled-*.patch): nghttp2 CVE-2026-27135 (upstream
 #   943b64c and 5c7df8f of 1.68.1, as RHEL 10 and Debian 13 carry them), ngtcp2
 #   CVE-2026-40170 (upstream 708a764 of 1.22.1: qlog, which curl writes with QLOGDIR),
-#   and in curl the conncache fix of ftp/curl (upstream ef6b17c, after 8.23.0);
+#   and in curl the conncache fix of ftp/curl (upstream ef6b17c, after 8.23.0) and the
+#   end of the ALPN selection without the HTTPS record (upstream 228bd15, after 8.23.0,
+#   as curl-impersonate e600127 of 22.11.2026 carries it: a TLS failure kept its error
+#   instead of a timeout behind the DNS query; aZ 23.11.2026);
 # - the program on the shared library (upstream links the static one into it as well):
 #   one copy of the code; no static libraries (the official port installs
 #   lib/libcurl-impersonate.a and lib/curl-impersonate/*.a): ftp/py-curl-cffi links
