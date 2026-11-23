@@ -205,19 +205,27 @@ jobs:
           # pages <path> <jq> <file>: every page of a list of the API into the file (it gives
           # at most 100 a page: page 1 alone took 100 of the 323 packages of a draft and 100
           # of 271 of another, and runs 44188852322 and 44205092140 built the rest again,
-          # 17-18.11.2026); the jq of a line has the field to stop on first
+          # 17-18.11.2026); the jq of a line has the field to stop on first. Each page is
+          # tried 5 times 20 s apart: the list of the releases answered HTTP 504 and a
+          # cancelled stream, and run 45182012408 (23.11.2026) took none of the drafts of
+          # x86-64-v2 and built again what they had
           pages() {
             : > "$3"
             p=1
             while [ "$p" -le 30 ]; do
-              gh api "${1}per_page=100&page=$p" --jq "$2" > "$AZ_RUNS_STATE/page" || return 1
+              t=1
+              until gh api "${1}per_page=100&page=$p" --jq "$2" > "$AZ_RUNS_STATE/page"; do
+                [ "$t" -ge 5 ] && return 1
+                echo "page $p of ${1%%\?*}: try $t failed, again in 20 s"
+                t=$((t + 1)); sleep 20
+              done
               [ -s "$AZ_RUNS_STATE/page" ] || return 0
               cat "$AZ_RUNS_STATE/page" >> "$3"
               p=$((p + 1))
             done
           }
           pages "repos/$GITHUB_REPOSITORY/releases?" '.[] | "\(.draft) \(.id) \(.tag_name)"' "$AZ_RUNS_STATE/releases" ||
-            { echo "no list of the releases"; exit 0; }
+            { echo "::warning title=saved packages::no list of the releases after 5 tries: no draft taken, what they have is built again"; exit 0; }
           awk -v pres="$pres" 'BEGIN { n = split(pres, P, " ") }
             $1 == "true" { for (i = 1; i <= n; i++) if (index($3, P[i]) == 1) { print $2, $3; next } }' \
             "$AZ_RUNS_STATE/releases" > "$AZ_RUNS_STATE/wip-drafts"
