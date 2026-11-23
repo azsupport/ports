@@ -45,12 +45,26 @@ sha256f() {
     if command -v sha256sum > /dev/null 2>&1; then sha256sum < "$1" | cut -c1-64; else sha256 -q "$1"; fi
 }
 
+# gh api with 5 tries, 20 s apart: an answer of GitHub such as "HTTP 504, we couldn't
+# respond to your request in time" (run 45130779702 attempt 2, 23.11.2026: the list of
+# the releases, so the publish stopped after the build and every check had passed)
+# passes; a request that keeps failing still fails
+gh_api() {
+    _i=1
+    while :; do
+        gh api "$@" && return 0
+        [ "$_i" -lt 5 ] || return 1
+        say "gh api $1: try $_i failed, again in 20 s" >&2
+        _i=$((_i + 1)); sleep 20
+    done
+}
+
 # the snapshots of the release $1, newest first (their tags hold the time)
 snapshots() {
     : > "$w/snaps"
     _p=1
     while [ "$_p" -le 50 ]; do
-        gh api "repos/$repo/releases?per_page=100&page=$_p" --jq '.[] | "\(.draft) \(.tag_name)"' > "$w/page" || return 1
+        gh_api "repos/$repo/releases?per_page=100&page=$_p" --jq '.[] | "\(.draft) \(.tag_name)"' > "$w/page" || return 1
         [ -s "$w/page" ] || break
         while read -r _d _t; do
             [ "$_d" = false ] || continue
@@ -66,7 +80,7 @@ snapshots() {
 # the files of the release with the tag $1, "<name> <digest> <size>" a line (digest
 # "null" when GitHub gives none)
 assets() {
-    gh api "repos/$repo/releases/tags/$1" --jq '.assets[] | select(.state == "uploaded") | "\(.name) \(.digest) \(.size)"'
+    gh_api "repos/$repo/releases/tags/$1" --jq '.assets[] | select(.state == "uploaded") | "\(.name) \(.digest) \(.size)"'
 }
 
 # the files of the directory $1, "<name> sha256:<hex> <size>" a line
@@ -149,11 +163,11 @@ before() {
             return 0
         fi
     fi
-    _t="$(gh api "repos/$repo/releases/tags/$1" --jq '.assets[] | select(.name == "packagesite.pkg") | .updated_at')"
+    _t="$(gh_api "repos/$repo/releases/tags/$1" --jq '.assets[] | select(.name == "packagesite.pkg") | .updated_at')"
     _s="$(printf '%s\n' "$_t" | sed -n 's/^\([0-9]\{4\}\)-\([0-9][0-9]\)-\([0-9][0-9]\)T\([0-9][0-9]\):\([0-9][0-9]\).*/\1\2\3-\4\5/p')"
     [ -n "$_s" ] || { say "no time of the catalog of $1 ($_t)"; return 1; }
     mkdir -p "$w/old"
-    gh api "repos/$repo/releases/tags/$1" --jq '.assets[] | select(.state == "uploaded") | "\(.name) \(.browser_download_url)"' > "$w/urls" ||
+    gh_api "repos/$repo/releases/tags/$1" --jq '.assets[] | select(.state == "uploaded") | "\(.name) \(.browser_download_url)"' > "$w/urls" ||
         { say "no list of the files of $1"; return 1; }
     say "$1 as it is ($(wc -l < "$w/urls" | tr -d ' ') files, its catalog of $_t) into $1-$_s"
     while read -r _n _u; do
