@@ -56,6 +56,15 @@ on:
         description: 'Ports built at once (AZ_JOBS of tools/build.sh, in waves); 1: one after another'
         required: false
         default: '4'
+      # the memory of the VM in MB: the runner has 16 GB and no swap; with 12 GB for the VM,
+      # QEMU holds 12.3 GB from the start (the page cache of the VM fills its memory) and
+      # the runner keeps 2.2 GB (run 45150597203, 23.11.2026); the VM stopped answering
+      # ssh in the tests of OpenSearch Dashboards 2.19 in 2 of 4 runs that day. Less for
+      # a run that builds nothing heavy (a publish of packages already built)
+      vm_mem:
+        description: 'Memory of the VM in MB (12288; 10240 leaves the runner 2 GB more, for a run that builds nothing heavy)'
+        required: false
+        default: '12288'
       # AZ_CONFIGURE_CHECK of tools/build.sh: one more configure of each PHP port built
       configure_check:
         description: 'The configure check: each PHP port built configured once more, permissive, and compared (results/configure-check.txt); with force: every PHP port'
@@ -442,9 +451,9 @@ jobs:
           AZ_PKG_KEY: ${{ steps.key.outputs.b64 }}
         with:
           release: ${{ inputs.release }}
-          # the runner has 16 GB: 12 GB for the VM (up to 4 builds at once, each with
-          # make -j of the 4 vCPUs), about 4 GB left to the host
-          mem: 12288
+          # the runner has 16 GB and no swap: 12 GB for the VM by default (up to 4 builds at
+          # once, each with make -j of the 4 vCPUs), the input vm_mem for less
+          mem: ${{ inputs.vm_mem || '12288' }}
           envs: 'AZ_CPUTYPE AZ_PORTS AZ_FORCE AZ_JOBS AZ_CONFIGURE_CHECK AZ_PLAN AZ_PHP_CHECKS AZ_PKG_KEY AZ_TIME_SOFT AZ_TIME_HARD'
           # the package mirror: every address of its names tried, the first that answers in
           # /etc/hosts (tools/pkg-mirror.sh; aZ, 18.11.2026 23:23); 10 minutes a try of pkg,
@@ -1050,7 +1059,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} configure_check=${{ inputs.configure_check }} plan=${{ inputs.plan }} fork_ref=${{ inputs.fork_ref }} publish=${{ inputs.publish }} publish_only=${{ inputs.publish_only }} drafts=${{ inputs.drafts }}
+          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} configure_check=${{ inputs.configure_check }} plan=${{ inputs.plan }} fork_ref=${{ inputs.fork_ref }} publish=${{ inputs.publish }} publish_only=${{ inputs.publish_only }} drafts=${{ inputs.drafts }} vm_mem=${{ inputs.vm_mem }}
           RUNS_STEPS: build=${{ steps.build.outcome }} outcome=${{ steps.outcome.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
           PART: ${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"
