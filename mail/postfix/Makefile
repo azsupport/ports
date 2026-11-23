@@ -1,11 +1,10 @@
 # mail/postfix: the Postfix of azsupport/ports in the place of the official
 # mail/postfix (aZ, 15.11.2026) and, by its slave port mail/postfix-mysql, of its
 # flavor mysql (the MySQL maps). The official port with aZ's options (those of his
-# servers): blocklistd (libblocklist of the base system; aZ 23.11.2026: the worlds
-# with it again), EAI (SMTPUTF8), PCRE2, TLS and TLSRPT; no Berkeley DB of the ports,
-# CDB, LDAP, LMDB (no lmdb: tables on his servers), MongoDB, NIS,
+# servers): EAI (SMTPUTF8), PCRE2, TLS and TLSRPT; no Berkeley DB of the ports,
+# blocklistd, CDB, LDAP, LMDB (no lmdb: tables on his servers), MongoDB, NIS,
 # PostgreSQL, Cyrus SASL (Dovecot SASL is always built in), SQLite, the test
-# programs and the docs (the official default has CDB and LMDB too).
+# programs and the docs (the official default has blocklistd, CDB and LMDB too).
 # The libraries of our ports, as shared ones (aZ, 10.11.2026: our ports link each
 # other's shared libraries): ICU of az for EAI, with the run path /usr/local/az/lib
 # (its headers alone in a directory of the work), PCRE2 of devel/pcre2, libtlsrpt
@@ -64,7 +63,7 @@ GROUPS=		mail maildrop postfix
 
 OPTIONS_DEFINE=		BDB BLOCKLISTD CDB DOCS EAI INST_BASE LDAP LMDB MONGO \
 			MYSQL NIS PCRE2 PGSQL SASL SQLITE TEST TLS TLSRPT
-OPTIONS_DEFAULT=	BLOCKLISTD EAI LMDB0 PCRE2 TLS TLSRPT
+OPTIONS_DEFAULT=	EAI LMDB0 PCRE2 TLS TLSRPT
 OPTIONS_RADIO=		LMDBG1 RG1
 OPTIONS_RADIO_LMDBG1=	LMDB0 LMDB1
 OPTIONS_RADIO_RG1=	SASLKMIT SASLKRB5
