@@ -2,8 +2,8 @@
 # tree (aZ, 11.11.2026: so that a server with Elasticsearch gets nothing of a
 # desktop: the official package pulls about 50 packages of one, X11, fonts,
 # ALSA, HarfBuzz with GLib and Python, giflib, PNG, javavmwrapper; 12.11.2026:
-# the JDK of textproc/elasticsearch6 and of OpenSearch 2.17 and 2.19 now and of
-# OpenSearch 3.x later, one JDK for them all: Elasticsearch 6 and OpenSearch 2.x
+# the JDK of textproc/elasticsearch6, and of OpenSearch 2.17 and 2.19 until they
+# left this tree on 23.11.2026, one JDK for them all: Elasticsearch 6 and OpenSearch 2.x
 # do not run on JDK 24 and later, where the Security Manager is disabled for
 # good, and 3.x needs 21 at least). The package name, version and directory
 # (/usr/local/openjdk21) of the official port. Taken from the official port of

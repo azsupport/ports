@@ -1,5 +1,0 @@
-Manticore Columnar Library 9.0.0, the one of Manticore Search 14: the modules that
-searchd of manticore14 loads from share/manticore/modules. Columnar storage,
-secondary indexes, vector search (KNN) and auto embeddings (models of HuggingFace, or
-the APIs of OpenAI, Voyage and Jina), each plain and for CPUs with AVX2; built for
-azsupport/ports.
