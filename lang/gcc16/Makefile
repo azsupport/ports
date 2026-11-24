@@ -139,6 +139,21 @@ INSTALL_TARGET=	install-strip
 PIE_UNSAFE=	yes
 SUB_FILES=	pkg-message
 SUB_LIST+=	TARGLIB=${TARGLIB}
+# ccache between the runs of build.yml (aZ, 24.11.2026 09:48: a build stopped at the
+# time of a run goes on in the next one; 24.11.2026 it was stopped after 246 minutes):
+# stage 1 (the base clang) through the wrappers of ccache (WITH_CCACHE_BUILD of the
+# framework), the compilers of the stages after it (xgcc and xg++, built again in each
+# run: their content in the hash, CCACHE_COMPILERCHECK) by STAGE_CC_WRAPPER of the
+# Makefile of GCC; the cache in AZ_PORT_CACHE_DIR (portcache/lang_gcc16,
+# tools/build.sh), ccache of the official packages
+AZ_PORT_CACHE=	ccache
+BUILD_DEPENDS+=	ccache:devel/ccache
+.  if !empty(AZ_PORT_CACHE_DIR)
+WITH_CCACHE_BUILD=	yes
+CCACHE_DIR=	${AZ_PORT_CACHE_DIR}/ccache
+MAKE_ARGS+=	STAGE_CC_WRAPPER=ccache
+MAKE_ENV+=	CCACHE_COMPILERCHECK=content CCACHE_MAXSIZE=8G
+.  endif
 .endif
 
 .if ${GCC_PART:U} != libs
