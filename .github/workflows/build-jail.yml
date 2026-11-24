@@ -262,14 +262,19 @@ jobs:
             : > "$3"
             p=1
             while [ "$p" -le 30 ]; do
-              gh api "${1}per_page=100&page=$p" --jq "$2" > "$AZ_RUNS_STATE/page" || return 1
+              t=1
+              until gh api "${1}per_page=100&page=$p" --jq "$2" > "$AZ_RUNS_STATE/page"; do
+                [ "$t" -ge 5 ] && return 1
+                echo "page $p of ${1%%\?*}: try $t failed, again in 20 s"
+                t=$((t + 1)); sleep 20
+              done
               [ -s "$AZ_RUNS_STATE/page" ] || return 0
               cat "$AZ_RUNS_STATE/page" >> "$3"
               p=$((p + 1))
             done
           }
           pages "repos/$GITHUB_REPOSITORY/releases?" '.[] | "\(.draft) \(.id) \(.tag_name)"' "$AZ_RUNS_STATE/releases" ||
-            { echo "no list of the releases"; exit 0; }
+            { echo "::warning title=saved packages::no list of the releases after 5 tries: no draft taken, what they have is built again"; exit 0; }
           awk -v pres="$pres" 'BEGIN { n = split(pres, P, " ") }
             $1 == "true" { for (i = 1; i <= n; i++) if (index($3, P[i]) == 1) { print $2, $3; next } }' \
             "$AZ_RUNS_STATE/releases" > "$AZ_RUNS_STATE/wip-drafts"
@@ -767,7 +772,7 @@ jobs:
           url="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
           commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
           php="$(ls "$dir" | sed -n 's/^php\([0-9]\)\([0-9]\)-[0-9][^/]*\.pkg$/\1.\2/p' | sort -u | tr '\n' ' ' | sed 's/ $//; s/ /, /g')"
-          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: az (the libraries of /usr/local/az), curl (with SCP and SFTP), ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc, yt-dlp and PHP $php (phpXY with mod_phpXY and the modules phpXY-<module>, phpXY-ssh2 among them). On a server, /usr/local/etc/pkg/repos/az.conf: az: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/az.pub\", priority: 100, enabled: yes } with the key keys/az.pub of $GITHUB_REPOSITORY, then: pkg update -r az, pkg install -r az php84 mod_php84 php84-gd ... (yt-dlp: pkg install yt-dlp, its Python packages are those of FreeBSD; README.md). Each publish is kept also as a release of its own that does not change, $tag-<YYYYMMDD>-<HHMM> (UTC, the newest $AZ_SNAPSHOTS): its url in az.conf takes a server back to it (README.md, A server and the repository az)."
+          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: az (the libraries of /usr/local/az), curl (with SCP and SFTP), ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc, yt-dlp and PHP $php (phpXY with phpXY-apache and the modules phpXY-<module>, phpXY-ssh2 among them). On a server, /usr/local/etc/pkg/repos/az.conf: az: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/az.pub\", priority: 100, enabled: yes } with the key keys/az.pub of $GITHUB_REPOSITORY, then: pkg update -r az, pkg install -r az php84 php84-apache php84-gd ... (yt-dlp: pkg install yt-dlp, its Python packages are those of FreeBSD; README.md). Each publish is kept also as a release of its own that does not change, $tag-<YYYYMMDD>-<HHMM> (UTC, the newest $AZ_SNAPSHOTS): its url in az.conf takes a server back to it (README.md, A server and the repository az)."
           if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "$tag" --notes "$notes" --target main ||
               gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null
@@ -798,8 +803,30 @@ jobs:
             grep -qxF "$f sha256:$(sha256 -q "$dir/$f")" "$AZ_RUNS_STATE/release-digests.txt" || echo "$dir/$f"
           done)"
           echo "packages to upload: $(printf '%s\n' "$pk" | grep -c . || :) of $(ls "$dir" | grep -cE '^[^/]+-[0-9][^/]*\.pkg$' || :) (the others are in the release with the same sha256)"
-          if [ -n "$pk" ]; then gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber $pk; fi
-          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber $(ls -d "$dir"/* | grep -v -E '/[^/]+-[0-9][^/]*\.pkg$')
+          # in batches of 20 with a pause between them, each batch again up to six times:
+          # GitHub answers a run of uploads with HTTP 403 "You have exceeded a secondary
+          # rate limit" (run 44949024609 of build.yml, 21.11.2026: 526 packages at once, the
+          # publish stopped once the old files were away)
+          up_batch() {
+            for t in 1 2 3 4 5 6; do
+              gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "$@" && return 0
+              echo "the upload of $# files failed (try $t of 6), again in $((t * 60)) s"
+              sleep $((t * 60))
+            done
+            return 1
+          }
+          if [ -n "$pk" ]; then
+            printf '%s\n' "$pk" > "$AZ_RUNS_STATE/upload.txt"
+            split -l 20 "$AZ_RUNS_STATE/upload.txt" "$AZ_RUNS_STATE/upload-part."
+            for part in "$AZ_RUNS_STATE"/upload-part.*; do
+              # shellcheck disable=SC2046
+              up_batch $(cat "$part") || { echo "::error title=publish::the packages of $part not uploaded"; exit 1; }
+              sleep 15
+            done
+          fi
+          # shellcheck disable=SC2046
+          up_batch $(ls -d "$dir"/* | grep -v -E '/[^/]+-[0-9][^/]*\.pkg$') ||
+            { echo "::error title=publish::the catalog not uploaded"; exit 1; }
           for a in $(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'); do
             [ -e "$dir/$a" ] || drop_asset "$a" || :
           done
