@@ -134,8 +134,9 @@ jobs:
           st="${RUNNER_TEMP:-/tmp}/az-runs-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-${{ matrix.cputype }}"
           mkdir -p "$st"
           echo "AZ_RUNS_STATE=$st" >> "$GITHUB_ENV"
-          # a progress reporter that a job before left (stopped before its end)
-          pkill -f 'tools/runs-progress.sh' 2> /dev/null || :
+          # a progress reporter that a job before left (stopped before its end), with the
+          # sleep or the command it waits for (stopped first, so that it starts no other)
+          for p in $(pgrep -f 'tools/runs-progress.sh'); do kill -STOP "$p"; pkill -P "$p"; kill -KILL "$p"; done 2> /dev/null || :
           echo "the jail: $(freebsd-version -u), $(cpuset -g -p $$ | sed -n '1s/^[^:]*: *//p' | tr ',' '\n' | grep -c .) cores"
 
       - uses: actions/checkout@v5
@@ -892,7 +893,12 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          [ -s "$AZ_RUNS_STATE/runs-progress.pid" ] && pkill -F "$AZ_RUNS_STATE/runs-progress.pid" 2> /dev/null || :
+          # the reporter and the sleep or the command it waits for (stopped first, so that it
+          # starts no other; 24.11.2026: its sleep 600 stayed after the reporter)
+          if [ -s "$AZ_RUNS_STATE/runs-progress.pid" ]; then
+            p="$(cat "$AZ_RUNS_STATE/runs-progress.pid")"
+            kill -STOP "$p" 2> /dev/null && { pkill -P "$p" 2> /dev/null; kill -KILL "$p" 2> /dev/null; } || :
+          fi
           tail -n 20 "$AZ_RUNS_STATE/runs-progress.log" 2> /dev/null || echo "no log of tools/runs-progress.sh"
 
       - name: Report to azsupport/azsupport
