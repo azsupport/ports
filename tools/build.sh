@@ -2262,14 +2262,15 @@ else
             dep_lists "$o"
             # its make -j: the processes of all the builds (AZ_JOBS times MAKE_JOBS_NUMBER)
             # shared by the builds that can go at once now (those going, this one and the
-            # ports ready after it, up to AZ_JOBS), MAKE_JOBS_NUMBER at least (az/az alone in
-            # its wave took 4 of the 16 cores of the jail, 24.11.2026); a port of AZ_ALONE
-            # keeps MAKE_JOBS_NUMBER (it builds alone for its memory)
+            # ports ready after it, up to AZ_JOBS), and one more (aZ, 25.11.2026 00:03:
+            # 17, 9, 6, 5 on the 16 cores of the jail; az/az, alone in its wave, built with
+            # make -j 4); a port of AZ_ALONE, which builds alone, as one alone
             pj="${MAKE_JOBS_NUMBER:-}"
-            if [ -n "$pj" ] && [ "$alone" = 0 ]; then
+            if [ -n "$pj" ]; then
                 _nr="$(grep -c . "$q/ready" 2> /dev/null)" || _nr=0
                 _n=$((running + 1 + _nr)); [ "$_n" -le "$jobs" ] || _n="$jobs"
-                pj=$((jobs * MAKE_JOBS_NUMBER / _n)); [ "$pj" -ge "$MAKE_JOBS_NUMBER" ] || pj="$MAKE_JOBS_NUMBER"
+                [ "$alone" = 0 ] || _n=1
+                pj=$((jobs * MAKE_JOBS_NUMBER / _n + 1))
             fi
             if [ "$alone" = 1 ]; then
                 alone_k="$k"
