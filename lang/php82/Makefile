@@ -95,7 +95,7 @@ PHP_VER=	82
 
 # the dated release of the fork: its tag freebsd-8.2-<date>-<commit>; DISTNAME
 # without DISTVERSION, which the slaves of PECL extensions set to their version
-AZ_PHP_RELEASE=	20261121-bbc92cfe
+AZ_PHP_RELEASE=	20261124-bbc92cfe
 
 # the files of this port that the ports needing it need not see (tools/build.sh),
 # as in lang/php74: run-time files of the core only (post-install, USE_RC_SUBR,

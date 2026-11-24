@@ -124,7 +124,7 @@ PHP_VER=	56
 
 # the dated release of the fork: its tag freebsd-5.6-<date>-<commit>; DISTNAME
 # without DISTVERSION, which the slaves of PECL extensions set to their version
-AZ_PHP_RELEASE=	20261121-f98c3c2b
+AZ_PHP_RELEASE=	20261124-f98c3c2b
 
 # xml2-config of az without the -L/lib of its --libs (the head): configure
 # takes it from the cache variable of PHP_SETUP_LIBXML (acinclude.m4), the core
