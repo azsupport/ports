@@ -37,7 +37,9 @@
 # compiles with it at run time: the JIT of PHP is its own, that of PostgreSQL is LLVM),
 # 32-bit (multilib), NLS, the sanitizers (libsanitizer), libitm (transactional memory),
 # libquadmath (__float128 of Fortran; libstdc++ does not use it), libssp, libcc1 (GDB),
-# the info pages. The code it gives is that of GCC 16.2.0 with the options of the
+# the info pages (no makeinfo either since 24.11.2026, so they are not made at all: the
+# configure of GCC and of its libraries builds them only with a makeinfo it finds, aZ:
+# what is only for documentation off for every port). The code it gives is that of GCC 16.2.0 with the options of the
 # official port that decide it (--enable-gnu-indirect-function, the as and ld of the
 # binutils, the headers of libc++ for -stdlib=libc++): no default -march, PIE or SSP
 # of its own; --with-pkgversion "azsupport/ports" (the .comment of what it builds,
@@ -69,7 +71,7 @@ LICENSE_COMB=	multi
 ONLY_FOR_ARCHS=	amd64
 ONLY_FOR_ARCHS_REASON=	the x86-64 levels of azsupport/ports only
 
-USES=		compiler:c++11-lang cpe gmake iconv libtool makeinfo perl5 tar:xz
+USES=		compiler:c++11-lang cpe gmake iconv libtool perl5 tar:xz
 USE_BINUTILS=	yes
 USE_PERL5=	build
 CPE_VENDOR=	gnu
@@ -116,7 +118,6 @@ CONFIGURE_ARGS=	--disable-libcc1 \
 # the libraries of GCC (libgcc, libstdc++, libatomic, libgomp) with the flags of the build
 CONFIGURE_ENV=	CFLAGS_FOR_TARGET="${CFLAGS}" \
 		CXXFLAGS_FOR_TARGET="${CXXFLAGS}"
-MAKE_ARGS+=	MAKEINFOFLAGS="--no-split"
 
 PLIST_SUB+=	GCC_VERSION=${PORTVERSION} \
 		GNU_HOST=${CONFIGURE_TARGET} \
