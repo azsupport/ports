@@ -97,7 +97,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
             echo "- the VM does not answer ssh yet (hosts: freebsd $(awk 'tolower($1) == "host" { printf "%s ", $2 }' "$HOME/.ssh/config" 2>/dev/null))"
         else
             # shellcheck disable=SC2086
-            if on_vm 180 "cat '$ws/results/queue.txt' 2>/dev/null | wc -l; echo ====; cat '$ws/results/progress.log' 2>/dev/null" \
+            if on_vm 180 "cat '$ws/results/queue.txt' 2>/dev/null | wc -l; echo ====; cat '$ws/results/progress.log' 2>/dev/null || :" \
                 > "$w/vm" 2> "$w/err"; then
                 total="$(sed -n 1p "$w/vm" | tr -d ' ')"
                 sed '1,/^====$/d' "$w/vm" > "$w/log"
