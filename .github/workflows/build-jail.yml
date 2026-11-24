@@ -357,6 +357,7 @@ jobs:
           ref="$AZ_RUNS_STATE/ref"
           mkdir -p "$ref"
           (umask 077 && tar -xzf "$t" -C "$ref" --strip-components=2 "*/freebsd/$LEVEL/make.conf" "*/freebsd/$LEVEL/src.conf") || :
+          (umask 077 && tar -xzf "$t" -C "$ref" --strip-components=2 "*/freebsd/world-obj") 2> /dev/null || :
           if [ ! -s "$ref/$LEVEL/make.conf" ] || [ ! -s "$ref/$LEVEL/src.conf" ]; then
             echo "::error title=world::no make.conf and src.conf of $LEVEL in azsupport/azsupport"
             exit 1
@@ -379,7 +380,15 @@ jobs:
       # Its stamp (.az-world: the SHA-256 of the two and of sys/conf/newvers.sh, the date)
       # differs, or there is none: buildworld (the objects in the cache: the next time only
       # what changed), installworld and distribution into <level>.new, which then takes its
-      # place. The log of make goes only with the private results of the tests
+      # place. The objects: those of the server where the root of the jail was built
+      # (section 1 of github-runner/README.md of azsupport/azsupport), mounted in the jail
+      # at the path they were made at, which freebsd/world-obj of azsupport/azsupport names
+      # (read here, never written to the log: no path of a server in this repository), so
+      # that make finds them as they were made (their paths are absolute) and buildworld
+      # goes on from them, building only what changed (aZ, 24.11.2026 21:00: «у тебя же
+      # была возможность obj подмоунтить из хоста?»); without them, those of the cache
+      # (/var/azbuild/cache/obj/<level>), a whole buildworld the first time. The log of
+      # make goes only with the private results of the tests
       - name: The world of the level
         env:
           LEVEL: ${{ matrix.cputype }}
@@ -406,7 +415,15 @@ jobs:
             t0="$(date +%s)"
             n="$(cpuset -g -p $$ | sed -n '1s/^[^:]*: *//p' | tr ',' '\n' | grep -c .)"
             [ "$n" -ge 1 ] || n=2
-            obj="/var/azbuild/cache/obj/$LEVEL"; new="$wl.new"; old="$wl.old"
+            op="$(sed -n 1p "$ref/../world-obj" 2> /dev/null)"
+            if [ -n "$op" ] && [ -d "$op" ]; then
+              obj="$op/$LEVEL"
+              echo "world $LEVEL: the objects of the server"
+            else
+              obj="/var/azbuild/cache/obj/$LEVEL"
+              echo "::warning title=world::the objects of the server are not in the jail (freebsd/world-obj and its mount): those of the cache"
+            fi
+            new="$wl.new"; old="$wl.old"
             log="$AZ_RUNS_STATE/world-$LEVEL.log"
             for d in "$new" "$old"; do
               [ -e "$d" ] || continue
