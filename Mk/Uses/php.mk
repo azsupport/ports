@@ -5,10 +5,10 @@
 # (f16b6dd0f7c1). What differs from the official file, and why:
 # - Versions side by side (aZ): PHP_VER comes from the port (PHP_VER=74 in
 #   lang/php74/Makefile.ext) or from its flavor php<ver>, one of
-#   ${_ALL_PHP_VERSIONS}; no DEFAULT_VERSIONS of a single PHP, and no
-#   etc/php.conf of a single installed PHP: what the installed core of the
-#   version says is read from etc/php${PHP_VER}/php.conf (lang/php74 installs
-#   it), the extension dir from php-config${PHP_VER} --extension-dir if php.conf
+#   ${_ALL_PHP_VERSIONS}; a port with neither takes PHP_DEFAULT (DEFAULT_VERSIONS
+#   php) when it is one of them; no etc/php.conf of a single installed PHP: what
+#   the installed core of the version says is read from etc/php${PHP_VER}/php.conf
+#   (lang/php74 installs it), the extension dir from php-config${PHP_VER} --extension-dir if php.conf
 #   has none, else the table below (no -zts or -debug guess: our cores set
 #   EXTENSION_DIR, lib/php/<API>).
 # - The paths of a version: bin/phpize${PHP_VER}, bin/php-config${PHP_VER},
@@ -150,12 +150,20 @@ PHPBASE?=	${LOCALBASE}
 # the versions of PHP side by side
 _ALL_PHP_VERSIONS=	56 74 81 82 83 84
 
+# The version of the port first, so that it gets to be the default flavor; for a
+# port with no PHP_VER of its own, PHP_DEFAULT (DEFAULT_VERSIONS+=php=8.3 of
+# tools/make.conf.in; aZ, 20.11.2026) when it is one of the versions side by side.
+_PHP_VER_FIRST=	${PHP_VER:U}
+.  if empty(_PHP_VER_FIRST) && defined(PHP_DEFAULT) && \
+    !empty(_ALL_PHP_VERSIONS:M${PHP_DEFAULT:S/.//})
+_PHP_VER_FIRST=	${PHP_DEFAULT:S/.//}
+.  endif
+
 .  if defined(BUILD_ONLY_DEFAULT_PHP_FLAVOR)
 # Only build php ports of the default flavor
-_ALL_FLAVOR_VERSIONS=	${PHP_VER}
+_ALL_FLAVOR_VERSIONS=	${_PHP_VER_FIRST}
 .  else
-# The version of the port first, so that it gets to be the default flavor.
-_ALL_FLAVOR_VERSIONS=	${PHP_VER:U} ${_ALL_PHP_VERSIONS:N${PHP_VER:U}}
+_ALL_FLAVOR_VERSIONS=	${_PHP_VER_FIRST} ${_ALL_PHP_VERSIONS:N${_PHP_VER_FIRST}}
 .  endif
 
 # If we want flavors, fill in FLAVORS with the allowed PHP versions, if some

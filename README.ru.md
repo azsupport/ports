@@ -829,11 +829,14 @@ env AZ_CONFIGURE_CHECK=1 sh tools/build.sh --force
   переиспользуется, когда оно на этом коммите (`AZ_PORTSDIR`: дерево берётся как есть,
   с предупреждением, если оно на другом коммите), это дерево — `OVERLAYS` поверх него;
 - `work/make.conf` из [`tools/make.conf.in`](tools/make.conf.in) — make.conf серверов
-  aZ (`CPUTYPE` уровня, `CFLAGS=-O3 -pipe -fno-strict-aliasing`, фреймворк добавляет
-  `-fstack-protector-strong`; `JPEG_PORT=graphics/mozjpeg`; `OPTIONS_UNSET` для X11,
-  Wayland, GUI, DBus, CUPS, отладки, DTrace, тестов, документации, man-страниц и переводов
-  (NLS, с 16.11.2026); `DEFAULT_VERSIONS+=mysql=10.11m` — клиент `mariadb1011-client` для
-  портов с `USES=mysql`) с путями
+  aZ в стиле style.Makefile(5) (`CPUTYPE` уровня, `CFLAGS=-O3 -pipe -fno-strict-aliasing`,
+  фреймворк добавляет `-fstack-protector-strong`; `COPTFLAGS=-O3 -pipe` и `KERNCONF=az.st`
+  — для ядра серверов; `JPEG_PORT=graphics/mozjpeg`; `DEFAULT_VERSIONS+=mysql=10.11m
+  perl5=5.42 php=8.3 python=3.12 ruby=3.4 ssl=base` — клиент `mariadb1011-client` для
+  портов с `USES=mysql`, а порт не меняют ни умолчания закреплённого дерева, ни то, что
+  установлено на машине; `OPTIONS_SET=GSSAPI_NONE` и снятый `GSSAPI_BASE` — без Kerberos
+  базы, которого на серверах нет; `OPTIONS_UNSET` для X11, Wayland, GUI, DBus, CUPS,
+  отладки, DTrace, тестов, документации, man-страниц и переводов (NLS, с 16.11.2026)) с путями
   прогона, отдаётся make как `__MAKE_CONF`: `/etc/make.conf` сборочного сервера не
   читается и не меняется, а сохранённые там `make config` опции на сборку не влияют
   (свой `PORT_DBDIR`);

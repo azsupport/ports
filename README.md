@@ -897,12 +897,16 @@ What it does, with the logic of poudriere:
   when it is at that commit (`AZ_PORTSDIR`: a tree taken as it is, with a warning when
   it is at another commit), this tree as `OVERLAYS` over it;
 - `work/make.conf` from [`tools/make.conf.in`](tools/make.conf.in), the make.conf of
-  aZ's servers (`CPUTYPE` of the level, `CFLAGS=-O3 -pipe -fno-strict-aliasing`, the
-  framework adds `-fstack-protector-strong`; `JPEG_PORT=graphics/mozjpeg`;
-  `OPTIONS_UNSET` of X11, Wayland, GUI, DBus, CUPS, debug, DTrace, tests,
-  documentation, manual pages and translations (NLS, from 16.11.2026);
-  `DEFAULT_VERSIONS+=mysql=10.11m`: the client of `mariadb1011-client` for the ports with
-  `USES=mysql`) with the paths of the run, given to make as
+  aZ's servers in the style of style.Makefile(5) (`CPUTYPE` of the level,
+  `CFLAGS=-O3 -pipe -fno-strict-aliasing`, the framework adds `-fstack-protector-strong`;
+  `COPTFLAGS=-O3 -pipe` and `KERNCONF=az.st` for the kernel of the servers;
+  `JPEG_PORT=graphics/mozjpeg`; `DEFAULT_VERSIONS+=mysql=10.11m perl5=5.42 php=8.3
+  python=3.12 ruby=3.4 ssl=base`: the client of `mariadb1011-client` for the ports with
+  `USES=mysql`, and neither a default of the pinned tree nor what is installed on a
+  machine changes a port; `OPTIONS_SET=GSSAPI_NONE` with `GSSAPI_BASE` unset: no
+  Kerberos of the base, which the servers do not have; `OPTIONS_UNSET` of X11, Wayland,
+  GUI, DBus, CUPS, debug, DTrace, tests, documentation, manual pages and translations
+  (NLS, from 16.11.2026)) with the paths of the run, given to make as
   `__MAKE_CONF`: the `/etc/make.conf` of a build server is neither read nor changed,
   and the options saved by `make config` there do not change a build (`PORT_DBDIR` of
   its own);
