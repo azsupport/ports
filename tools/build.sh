@@ -994,6 +994,16 @@ ch_deps() {
         fi
         cat "$cs/pkg.out" >> "$log"
     done
+    # the shared libraries the packages in the chroot need and neither the world of the
+    # level nor a package there has (an official package built for the whole base
+    # system, which the src.conf of the level strips: the libkrb5.so.122 of the official
+    # curl, 24.11.2026): said, so that the failure of a tool at its start has its cause
+    # in the log
+    pkg -c "$c" query -a %b > "$cs/shlibs-have" 2> /dev/null
+    _ml="$(pkg -c "$c" query -a '%n %B' 2> /dev/null | while read -r _pn _l; do
+        [ -e "$c/lib/$_l" ] || [ -e "$c/usr/lib/$_l" ] || grep -qxF "$_l" "$cs/shlibs-have" || echo "$_l ($_pn)"
+    done | LC_ALL=C sort -u | tr '\n' ' ')"
+    [ -z "$_ml" ] || say "  $1: warning: needed in the chroot and not there: $_ml"
     # the archives of the static tree of az only for a port that names a file of that
     # tree in its dependencies (and so says AZ_STATIC_LIBS, tools/check-tree.sh): no
     # other can link them into its package, which its az_hash would not know

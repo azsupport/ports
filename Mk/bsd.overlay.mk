@@ -115,3 +115,14 @@ az-services:
 		${ECHO_CMD} "@dir share/az/services/$$s" >> ${TMPPLIST}; \
 	done
 .endif
+
+# The ports of cargo (USES=cargo): the curl of this tree in their chroot. cargo of the
+# official rust links libcurl.so.4, and the official curl takes GSSAPI from the base
+# (libgssapi_krb5.so.122, libkrb5.so.122), which the worlds of the levels have not
+# (src.conf: WITHOUT_KERBEROS): cargo did not start ("Shared object "libkrb5.so.122"
+# not found, required by "libcurl.so.4"", graphics/libimagequant in the jail,
+# 24.11.2026). Ours (GSSAPI_NONE) a dependency, so that tools/build.sh builds it
+# first and adds it in the place of the official one (pkg add -f).
+.if !empty(USES:Mcargo*) && empty(BUILD_DEPENDS:M*\:ftp/curl)
+BUILD_DEPENDS+=	curl>=0:ftp/curl
+.endif
