@@ -5,15 +5,20 @@
 # too for 5.6 and 7.4, where it is a module) with the version of PHP in the names, as
 # our PHP has it (bin/php84): bin/composer84 runs libexec/composer84.phar with
 # bin/php84, so that the Composers of every PHP install side by side (the phar starts
-# with "#!/usr/bin/env php", and our PHP has no bin/php). Composer 2.11.2 for PHP
-# 7.2.5 and later; for PHP 5.6 the LTS line 2.2 (2.2.32), from the releases of
-# Composer on GitHub (the file of getcomposer.org: the SHA-256 of 2.11.2 is that of
-# the distinfo of the official port). No openssl module as a dependency, as in the
+# with "#!/usr/bin/env php", and our PHP has no bin/php). Composer 2.11.3 for PHP
+# 7.2.5 and later; for PHP 5.6 the LTS line 2.2 (2.2.33), from the releases of
+# Composer on GitHub. 2.11.3 and 2.2.33 (24.11.2026), taken before the official port
+# (2.11.2) for their security fixes: GHSA-374h-4mh9-7rpm (code run by Composer in a
+# directory whose composer.json and vendor directory an attacker prepared, a way
+# around the fix of CVE-2024-24821), package metadata rendered as console markup, and
+# the credentials of repository URLs in error messages; the file of GitHub and that
+# of getcomposer.org the same (size, SHA-256, and the .sha256sum of getcomposer.org;
+# fetch-sums.yml on a runner of aZ, 24.11.2026). No openssl module as a dependency, as in the
 # official port: phpXY-openssl or phpXY-openssl-legacy, one of the two, for
 # packagist.org over HTTPS.
 
 PORTNAME=	composer
-DISTVERSION?=	2.11.2
+DISTVERSION?=	2.11.3
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	devel
 MASTER_SITES=	https://github.com/composer/composer/releases/download/${DISTVERSION}/ \
