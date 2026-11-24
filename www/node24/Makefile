@@ -125,6 +125,19 @@ BUNDLED_SSL_CONFIGURE_OFF=	--openssl-use-def-ca-store --shared-openssl
 BUNDLED_SSL_USES_OFF=	ssl
 JIT_CONFIGURE_OFF=	--v8-lite-mode
 
+# ccache between the runs of build.yml (aZ, 24.11.2026 09:48: a build stopped at the
+# time of a run goes on in the next one; 24.11.2026 V8 alone took more than a run):
+# the compilers through the wrappers of ccache (WITH_CCACHE_BUILD of the framework,
+# CC.host and CXX.host above), the cache in AZ_PORT_CACHE_DIR (portcache/www_node24,
+# tools/build.sh), ccache of the official packages
+AZ_PORT_CACHE=	ccache
+BUILD_DEPENDS+=	ccache:devel/ccache
+.if !empty(AZ_PORT_CACHE_DIR)
+WITH_CCACHE_BUILD=	yes
+CCACHE_DIR=	${AZ_PORT_CACHE_DIR}/ccache
+MAKE_ENV+=	CCACHE_MAXSIZE=8G
+.endif
+
 .include "Makefile.version"
 .include <bsd.port.options.mk>
 
