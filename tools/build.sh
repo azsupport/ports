@@ -76,10 +76,14 @@
 #   ports, not for az/az; the files of tools/ its makefiles name outside their
 #   comments, and those these name: tools/az-build.sh of az/az; the files of this tree
 #   its EXTRA_PATCHES and AZ_HASH_FILES name: files of the directory of another port its
-#   build reads, tools/check-tree.sh), of the official commit, the level and
-#   tools/make.conf.in,
-#   and of the hash of each port of this tree it needs (so a change of a port builds
-#   again what needs it), but of az/az the interface hashes of the libraries of az the
+#   build reads, tools/check-tree.sh), of the files of the official tree it reads (its
+#   makefiles there, Mk/Uses/*.mk of its USES, a MASTERDIR there; not Mk/bsd.sites.mk,
+#   where distfiles are fetched from, nor Mk/bsd.licenses.db.mk: its own licenses
+#   instead, as make -V has them), the level and tools/make.conf.in,
+#   and of the hash of each port of this tree it needs to build (so a change of a port
+#   builds again what needs it to build), of one it takes only to run the name of its
+#   package (aZ, 24.11.2026 15:47: "чтобы по каждому чиху все не пересобиралось"), but
+#   of az/az the interface hashes of the libraries of az the
 #   port uses and of those they need (aZ, 12.11.2026: the manifests of the package of
 #   az, tools/az-interface.sh; the content hash of the libraries of AZ_STATIC_LIBS), so
 #   a fix inside a library builds again only az and a change of its interface the
@@ -90,7 +94,9 @@
 #   that of its slaves either; it goes to make as AZ_HASH (the annotation az_hash of the package,
 #   Mk/bsd.overlay.mk), the revision as AZ_STAMP (PORTREVISION= ${AZ_STAMP}: each
 #   build is an upgrade for pkg; pkg takes a dependency by its name, not its version);
-#   the base of every az_hash: the official commit, the level, tools/make.conf.in and
+#   the base of every az_hash: the files of the official tree every build takes
+#   (Mk/Scripts, Keywords, Templates; not its commit: a new pin builds again only the
+#   ports whose files of it changed), the level, tools/make.conf.in and
 #   the way the builder builds ("builder chroot": each port in a chroot of its own,
 #   11.11.2026: every port built once that way);
 # - after az/az is built in a run, the ABI check of the packages of the repository that
@@ -346,7 +352,7 @@ repo="$(cd "$repo" && pwd)"
 # the real path of the tree: the files of the hashes are named relative to it
 topr="$(cd "$top" && pwd -P)"
 rm -rf "${q:?}"/* "${res:?}" "$work/pk" "$work/cc" "$work/ccw"
-mkdir -p "$res/logs" "$res/az-results" "$q/info" "$q/deps" "$q/rdeps" "$q/odeps" "$q/orun" "$q/pkgbase" "$q/state" \
+mkdir -p "$res/logs" "$res/az-results" "$q/info" "$q/deps" "$q/bdeps" "$q/rdeps" "$q/odeps" "$q/orun" "$q/pkgbase" "$q/state" \
     "$q/file" "$q/hash" "$q/dl" "$q/ch" "$q/chtime" || die "cannot make $res and $q"
 # make package writes packages/All/<pkgname>.pkg (the directory must exist, else
 # the package goes into the directory of the port); those of an earlier run go
@@ -656,8 +662,10 @@ tool_official() {
 # 10 NEED_ROOT, 11 MASTERDIR, 12 FILESDIR, 13 PATCHDIR, 14 PKGDIR, 15 DISTINFO_FILE,
 # 16 .MAKE.MAKEFILES, 17 AZ_HASH_NOT_FOR_DEPENDENTS, 18 AZ_HASH_LIBS, 19 FLAVOR,
 # 20 AZ_STATIC_LIBS, 21 EXTRA_PATCHES, 22 AZ_PREFIX, 23 AZ_STATIC, 24 AZ_HASH_FILES,
-# 25 AZ_PORT_CACHE); our
-# dependencies into $q/deps/<key> (all kinds) and
+# 25 AZ_PORT_CACHE, 26 LICENSE_COMB, 27 its licenses as the official bsd.licenses.db.mk
+# has them: <license>|<name>|<groups>|<permissions> each); our
+# dependencies into $q/deps/<key> (all kinds), those it needs to build (FETCH_,
+# EXTRACT_, PATCH_, BUILD_, LIB_ or PKG_DEPENDS: not only to run) into $q/bdeps/<key>, and
 # $q/rdeps/<key> (LIB_ and RUN_DEPENDS: what pkg add of its package needs), the
 # official ones into $q/odeps/<key> and $q/orun/<key>; the origins of this tree it gets
 # official (tool_official) are among the official ones, and in $q/info/<key>.tools;
@@ -666,12 +674,16 @@ tool_official() {
 port_info() {
     _k="$(key "$1")"
     [ -f "$q/info/$_k" ] && return 0
-    : > "$q/deps/$_k"; : > "$q/rdeps/$_k"; : > "$q/odeps/$_k"; : > "$q/orun/$_k"; : > "$q/info/$_k.tools"
+    : > "$q/deps/$_k"; : > "$q/bdeps/$_k"; : > "$q/rdeps/$_k"; : > "$q/odeps/$_k"; : > "$q/orun/$_k"; : > "$q/info/$_k.tools"
+    # the licenses: an expression of make (its single quotes on purpose)
+    # shellcheck disable=SC2016
     if ! make -C "$top/$1" AZ_STAMP="$az_stamp" -V PKGNAME -V IGNORE -V FETCH_DEPENDS -V EXTRACT_DEPENDS \
             -V PATCH_DEPENDS -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS -V PKG_DEPENDS -V NEED_ROOT \
             -V MASTERDIR -V FILESDIR -V PATCHDIR -V PKGDIR -V DISTINFO_FILE -V .MAKE.MAKEFILES \
             -V AZ_HASH_NOT_FOR_DEPENDENTS -V AZ_HASH_LIBS -V FLAVOR -V AZ_STATIC_LIBS -V EXTRA_PATCHES \
-            -V AZ_PREFIX -V AZ_STATIC -V AZ_HASH_FILES -V AZ_PORT_CACHE > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
+            -V AZ_PREFIX -V AZ_STATIC -V AZ_HASH_FILES -V AZ_PORT_CACHE -V LICENSE_COMB \
+            -V '${LICENSE:@l@${l}|${_LICENSE_NAME_${l}}|${_LICENSE_GROUPS_${l}}|${_LICENSE_PERMS_${l}}@}' \
+            > "$q/info/$_k" 2> "$q/info/$_k.err" || [ -z "$(sed -n 1p "$q/info/$_k")" ]; then
         echo "make -V failed: $(grep . "$q/info/$_k.err" | head -n 1)" > "$q/info/$_k.bad"
         return 1
     fi
@@ -681,6 +693,7 @@ port_info() {
     fi
     sed -n '3,9p' "$q/info/$_k" | dep_origins > "$q/info/$_k.all"
     sed -n '7,8p' "$q/info/$_k" | dep_origins > "$q/info/$_k.run"
+    sed -n '3,7p;9p' "$q/info/$_k" | dep_origins > "$q/info/$_k.bld"
     for _d in $(cat "$q/info/$_k.all"); do
         [ "${_d%%@*}" = "$1" ] && continue
         if ! ours "$_d"; then
@@ -690,6 +703,7 @@ port_info() {
             echo "${_d%%@*}" >> "$q/info/$_k.tools"
         else
             echo "${_d%%@*}" >> "$q/deps/$_k"
+            grep -qxF "$_d" "$q/info/$_k.bld" && echo "${_d%%@*}" >> "$q/bdeps/$_k"
         fi
     done
     for _d in $(cat "$q/info/$_k.run"); do
@@ -762,8 +776,18 @@ port_files() {
         for _p in $(sed -n 24p "$q/info/$_k"); do
             if [ -d "$_p" ]; then files_in "$_p"; elif [ -f "$_p" ]; then echo "$_p"; fi
         done
-    } 2> /dev/null | while read -r _f; do realpath "$_f" 2> /dev/null; done | LC_ALL=C sort -u |
-        while read -r _f; do tree_file "$_f" && echo "$_f"; done > "$q/files-$_k"
+    } 2> /dev/null | while read -r _f; do realpath "$_f" 2> /dev/null; done | LC_ALL=C sort -u > "$q/read-$_k"
+    while read -r _f; do tree_file "$_f" && echo "$_f"; done < "$q/read-$_k" > "$q/files-$_k"
+    # the files of the official tree among them (its makefiles there, a MASTERDIR
+    # there...), but Mk/bsd.sites.mk (where the distfiles are fetched from: what is
+    # fetched its distinfo says) and Mk/bsd.licenses.db.mk (every license: those of the
+    # port, line 27 of its info, count instead)
+    while read -r _f; do
+        case "$_f" in
+            "$portsr"/Mk/bsd.sites.mk|"$portsr"/Mk/bsd.licenses.db.mk) ;;
+            "$portsr"/*) echo "$_f" ;;
+        esac
+    done < "$q/read-$_k" > "$q/ofiles-$_k"
     # the makefiles among them (Makefile*, *.mk), the files of tools/ they name, and
     # those these name (one level more)
     # shellcheck disable=SC2046
@@ -775,6 +799,15 @@ port_files() {
     LC_ALL=C sort -u "$q/files-$_k" "$q/tools1-$_k" "$q/tools2-$_k" | while read -r _f; do
         printf 'f %s %s\n' "${_f#"$topr"/}" "$(hfile "$_f")"
     done
+    # the official files ("o freebsd-ports/<path>": the hashes of Mk/ once, $q/ohashes)
+    # and the licenses ("l <LICENSE_COMB> <licenses>")
+    awk 'FILENAME == ARGV[1] { h[$1] = $2; next } { print $0, (($0 in h) ? h[$0] : "-") }' "$q/ohashes" "$q/ofiles-$_k" |
+        while read -r _f _h; do
+            [ "$_h" != - ] || _h="$(hfile "$_f")"
+            printf 'o freebsd-ports/%s %s\n' "${_f#"$portsr"/}" "$_h"
+        done
+    _ls="$(sed -n 27p "$q/info/$_k")"
+    [ -z "$_ls" ] || printf 'l %s %s\n' "$(sed -n 26p "$q/info/$_k")" "$_ls"
 }
 
 # pkgbase <origin[@flavor]>: the name of the package of an official port (PKGBASE of
@@ -1058,14 +1091,28 @@ while read -r l; do say "$l"; done < "$res/stages.txt"
 # first stage), and no port that needs it is ready before. A package of az of the
 # repository without manifests (built before 12.11.2026) is built again.
 #
-# The base of every hash: the official commit, the level, tools/make.conf.in and the
-# way the builder builds ("builder chroot": each port in a chroot of its own, with
-# only its dependencies; a change of that way that can change the packages changes
-# this line, and every port is built again). The build tools a port gets official
+# The base of every hash: the files of the official tree every build takes (Mk/Scripts,
+# Keywords, Templates), the level, tools/make.conf.in and the way the builder builds
+# ("builder chroot": each port in a chroot of its own, with only its dependencies; a
+# change of that way that can change the packages changes this line, and every port is
+# built again). Not the commit of the official tree: the makefiles of it a port reads
+# count in its own hash (port_files), so that a new pin builds again only the ports
+# whose makefiles changed (aZ, 24.11.2026 15:47: "чтобы по каждому чиху все не
+# пересобиралось"; the pin of 23.11.2026 built every package again, its Mk/ had changed
+# in 6 files none of our builds takes). The build tools a port gets official
 # (AZ_TOOLS_OFFICIAL) are not among its dependencies of this tree: their hash is not
 # in its own.
-base_hash="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; echo "builder chroot"; cat "$top/tools/make.conf.in"; } | hin)"
-mkdir -p "$q/dhash" "$q/azcov" "$q/uncov" "$q/abifail"
+# The hashes as they were made before (the official commit in the base, no official
+# files, the hash of a dependency only to run as that of any other): base_hash_old and
+# $q/hash-old, $q/dhash-old, for the packages of the repository built with them
+# (hash_same: such a package is kept, its line goes to tools/az-hash-legacy.txt)
+find "$portsr/Mk" -type f -name '*.mk' | LC_ALL=C sort | while read -r f; do echo "$f $(hfile "$f")"; done > "$q/ohashes"
+off_hash="$( (cd "$portsr" && find Mk/Scripts Keywords Templates -type f 2> /dev/null | LC_ALL=C sort |
+    while read -r f; do echo "$f $(hfile "$f")"; done) | hin)"
+base_hash="$({ echo "freebsd-ports files $off_hash"; echo "cputype $cputype"; echo "builder chroot"; cat "$top/tools/make.conf.in"; } | hin)"
+base_hash_old="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; echo "builder chroot"; cat "$top/tools/make.conf.in"; } | hin)"
+mkdir -p "$q/dhash" "$q/hash-old" "$q/dhash-old" "$q/azcov" "$q/uncov" "$q/abifail"
+: > "$q/legacy"
 : > "$res/hashes.txt"
 : > "$q/deferred"
 # the manifests of az: $q/azif (the files), azif.hashes (tools/az-interface.sh hashes),
@@ -1136,15 +1183,54 @@ az_dep() {
             printf "the interfaces of %d libraries of az:%s%s\n", n, l, (m ? "; the archives of" sl : "") > note
         }' "$q/azif.hashes"
 }
+# hash_same <key> <origin> <az_hash of its package in the repository>: true when that
+# package is of the port as it is: the same az_hash; or the hash it would have had as
+# hashes were made before 24.11.2026 (the old hash of this run, $q/hash-old: then its
+# line "<level> <origin> <that hash> <the az_hash now>" goes into $q/legacy, for
+# tools/az-hash-legacy.txt), or such a line of tools/az-hash-legacy.txt (so that a new
+# pin, which changes the old hashes, does not build those packages again); hs_how: which
+hash_same() {
+    hs_how=""
+    [ -n "$3" ] && [ "$3" != - ] || return 1
+    hs_new="$(cat "$q/hash/$1" 2> /dev/null)"
+    [ -n "$hs_new" ] || return 1
+    [ "$3" = "$hs_new" ] && return 0
+    if [ "$3" = "$(cat "$q/hash-old/$1" 2> /dev/null)" ]; then
+        hs_how=" (as az_hash was made before 24.11.2026)"
+        echo "$cputype $2 $3 $hs_new" >> "$q/legacy"
+        return 0
+    fi
+    if [ -f "$top/tools/az-hash-legacy.txt" ] && awk -v c="$cputype" -v o="$2" -v a="$3" -v b="$hs_new" \
+            '$1 == c && $2 == o && $3 == a && $4 == b { f = 1; exit } END { exit !f }' "$top/tools/az-hash-legacy.txt"; then
+        hs_how=" (its az_hash before 24.11.2026, tools/az-hash-legacy.txt)"
+        return 0
+    fi
+    return 1
+}
 # hash_port <origin>: the two hashes of a port (its files in $q/pf-<key> and
 # $q/nfd-<key>), its line of results/hashes.txt; the libraries of az its hash covers,
 # its own and those of the ports of this tree it needs, into $q/azcov/<key>
 hash_port() {
     h_o="$1"; h_k="$(key "$1")"
+    # the ports of this tree it needs: one it needs to build by its hash for the ports
+    # that need it, one it takes only to run by the name of its package (nothing of the
+    # package changes with it; aZ, 24.11.2026); the lines of the old hash beside
+    : > "$q/dl-$h_k"; : > "$q/dlo-$h_k"
     for h_d in $(LC_ALL=C sort -u "$q/deps/$h_k"); do
-        if [ "$h_d" = az/az ]; then az_dep "$h_k"; continue; fi
-        echo "dep $h_d $(cat "$q/dhash/$(key "$h_d")" 2>/dev/null || echo none)"
-    done > "$q/dl-$h_k"
+        if [ "$h_d" = az/az ]; then
+            az_dep "$h_k" > "$q/dlaz-$h_k"
+            cat "$q/dlaz-$h_k" >> "$q/dl-$h_k"; cat "$q/dlaz-$h_k" >> "$q/dlo-$h_k"
+            continue
+        fi
+        h_dk="$(key "$h_d")"
+        echo "dep $h_d $(cat "$q/dhash-old/$h_dk" 2>/dev/null || echo none)" >> "$q/dlo-$h_k"
+        if grep -qxF "$h_d" "$q/bdeps/$h_k"; then
+            echo "dep $h_d $(cat "$q/dhash/$h_dk" 2>/dev/null || echo none)" >> "$q/dl-$h_k"
+        else
+            h_pn="$(sed -n 1p "$q/info/$h_dk" 2> /dev/null)"
+            echo "run $h_d ${h_pn%-*}" >> "$q/dl-$h_k"
+        fi
+    done
     {
         cat "$q/azlibs-$h_k" 2> /dev/null
         for h_d in $(cat "$q/deps/$h_k"); do cat "$q/azcov/$(key "$h_d")" 2> /dev/null; done
@@ -1162,6 +1248,18 @@ hash_port() {
     } > "$q/dhash/$h_k.in"
     hin < "$q/hash/$h_k.in" > "$q/hash/$h_k"
     hin < "$q/dhash/$h_k.in" > "$q/dhash/$h_k"
+    # the old hash: its files of this tree only ("f"), the base with the official commit
+    {
+        echo "base $base_hash_old"
+        grep '^f ' "$q/pf-$h_k" | awk -v d="$h_o/" 'FILENAME == ARGV[1] { x[$1] = 1; next }
+            ($2 in x) && substr($2, 1, length(d)) != d { next } { print }' "$q/nfd-$h_k" -
+        cat "$q/dlo-$h_k"
+    } | hin > "$q/hash-old/$h_k"
+    {
+        echo "base $base_hash_old"
+        grep '^f ' "$q/pf-$h_k" | awk 'FILENAME == ARGV[1] { x[$1] = 1; next } !($2 in x) { print }' "$q/nfd-$h_k" -
+        cat "$q/dlo-$h_k"
+    } | hin > "$q/dhash-old/$h_k"
     h_n=""
     [ -f "$q/azdep-$h_k" ] && h_n=" ($(cat "$q/azdep-$h_k"))"
     if [ -s "$q/info/$h_k.tools" ]; then
@@ -1234,7 +1332,7 @@ azbuilt=0
 if grep -qxF az/az "$q/queue.txt" && [ ! -f "$q/info/az_az.bad" ]; then
     azstate=waiting
     hh="$(awk '$2 == "az/az" { print $3; exit }' "$q/repo-had")"
-    if [ "$force" = 0 ] && [ -n "$hh" ] && [ "$hh" = "$(cat "$q/hash/az_az" 2>/dev/null)" ]; then
+    if [ "$force" = 0 ] && hash_same az_az az/az "$hh"; then
         if [ -n "$azold" ] && az_load "$repo/$azhad"; then
             say "az/az: kept from the repository ($azhad): the interfaces of its $(grep -c -v '^common ' "$q/azif.hashes") libraries for the ports that need it"
         else
@@ -1460,11 +1558,11 @@ pre_port() {
     fi
     abi="$(cat "$q/abifail/$k" 2>/dev/null)"
     # its package in the repository: the same az_hash, another one, none
-    if [ -n "$had" ] && [ "${had%% *}" = "$h" ] && [ "$force" = 0 ] && [ -z "$abi" ] && [ ! -f "$q/nomani-$k" ]; then
+    if [ -n "$had" ] && [ "$force" = 0 ] && hash_same "$k" "$1" "${had%% *}" && [ -z "$abi" ] && [ ! -f "$q/nomani-$k" ]; then
         echo "$repo/${had#* }" > "$q/file/$k"
         ki=""
         [ "$azbuilt" = 1 ] && [ -s "$q/azcov/$k" ] && ki="; kept by the interfaces of az, which this run built again" && echo "$1" >> "$q/kept-if"
-        record "$1" repo "${had#* }: in the repository already with the same az_hash $hs$ki$(az_cover_check "$1" "$repo/${had#* }")"
+        record "$1" repo "${had#* }: in the repository already with the same az_hash $hs$hs_how$ki$(az_cover_check "$1" "$repo/${had#* }")"
         return 1
     fi
     if [ "$force" = 1 ]; then why="--force"
@@ -1565,7 +1663,7 @@ pf_fetch() {
         [ -s "$q/hash/$_k" ] || continue
         if [ "$plan" = 1 ] && ! grep -qxF "$_o" "$q/azpre"; then continue; fi
         _hh="$(awk -v o="$_o" '$2 == o { print $3; exit }' "$q/repo-had")"
-        [ "$force" = 0 ] && [ "$_hh" = "$(cat "$q/hash/$_k")" ] && [ ! -f "$q/abifail/$_k" ] && [ ! -f "$q/nomani-$_k" ] && continue
+        [ "$force" = 0 ] && hash_same "$_k" "$_o" "$_hh" && [ ! -f "$q/abifail/$_k" ] && [ ! -f "$q/nomani-$_k" ] && continue
         dep_lists "$_o"
         _np=$((_np + 1))
         for _p in $(cat "$q/dl/$_k.off"); do echo "$_p"; done >> "$q/prefetch"
@@ -2317,6 +2415,14 @@ if [ -s "$q/timeskip" ]; then
         cat "$q/timeskip"
     } > "$res/time-limit"
     say "the time of this run was over: $(sed -n 1p "$res/time-limit") (results/time-limit)"
+fi
+# the packages kept by their az_hash as it was made before 24.11.2026 (hash_same):
+# results/hash-legacy.txt, the lines for tools/az-hash-legacy.txt (in the summary of a
+# plan, AZ_PLAN, each as "legacy <level> <origin> <that hash> <the az_hash now>")
+LC_ALL=C sort -u "$q/legacy" > "$res/hash-legacy.txt"
+if [ -s "$res/hash-legacy.txt" ]; then
+    echo "old az_hash: $(wc -l < "$res/hash-legacy.txt" | tr -d ' ') packages of the repository kept by their az_hash as it was made before 24.11.2026 (results/hash-legacy.txt, tools/az-hash-legacy.txt)" >> "$sum"
+    [ "$plan" = 1 ] && sed 's/^/legacy /' "$res/hash-legacy.txt" >> "$sum"
 fi
 # the packages that link libraries of az their az_hash does not take (az_cover_check)
 uncov="$(cd "$q/uncov" && ls | sed 's/_/\//' | tr '\n' ' ' | sed 's/ $//')"
