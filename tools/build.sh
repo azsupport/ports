@@ -660,6 +660,14 @@ ch_up() {
         mkdir -p "$top/portcache/$1" || { why="cannot make $top/portcache/$1"; return 1; }
         ch_mount rw "$top/portcache/$1" || return 1
     fi
+    # the libraries of the base system the level strips (ch_compat_init), read only, with
+    # their directory in the hints of the run-time linker
+    if [ -d "$work/ch-compat/lib" ]; then
+        ch_mount ro "$work/ch-compat/lib" /usr/local/lib/az-basecompat || return 1
+        mkdir -p "$c/usr/local/libdata/ldconfig" &&
+            echo /usr/local/lib/az-basecompat > "$c/usr/local/libdata/ldconfig/az-basecompat" ||
+            { why="cannot write $c/usr/local/libdata/ldconfig/az-basecompat"; return 1; }
+    fi
     # the hints of the run-time linker (/usr/local/lib; the packages add theirs)
     chroot "$c" /usr/sbin/service ldconfig start > /dev/null 2>&1 || :
     return 0
@@ -1001,7 +1009,10 @@ ch_deps() {
     # in the log
     pkg -c "$c" query -a %b > "$cs/shlibs-have" 2> /dev/null
     _ml="$(pkg -c "$c" query -a '%n %B' 2> /dev/null | while read -r _pn _l; do
-        [ -e "$c/lib/$_l" ] || [ -e "$c/usr/lib/$_l" ] || grep -qxF "$_l" "$cs/shlibs-have" || echo "$_l ($_pn)"
+        # the 32-bit libraries (":32", the multilib of lang/gcc16): no world of ours has them
+        case "$_l" in *:32) continue ;; esac
+        [ -e "$c/lib/$_l" ] || [ -e "$c/usr/lib/$_l" ] || [ -e "$c/usr/local/lib/az-basecompat/$_l" ] ||
+            grep -qxF "$_l" "$cs/shlibs-have" || echo "$_l ($_pn)"
     done | LC_ALL=C sort -u | tr '\n' ' ')"
     [ -z "$_ml" ] || say "  $1: warning: needed in the chroot and not there: $_ml"
     # the archives of the static tree of az only for a port that names a file of that
@@ -1676,6 +1687,36 @@ pre_port() {
     return 0
 }
 
+# ch_compat_init: the libraries of the base system that the src.conf of the level strips
+# and official packages need, for the chroots (work/ch-compat/lib, read only in each at
+# /usr/local/lib/az-basecompat, in the hints of the run-time linker): those of the
+# package FreeBSD-kerberos-lib of the release (the repository FreeBSD-base of
+# pkg.FreeBSD.org, pkgbase). The official curl takes GSSAPI from the base
+# (libgssapi_krb5.so.122, libkrb5.so.122), and the worlds of the levels have none
+# (WITHOUT_KERBEROS): cargo of the official rust, which links libcurl.so.4, did not start
+# (graphics/libimagequant, 24.11.2026; our curl in its place cannot be: it needs az/az,
+# and az/az needs libimagequant). No headers and no path of the linker: only a program
+# linked against them before loads them, no build of ours finds them
+ch_compat_init() {
+    _cc="$work/ch-compat"
+    rm -rf "$_cc"
+    mkdir -p "$_cc/conf" "$_cc/db" "$_cc/fetch" "$_cc/x" || { say "warning: cannot make $_cc"; return 0; }
+    printf '%s\n' 'FreeBSD-base: { url: "pkg+https://pkg.FreeBSD.org/${ABI}/base_release_${VERSION_MINOR}", mirror_type: "srv", signature_type: "fingerprints", fingerprints: "/usr/share/keys/pkgbase-${VERSION_MAJOR}", enabled: yes }' > "$_cc/conf/base.conf"
+    echo "== the libraries of Kerberos of the base for the chroots (FreeBSD-base, FreeBSD-kerberos-lib)" >> "$_cl"
+    if env PKG_DBDIR="$_cc/db" pkg -R "$_cc/conf" update -f >> "$_cl" 2>&1 &&
+        env PKG_DBDIR="$_cc/db" pkg -R "$_cc/conf" fetch -y -o "$_cc/fetch" FreeBSD-kerberos-lib >> "$_cl" 2>&1; then
+        _f="$(find "$_cc/fetch" -name 'FreeBSD-kerberos-lib-*.pkg' | head -n 1)"
+        if [ -n "$_f" ] && tar -xf "$_f" -C "$_cc/x" 2>> "$_cl" && mkdir -p "$_cc/lib" &&
+            cp -p "$_cc"/x/usr/lib/*.so.* "$_cc/lib/" 2>> "$_cl"; then
+            say "the chroots: the libraries of Kerberos of the base at /usr/local/lib/az-basecompat ($(basename "$_f" .pkg | sed 's/~.*//')): $(ls "$_cc/lib" | tr '\n' ' ')"
+            return 0
+        fi
+    fi
+    rm -rf "$_cc/lib"
+    say "warning: no libraries of Kerberos of the base for the chroots (results/logs/chroots.log): the official packages that need them do not start there"
+    return 0
+}
+
 # ch_init: what the chroots of the run share (not for a dry run): the copy of /etc
 # (without /etc/ssh: the host keys of the machine are of no build), pkg.conf and the
 # repositories of /usr/local/etc/pkg/repos but ours (az, azbuild: in a chroot pkg
@@ -1720,6 +1761,7 @@ ch_init() {
     fi
     # shellcheck disable=SC2086
     if [ -d "$pkgdb/repos" ]; then (cd "$pkgdb/repos" && tar -cf - $_ox .) | (cd "$work/ch-repos" && tar -xpf -); fi
+    ch_compat_init
     _t0="$(date +%s)"
     ch_up _setup || die "no chroot for the run: $why"
     say "a chroot in $(( $(date +%s) - _t0 ))s: $ch_base read only$( [ -z "$world" ] || echo ' (but /usr/src: of the world of AZ_WORLD)'), a copy of /etc, devfs$( [ "$ch_fdesc" = 1 ] && echo ', fdescfs')$( [ "$ch_proc" = 1 ] && echo ', procfs'), this tree, the official tree, packages/ and the repository read only (the chroot of each port the same)"
