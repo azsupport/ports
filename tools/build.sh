@@ -201,13 +201,13 @@
 
 set -u
 
-# the official tree the overlay is built over: freebsd-ports main of 19.11.2026 03:18
-# (Prague; the commit 18.11.2026 18:18 -0800; aZ, 19.11.2026 06:44: the pin moved, v3
-# first, then v2 once), the commit of az/az/files/deps.conf too. The rule of aZ: the latest version of a port, or a newer release for its
+# the official tree the overlay is built over: freebsd-ports main of 24.11.2026 19:54
+# (Prague; aZ, 24.11.2026 20:06: the full rebuild of v3 on his runner after the news of
+# the ports), the commit of az/az/files/deps.conf too. The rule of aZ: the latest version of a port, or a newer release for its
 # security or a serious bug (a take line of deps.conf), so before a build this goes to
 # the latest commit of main (it had stayed at 04.11.2026: apache24 2.4.69 for 2.4.70
 # of 07.11.2026, aZ 10.11.2026)
-ports_commit="c833fb1acd60997aa3fe6fb9b0234bbc9ba90102"
+ports_commit="5cfbd76929a928d723da4ae457b836b206d58224"
 ports_url="https://github.com/freebsd/freebsd-ports"
 
 # The build tools a port gets from the official packages of FreeBSD even when this
