@@ -69,6 +69,15 @@ az-no-docs:
 	done
 .endif
 
+# No info pages, so no print/indexinfo either (aZ, 24.11.2026 19:31: «а с какого хера
+# bash зависимость к indexinfo? и тем более котоой у нас нет?»; 19:35: for every port in
+# this file, automake too): bsd.port.mk adds indexinfo:print/indexinfo to RUN_DEPENDS
+# and the @info lines of add-plist-info for INFO, both after both inclusions of this
+# file, and az-no-docs takes share/info out of every package. INFO set by the port's
+# Makefile (that of the official port for Mk/az-official.mk) is undefined here, in both
+# passes.
+.undef INFO
+
 # The keywords of pkg create for our packages: those of the official tree with those of
 # Mk/Keywords over them (pkg takes one directory, PLIST_KEYWORDS_DIR), copied by
 # az-keywords in the stage. Mk/Keywords/sample.ucl: @sample without "You may need to
