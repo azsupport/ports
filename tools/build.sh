@@ -491,13 +491,30 @@ mount -p | awk '$2 == "/proc" && $3 == "procfs" { f = 1 } END { exit !f }' && ch
 ch_mounts() {
     mount -p | awk -v d="$1" '$2 == d || index($2, d "/") == 1 { print length($2), $2 }' | sort -rn | cut -d ' ' -f 2-
 }
-# ch_down <chroot>: a chroot of the run away: what is mounted in it unmounted (the
-# deepest first, by force when busy), then its files, only when nothing is mounted
-# there any more (and rm -x never crosses a mount point: the distfiles, the cache, the
-# trees mounted in it stay whole); 1 when it stays (said)
+# ch_kill <chroot>: the processes whose root directory is the chroot or below it
+# (procstat), killed with SIGKILL (up to 3 times, 2 s apart) and said: those of a build
+# that was stopped (its make and compilers go on without it and keep the mounts busy and
+# the processors: the jail of as5, 24.11.2026)
+ch_kill() {
+    for _i in 1 2 3; do
+        _kp="$(procstat -f -a 2> /dev/null | awk -v d="$1" '$3 == "root" && ($NF == d || index($NF, d "/") == 1) { print $1 }' | sort -u | tr '\n' ' ')"
+        [ -n "$_kp" ] || return 0
+        # shellcheck disable=SC2086
+        [ "$_i" = 1 ] && say "  the chroot $1: processes still there killed: $(ps -o pid=,command= -p "$(echo $_kp | tr ' ' ',')" 2> /dev/null | cut -c1-100 | tr '\n' ';' | cut -c1-400)"
+        # shellcheck disable=SC2086
+        kill -9 $_kp 2> /dev/null
+        sleep 2
+    done
+}
+# ch_down <chroot>: a chroot of the run away: the processes still in it killed (ch_kill),
+# what is mounted in it unmounted (the deepest first, by force when busy), then its
+# files, only when nothing is mounted there any more (and rm -x never crosses a mount
+# point: the distfiles, the cache, the trees mounted in it stay whole); 1 when it stays
+# (said)
 ch_down() {
     case "$1" in "$chd"/?*) ;; *) say "  ch_down: $1 is no chroot of the run ($chd/<key>)"; return 1 ;; esac
     [ -e "$1" ] || [ -n "$(ch_mounts "$1")" ] || return 0
+    ch_kill "$1"
     for _m in $(ch_mounts "$1"); do
         umount "$_m" > /dev/null 2>&1 || umount -f "$_m" > /dev/null 2>&1 || say "  cannot unmount $_m"
     done

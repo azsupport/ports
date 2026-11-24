@@ -658,6 +658,19 @@ jobs:
             echo "programs: SKIP (no tools/test-programs.sh: the tests of azsupport/azsupport were not fetched)" >> results/checks.txt
           fi
           if [ "$r" = 1 ]; then rc=1; fi
+          # what the checks and the tests left running in their root (the children of a
+          # server they started and did not stop): listed with the private results of the
+          # tests, killed by cr_down below
+          lp="$(procstat -f -a 2> /dev/null | awk -v d="$CR" '$3 == "root" && ($NF == d || index($NF, d "/") == 1) { print $1 }' | sort -u | tr '\n' ' ')"
+          if [ -n "$lp" ]; then
+            mkdir -p results/tests
+            # shellcheck disable=SC2086
+            ps -o pid,ppid,etime,command -p "$(echo $lp | tr ' ' ',')" > results/tests/leftovers.txt 2>&1
+            # shellcheck disable=SC2086
+            echo "leftovers: WARN $(echo $lp | wc -w | tr -d ' ') processes of the checks and the tests still there after them (killed; leftovers.txt of the private results of the tests)" >> results/checks.txt
+          else
+            echo "leftovers: OK (no process of the checks and the tests after them)" >> results/checks.txt
+          fi
           fi
           cr_down || echo "the root of the checks: not torn down (the next job does it)"
           # the log of make of the world, when this job built one: with the private
