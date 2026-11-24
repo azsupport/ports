@@ -37,7 +37,7 @@ permissions:
 
 jobs:
   distinfo:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, azlight]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
@@ -65,7 +65,7 @@ jobs:
               rm -rf dl/x; mkdir -p dl/x
               case "$1" in
                 *.zip|*.jar) unzip -q -o dl/file $pats -d dl/x > /dev/null 2>&1 || : ;;
-                *) tar -xf dl/file -C dl/x --wildcards $pats > /dev/null 2>&1 || : ;;
+                *) tar -xf dl/file -C dl/x $pats > /dev/null 2>&1 || : ;;
               esac
               (cd dl/x && find . -type f | LC_ALL=C sort) | while read -r m; do
                 if [ "$(head -c 4 "dl/x/$m" | od -An -c | tr -d ' ')" = '177ELF' ]; then
@@ -101,7 +101,7 @@ jobs:
               if ! curl -fsSL --retry 3 -o dl/file "$u"; then
                 echo "FAIL  $name: $u not fetched" >> notes.txt; rc=1; continue
               fi
-              s="$(sha256sum dl/file | cut -d' ' -f1)"; z="$(stat -c %s dl/file)"
+              s="$(sha256sum dl/file | cut -d' ' -f1)"; z="$(wc -c < dl/file | tr -d " ")"
               s5="$(sha512sum dl/file | cut -d' ' -f1)"
               echo "ok    $name: $u, $z bytes, SHA-256 $s" >> notes.txt
               if [ -z "$sha" ]; then sha="$s"; size="$z"; sha5="$s5"; [ -z "$LIST" ] || contents "$name"

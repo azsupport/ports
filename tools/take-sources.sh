@@ -180,7 +180,7 @@ for n in "$@"; do
         [ -z "$k" ] || gpg -q --keyserver hkps://keyserver.ubuntu.com --recv-keys "$k" >/dev/null 2>&1 ||
             gpg -q --keyserver hkps://keys.openpgp.org --recv-keys "$k" >/dev/null 2>&1
         for m in $distinct; do
-            v="$(gpg --status-fd 1 --verify "$w/sig" "$w/$m" 2>/dev/null | sed -n 's/^\[GNUPG:\] \(GOODSIG\|BADSIG\|ERRSIG\|NO_PUBKEY\|EXPKEYSIG\|REVKEYSIG\) \(.*\)/\1 \2/p' | head -1)"
+            v="$(gpg --status-fd 1 --verify "$w/sig" "$w/$m" 2>/dev/null | sed -n -E 's/^\[GNUPG:\] (GOODSIG|BADSIG|ERRSIG|NO_PUBKEY|EXPKEYSIG|REVKEYSIG) (.*)/\1 \2/p' | head -1)"
             out "- signature $sig (key ${k:-?}) on$(names_of "$(sha256sum "$w/$m" | cut -d' ' -f1)"): ${v:-not checked}"
         done
     elif [ -n "$sig" ]; then

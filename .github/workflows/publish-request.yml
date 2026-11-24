@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, azlight]
     timeout-minutes: 5
     steps:
       - name: build.yml of main with publish=true

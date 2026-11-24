@@ -17,9 +17,9 @@ on:
         required: false
         default: ''
       runner:
-        description: 'The runner (a label): azbuild (the first free one), azbuild1 or azbuild2'
+        description: 'The runner (a label): azlight (the light runner of the jail, default), azbuild (the first free build runner), azbuild1 or azbuild2'
         required: false
-        default: 'azbuild'
+        default: 'azlight'
 
 permissions:
   contents: read
