@@ -139,7 +139,7 @@ MASTER_SITES=	https://github.com/curl/curl/releases/download/curl-8_23_0/:curl \
 		https://github.com/c-ares/c-ares/releases/download/v1.34.9/:cares \
 		https://github.com/nghttp2/nghttp2/releases/download/v1.71.0/:nghttp2 \
 		https://codeload.github.com/google/brotli/tar.gz/v1.2.1?dummy=/:brotli \
-		https://github.com/facebook/zstd/releases/download/v1.5.7/:zstd \
+		https://github.com/facebook/zstd/releases/download/v1.6.0/:zstd \
 		GNU/libidn:libidn2 \
 		https://github.com/rockdaboot/libpsl/releases/download/0.23.3/:libpsl \
 		https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/:libssh2 \
@@ -158,7 +158,7 @@ DISTFILES=	curl-8.23.0.tar.xz:curl \
 		c-ares-1.34.9.tar.gz:cares \
 		nghttp2-1.71.0.tar.xz:nghttp2 \
 		brotli_1.2.1_google-brotli-v1.2.1_GH0.tar.gz:brotli \
-		zstd-1.5.7.tar.zst:zstd \
+		zstd-1.6.0.tar.zst:zstd \
 		libidn2-2.3.8.tar.gz:libidn2 \
 		libpsl-0.23.3.tar.lz:libpsl \
 		libssh2-1.11.1.tar.xz:libssh2 \

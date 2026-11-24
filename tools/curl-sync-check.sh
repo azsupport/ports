@@ -79,6 +79,24 @@ while read -r n; do
         echo "FAIL curl/$n: not that of azsupport/php-src"; rc=1
     fi
 done < "$t/names"
+# the release files of curl.conf and curl-deps.conf here: in the distinfo of az/az with
+# their SHA-256 (the DISTFILES of az/az, under the names of the confs, / made _), so
+# that a release changed in the confs is the one the build takes (24.11.2026: zstd 1.6.0
+# in curl-deps.conf, 1.5.7 in az/az, and every library of the bundled curl failed)
+di="$top/az/az/distinfo"
+{
+    data "$here/curl-deps.conf" | awk '{ print $5, $6 }'
+    data "$here/curl.conf" | awk '{ n = $3; sub(/.*\//, "", n); print n, $4 }'
+} | LC_ALL=C sort -u | while read -r f s; do
+    n="az/$(printf '%s' "$f" | tr / _)"
+    if grep -qxF "SHA256 ($n) = $s" "$di"; then
+        echo "OK   az/az/distinfo: $n"
+    else
+        echo "FAIL az/az/distinfo: no $n with the SHA-256 of the confs ($s): its DISTFILES, MASTER_SITES and distinfo"
+        : > "$t/dfail"
+    fi
+done
+[ ! -f "$t/dfail" ] || rc=1
 if [ "$rc" -ne 0 ]; then
     echo
     echo "The curl of az must be that of the PHP of azsupport/php-src ($ref): bring az/az/files/curl.conf,"
