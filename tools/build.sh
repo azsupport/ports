@@ -2260,18 +2260,29 @@ else
             fi
             # what it gets in its chroot, worked out here (not in the jobs beside it)
             dep_lists "$o"
+            # its make -j: the processes of all the builds (AZ_JOBS times MAKE_JOBS_NUMBER)
+            # shared by the builds that can go at once now (those going, this one and the
+            # ports ready after it, up to AZ_JOBS), MAKE_JOBS_NUMBER at least (az/az alone in
+            # its wave took 4 of the 16 cores of the jail, 24.11.2026); a port of AZ_ALONE
+            # keeps MAKE_JOBS_NUMBER (it builds alone for its memory)
+            pj="${MAKE_JOBS_NUMBER:-}"
+            if [ -n "$pj" ] && [ "$alone" = 0 ]; then
+                _nr="$(grep -c . "$q/ready" 2> /dev/null)" || _nr=0
+                _n=$((running + 1 + _nr)); [ "$_n" -le "$jobs" ] || _n="$jobs"
+                pj=$((jobs * MAKE_JOBS_NUMBER / _n)); [ "$pj" -ge "$MAKE_JOBS_NUMBER" ] || pj="$MAKE_JOBS_NUMBER"
+            fi
             if [ "$alone" = 1 ]; then
                 alone_k="$k"
-                say "$o: make package (logs/$k.log), alone (AZ_ALONE: no other build beside it)"
+                say "$o: make package (logs/$k.log)${pj:+, make -j $pj}, alone (AZ_ALONE: no other build beside it)"
             else
-                say "$o: make package (logs/$k.log)"
+                say "$o: make package (logs/$k.log)${pj:+, make -j $pj}"
             fi
             # .done after the subshell of the build, also if it ends early: the loop
             # below would otherwise wait for it until the timeout of the job; the traps
             # of the run (all chroots away) are not those of a job
             echo "$o" > "$q/jobs/$k.origin"
             date +%s > "$q/jobs/$k.start"
-            ( trap - EXIT HUP INT TERM; ( job_port "$o" ) > "$q/jobs/$k.out" 2>&1; : > "$q/jobs/$k.done" ) &
+            ( trap - EXIT HUP INT TERM; [ -z "$pj" ] || MAKE_JOBS_NUMBER="$pj"; ( job_port "$o" ) > "$q/jobs/$k.out" 2>&1; : > "$q/jobs/$k.done" ) &
             echo $! > "$q/jobs/$k.pid"
             running=$((running + 1))
             continue
