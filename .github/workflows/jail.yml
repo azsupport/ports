@@ -1,0 +1,48 @@
+name: jail
+
+# The upkeep of the jail of our runners: the programs the workflows need, the processes
+# a job left there, what a build needs to know about it. The script of the input runs on
+# a runner of the jail as root (sh -x), and its output goes only into the branch runs of
+# the private azsupport/azsupport (tools/runs-report.sh: ports-jail/<date>/<run>-jail.md),
+# never into this log or the summary of the run: what it shows of the jail is not for a
+# public repository. Started by hand (workflow_dispatch: those who can write to this
+# repository).
+
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: 'The sh script to run in the jail, as root'
+        required: true
+      runner:
+        description: 'The runner (a label): azlight (default), azbuild1, azfork…'
+        required: false
+        default: 'azlight'
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ["self-hosted", "${{ inputs.runner }}"]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: The script, its output to azsupport/azsupport
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: runner=${{ inputs.runner }}
+          SCRIPT: ${{ inputs.script }}
+        run: |
+          set +e
+          o="$(mktemp)"
+          printf '%s\n' "$SCRIPT" > "$o.sh"
+          {
+            printf '### jail\n\nThe script:\n\n```\n%s\n```\n\nIts output (sh -x):\n\n```\n' "$SCRIPT"
+            sh -x "$o.sh" < /dev/null 2>&1
+            echo "exit: $?"
+            printf '```\n'
+          } > "$o" 2>&1
+          sh tools/runs-report.sh "$o" jail > "$o.out" 2>&1
+          grep '^runs report: ' "$o.out" || { echo "::error title=jail::the output was not committed to azsupport/azsupport"; exit 1; }
