@@ -29,7 +29,7 @@
 #                    the pinned commit (a build server: its own tree; a warning when it is
 #                    at another commit)
 #   AZ_PKG_KEY_FILE  the signing key of the repository (see tools/pkg-repo-sign.sh)
-#   AZ_JOBS          the ports built at once, in waves (default 4); 1: one after
+#   AZ_JOBS          the ports built at once (default 4); 1: one after
 #                    another in the order of the queue, as before AZ_JOBS
 #   AZ_TIME_SOFT, AZ_TIME_HARD
 #                    seconds from the start of this script: after AZ_TIME_SOFT no port
@@ -140,14 +140,15 @@
 #   its log, its time (with those of its chroot and of its dependencies), OK or FAIL.
 #   The /usr/local of the machine is never touched by a build: the checks after the
 #   run (tools/install-php.sh, test-programs.sh) see nothing a build installed;
-# - AZ_JOBS above 1: waves, each of the ports whose ports of this tree they need are
-#   done, up to AZ_JOBS ports at once, the biggest first (the size of the package in
-#   the repository), each with its chroot, its log and its own PACKAGES directory (its
+# - AZ_JOBS above 1: each port as soon as the ports of this tree it needs are done and
+#   a place is free (not after the whole wave before it; aZ, 24.11.2026), up to AZ_JOBS
+#   ports at once, of those ready the biggest first (the size of the package in the
+#   repository), each with its chroot, its log and its own PACKAGES directory (its
 #   distfiles fetched under lockf(1), one build at a time); a port of AZ_ALONE (below:
 #   GCC 16) starts when no other build is going, and none starts beside it; while
-#   builds go it waits and the ports after it in the wave start meanwhile, until it
-#   has to start to end before AZ_TIME_HARD (alone_due; aZ, 24.11.2026); the
-#   summary in the order of the queue, results/waves.txt;
+#   builds go it waits and the ports ready after it start meanwhile, until it has to
+#   start to end before AZ_TIME_HARD (alone_due; aZ, 24.11.2026); the summary in the
+#   order of the queue, results/waves.txt (the ports that came ready together);
 # - a NEED_ROOT port (az/az builds into the real prefix and refuses files of a package
 #   there): into the /usr/local/az of its own chroot, as any port;
 # - the repository: one package per origin (of two in <dir> at the start, the newer
@@ -295,8 +296,8 @@ time_short() {
 # alone_due <origin>: true when the port of AZ_ALONE that waits (pend, in the waves) has
 # to start now so as to end before AZ_TIME_HARD: its usual minutes (build-minutes.conf)
 # after the builds going (each from its start, its usual minutes or 15 when it has
-# none) and after the next port of the wave, were that one started now; never without
-# AZ_TIME_HARD or without its minutes (then it starts when the others of the wave are done)
+# none) and after the next ready port, were that one started now; never without
+# AZ_TIME_HARD or without its minutes (then it starts when no other build goes)
 bm_of() { awk -v o="${1%%@*}" '$1 == o && $2 ~ /^[0-9]+$/ { print $2; exit }' "$top/tools/build-minutes.conf" 2> /dev/null; }
 alone_due() {
     [ -n "$deadline_hard" ] || return 1
@@ -311,7 +312,7 @@ alone_due() {
         ad_e=$(($(cat "$ad_sf") + ${ad_m:-15} * 60))
         [ "$ad_e" -le "$ad_end" ] || ad_end="$ad_e"
     done
-    ad_n="$(sed -n 1p "$q/wave.rest" 2> /dev/null)"
+    ad_n="$(sed -n '1s/^[0-9]* //p' "$q/ready" 2> /dev/null)"
     if [ -n "$ad_n" ]; then
         ad_m="$(bm_of "$ad_n")"
         ad_e=$((ad_now + ${ad_m:-15} * 60))
@@ -620,7 +621,7 @@ port_cache() {
 # run, the level, and AZ_CFLAGS, AZ_GCC_SO, AZ_GCC_BIN and MAKE_CONF of the caller
 # when set (nothing else of the caller: no key, no token). NOCLEANDEPENDS: make clean
 # of a port leaves the ports it depends on alone: they may build at that moment in
-# another chroot of the wave, with the same WRKDIRPREFIX (11.11.2026: make clean of
+# another chroot, with the same WRKDIRPREFIX (11.11.2026: make clean of
 # ftp/curl, which takes the official perl5 to build, removed the work directory of
 # lang/perl5.42 under its Configure; that of www/node18 the one of lang/python312)
 ch_run() {
@@ -1632,8 +1633,8 @@ php_port() {
 }
 # cc_flags <cc>: the permissive flags the compiler takes (tools/configure-check.sh
 # probe in the chroot of the port: the compiler may be one of its packages), once for
-# each compiler of the run ($q/ccflags-*, written whole: the builds of a wave ask at
-# once; none, a compiler not there, is not kept)
+# each compiler of the run ($q/ccflags-*, written whole: the builds going at once may
+# ask together; none, a compiler not there, is not kept)
 cc_flags() {
     _cf="$q/ccflags-$(printf '%s' "$1" | tr -c 'A-Za-z0-9' '_')"
     if [ ! -s "$_cf" ]; then
@@ -1713,8 +1714,8 @@ cc_check() {
 make_port() {
     _pk="$2"
     rm -f "$packages/All/$pn.pkg"
-    # the distfiles one build at a time (lockf on the machine): the ports of a wave may
-    # share one (the tarball of PHP of the modules), and two fetches of it at once
+    # the distfiles one build at a time (lockf on the machine): the ports building at
+    # once may share one (the tarball of PHP of the modules), and two fetches of it at once
     # break it; what fails here make package says again
     ch_run -l "$q/fetch.lock" make -C "$top/$1" checksum USE_PACKAGE_DEPENDS_ONLY=yes \
         AZ_STAMP="$az_stamp" AZ_HASH="$h" >> "$log" 2>&1
@@ -1833,7 +1834,7 @@ if [ "$serial" = 1 ]; then
         fi
         dep_lists "$o"
         say "$o: make package (logs/$k.log)"
-        # in a subshell, so that AZ_TIME_HARD stops it as in the waves: it has no line of
+        # in a subshell, so that AZ_TIME_HARD stops it as with AZ_JOBS above 1: it has no line of
         # the summary then and comes again in the next run (time_skip), one with a cache
         # between the runs (AZ_PORT_CACHE) from what it did here ($q/timecached)
         ( trap - EXIT HUP INT TERM; job_port "$o" ) &
@@ -1853,151 +1854,148 @@ if [ "$serial" = 1 ]; then
         fi
     done
 else
-    # Waves (AZ_JOBS above 1, or AZ_DRYRUN): the ports whose ports of this tree they
-    # need are done (built, kept, failed or skipped) form a wave, in the order of
-    # the queue; up to AZ_JOBS of them at once, each in a chroot of its own with only
-    # its own dependencies (so that the ports of a wave never take each other's
-    # packages away: one of a pair with the same files, phpXY-mysqlnd and
-    # phpXY-mysqlnd-openssl, goes beside the other; az/az, NEED_ROOT, as any port, into
-    # the /usr/local/az of its chroot), each with its log and its own packages
-    # directory; its screen output said when it ends.
-    mkdir -p "$q/sum" "$q/jobs"
+    # Waves (AZ_JOBS above 1, or AZ_DRYRUN): a port is ready once the ports of this tree
+    # it needs are done (built, kept, failed or skipped); up to AZ_JOBS ports at once,
+    # each in a chroot of its own with only its own dependencies (so that the ports
+    # building at once never take each other's packages away: one of a pair with the
+    # same files, phpXY-mysqlnd and phpXY-mysqlnd-openssl, goes beside the other; az/az,
+    # NEED_ROOT, as any port, into the /usr/local/az of its chroot), each with its log
+    # and its own packages directory; its screen output said when it ends. A port
+    # starts as soon as it is ready and a place is free, not after the whole wave
+    # before it (aZ, 24.11.2026 13:54: the 37 ports left waited from 13:22 to the end
+    # of the run for www/node24 of the wave before them, which 5 of them need): a wave
+    # is the ports that came ready together (results/waves.txt); a dry
+    # run (AZ_DRYRUN), which builds nothing, has them by the levels of the
+    # dependencies, as before.
+    mkdir -p "$q/sum" "$q/jobs" "$q/inq" "$q/depk"
     : > "$res/waves.txt"
     wave=0
     # the waves of a stage only, the stages one after another
     stage=1
     cp "$q/stage-1.txt" "$q/stage.txt"
     [ "$nst" = 1 ] || say "stage 1 of $nst: $(wc -l < "$q/stage.txt" | tr -d ' ') ports"
+    # the keys of the ports of the stage and of the ports each needs, once (the scan
+    # below runs after each build that ends, without a process of its own per port)
+    stage_keys() {
+        : > "$q/stage.k"
+        for sk_o in $(cat "$q/stage.txt"); do
+            sk_k="$(key "$sk_o")"
+            echo "$sk_k=$sk_o" >> "$q/stage.k"
+            [ -f "$q/depk/$sk_k" ] && continue
+            if [ -f "$q/deps/$sk_k" ]; then tr '/@' '__' < "$q/deps/$sk_k" > "$q/depk/$sk_k"; else : > "$q/depk/$sk_k"; fi
+        done
+    }
+    stage_keys
+    # $q/ready: the ports ready to build that have not started ("<size> <origin>", the
+    # biggest first: by the size of its package in the repository, the longer builds;
+    # those without one after them, in the order they came ready); $q/inq/<key>: a port
+    # there, waiting (pend), chosen to start next (nxt) or building
+    : > "$q/ready"
+    running=0
+    # the key of a port of AZ_ALONE that builds: nothing starts beside it, and it
+    # starts when nothing else builds
+    alone_k=""
+    # a port of AZ_ALONE that cannot start yet (builds going) waits in pend, and the
+    # ports ready after it start meanwhile (aZ, 24.11.2026 04:38: lang/gcc16 behind
+    # java/openjdk21 held the 38 other ports of its wave for 70 minutes); it starts when
+    # no build goes, or earlier when it would no longer end before AZ_TIME_HARD
+    # (alone_due: then nothing more starts until it does); one that no longer fits at
+    # all is not held for (time_short). One port of AZ_ALONE waits at a time; a second
+    # one, chosen meanwhile, starts when nothing else builds and holds the others
+    pend=""
+    # the port chosen to start next, until a place is free (and, for a port of AZ_ALONE,
+    # until no other build goes)
+    nxt=""
     while :; do
         # az/az done: the hashes of the ports that need it (none of them is ready before)
         az_resolve
-        # the ports that are ready, those that need no build said at once (the next
+        # the ports that came ready, those that need no build said at once (the next
         # ones may be ready then)
-        : > "$q/cand"
         more=1
         while [ "$more" = 1 ]; do
             more=0
             : > "$q/cand"
-            for o in $(cat "$q/stage.txt"); do
-                [ -n "$(st "$o")" ] && continue
+            for ko in $(cat "$q/stage.k"); do
+                k="${ko%%=*}"
+                [ -s "$q/state/$k" ] && continue
+                [ -f "$q/inq/$k" ] && continue
                 ready=1
-                for d in $(cat "$q/deps/$(key "$o")"); do
-                    [ -n "$(st "$d")" ] || { ready=0; break; }
-                done
+                while read -r dk; do
+                    [ -s "$q/state/$dk" ] || { ready=0; break; }
+                done < "$q/depk/$k"
                 [ "$ready" = 1 ] || continue
-                if pre_port "$o"; then echo "$o" >> "$q/cand"; else more=1; fi
+                o="${ko#*=}"
+                if pre_port "$o" < /dev/null; then echo "$o" >> "$q/cand"; else more=1; fi
             done
         done
-        if [ ! -s "$q/cand" ]; then
-            # nothing ready: the stage is done (the next one), or a loop in the
-            # dependencies (the first port left in the order of the queue, as with
-            # AZ_JOBS=1)
-            o="$(for o in $(cat "$q/stage.txt"); do [ -z "$(st "$o")" ] && { echo "$o"; break; }; done)"
+        if [ ! -s "$q/cand" ] && [ ! -s "$q/ready" ] && [ -z "$pend$nxt" ] && [ "$running" -eq 0 ]; then
+            # nothing ready, waiting or building: the stage is done (the next one), or a
+            # loop in the dependencies (the first port left in the order of the queue, as
+            # with AZ_JOBS=1)
+            o=""
+            for ko in $(cat "$q/stage.k"); do
+                [ -s "$q/state/${ko%%=*}" ] || { o="${ko#*=}"; break; }
+            done
             if [ -z "$o" ]; then
                 stage=$((stage + 1))
                 [ "$stage" -le "$nst" ] || break
                 cp "$q/stage-$stage.txt" "$q/stage.txt"
                 say "stage $stage of $nst: $(wc -l < "$q/stage.txt" | tr -d ' ') ports"
+                stage_keys
                 continue
             fi
             pre_port "$o" || continue
             echo "$o" > "$q/cand"
         fi
-        wave=$((wave + 1))
-        cp "$q/cand" "$q/wave"
-        say "wave $wave: $(wc -l < "$q/wave" | tr -d ' ') ports, up to $jobs at once: $(tr '\n' ' ' < "$q/wave")"
-        echo "wave $wave: $(tr '\n' ' ' < "$q/wave" | sed 's/ $//')" >> "$res/waves.txt"
-        if [ "$dryrun" = 1 ]; then
-            for o in $(cat "$q/wave"); do pre_port "$o"; record "$o" ok "$pn: dry run, not built"; done
-            continue
-        fi
-        # up to $jobs builds at once, the biggest first (by the size of its package in
-        # the repository: the longer builds; those without one after them, in the
-        # order of the queue); each writes $q/jobs/<key>.done when it ends
-        for o in $(cat "$q/wave"); do
-            pre_port "$o"
-            sz=0
-            [ -n "$had" ] && [ -f "$repo/${had#* }" ] && sz="$(wc -c < "$repo/${had#* }" | tr -d ' ')"
-            echo "$sz $o"
-        done | sort -s -k1,1nr | awk '{ print $2 }' > "$q/wave.order"
-        running=0
-        # the key of a port of AZ_ALONE that builds: nothing starts beside it, and it
-        # starts when nothing else builds
-        alone_k=""
-        # a port of AZ_ALONE that cannot start yet (builds going) waits in pend, and the
-        # ports after it in the wave start meanwhile (aZ, 24.11.2026 04:38: lang/gcc16
-        # behind java/openjdk21 held the 38 other ports of its wave for 70 minutes); it
-        # starts when no build goes: the others of the wave started and done, or earlier
-        # when it would no longer end before AZ_TIME_HARD (alone_due: then nothing more
-        # starts until it does); one that no longer fits at all is not held for
-        # (time_short). One port of AZ_ALONE waits at a time; a second one behaves as before
-        pend=""
-        cp "$q/wave.order" "$q/wave.rest"
-        while :; do
-            o=""
-            if [ -n "$pend" ]; then
-                pre_port "$pend"
-                if time_over; then time_skip "$pend"; pend=""
-                elif time_short "$pend"; then
-                    say "$pend: not started: its build takes about $bm minutes (tools/build-minutes.conf), $((left / 60)) are left until AZ_TIME_HARD"
-                    time_skip "$pend"; pend=""
-                fi
-            fi
-            if [ -n "$pend" ] && { [ "$running" -eq 0 ] || [ ! -s "$q/wave.rest" ] || alone_due "$pend"; }; then
-                o="$pend"; pend=""
-            elif [ -s "$q/wave.rest" ]; then
-                o="$(sed -n 1p "$q/wave.rest")"
-                sed 1d "$q/wave.rest" > "$q/wave.rest.t" && mv "$q/wave.rest.t" "$q/wave.rest"
-            fi
-            alone=0
-            if [ -n "$o" ]; then case " $AZ_ALONE " in *" ${o%%@*} "*) alone=1 ;; esac; fi
-            if [ "$alone" = 1 ] && [ -z "$pend" ] && [ "$running" -gt 0 ] && [ -s "$q/wave.rest" ] && ! alone_due "$o"; then
-                pend="$o"
-                say "$o: waits for the builds going (AZ_ALONE: nothing beside it); the ports after it start meanwhile"
+        if [ -s "$q/cand" ]; then
+            wave=$((wave + 1))
+            say "wave $wave: $(wc -l < "$q/cand" | tr -d ' ') ports ready, up to $jobs builds at once ($running going): $(tr '\n' ' ' < "$q/cand")"
+            echo "wave $wave: $(tr '\n' ' ' < "$q/cand" | sed 's/ $//')" >> "$res/waves.txt"
+            if [ "$dryrun" = 1 ]; then
+                for o in $(cat "$q/cand"); do pre_port "$o"; record "$o" ok "$pn: dry run, not built"; done
                 continue
             fi
-            while [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; } ||
-                { [ "$running" -gt 0 ] && { [ "$alone" = 1 ] || [ -n "$alone_k" ]; }; }; do
-                for dn in "$q"/jobs/*.done; do
-                    [ -f "$dn" ] || continue
-                    jk="${dn##*/}"; jk="${jk%.done}"
-                    wait "$(cat "$q/jobs/$jk.pid")" 2> /dev/null
-                    cat "$q/jobs/$jk.out"
-                    # a build stopped at AZ_TIME_HARD (no line of the summary): not built,
-                    # the next run builds it (time_skip); one with a cache between the runs
-                    # (AZ_PORT_CACHE) goes on there from what it did here ($q/timecached)
-                    if [ -f "$q/stopped" ] && [ ! -s "$q/state/$jk" ] && [ -s "$q/jobs/$jk.origin" ]; then
-                        jo="$(cat "$q/jobs/$jk.origin")"
-                        pn="$(sed -n 1p "$q/info/$jk" 2> /dev/null)"
-                        time_skip "$jo"
-                        [ -n "$(port_cache "$jk")" ] && echo "$jo" >> "$q/timecached"
-                    fi
-                    rm -f "$dn" "$q/jobs/$jk.pid" "$q/jobs/$jk.out" "$q/jobs/$jk.origin" "$q/jobs/$jk.start"
-                    running=$((running - 1))
-                    if [ "$jk" = "$alone_k" ]; then alone_k=""; fi
-                done
-                [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; } ||
-                    { [ "$running" -gt 0 ] && { [ "$alone" = 1 ] || [ -n "$alone_k" ]; }; } || break
-                # AZ_TIME_HARD: the builds still going are stopped once (the tree of each
-                # job under its subshell, which then writes its .done); they have no state
-                # and come again as not built (time_skip). A job whose subshell is gone
-                # without a .done counts as done, so that this loop never waits on it
-                if hard_over && [ ! -f "$q/stopped" ]; then
-                    : > "$q/stopped"
-                    say "the time of this run is over (AZ_TIME_HARD): the $running builds still going are stopped"
-                    for pf in "$q"/jobs/*.pid; do
-                        [ -f "$pf" ] || continue
-                        for c_ in $(pgrep -P "$(cat "$pf")" 2> /dev/null); do kill_tree "$c_"; done
-                    done
+            for o in $(cat "$q/cand"); do
+                pre_port "$o"
+                : > "$q/inq/$k"
+                sz=0
+                [ -n "$had" ] && [ -f "$repo/${had#* }" ] && sz="$(wc -c < "$repo/${had#* }" | tr -d ' ')"
+                echo "$sz $o"
+            done > "$q/cand.sz"
+            cat "$q/ready" "$q/cand.sz" | sort -s -k1,1nr > "$q/ready.t" && mv "$q/ready.t" "$q/ready"
+        fi
+        # the next port to start: the one chosen before; else the port of AZ_ALONE that
+        # waits, when no build goes or it is due; else the biggest ready one
+        if [ -z "$nxt" ]; then
+            if [ -n "$pend" ]; then
+                pre_port "$pend"
+                if time_over; then time_skip "$pend"; pend=""; continue
+                elif time_short "$pend"; then
+                    say "$pend: not started: its build takes about $bm minutes (tools/build-minutes.conf), $((left / 60)) are left until AZ_TIME_HARD"
+                    time_skip "$pend"; pend=""; continue
                 fi
-                for pf in "$q"/jobs/*.pid; do
-                    [ -f "$pf" ] || continue
-                    jk="${pf##*/}"; jk="${jk%.pid}"
-                    [ -f "$q/jobs/$jk.done" ] || kill -0 "$(cat "$pf")" 2> /dev/null || : > "$q/jobs/$jk.done"
-                done
-                sleep 1
-            done
-            [ -n "$o" ] || break
+            fi
+            if [ -n "$pend" ] && { [ "$running" -eq 0 ] || alone_due "$pend"; }; then
+                nxt="$pend"; pend=""
+            elif [ -s "$q/ready" ]; then
+                nxt="$(sed -n '1s/^[0-9]* //p' "$q/ready")"
+                sed 1d "$q/ready" > "$q/ready.t" && mv "$q/ready.t" "$q/ready"
+                case " $AZ_ALONE " in
+                    *" ${nxt%%@*} "*)
+                        if [ -z "$pend" ] && [ "$running" -gt 0 ] && ! alone_due "$nxt"; then
+                            pend="$nxt"; nxt=""
+                            say "$pend: waits for the builds going (AZ_ALONE: nothing beside it); the ports ready after it start meanwhile"
+                            continue
+                        fi ;;
+                esac
+            fi
+        fi
+        alone=0
+        if [ -n "$nxt" ]; then case " $AZ_ALONE " in *" ${nxt%%@*} "*) alone=1 ;; esac; fi
+        # it starts now if a place is free, no port of AZ_ALONE builds, and, being one
+        # itself, no other build goes
+        if [ -n "$nxt" ] && [ "$running" -lt "$jobs" ] && [ -z "$alone_k" ] && { [ "$alone" = 0 ] || [ "$running" -eq 0 ]; }; then
+            o="$nxt"; nxt=""
             pre_port "$o"
             if time_over; then time_skip "$o"; continue; fi
             if time_short "$o"; then
@@ -2013,13 +2011,65 @@ else
                 say "$o: make package (logs/$k.log)"
             fi
             # .done after the subshell of the build, also if it ends early: the loop
-            # above would otherwise wait for it until the timeout of the job; the traps
+            # below would otherwise wait for it until the timeout of the job; the traps
             # of the run (all chroots away) are not those of a job
             echo "$o" > "$q/jobs/$k.origin"
             date +%s > "$q/jobs/$k.start"
             ( trap - EXIT HUP INT TERM; ( job_port "$o" ) > "$q/jobs/$k.out" 2>&1; : > "$q/jobs/$k.done" ) &
             echo $! > "$q/jobs/$k.pid"
             running=$((running + 1))
+            continue
+        fi
+        # nothing builds and nothing can start: the scan above ends the stage
+        [ "$running" -gt 0 ] || continue
+        # nothing more can start now: wait until a build ends (the ports that need it
+        # may be ready then), each writes $q/jobs/<key>.done when it ends
+        reaped=0
+        while :; do
+            for dn in "$q"/jobs/*.done; do
+                [ -f "$dn" ] || continue
+                jk="${dn##*/}"; jk="${jk%.done}"
+                wait "$(cat "$q/jobs/$jk.pid")" 2> /dev/null
+                cat "$q/jobs/$jk.out"
+                # a build stopped at AZ_TIME_HARD (no line of the summary): not built,
+                # the next run builds it (time_skip); one with a cache between the runs
+                # (AZ_PORT_CACHE) goes on there from what it did here ($q/timecached).
+                # One gone without a result otherwise failed (else it would come ready
+                # again and again)
+                if [ ! -s "$q/state/$jk" ] && [ -s "$q/jobs/$jk.origin" ]; then
+                    jo="$(cat "$q/jobs/$jk.origin")"
+                    pn="$(sed -n 1p "$q/info/$jk" 2> /dev/null)"
+                    if [ -f "$q/stopped" ]; then
+                        time_skip "$jo"
+                        [ -n "$(port_cache "$jk")" ] && echo "$jo" >> "$q/timecached"
+                    else
+                        record "$jo" fail "${pn:-$jo}: its build ended without a result (logs/$jk.log)"
+                    fi
+                fi
+                rm -f "$dn" "$q/jobs/$jk.pid" "$q/jobs/$jk.out" "$q/jobs/$jk.origin" "$q/jobs/$jk.start"
+                running=$((running - 1))
+                reaped=1
+                if [ "$jk" = "$alone_k" ]; then alone_k=""; fi
+            done
+            [ "$reaped" = 0 ] || break
+            # AZ_TIME_HARD: the builds still going are stopped once (the tree of each
+            # job under its subshell, which then writes its .done); they have no state
+            # and come again as not built (time_skip). A job whose subshell is gone
+            # without a .done counts as done, so that this loop never waits on it
+            if hard_over && [ ! -f "$q/stopped" ]; then
+                : > "$q/stopped"
+                say "the time of this run is over (AZ_TIME_HARD): the $running builds still going are stopped"
+                for pf in "$q"/jobs/*.pid; do
+                    [ -f "$pf" ] || continue
+                    for c_ in $(pgrep -P "$(cat "$pf")" 2> /dev/null); do kill_tree "$c_"; done
+                done
+            fi
+            for pf in "$q"/jobs/*.pid; do
+                [ -f "$pf" ] || continue
+                jk="${pf##*/}"; jk="${jk%.pid}"
+                [ -f "$q/jobs/$jk.done" ] || kill -0 "$(cat "$pf")" 2> /dev/null || : > "$q/jobs/$jk.done"
+            done
+            sleep 1
         done
     done
     # the summary in the order of the queue
