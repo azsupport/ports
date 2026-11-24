@@ -1,11 +1,12 @@
 # www/nginx-devel: the nginx-devel of azsupport/ports in the place of the official
 # www/nginx-devel (aZ, 15.11.2026: «давай еще свой nginx-devel добавим», «может
-# модулями его разбить»): nginx 1.31.9 (the security update of the official port,
-# 230b1e426b, 18.11.2026; 1.31.8 before, of the pinned commit; of the files the
-# patches below change, 1.31.9 changes src/event/ngx_event_openssl.c alone, away from
-# the lines of its patch, and the configuration structures of proxy, fastcgi, scgi and
-# uwsgi are the same), its options the union of those of three of aZ's servers,
-# HTTP_GZIP_STATIC and HTTP_STATUS (for VTS).
+# модулями его разбить»): nginx 1.31.10 (the security update of the official port,
+# 5c56ee8695, 24.11.2026: CVE-2026-132779, a worker that spins on a send that never
+# makes progress with ssl_early_data, and the CPU hogged with SSL to backends: a send
+# chain no longer repeated when it sent nothing, src/core/ngx_output_chain.c and
+# src/http/ngx_http_write_filter_module.c, which none of the patches below changes;
+# 1.31.9 before, 230b1e426b, 18.11.2026), its options the union of those of three of
+# aZ's servers, HTTP_GZIP_STATIC and HTTP_STATUS (for VTS).
 #
 # Fixes of freenginx that nginx 1.31.9 has not (aZ, 18.11.2026 22:39: «проверил фиксы?
 # может висят в иссуес или в коммитах еще не зааррувленых?»): the double ngx_pfree() of
@@ -137,8 +138,7 @@
 # говно написали»; each read against the code of 1.31.9, its files/patch-* says how it
 # was checked): ACK frames with ECN counts of QUIC handled (949 and 1005; a client that
 # sends them got no response), no use of a QUIC path retired while its packet is handled
-# (1634), no busy loop when SSL_write() wants to read (2004, with ssl_early_data), the
-# length of a slice response checked (1966: an origin that sends a slice too long or too
+# (1634), the length of a slice response checked (1966: an origin that sends a slice too long or too
 # short had its bytes go out among those of the object, nothing in the log), a 101 of a
 # backend taken only where an upgrade is under way (1941), the lengths of names in the
 # resolver (1858); of 23.11.2026 (aZ, 00:21: «бери»): the context of a slice subrequest
@@ -153,7 +153,10 @@
 # set after a discard, which lua-nginx-module reads: after one, ngx.req.set_body_data(),
 # set_body_file(), init_body() and ngx.req.socket() fail and ngx.req.get_post_args()
 # gives an empty table, as its documentation has it). Not taken: 1624 and 1766 (the body
-# of an HTTP/3 request: nginx 1.31.9 has it fixed its own way, st->skip).
+# of an HTTP/3 request: nginx 1.31.9 has it fixed its own way, st->skip). Out since
+# 1.31.10: 2004 (no busy loop when SSL_write() wants to read, with ssl_early_data; taken
+# 22.11.2026), closed without a merge on 23.11.2026, the case fixed in 1.31.10 its own
+# way (CVE-2026-132779 above).
 #
 # Libraries: OpenSSL of the base system (HTTP/3 too: the configure of nginx finds the
 # QUIC API of OpenSSL 3.5, SSL_set_quic_tls_cbs, else it builds its compatibility layer),

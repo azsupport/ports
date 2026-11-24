@@ -1,6 +1,6 @@
-TIMESTAMP = 1795363930
-SHA256 (nginx-1.31.9.tar.gz) = a11c5eeee2e257f4478f0e649f84b0040787d277d2d3e5233952aa6b6dcb80ad
-SIZE (nginx-1.31.9.tar.gz) = 1388470
+TIMESTAMP = 1795464000
+SHA256 (nginx-1.31.10.tar.gz) = a9b690957fca84abdae8a9b52d66b1bb459282d7f01fe4b94b498ed8e977bdb3
+SIZE (nginx-1.31.10.tar.gz) = 1388715
 SHA256 (google-ngx_brotli-a71f931_GH0.tar.gz) = b3312a045d5303a40d02beb34711b8ca27f7b72d647e9ee2012a8eddd14d9b22
 SIZE (google-ngx_brotli-a71f931_GH0.tar.gz) = 16376
 SHA256 (openresty-headers-more-nginx-module-v0.42_GH0.tar.gz) = 6f0e023e40149b19c8f9548a648ac53ac010e27829aee109abe88106609c041f
