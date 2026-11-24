@@ -14,7 +14,9 @@
 #              queue with its stages is there by then)
 # Environment: RUNS_TOKEN (tools/runs-report.sh), GITHUB_WORKSPACE (the tree, at the
 # same path in the VM of vmactions), GITHUB_* as GitHub Actions sets them;
-# RUNS_PROGRESS_SLEEP the seconds between two looks instead of <minutes> (a test).
+# RUNS_PROGRESS_SLEEP the seconds between two looks instead of <minutes> (a test);
+# RUNS_LOCAL=1: tools/build.sh runs on this machine itself, no VM (build-jail.yml: the
+# jail of a build server), so its files are read here and not by ssh.
 # The VM: the first host of ~/.ssh/config that answers ssh (vmactions writes it for
 # its VM, "freebsd"). It ends when the VM has given results/rc back to the runner,
 # after 8 hours, or when the job ends (GitHub stops what a job left running). A
@@ -33,6 +35,19 @@ started="$(date -u '+%H:%M')"
 vm=""
 last=""
 o="-o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
+where="the VM"
+if [ -n "${RUNS_LOCAL:-}" ]; then vm=local; where="this machine"; fi
+# on_vm <seconds> <command>: the command where tools/build.sh runs: in the VM by ssh, or
+# here (RUNS_LOCAL)
+on_vm() {
+    _s="$1"; shift
+    if [ -n "${RUNS_LOCAL:-}" ]; then
+        timeout "$_s" sh -c "$1" < /dev/null
+    else
+        # shellcheck disable=SC2086
+        timeout "$_s" ssh $o "$vm" "$1" < /dev/null
+    fi
+}
 
 nap="${RUNS_PROGRESS_SLEEP:-240}"
 while [ "$(date +%s)" -lt "$end" ]; do
@@ -51,21 +66,25 @@ while [ "$(date +%s)" -lt "$end" ]; do
         echo
         echo "- the reporter since: $started UTC; now: $(date -u '+%H:%M') UTC"
         # the disk of the VM grows on that of the runner
-        echo "- disk: runner $(df -h / 2>/dev/null | awk 'NR == 2 { print $4 " free of " $2 }')$( [ -z "$vm" ] || echo "; VM $(timeout 60 ssh $o "$vm" "df -h / | tail -n 1" < /dev/null 2>/dev/null | awk '{ print $4 " free of " $2 }')")"
-        # the memory of the runner (16 GB, 12 GB of them the VM) and the size of QEMU in
-        # it: the VM stopped answering ssh in the tests of Dashboards 2.19 twice
-        # (45085390886, 45130779702, 23.11.2026) with its own memory not short (Inact
-        # 8 GB, Free 921M), so whether the runner is short of memory then
-        echo "- memory of the runner: $(free -m 2>/dev/null | awk '/^Mem:/ { printf "%sM used, %sM available of %sM", $3, $7, $2 } /^Swap:/ { printf "; swap %sM used of %sM", $3, $2 }')$(ps -C qemu-system-x86_64 -o rss= 2>/dev/null | awk '{ s += $1 } END { if (s) printf "; QEMU %dM", s / 1024 }')"
-        # the memory of the VM (top: the lines Mem and Swap), and the tests of azsupport
-        # (results/tests, tools/test-programs.sh): the files written last, their names
-        # and times only, so that a test that stops the VM is named (run 44926907394: the
-        # VM stopped answering ssh in the tests, which say nothing until their end)
+        if [ -n "${RUNS_LOCAL:-}" ]; then
+            echo "- disk: / $(df -h / 2>/dev/null | awk 'NR == 2 { print $4 " free of " $2 }'); work/ $(df -h work/ 2>/dev/null | awk 'NR == 2 { print $4 " free of " $2 }')"
+        else
+            echo "- disk: runner $(df -h / 2>/dev/null | awk 'NR == 2 { print $4 " free of " $2 }')$( [ -z "$vm" ] || echo "; VM $(on_vm 60 "df -h / | tail -n 1" 2>/dev/null | awk '{ print $4 " free of " $2 }')")"
+            # the memory of the runner (16 GB, 12 GB of them the VM) and the size of QEMU in
+            # it: the VM stopped answering ssh in the tests of Dashboards 2.19 twice
+            # (45085390886, 45130779702, 23.11.2026) with its own memory not short (Inact
+            # 8 GB, Free 921M), so whether the runner is short of memory then
+            echo "- memory of the runner: $(free -m 2>/dev/null | awk '/^Mem:/ { printf "%sM used, %sM available of %sM", $3, $7, $2 } /^Swap:/ { printf "; swap %sM used of %sM", $3, $2 }')$(ps -C qemu-system-x86_64 -o rss= 2>/dev/null | awk '{ s += $1 } END { if (s) printf "; QEMU %dM", s / 1024 }')"
+        fi
+        # the memory of the VM, or of this machine (RUNS_LOCAL; top: the lines Mem and
+        # Swap), and the tests of azsupport (results/tests, tools/test-programs.sh): the
+        # files written last, their names and times only, so that a test that stops the
+        # VM is named (run 44926907394: the VM stopped answering ssh in the tests, which
+        # say nothing until their end)
         if [ -n "$vm" ]; then
-            # shellcheck disable=SC2086
-            timeout 60 ssh $o "$vm" "top -b -d 1 0 2>/dev/null | grep -E '^(Mem|Swap):'; echo ====; cd '$ws/results/tests' 2>/dev/null && ls -t | head -n 3 | while IFS= read -r f; do printf '%s %s\\n' \"\$(stat -f %Sm -t %H:%M \"\$f\")\" \"\$f\"; done" \
-                < /dev/null > "$w/mt" 2> /dev/null || :
-            awk '/^====$/ { exit } { print "- memory of the VM: " $0 }' "$w/mt"
+            on_vm 60 "top -b -d 1 0 2>/dev/null | grep -E '^(Mem|Swap):'; echo ====; cd '$ws/results/tests' 2>/dev/null && ls -t | head -n 3 | while IFS= read -r f; do printf '%s %s\\n' \"\$(stat -f %Sm -t %H:%M \"\$f\")\" \"\$f\"; done" \
+                > "$w/mt" 2> /dev/null || :
+            awk -v w="$where" '/^====$/ { exit } { print "- memory of " w ": " $0 }' "$w/mt"
             tl="$(awk 'f { printf "%s%s (%s)", (n++ ? ", " : ""), $2, $1 } /^====$/ { f = 1 }' "$w/mt")"
             [ -z "$tl" ] || echo "- the tests, the files of results/tests written last (UTC): $tl"
         fi
@@ -78,8 +97,8 @@ while [ "$(date +%s)" -lt "$end" ]; do
             echo "- the VM does not answer ssh yet (hosts: freebsd $(awk 'tolower($1) == "host" { printf "%s ", $2 }' "$HOME/.ssh/config" 2>/dev/null))"
         else
             # shellcheck disable=SC2086
-            if timeout 180 ssh $o "$vm" "cat '$ws/results/queue.txt' 2>/dev/null | wc -l; echo ====; cat '$ws/results/progress.log' 2>/dev/null" \
-                < /dev/null > "$w/vm" 2> "$w/err"; then
+            if on_vm 180 "cat '$ws/results/queue.txt' 2>/dev/null | wc -l; echo ====; cat '$ws/results/progress.log' 2>/dev/null" \
+                > "$w/vm" 2> "$w/err"; then
                 total="$(sed -n 1p "$w/vm" | tr -d ' ')"
                 sed '1,/^====$/d' "$w/vm" > "$w/log"
                 # the result lines of tools/build.sh: "[build HH:MM:SS] <origin>: OK|FAIL|SKIP|PLAN ..."
@@ -107,7 +126,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
                     grep ': FAIL ' "$w/done" | cut -c 1-300 | sed 's/^/  - /'
                 fi
                 echo
-                echo "The last lines of tools/build.sh in the VM (results/progress.log):"
+                echo "The last lines of tools/build.sh in $where (results/progress.log):"
                 echo
                 tail -n 15 "$w/log" | cut -c 1-300 | sed 's/^/    /'
                 # the log of each port building now, its length and last line (the
@@ -122,7 +141,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
                         key="$(printf '%s' "$po" | tr '/@' '__')"
                         lf="$ws/results/logs/$key.log"
                         # shellcheck disable=SC2086
-                        timeout 120 ssh $o "$vm" "wc -l < '$lf' 2>/dev/null; tail -n 1 '$lf' 2>/dev/null" < /dev/null > "$w/plog" 2> /dev/null || :
+                        on_vm 120 "wc -l < '$lf' 2>/dev/null; tail -n 1 '$lf' 2>/dev/null" > "$w/plog" 2> /dev/null || :
                         n="$(sed -n 1p "$w/plog" | tr -d ' ')"
                         # how the log grows (aZ, 12.11.2026: a build that is stuck must show
                         # at once, not after hours): the lines since the last report, and
