@@ -16,3 +16,11 @@ EXTRA_PATCHES=	${.CURDIR}/files/patch-jobs.c-bgp_delete \
 		${.CURDIR}/files/patch-general.h-unsigned-char
 
 .include "${.CURDIR:H:H}/Mk/az-official.mk"
+
+# no print/indexinfo to run (aZ, 24.11.2026 19:35: «с какого хера bash зависимость к
+# indexinfo?»): bsd.port.mk adds it for the info page of INFO, which our packages
+# leave out (Mk/bsd.overlay.mk, az-no-docs); here, after the official Makefile and
+# bsd.port.mk, which set INFO and add that dependency. Mk/bsd.overlay.mk is to take it
+# over for every port after the publication of x86-64-v2 (aZ, 19:35)
+RUN_DEPENDS:=	${RUN_DEPENDS:Nindexinfo\:print/indexinfo}
+.undef INFO
