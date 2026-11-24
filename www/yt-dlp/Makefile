@@ -8,7 +8,7 @@
 # packages; www/py-yt-dlp-ejs ours when a release pins a newer yt-dlp-ejs than the
 # official port has), pkg-plist and pkg-descr. IMPERSONATE (aZ, 16.11.2026: on by
 # default): the browser impersonation of --impersonate with py-curl-cffi of our
-# ftp/py-curl-cffi on our ftp/curl-impersonate; yt-dlp 2026.10.26 takes curl_cffi
+# ftp/py-curl-cffi on our ftp/curl-impersonate; yt-dlp 2026.11.23 takes curl_cffi
 # 0.5.10 and 0.10 through 0.17 (yt_dlp/networking/_curlcffi.py).
 # A new release (aZ, 12.11.2026: the releases of GitHub, not the official port):
 # DISTVERSION and distinfo by tools/ytdlp-update.sh, which the workflow
@@ -17,7 +17,7 @@
 # a build of this port.
 
 PORTNAME=	yt-dlp
-DISTVERSION=	2026.10.26
+DISTVERSION=	2026.11.23
 PORTREVISION=	${AZ_STAMP:U0}
 CATEGORIES=	www
 MASTER_SITES=	https://github.com/${PORTNAME}/${PORTNAME}/releases/download/${DISTVERSION}/
