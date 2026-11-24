@@ -29,7 +29,10 @@
 #   and in curl the conncache fix of ftp/curl (upstream ef6b17c, after 8.23.0) and the
 #   end of the ALPN selection without the HTTPS record (upstream 228bd15, after 8.23.0,
 #   as curl-impersonate e600127 of 22.11.2026 carries it: a TLS failure kept its error
-#   instead of a timeout behind the DNS query; aZ 23.11.2026);
+#   instead of a timeout behind the DNS query; aZ 23.11.2026); in the patch of upstream
+#   for curl (files/patch-patches_curl.patch), an empty value in the h3 settings string
+#   taken as a QUIC transport parameter of length zero, not an error (upstream ec2a2317f14f
+#   of 24.11.2026; aZ 24.11.2026);
 # - the program on the shared library (upstream links the static one into it as well):
 #   one copy of the code; no static libraries (the official port installs
 #   lib/libcurl-impersonate.a and lib/curl-impersonate/*.a): ftp/py-curl-cffi links
