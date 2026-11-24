@@ -234,7 +234,9 @@ GH_TUPLE=	google:ngx_brotli:a71f931:brotli \
 		sysadmin-labs:nginx-zstd-module:0.1.3:zstd
 .if ${NGINX_AZ_MODULE:U} == lua || ${NGINX_AZ_MODULE:U} == stream-lua
 # ndk, lua-nginx-module and stream-lua-nginx-module: the commits of the official
-# www/nginx-module-ndk, -lua and -lua-stream of the pinned commit
+# www/nginx-module-ndk, -lua and -lua-stream of the pinned commit; lua-nginx-module with
+# the fix of its master for QUIC under ssl_*_by_lua* (fc90cf4e0ae7, 24.11.2026:
+# files/extra-patch-lua-quic-drain)
 GH_TUPLE+=	openresty:ngx_devel_kit:v0.3.6:ndk \
 		openresty:lua-nginx-module:v0.10.31:lua \
 		openresty:stream-lua-nginx-module:v0.0.19rc4:luastream
@@ -597,6 +599,9 @@ post-patch:
 .for p in config window accept-encoding header-next static continue slice-range yield
 	@cd ${WRKSRC_zstd} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-zstd-${p}
 .endfor
+.if ${NGINX_AZ_MODULE:U} == lua || ${NGINX_AZ_MODULE:U} == stream-lua
+	@cd ${WRKSRC_lua} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-lua-quic-drain
+.endif
 .if ${NGINX_AZ_MODULE:U} == stream-lua
 	@cd ${WRKSRC_luastream} && ${PATCH} -s -p0 < ${FILESDIR}/extra-patch-lua-stream-src_ngx__stream__lua__module.c
 .endif
