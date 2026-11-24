@@ -144,7 +144,9 @@
 #   done, up to AZ_JOBS ports at once, the biggest first (the size of the package in
 #   the repository), each with its chroot, its log and its own PACKAGES directory (its
 #   distfiles fetched under lockf(1), one build at a time); a port of AZ_ALONE (below:
-#   GCC 16) starts when no other build is going, and none starts beside it; the
+#   GCC 16) starts when no other build is going, and none starts beside it; while
+#   builds go it waits and the ports after it in the wave start meanwhile, until it
+#   has to start to end before AZ_TIME_HARD (alone_due; aZ, 24.11.2026); the
 #   summary in the order of the queue, results/waves.txt;
 # - a NEED_ROOT port (az/az builds into the real prefix and refuses files of a package
 #   there): into the /usr/local/az of its own chroot, as any port;
@@ -289,6 +291,33 @@ time_short() {
     [ -z "$(port_cache "$k")" ] || return 1
     left=$((deadline_hard - $(date +%s)))
     [ $((bm * 60)) -gt "$left" ]
+}
+# alone_due <origin>: true when the port of AZ_ALONE that waits (pend, in the waves) has
+# to start now so as to end before AZ_TIME_HARD: its usual minutes (build-minutes.conf)
+# after the builds going (each from its start, its usual minutes or 15 when it has
+# none) and after the next port of the wave, were that one started now; never without
+# AZ_TIME_HARD or without its minutes (then it starts when the others of the wave are done)
+bm_of() { awk -v o="${1%%@*}" '$1 == o && $2 ~ /^[0-9]+$/ { print $2; exit }' "$top/tools/build-minutes.conf" 2> /dev/null; }
+alone_due() {
+    [ -n "$deadline_hard" ] || return 1
+    ad_bm="$(bm_of "$1")"
+    [ -n "$ad_bm" ] || return 1
+    ad_now="$(date +%s)"; ad_end="$ad_now"
+    for ad_sf in "$q"/jobs/*.start; do
+        [ -f "$ad_sf" ] || continue
+        ad_k="${ad_sf##*/}"; ad_k="${ad_k%.start}"
+        [ -f "$q/jobs/$ad_k.pid" ] || continue
+        ad_m="$(bm_of "$(cat "$q/jobs/$ad_k.origin" 2> /dev/null)")"
+        ad_e=$(($(cat "$ad_sf") + ${ad_m:-15} * 60))
+        [ "$ad_e" -le "$ad_end" ] || ad_end="$ad_e"
+    done
+    ad_n="$(sed -n 1p "$q/wave.rest" 2> /dev/null)"
+    if [ -n "$ad_n" ]; then
+        ad_m="$(bm_of "$ad_n")"
+        ad_e=$((ad_now + ${ad_m:-15} * 60))
+        [ "$ad_e" -le "$ad_end" ] || ad_end="$ad_e"
+    fi
+    [ $((ad_end + ad_bm * 60)) -gt "$deadline_hard" ]
 }
 # tree_pids <pid>: the process and all its descendants; kill_tree <pid>: stop them all
 # (stopped first, so that none starts another meanwhile), TERM, and KILL what is left
@@ -1895,9 +1924,38 @@ else
         # the key of a port of AZ_ALONE that builds: nothing starts beside it, and it
         # starts when nothing else builds
         alone_k=""
-        for o in $(cat "$q/wave.order") ''; do
+        # a port of AZ_ALONE that cannot start yet (builds going) waits in pend, and the
+        # ports after it in the wave start meanwhile (aZ, 24.11.2026 04:38: lang/gcc16
+        # behind java/openjdk21 held the 38 other ports of its wave for 70 minutes); it
+        # starts when no build goes: the others of the wave started and done, or earlier
+        # when it would no longer end before AZ_TIME_HARD (alone_due: then nothing more
+        # starts until it does); one that no longer fits at all is not held for
+        # (time_short). One port of AZ_ALONE waits at a time; a second one behaves as before
+        pend=""
+        cp "$q/wave.order" "$q/wave.rest"
+        while :; do
+            o=""
+            if [ -n "$pend" ]; then
+                pre_port "$pend"
+                if time_over; then time_skip "$pend"; pend=""
+                elif time_short "$pend"; then
+                    say "$pend: not started: its build takes about $bm minutes (tools/build-minutes.conf), $((left / 60)) are left until AZ_TIME_HARD"
+                    time_skip "$pend"; pend=""
+                fi
+            fi
+            if [ -n "$pend" ] && { [ "$running" -eq 0 ] || [ ! -s "$q/wave.rest" ] || alone_due "$pend"; }; then
+                o="$pend"; pend=""
+            elif [ -s "$q/wave.rest" ]; then
+                o="$(sed -n 1p "$q/wave.rest")"
+                sed 1d "$q/wave.rest" > "$q/wave.rest.t" && mv "$q/wave.rest.t" "$q/wave.rest"
+            fi
             alone=0
             if [ -n "$o" ]; then case " $AZ_ALONE " in *" ${o%%@*} "*) alone=1 ;; esac; fi
+            if [ "$alone" = 1 ] && [ -z "$pend" ] && [ "$running" -gt 0 ] && [ -s "$q/wave.rest" ] && ! alone_due "$o"; then
+                pend="$o"
+                say "$o: waits for the builds going (AZ_ALONE: nothing beside it); the ports after it start meanwhile"
+                continue
+            fi
             while [ "$running" -ge "$jobs" ] || { [ -z "$o" ] && [ "$running" -gt 0 ]; } ||
                 { [ "$running" -gt 0 ] && { [ "$alone" = 1 ] || [ -n "$alone_k" ]; }; }; do
                 for dn in "$q"/jobs/*.done; do
@@ -1914,7 +1972,7 @@ else
                         time_skip "$jo"
                         [ -n "$(port_cache "$jk")" ] && echo "$jo" >> "$q/timecached"
                     fi
-                    rm -f "$dn" "$q/jobs/$jk.pid" "$q/jobs/$jk.out" "$q/jobs/$jk.origin"
+                    rm -f "$dn" "$q/jobs/$jk.pid" "$q/jobs/$jk.out" "$q/jobs/$jk.origin" "$q/jobs/$jk.start"
                     running=$((running - 1))
                     if [ "$jk" = "$alone_k" ]; then alone_k=""; fi
                 done
@@ -1958,6 +2016,7 @@ else
             # above would otherwise wait for it until the timeout of the job; the traps
             # of the run (all chroots away) are not those of a job
             echo "$o" > "$q/jobs/$k.origin"
+            date +%s > "$q/jobs/$k.start"
             ( trap - EXIT HUP INT TERM; ( job_port "$o" ) > "$q/jobs/$k.out" 2>&1; : > "$q/jobs/$k.done" ) &
             echo $! > "$q/jobs/$k.pid"
             running=$((running + 1))
