@@ -1,0 +1,56 @@
+name: fetch sums
+# The size, SHA-256 and SHA-512 of files fetched on a runner of aZ (a jail of a build
+# server, with the internet that the sandbox of Claude has not: gitlab.com,
+# getcomposer.org, ftp.gnu.org ...), for the distinfo or the take line of a release
+# taken before its port, and the text of pages to read (release notes): the first
+# lines of each into the log and the summary. Public files and public pages only.
+# Started by hand: Actions, "fetch sums", or gh api.
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'Files to fetch (URLs separated by spaces): size, SHA-256, SHA-512'
+        required: false
+        default: ''
+      show:
+        description: 'Text pages to fetch and show (URLs separated by spaces): their first 200 lines'
+        required: false
+        default: ''
+      runner:
+        description: 'The runner (a label): azbuild (the first free one), azbuild1 or azbuild2'
+        required: false
+        default: 'azbuild'
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ${{ fromJSON(format('["self-hosted", "{0}"]', inputs.runner)) }}
+    timeout-minutes: 30
+    steps:
+      - name: Fetch
+        env:
+          URLS: ${{ inputs.urls }}
+          SHOW: ${{ inputs.show }}
+        run: |
+          w="$(mktemp -d)"
+          rc=0
+          {
+            for u in $URLS; do
+              if curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 900 -o "$w/f" "$u"; then
+                echo "- $u: size $(wc -c < "$w/f" | tr -d ' '), SHA-256 $(sha256 -q "$w/f"), SHA-512 $(sha512 -q "$w/f")"
+              else
+                echo "- $u: FAIL (curl $?)"; rc=1
+              fi
+            done
+            for u in $SHOW; do
+              echo
+              echo "## $u"
+              echo
+              echo '```'
+              curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 300 "$u" 2> "$w/err" | head -n 200 || { echo "FAIL: $(tail -n 1 "$w/err")"; rc=1; }
+              echo '```'
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
