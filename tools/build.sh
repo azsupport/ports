@@ -1124,7 +1124,9 @@ while read -r l; do say "$l"; done < "$res/stages.txt"
 # Keywords, Templates), the level, tools/make.conf.in and the way the builder builds
 # ("builder chroot": each port in a chroot of its own, with only its dependencies; a
 # change of that way that can change the packages changes this line, and every port is
-# built again). Not the commit of the official tree: the makefiles of it a port reads
+# built again), and with AZ_WORLD the world the chroots run on (its stamp .az-world of
+# build-jail.yml: make.conf, src.conf and the version of the sources it was built of),
+# whose crt*.o and libcompiler_rt.a go into every package. Not the commit of the official tree: the makefiles of it a port reads
 # count in its own hash (port_files), so that a new pin builds again only the ports
 # whose makefiles changed (aZ, 24.11.2026 15:47: "чтобы по каждому чиху все не
 # пересобиралось"; the pin of 23.11.2026 built every package again, its Mk/ had changed
@@ -1138,7 +1140,9 @@ while read -r l; do say "$l"; done < "$res/stages.txt"
 find "$portsr/Mk" -type f -name '*.mk' | LC_ALL=C sort | while read -r f; do echo "$f $(hfile "$f")"; done > "$q/ohashes"
 off_hash="$( (cd "$portsr" && find Mk/Scripts Keywords Templates -type f 2> /dev/null | LC_ALL=C sort |
     while read -r f; do echo "$f $(hfile "$f")"; done) | hin)"
-base_hash="$({ echo "freebsd-ports files $off_hash"; echo "cputype $cputype"; echo "builder chroot"; cat "$top/tools/make.conf.in"; } | hin)"
+base_hash="$({ echo "freebsd-ports files $off_hash"; echo "cputype $cputype"; echo "builder chroot"
+    [ -z "$world" ] || echo "world $(cut -d ' ' -f 1-3 "$world/.az-world" 2> /dev/null || echo none)"
+    cat "$top/tools/make.conf.in"; } | hin)"
 base_hash_old="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; echo "builder chroot"; cat "$top/tools/make.conf.in"; } | hin)"
 mkdir -p "$q/dhash" "$q/hash-old" "$q/dhash-old" "$q/azcov" "$q/uncov" "$q/abifail"
 : > "$q/legacy"
