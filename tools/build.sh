@@ -1137,11 +1137,29 @@ while read -r l; do say "$l"; done < "$res/stages.txt"
 # files, the hash of a dependency only to run as that of any other): base_hash_old and
 # $q/hash-old, $q/dhash-old, for the packages of the repository built with them
 # (hash_same: such a package is kept, its line goes to tools/az-hash-legacy.txt)
+#
+# The official packages the builds take (off_repos: the name, the url of the chroots, the
+# url of the machine): those of the enabled repositories of pkg.FreeBSD.org of the
+# machine, the one of the ports from latest whatever the machine has. The pin of the tree
+# is a commit of main, and the official packages of main are those of latest; FreeBSD
+# 15.1-RELEASE has quarterly in /etc/pkg/FreeBSD.conf (the jail of build-jail.yml took rust
+# 1.98.1 of 2026Q4 for the cargo.mk of the pin, which needs 1.99.0: run 45477734952,
+# 24.11.2026; the images of the VMs have latest). ch_init writes the url into the
+# repositories of the chroots, and the line "official" is in the base of every hash: a
+# package built with the official packages of another branch is built again.
+off_repos="$(pkg -vv 2> /dev/null | awk '
+    /^Repositories:/ { r = 1; next }
+    r && /^[^ ]/ { r = 0 }
+    r && /^  [^ ].*: *\{/ { n = $1; sub(/:$/, "", n); u = "" }
+    r && /^ *url *:/ { u = $0; sub(/^ *url *: *"?/, "", u); sub(/"?,? *$/, "", u) }
+    r && /^ *enabled *: *(yes|true)/ && n != "" && tolower(u) ~ /[\/.]pkg\.freebsd\.org\// {
+        m = u; sub(/\/quarterly$/, "/latest", u); print n, u, m }')"
 find "$portsr/Mk" -type f -name '*.mk' | LC_ALL=C sort | while read -r f; do echo "$f $(hfile "$f")"; done > "$q/ohashes"
 off_hash="$( (cd "$portsr" && find Mk/Scripts Keywords Templates -type f 2> /dev/null | LC_ALL=C sort |
     while read -r f; do echo "$f $(hfile "$f")"; done) | hin)"
 base_hash="$({ echo "freebsd-ports files $off_hash"; echo "cputype $cputype"; echo "builder chroot"
     [ -z "$world" ] || echo "world $(cut -d ' ' -f 1-3 "$world/.az-world" 2> /dev/null || echo none)"
+    printf '%s\n' "$off_repos" | awk 'NF { printf "%s%s %s", (n++ ? ", " : "official "), $1, $2 } END { if (n) print "" }'
     cat "$top/tools/make.conf.in"; } | hin)"
 base_hash_old="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; echo "builder chroot"; cat "$top/tools/make.conf.in"; } | hin)"
 mkdir -p "$q/dhash" "$q/hash-old" "$q/dhash-old" "$q/azcov" "$q/uncov" "$q/abifail"
@@ -1467,12 +1485,8 @@ overlay_rev="$(git -C "$top" log -1 --format='%h %s' 2>/dev/null)"
     echo "host:     $(uname -sr), $(cc --version 2>/dev/null | head -n 1)"
     echo "cputype:  $cputype; CFLAGS: $(sed -n 's/^CFLAGS=//p' "$work/make.conf")"
     echo "stamp:    $az_stamp (AZ_STAMP: the revision of the packages built in this run)"
-    echo "pkg:      $(pkg -v 2>/dev/null); the official packages from: $(pkg -vv 2>/dev/null | awk '
-        /^Repositories:/ { r = 1; next }
-        r && /^[^ ]/ { r = 0 }
-        r && /^  [^ ].*: *\{/ { n = $1; sub(/:$/, "", n); u = "" }
-        r && /^ *url *:/ { u = $0; sub(/^ *url *: *"?/, "", u); sub(/"?,? *$/, "", u) }
-        r && /^ *enabled *: *(yes|true)/ && n != "" { printf "%s%s %s", s, n, u; s = ", " }')"
+    echo "pkg:      $(pkg -v 2>/dev/null); the official packages from: $(printf '%s\n' "$off_repos" | awk 'NF {
+        printf "%s%s %s%s", (n++ ? ", " : ""), $1, $2, ($2 == $3 ? "" : " (the machine: " $3 ")") }')"
     echo "repo:     $repo ($(npkg "$repo") packages before the run)"
     echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')$( [ "$serial" = 0 ] && echo ", AZ_JOBS=$jobs")$( [ "$dryrun" = 1 ] && echo ', AZ_DRYRUN')$( [ "$plan" = 1 ] && echo ', AZ_PLAN: az/az and the ports it needs built, the others only decided')$( [ "$ccheck" = 1 ] && echo ', AZ_CONFIGURE_CHECK')"
 } > "$sum"
@@ -1660,7 +1674,20 @@ ch_init() {
             cp -p "$_f" "$work/ch-local/pkg/repos/"
         done
     fi
-    if [ -d "$pkgdb/repos" ]; then (cd "$pkgdb/repos" && tar -cf - .) | (cd "$work/ch-repos" && tar -xpf -); fi
+    # the official repositories whose url in the chroots is another (off_repos): that url
+    # in a file of their own after those of the machine (pkg reads the files in the order
+    # of their names, and a later one of the same repository changes only what it says),
+    # and not the catalogs of the machine (repos/<name>: pkg update fetches the whole
+    # catalog of the url)
+    _ox=""
+    for _n in $(printf '%s\n' "$off_repos" | awk 'NF && $2 != $3 { print $1 }'); do _ox="$_ox --exclude ./$_n"; done
+    if [ -n "$_ox" ]; then
+        mkdir -p "$work/ch-local/pkg/repos"
+        printf '%s\n' "$off_repos" | awk 'NF && $2 != $3 { printf "%s: { url: \"%s\" }\n", $1, $2 }' > "$work/ch-local/pkg/repos/zz-az-official.conf"
+        say "the chroots: $(printf '%s\n' "$off_repos" | awk 'NF && $2 != $3 { printf "%s%s %s (the machine: %s)", (n++ ? ", " : ""), $1, $2, $3 }') (/usr/local/etc/pkg/repos/zz-az-official.conf)"
+    fi
+    # shellcheck disable=SC2086
+    if [ -d "$pkgdb/repos" ]; then (cd "$pkgdb/repos" && tar -cf - $_ox .) | (cd "$work/ch-repos" && tar -xpf -); fi
     _t0="$(date +%s)"
     ch_up _setup || die "no chroot for the run: $why"
     say "a chroot in $(( $(date +%s) - _t0 ))s: $ch_base read only$( [ -z "$world" ] || echo ' (but /usr/src: of the world of AZ_WORLD)'), a copy of /etc, devfs$( [ "$ch_fdesc" = 1 ] && echo ', fdescfs')$( [ "$ch_proc" = 1 ] && echo ', procfs'), this tree, the official tree, packages/ and the repository read only (the chroot of each port the same)"
