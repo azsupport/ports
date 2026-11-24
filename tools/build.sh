@@ -419,8 +419,13 @@ workr="$(cd "$work" && pwd -P)"
 portsr="$(cd "$ports" && pwd -P)"
 
 # --- the make.conf of the run --------------------------------------------------------
+# WRKDIRPREFIX by its real path: bsdcpio of COPYTREE_BIN and COPYTREE_SHARE (bsd.port.mk)
+# refuses to write through a symbolic link (ARCHIVE_EXTRACT_SECURE_SYMLINKS) and says
+# so only to /dev/null there, so that the stage of a port that copies a tree stayed
+# empty when work/ was a link (build-jail.yml: work -> /var/azbuild/work/<level>;
+# net/rabbitmq, run 45477734952, 24.11.2026)
 sed -e "s|@CPUTYPE@|$cputype|" -e "s|@PORTSDIR@|$ports|" -e "s|@OVERLAYS@|$top|" \
-    -e "s|@WRKDIRPREFIX@|$work/wrk|" -e "s|@PACKAGES@|$packages|" -e "s|@DISTDIR@|$distdir|" \
+    -e "s|@WRKDIRPREFIX@|$workr/wrk|" -e "s|@PACKAGES@|$packages|" -e "s|@DISTDIR@|$distdir|" \
     -e "s|@PORT_DBDIR@|$work/db|" "$top/tools/make.conf.in" > "$work/make.conf" ||
     die "cannot write $work/make.conf"
 __MAKE_CONF="$work/make.conf"
@@ -1832,7 +1837,7 @@ cc_flags() {
 # saved, compared (results/configure-check/<key>.txt, its exit status in <key>.rc; the
 # two config.log files there too when they differ), then away with both
 cc_check() {
-    _cd="$work/cc/$k"; _pw="$work/ccw/$k"
+    _cd="$work/cc/$k"; _pw="$workr/ccw/$k"
     mkdir -p "$res/configure-check"
     if [ -f "$_cd/strict/config.log" ]; then
         rm -rf "$_pw"
