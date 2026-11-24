@@ -9,7 +9,7 @@ name: yt-dlp at the latest release of GitHub
 # applies only with fuzz made again), www/py-yt-dlp-ejs ours (tools/ytdlp-ejs/) when
 # the release pins a newer yt-dlp-ejs than the official port of the pinned tree, the
 # ports checked with make -V (tools/check-tree-ci.sh), one commit of aZ pushed to main
-# with the token of the run, and the build of www/yt-dlp on both levels: build.yml
+# with the token of the run, and the build of www/yt-dlp on both levels: build-jail.yml
 # with publish and publish_only, so that the release takes the new packages only
 # when nothing else of the repository of that run differs from it (else they go out
 # with the next publish of aZ). The report: the summary of the run, and the branch
@@ -36,7 +36,7 @@ on:
         required: false
         default: ''
 
-# contents: the push to main; actions: the runs of build.yml, and starting one
+# contents: the push to main; actions: the runs of build-jail.yml, and starting one
 permissions:
   contents: write
   actions: write
@@ -50,7 +50,7 @@ jobs:
     runs-on: [self-hosted, azlight]
     timeout-minutes: 30
     steps:
-      # the history of the ports: when they last changed (the runs of build.yml since)
+      # the history of the ports: when they last changed (the runs of build-jail.yml since)
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0

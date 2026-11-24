@@ -28,11 +28,13 @@
 # 4. The ports checked with make -V (tools/check-tree-ci.sh), then one commit of aZ and
 #    a push to main (a refused push: again on top of the new main, 5 times).
 # 5. The build, when the releases az-fbsd<major>-amd64-v3 and -v2 do not have the
-#    yt-dlp of the tree (and its yt-dlp-ejs, when that is ours): build.yml of main for
-#    www/yt-dlp, both levels, publish with publish_only (the release takes the new
+#    yt-dlp of the tree (and its yt-dlp-ejs, when that is ours): build-jail.yml of main for
+#    www/yt-dlp, both levels, on the first free build runner of our jails (runner any;
+#    24.11.2026: the builds on our runners, not those of GitHub), publish with
+#    publish_only (the release takes the new
 #    packages only when nothing else of the repository of the run differs from it;
 #    else they go out with the next publish of aZ: the cache of the run keeps them).
-#    Not while a run of build.yml of main is queued or running (a new run in its
+#    Not while a run of build-jail.yml of main is queued or running (a new run in its
 #    concurrency group would cancel a pending one; the next check starts it), not again
 #    after a run it started for the same commit of the ports runs or succeeded, nor
 #    after 3 of them failed.
@@ -143,9 +145,9 @@ offv() {
 [ -f www/yt-dlp/Makefile ] || fail "no www/yt-dlp in this tree"
 commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
 [ -n "$commit" ] || fail "no ports_commit in tools/build.sh"
-# the FreeBSD release of the builds: the default of build.yml
-release="$(awk '/^      release:$/ { r = 1 } r && /^ *default:/ { gsub(/[^0-9.]/, "", $2); print $2; exit }' .github/workflows/build.yml)"
-case "$release" in [0-9]*.[0-9]*) ;; *) fail "no default release in .github/workflows/build.yml" ;; esac
+# the FreeBSD release of the builds: the default of build-jail.yml
+release="$(awk '/^      release:$/ { r = 1 } r && /^ *default:/ { gsub(/[^0-9.]/, "", $2); print $2; exit }' .github/workflows/build-jail.yml)"
+case "$release" in [0-9]*.[0-9]*) ;; *) fail "no default release in .github/workflows/build-jail.yml" ;; esac
 line "## yt-dlp at the latest release of GitHub"
 line ""
 [ "$dry" = 1 ] && line "Dry run$mainnote: nothing pushed or started."
@@ -178,7 +180,7 @@ esac
 say "www/yt-dlp: $cur; the latest release: $tag ($published)"
 
 # --- 5. the build (also when nothing is new: one that could not start before) --------------
-# build_check: whether build.yml of main has to build the yt-dlp of the tree, and start it
+# build_check: whether build-jail.yml of main has to build the yt-dlp of the tree, and start it
 build_check() {
     only="www/yt-dlp"
     [ -f www/py-yt-dlp-ejs/Makefile ] && only="$only www/py-yt-dlp-ejs"
@@ -212,40 +214,40 @@ build_check() {
     else
         since="$(date +%s)"
     fi
-    # the runs of build.yml of main: id|status|conclusion|created (s)|actor
-    gh api "repos/$repo/actions/workflows/build.yml/runs?branch=main&per_page=50" --jq '.workflow_runs[] |
+    # the runs of build-jail.yml of main: id|status|conclusion|created (s)|actor
+    gh api "repos/$repo/actions/workflows/build-jail.yml/runs?branch=main&per_page=50" --jq '.workflow_runs[] |
         [(.id | tostring), .status, (.conclusion // ""), (.created_at | fromdateiso8601 | tostring),
          (.triggering_actor.login // .actor.login // "")] | join("|")' > "$w/runs" 2> "$w/err" ||
-        { warn "the runs of build.yml: the API failed ($(tail -n 1 "$w/err")): no build now, the next check"; return 0; }
+        { warn "the runs of build-jail.yml: the API failed ($(tail -n 1 "$w/err")): no build now, the next check"; return 0; }
     busy="$(awk -F'|' '$2 != "completed" { print $1 " (" $2 ")"; exit }' "$w/runs")"
     mine="$(awk -F'|' -v s="$since" '$5 == "github-actions[bot]" && $4 >= s' "$w/runs")"
     ok="$(printf '%s\n' "$mine" | awk -F'|' '$2 == "completed" && $3 == "success" { print $1; exit }')"
     nmine="$(printf '%s\n' "$mine" | grep -c '|')"
     burl="${GITHUB_SERVER_URL:-https://github.com}/$repo/actions/runs"
-    wurl="${GITHUB_SERVER_URL:-https://github.com}/$repo/actions/workflows/build.yml?query=branch%3Amain"
+    wurl="${GITHUB_SERVER_URL:-https://github.com}/$repo/actions/workflows/build-jail.yml?query=branch%3Amain"
     if [ -n "$ok" ]; then
         line "- the build: run $burl/$ok, started by this workflow after the last change of the ports, succeeded: what it did not publish (publish_only) goes out with the next publish of aZ"
         return 0
     fi
     if [ -n "$busy" ]; then
-        line "- the build: waits, build.yml of main has the run $burl/${busy%% *} ${busy#* } (a new run would cancel a pending one): the next check starts it"
+        line "- the build: waits, build-jail.yml of main has the run $burl/${busy%% *} ${busy#* } (a new run would cancel a pending one): the next check starts it"
         notable=1
         return 0
     fi
     if [ "$nmine" -ge 3 ]; then
-        warn "the build: $nmine runs of build.yml started by this workflow after the last change of the ports failed or were cancelled: not again (a hand is needed)"
+        warn "the build: $nmine runs of build-jail.yml started by this workflow after the last change of the ports failed or were cancelled: not again (a hand is needed)"
         return 0
     fi
     notable=1
-    set -- -f ref=main -f 'inputs[cputype]=both' -f 'inputs[ports]=www/yt-dlp' -f 'inputs[publish]=true' -f "inputs[publish_only]=$only"
+    set -- -f ref=main -f 'inputs[cputype]=both' -f 'inputs[runner]=any' -f 'inputs[ports]=www/yt-dlp' -f 'inputs[publish]=true' -f "inputs[publish_only]=$only"
     if [ "$dry" = 1 ]; then
-        line "- the build it would start: build.yml of main, cputype both, ports www/yt-dlp, publish with publish_only \"$only\""
+        line "- the build it would start: build-jail.yml of main, cputype both, ports www/yt-dlp, publish with publish_only \"$only\""
         return 0
     fi
-    if gh api -X POST "repos/$repo/actions/workflows/build.yml/dispatches" "$@" > "$w/err" 2>&1; then
-        line "- the build: build.yml of main started ($wurl), cputype both, ports www/yt-dlp, publish with publish_only \"$only\": published when nothing else differs from the releases"
+    if gh api -X POST "repos/$repo/actions/workflows/build-jail.yml/dispatches" "$@" > "$w/err" 2>&1; then
+        line "- the build: build-jail.yml of main started ($wurl), cputype both, ports www/yt-dlp, publish with publish_only \"$only\": published when nothing else differs from the releases"
     else
-        warn "the build: build.yml could not be started ($(tail -n 1 "$w/err")): the next check"
+        warn "the build: build-jail.yml could not be started ($(tail -n 1 "$w/err")): the next check"
     fi
 }
 
