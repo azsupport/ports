@@ -14,7 +14,7 @@
 # postfix-mysql is a slave port, as the variants of our other ports.
 
 PORTNAME=	postfix
-DISTVERSION=	3.11.7
+DISTVERSION=	3.11.8
 PORTREVISION=	${AZ_STAMP:U0}
 PORTEPOCH=	1
 CATEGORIES=	mail
