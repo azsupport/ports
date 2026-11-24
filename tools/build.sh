@@ -1648,7 +1648,8 @@ pre_port() {
     fi
     abi="$(cat "$q/abifail/$k" 2>/dev/null)"
     # its package in the repository: the same az_hash, another one, none
-    if [ -n "$had" ] && [ "$force" = 0 ] && hash_same "$k" "$1" "${had%% *}" && [ -z "$abi" ] && [ ! -f "$q/nomani-$k" ]; then
+    if [ -n "$had" ] && [ "$force" = 0 ] && hash_same "$k" "$1" "${had%% *}" && [ -z "$abi" ] && [ ! -f "$q/nomani-$k" ] &&
+        ! krb_needs "$repo/${had#* }" > /dev/null; then
         echo "$repo/${had#* }" > "$q/file/$k"
         ki=""
         [ "$azbuilt" = 1 ] && [ -s "$q/azcov/$k" ] && ki="; kept by the interfaces of az, which this run built again" && echo "$1" >> "$q/kept-if"
@@ -1687,6 +1688,20 @@ pre_port() {
     return 0
 }
 
+# krb_needs <package file>...: the libraries of ch_compat_init (the Kerberos of the base)
+# the packages need, said ("<file>: <libraries>"); 0 when one needs any. No package of
+# ours on them (aZ, 24.11.2026: the servers have no Kerberos, WITHOUT_KERBEROS; the
+# chroots have its libraries for the official tools only, and no build finds them)
+krb_needs() {
+    [ -s "$q/compat-libs" ] || return 1
+    _kr=1
+    for _kf in "$@"; do
+        _kl="$(pkg query -F "$_kf" '%B' 2> /dev/null | grep -xF -f "$q/compat-libs" | tr '\n' ' ')"
+        [ -z "$_kl" ] || { echo "${_kf##*/}: $_kl"; _kr=0; }
+    done
+    return $_kr
+}
+
 # ch_compat_init: the libraries of the base system that the src.conf of the level strips
 # and official packages need, for the chroots (work/ch-compat/lib, read only in each at
 # /usr/local/lib/az-basecompat, in the hints of the run-time linker): those of the
@@ -1708,7 +1723,8 @@ ch_compat_init() {
         _f="$(find "$_cc/fetch" -name 'FreeBSD-kerberos-lib-*.pkg' | head -n 1)"
         if [ -n "$_f" ] && tar -xf "$_f" -C "$_cc/x" 2>> "$_cl" && mkdir -p "$_cc/lib" &&
             cp -p "$_cc"/x/usr/lib/*.so.* "$_cc/lib/" 2>> "$_cl"; then
-            say "the chroots: the libraries of Kerberos of the base at /usr/local/lib/az-basecompat ($(basename "$_f" .pkg | sed 's/~.*//')): $(ls "$_cc/lib" | tr '\n' ' ')"
+            ls "$_cc/lib" > "$q/compat-libs"
+            say "the chroots: the libraries of Kerberos of the base at /usr/local/lib/az-basecompat ($(basename "$_f" .pkg | sed 's/~.*//')): $(tr '\n' ' ' < "$q/compat-libs")"
             return 0
         fi
     fi
@@ -2026,6 +2042,14 @@ make_port() {
         sh "$top/tools/debug-check.sh" $(cat "$q/made-$k") > "$q/debug-$k" 2>&1 ||
             note="; debug: $(grep -c '^FAIL' "$q/debug-$k") of its packages with debug information or not stripped (results/debug-check.txt)"
         cat "$q/debug-$k" >> "$res/debug-check.txt"
+    fi
+    # shellcheck disable=SC2046
+    if _kb="$(krb_needs $(cat "$q/made-$k"))"; then
+        # shellcheck disable=SC2046
+        rm -f $(cat "$q/made-$k")
+        rm -f "$q/file/$k"
+        record "$1" fail "$pn: it needs the Kerberos of the base, which the servers have not ($(printf '%s' "$_kb" | tr '\n' ';')): its packages removed"
+        return 1
     fi
     [ "$(pkg_hash "$f")" = "$h" ] ||
         note="; warning: no annotation az_hash $hs in the package (PKG_NOTES of Mk/bsd.overlay.mk): the next run builds it again"
