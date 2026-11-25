@@ -123,6 +123,11 @@ PLIST_SUB+=	GCC_VERSION=${PORTVERSION} \
 		GNU_HOST=${CONFIGURE_TARGET} \
 		SUFFIX=${SUFFIX}
 
+# no PIE of the framework (WITH_PIE of tools/make.conf.in) for either part: GCC builds
+# its own programs without PIE (-fno-PIE: no --enable-host-pie), and -pie of LDFLAGS
+# fails their link ("relocation R_X86_64_32 cannot be used against local symbol;
+# recompile with -fPIC", libcommon.a of gcov, lang/gcc16-libs, run 45702768445)
+PIE_UNSAFE=	yes
 .if ${GCC_PART:U} == libs
 # the compiler once (the base clang), then the libraries of GCC with it
 CONFIGURE_ARGS+=	--disable-bootstrap
@@ -137,7 +142,6 @@ ALL_TARGET=	profiledbootstrap-lean
 MAKE_ARGS+=	STAGE1_CFLAGS="${CFLAGS}" \
 		BOOT_CFLAGS="${CFLAGS}"
 INSTALL_TARGET=	install-strip
-PIE_UNSAFE=	yes
 SUB_FILES=	pkg-message
 SUB_LIST+=	TARGLIB=${TARGLIB}
 # ccache between the runs of build.yml (aZ, 24.11.2026 09:48: a build stopped at the
