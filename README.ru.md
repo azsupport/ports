@@ -246,7 +246,12 @@
   исправлением, которое несёт OpenBSD, для картинки с испорченным профилем EXIF или
   8BIM: 6.9.13-60 её вовсе не записывал
   ([`files/imagemagick6-write-profiles.patch`](graphics/ImageMagick6/files/imagemagick6-write-profiles.patch),
-  issue 427 ImageMagick6). Сборка и работа: azsupport.
+  issue 427 ImageMagick6). JPEG с точным DCT mozjpeg при любом качестве, где ImageMagick
+  до `-quality 90` берёт быстрый: при том же качестве примерно на 1% меньше при 80 и на 9% при 90
+  (aZ, 25.11.2026;
+  [`ImageMagick7/files/imagemagick7-jpeg-accurate-dct.patch`](graphics/ImageMagick7/files/imagemagick7-jpeg-accurate-dct.patch),
+  [`ImageMagick6/files/imagemagick6-jpeg-accurate-dct.patch`](graphics/ImageMagick6/files/imagemagick6-jpeg-accurate-dct.patch));
+  `-define jpeg:dct-method=ifast` по-прежнему берёт быстрый. Сборка и работа: azsupport.
 - **`graphics/ImageMagick6`**, **`graphics/ImageMagick7`** и
   **`graphics/ImageMagick67`** (aZ, 14.11.2026): программы, друг с другом они
   конфликтуют: в `ImageMagick6` — `bin/convert`, `identify`, `mogrify`, `composite` и

@@ -1,0 +1,25 @@
+The accurate DCT at every quality. ImageMagick wrote a JPEG of -quality 90 or less with the
+fast integer DCT of the library (JDCT_IFAST), the least accurate one, and took the accurate
+one (JDCT_ISLOW) only above 90. With mozjpeg the fast DCT costs bytes at the same quality:
+about 1% at -quality 80, about 9% at 90 (the formats of the screenshots of a video, median
+of 45 frames and sizes, SSIMULACRA2, 25.11.2026). Now the DCT of the library (ISLOW) at
+every quality (aZ, 25.11.2026 19:34: «да, и в преимущество это»); -define
+jpeg:dct-method=ifast (or fastest) still takes the fast one. A picture that is not a JPEG
+then gives the same bytes as the encoder libjpeg of our ffmpeg with its defaults (-dct
+islow, -sampling 420) at the same quality below 90.
+
+--- a/coders/jpeg.c
++++ b/coders/jpeg.c
+@@ -2700,8 +2700,10 @@
+       jpeg_info=DestroyImageInfo(jpeg_info);
+     }
+   jpeg_set_quality(jpeg_info,quality,TRUE);
+-  if ((dct_method == (const char *) NULL) && (quality <= 90))
+-    jpeg_info->dct_method=JDCT_IFAST;
++  /*
++    The accurate DCT of the library at every quality, not the fast one up to
++    90: -define jpeg:dct-method=ifast still takes that.
++  */
+ #if (JPEG_LIB_VERSION >= 70)
+   option=GetImageOption(image_info,"quality");
+   if (option != (const char *) NULL)

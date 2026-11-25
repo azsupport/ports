@@ -253,7 +253,12 @@ Names and origins as the ports, files at the paths of the ports:
   imagick of `azsupport-menu.sh`. JPEG, PNG, WebP, GIF, HEIC and AVIF only; ImageMagick 6 with
   the fix OpenBSD carries for an image with a broken EXIF or 8BIM profile, which
   6.9.13-60 did not write at all ([`files/imagemagick6-write-profiles.patch`](graphics/ImageMagick6/files/imagemagick6-write-profiles.patch),
-  ImageMagick6 issue 427). Build and run: azsupport.
+  ImageMagick6 issue 427). JPEG with the accurate DCT of mozjpeg at every quality, where
+  ImageMagick takes the fast one up to `-quality 90`: at the same quality about 1% smaller
+  at 80 and about 9% at 90 (aZ, 25.11.2026;
+  [`ImageMagick7/files/imagemagick7-jpeg-accurate-dct.patch`](graphics/ImageMagick7/files/imagemagick7-jpeg-accurate-dct.patch),
+  [`ImageMagick6/files/imagemagick6-jpeg-accurate-dct.patch`](graphics/ImageMagick6/files/imagemagick6-jpeg-accurate-dct.patch));
+  `-define jpeg:dct-method=ifast` still takes the fast one. Build and run: azsupport.
 - **`graphics/ImageMagick6`**, **`graphics/ImageMagick7`** and
   **`graphics/ImageMagick67`** (aZ, 14.11.2026): the programs, which conflict with each
   other: `ImageMagick6` has `bin/convert`, `identify`, `mogrify`, `composite` and the
