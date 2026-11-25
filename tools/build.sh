@@ -1215,7 +1215,7 @@ mkdir -p "$q/dhash" "$q/hash-old" "$q/dhash-old" "$q/azcov" "$q/uncov" "$q/abifa
 # azsupport_load <package of azsupport>: its manifests read; 1 when it has none
 azsupport_load() {
     rm -rf "$q/azif"
-    sh "$top/tools/azsupport-interface.sh" extract "$1" "$q/azif" "$(sed -n 22p "$q/info/azsupport_az" 2>/dev/null)" 2> "$q/azif.err" &&
+    sh "$top/tools/azsupport-interface.sh" extract "$1" "$q/azif" "$(sed -n 22p "$q/info/azsupport_azsupport" 2>/dev/null)" 2> "$q/azif.err" &&
         sh "$top/tools/azsupport-interface.sh" hashes "$q/azif" > "$q/azif.hashes" 2>> "$q/azif.err" &&
         sh "$top/tools/azsupport-interface.sh" paths "$q/azif" > "$q/azif.paths" 2>> "$q/azif.err" &&
         sh "$top/tools/azsupport-interface.sh" sonames "$q/azif" > "$q/azif.sonames" 2>> "$q/azif.err" &&
@@ -1247,7 +1247,7 @@ azsupport_dep() {
         awk -v n="$_l" '$1 == n && n != "common" { f = 1 } END { exit !f }' "$q/azif.hashes" || _bad="$_bad $_l"
     done
     if [ -n "$_bad" ] || [ ! -s "$q/azif.hashes" ]; then
-        echo "dep azsupport/azsupport $(cat "$q/dhash/azsupport_az" 2>/dev/null || echo none)"
+        echo "dep azsupport/azsupport $(cat "$q/dhash/azsupport_azsupport" 2>/dev/null || echo none)"
         awk '$1 != "common" { print $1 }' "$q/azif.hashes" > "$q/azlibs-$1"
         if [ -s "$q/azif.hashes" ]; then
             echo "all of azsupport: no library of azsupport for$_bad" > "$q/azdep-$1"
@@ -1415,22 +1415,22 @@ done
 # its manifests in $q/azold, for what changed (azsupport_report)
 azold=""
 azhad="$(awk '$2 == "azsupport/azsupport" { print $4; exit }' "$q/repo-had")"
-if [ -n "$azhad" ] && sh "$top/tools/azsupport-interface.sh" extract "$repo/$azhad" "$q/azold" "$(sed -n 22p "$q/info/azsupport_az" 2>/dev/null)" 2> /dev/null; then
+if [ -n "$azhad" ] && sh "$top/tools/azsupport-interface.sh" extract "$repo/$azhad" "$q/azold" "$(sed -n 22p "$q/info/azsupport_azsupport" 2>/dev/null)" 2> /dev/null; then
     azold="$repo/$azhad"
 fi
 # azsupport/azsupport kept: the hashes of the ports that need it with the manifests of its package;
 # built in this run: after its build (azsupport_resolve, with the ABI check). A package
-# without them (built before 12.11.2026) is built again ($q/nomani-azsupport_az)
+# without them (built before 12.11.2026) is built again ($q/nomani-azsupport_azsupport)
 azstate=none
 azbuilt=0
-if grep -qxF azsupport/azsupport "$q/queue.txt" && [ ! -f "$q/info/azsupport_az.bad" ]; then
+if grep -qxF azsupport/azsupport "$q/queue.txt" && [ ! -f "$q/info/azsupport_azsupport.bad" ]; then
     azstate=waiting
     hh="$(awk '$2 == "azsupport/azsupport" { print $3; exit }' "$q/repo-had")"
-    if [ "$force" = 0 ] && hash_same azsupport_az azsupport/azsupport "$hh"; then
+    if [ "$force" = 0 ] && hash_same azsupport_azsupport azsupport/azsupport "$hh"; then
         if [ -n "$azold" ] && azsupport_load "$repo/$azhad"; then
             say "azsupport/azsupport: kept from the repository ($azhad): the interfaces of its $(grep -c -v '^common ' "$q/azif.hashes") libraries for the ports that need it"
         else
-            : > "$q/nomani-azsupport_az"
+            : > "$q/nomani-azsupport_azsupport"
             say "azsupport/azsupport: $azhad of the repository has no manifests of the interfaces of its libraries: built again"
         fi
     fi
@@ -1443,7 +1443,7 @@ azsupport_resolve() {
     [ "$azstate" = waiting ] || return 0
     [ -n "$(st azsupport/azsupport)" ] || return 0
     azstate=resolved
-    _af="$(cat "$q/file/azsupport_az" 2>/dev/null)"
+    _af="$(cat "$q/file/azsupport_azsupport" 2>/dev/null)"
     case "$(st azsupport/azsupport)" in
         ok|repo) ;;
         *) say "azsupport/azsupport did not build: the ports that need it are not built either"; return 0 ;;
@@ -1485,7 +1485,7 @@ azsupport_abi() {
     fi
     _t0="$(date +%s)"
     # shellcheck disable=SC2046
-    AZSUPPORT_PREFIX="$(sed -n 22p "$q/info/azsupport_az")" sh "$top/tools/azsupport-abi-check.sh" "$repo/$azhad" "$1" "$work/abi" \
+    AZSUPPORT_PREFIX="$(sed -n 22p "$q/info/azsupport_azsupport")" sh "$top/tools/azsupport-abi-check.sh" "$repo/$azhad" "$1" "$work/abi" \
         $(awk -v r="$repo" '{ print r "/" $2 }' "$q/abi-pkgs") > "$res/abi-check.txt" 2>&1
     _arc=$?
     _nf=0
@@ -2428,7 +2428,7 @@ fi
 if [ -s "$q/azif.hashes" ]; then
     {
         case "$(st azsupport/azsupport)" in
-            ok) echo "azsupport/azsupport: built in this run ($(basename "$(cat "$q/file/azsupport_az" 2>/dev/null)"))" ;;
+            ok) echo "azsupport/azsupport: built in this run ($(basename "$(cat "$q/file/azsupport_azsupport" 2>/dev/null)"))" ;;
             repo) echo "azsupport/azsupport: kept from the repository ($azhad)" ;;
             *) echo "azsupport/azsupport: $(st azsupport/azsupport)" ;;
         esac

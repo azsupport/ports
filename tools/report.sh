@@ -87,16 +87,16 @@ trap 'rm -rf "$tmp"' EXIT
         tail -n 15 "$l" | cut -c1-240
     done
     # the libraries of azsupport/azsupport, a line each (tools/azsupport-build.sh), when it was built, with
-    # their interfaces (azsupport-results/azsupport_az/interface.txt)
-    if [ -s "$res/azsupport-results/azsupport_az/summary.txt" ]; then
+    # their interfaces (azsupport-results/azsupport_azsupport/interface.txt)
+    if [ -s "$res/azsupport-results/azsupport_azsupport/summary.txt" ]; then
         echo
-        echo "== azsupport/azsupport: the libraries (azsupport-results/azsupport_az/summary.txt)"
-        cut -c1-200 "$res/azsupport-results/azsupport_az/summary.txt"
+        echo "== azsupport/azsupport: the libraries (azsupport-results/azsupport_azsupport/summary.txt)"
+        cut -c1-200 "$res/azsupport-results/azsupport_azsupport/summary.txt"
     fi
-    if [ -s "$res/azsupport-results/azsupport_az/interface.txt" ]; then
+    if [ -s "$res/azsupport-results/azsupport_azsupport/interface.txt" ]; then
         echo
-        echo "== azsupport/azsupport: the interfaces of its libraries (azsupport-results/azsupport_az/interface.txt)"
-        cut -c1-240 "$res/azsupport-results/azsupport_az/interface.txt"
+        echo "== azsupport/azsupport: the interfaces of its libraries (azsupport-results/azsupport_azsupport/interface.txt)"
+        cut -c1-240 "$res/azsupport-results/azsupport_azsupport/interface.txt"
     fi
     # the interfaces of azsupport in this run: what changed, the ABI check, the ports kept by
     # interface (tools/build.sh, results/azsupport-interface.txt)
