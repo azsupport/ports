@@ -14,8 +14,9 @@
 # (ffmpeg has the epoch 7 there: apt would take its 7:6.1.1 for newer than our 9.1 and
 # replace ours), the files are in /usr/local as in the archive, so the packages ffmpeg
 # and imagemagick of Ubuntu can stay. Depends: what dpkg-shlibdeps finds the programs
-# link (glibc, zlib; libstdc++, libgcc_s and bzip2 for magick), fontconfig-config for
-# the fonts of magick (Recommends: fonts-dejavu-core). preinst refuses a CPU that cannot
+# link (glibc, zlib; libstdc++, libgcc_s and bzip2 for magick), fontconfig-config and
+# fonts-dejavu-core for the text of magick (aZ, 25.11.2026: «ну давай раз рекомендуется»:
+# Depends, not Recommends, which apt --no-install-recommends leaves out). preinst refuses a CPU that cannot
 # run the level (x86-64-v3: AVX2 and the rest; the package of x86-64-v2 for others).
 # Version: that of the program (ImageMagick 7.1.2-36 as 7.1.2.36, as its FreeBSD
 # package) and the UTC time of the build, yymmddHHMM, as revision (newer builds upgrade).
@@ -169,7 +170,7 @@ pkg az-ffmpeg "$ffver" video "" "" "x264 dav1d svtav1 webp fdkaac nvcodec" \
     "FFmpeg $ffver for the video sites, with NVIDIA" "$work/ffmpeg.desc" \
     $ffbins usr/local/share/licenses/ffmpeg || rc=1
 # shellcheck disable=SC2086
-pkg az-imagemagick7 "$imver" graphics "fontconfig-config" "fonts-dejavu-core" \
+pkg az-imagemagick7 "$imver" graphics "fontconfig-config, fonts-dejavu-core" "" \
     "png mozjpeg webp freetype2 expat fontconfig lcms2 libde265 dav1d svtav1 libheif" \
     "ImageMagick $(src_ver imagemagick7) for the video sites" "$work/imagemagick7.desc" \
     $imbins usr/local/etc/ImageMagick-7 usr/local/share/ImageMagick-7 "usr/local/lib/$imdir" \
