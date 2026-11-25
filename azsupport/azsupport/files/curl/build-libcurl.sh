@@ -12,7 +12,7 @@
 # output to <prefix>.log: the libraries of ext/curl/deps (tools/curl-sources.sh
 # of the fork puts them there; ext/curl/deps/VERSIONS lists them) go into
 # <prefix>.deps, curl into <prefix>. The other two forms are for
-# tools/build-deps.sh (/usr/local/az): one library from an unpacked source
+# tools/build-deps.sh (/usr/local/azsupport): one library from an unpacked source
 # into <prefix>, and curl against the libraries in <libraries>; --features prints
 # the feature options of curl (curl_features), one per line, for the shared
 # libcurl.so that tools/build-deps.sh builds with the same ones.
@@ -26,7 +26,7 @@
 #             lookup that runs into a timeout is dropped at once, a getaddrinfo()
 #             can only be waited for)
 #   nghttp2   HTTP/2 (the library only)
-#   brotli    Content-Encoding br (and the encoder, for the package az)
+#   brotli    Content-Encoding br (and the encoder, for the package azsupport)
 #   zstd      Content-Encoding zstd (the whole library, as its Makefile builds it)
 #   libidn2   IDN host names, with the part of libunistring it carries
 #             (--with-included-libunistring), so no libunistring
@@ -67,7 +67,7 @@ deplibs="ssh2 psl idn2 nghttp2 cares brotlidec brotlicommon zstd"
 # arcfour128, blowfish-cbc, cast128-cbc, as libssh2 after 1.11.1 has them off by
 # default (b89858b8); a server that offers only those is no longer reached. The
 # RC4 of PHP (openssl_encrypt) is that of OpenSSL, not touched. The shared
-# libssh2 of az (s_libssh2 of tools/az-build.sh of azsupport/ports) takes the same.
+# libssh2 of azsupport (s_libssh2 of tools/azsupport-build.sh of azsupport/ports) takes the same.
 ssh2_algos="-DLIBSSH2_NO_HMAC_MD5 -DLIBSSH2_NO_3DES -DLIBSSH2_NO_RC4 -DLIBSSH2_NO_BLOWFISH -DLIBSSH2_NO_CAST"
 
 say() { printf '== %s\n' "$*"; }
@@ -182,7 +182,7 @@ lib_zstd() {
 }
 
 lib_libidn2() {
-    # LIBICONV_PREFIX: GNU libiconv to use (the package az); else the iconv of libc
+    # LIBICONV_PREFIX: GNU libiconv to use (the package azsupport); else the iconv of libc
     if [ -n "${LIBICONV_PREFIX:-}" ]; then io="--with-libiconv-prefix=$LIBICONV_PREFIX"; else io="--without-libiconv-prefix"; fi
     configure_dep libidn2 "$1" "$2" --disable-nls --with-included-libunistring "$io" ac_cv_prog_RONN=true
     mk libidn2 -j"$ncpu" -C gl
@@ -273,7 +273,7 @@ openssl_opt() {
 
 # The features of the bundled libcurl: the configure options of build_curl after
 # those of the libraries, one per line. "build-libcurl.sh --features" prints them
-# for tools/build-deps.sh, whose shared libcurl.so of /usr/local/az gets the
+# for tools/build-deps.sh, whose shared libcurl.so of /usr/local/azsupport gets the
 # same ones as the static libcurl of PHP.
 curl_features() {
     printf '%s\n' --enable-http --enable-ftp --enable-file \

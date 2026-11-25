@@ -5,7 +5,7 @@
 # port made the same way for this tarball) and the fixes below. Without
 # USES=nodejs: the official Mk/Uses/nodejs.mk of the pin knows Node 22, 24 and 26
 # only, and a Mk/Uses/nodejs.mk of this tree would be read by npm-node24 and
-# yarn-node24 too (in their az_hash: they would build again with each change) and
+# yarn-node24 too (in their azsupport_hash: they would build again with each change) and
 # have to follow the official one at each move of the pin, for what
 # USES=nodejs:18,run gives: the RUN_DEPENDS on node of www/node18 and the suffix
 # -node18, written here (the prefix node18-). node18-npm and node24-npm, one of the
@@ -53,7 +53,7 @@
 
 PORTNAME=	npm
 PORTVERSION=	10.9.10
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	www
 MASTER_SITES=	https://registry.npmjs.org/${PORTNAME}/-/ \
 		https://registry.npmjs.org/brace-expansion/-/:brace \

@@ -1,4 +1,4 @@
-Sodium: modern cryptography with libsodium of the package az.
+Sodium: modern cryptography with libsodium of the package azsupport.
 
 The module sodium of PHP 8.1 for php81 of azsupport/ports, which
 installs side by side with the other versions of PHP:

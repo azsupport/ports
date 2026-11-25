@@ -2,7 +2,7 @@ SUSE's cves.patch of nodejs18 18.20.8 of SUSE Linux Enterprise 15 SP4 LTSS,
 https://api.opensuse.org/public/source/SUSE:SLE-15-SP4:Update/nodejs18.46615/cves.patch
 (Adam Majer <adam.majer@suse.de>, 15.09.2026; its nodejs18.changes lists the CVEs),
 as it is, without the sections of deps/cares, deps/nghttp2 and deps/llhttp (the
-libraries of az and of www/llhttp, the same releases or newer, take their place),
+libraries of azsupport and of www/llhttp, the same releases or newer, take their place),
 of tools/dep_updaters (scripts of the maintainers) and the two binary ones (the
 wasm builds of llhttp in deps/undici/src, which patch cannot apply and the build
 does not use: deps/undici/undici.js carries them): azsupport/ports, 11.11.2026.

@@ -3,12 +3,12 @@
 # the pinned tree (its files/Makefile.freebsd, distinfo, pkg-plist) with the options FULL
 # (libcalc and libcustcalc, the headers, the resource files and cscripts) and HELP (the
 # help files of its help command), without the flavor tiny; its command line on the
-# readline of az (/usr/local/az/lib, our ports link each other's shared libraries: aZ,
+# readline of azsupport (/usr/local/azsupport/lib, our ports link each other's shared libraries: aZ,
 # 10.11.2026), not the package of devel/readline the official USES=readline takes.
 
 PORTNAME=	calc
 PORTVERSION=	2.17.0.2
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 DISTVERSIONPREFIX=	v
 CATEGORIES=	math
 
@@ -20,9 +20,9 @@ WWW=		https://github.com/lcn2/calc \
 LICENSE=	LGPL21
 LICENSE_FILE=	${WRKSRC}/COPYING-LGPL
 
-# libreadline.so and libhistory.so of az
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libreadline.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libreadline.so:az/az
+# libreadline.so and libhistory.so of azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/azsupport
 
 USES=		gmake tar:bzip2
 USE_GITHUB=	yes
@@ -42,20 +42,20 @@ FULL_DESC=	Install all funcs/scripts/headers (OFF: just basic calculator)
 HELP_DESC=	Install calc help files
 
 # We use Makefile.freebsd because Makefile.local is in our .gitignore; its readline is
-# that of az alone (links in ${WRKDIR}/az: not the include directory of az with its other
+# that of azsupport alone (links in ${WRKDIR}/azsupport: not the include directory of azsupport with its other
 # headers, iconv.h of GNU libiconv), with its run path
 post-extract:
 	${SED} -e 's|%%CC%%|${CC}|; s|%%CFLAGS%%|${CFLAGS}|; s|%%SH%%|${SH}|' \
-		-e 's|%%AZ%%|${WRKDIR}/az|g; s|%%AZ_PREFIX%%|${AZ_PREFIX}|g' \
+		-e 's|%%AZ%%|${WRKDIR}/azsupport|g; s|%%AZSUPPORT_PREFIX%%|${AZSUPPORT_PREFIX}|g' \
 		${FILESDIR}/Makefile.freebsd > ${WRKSRC}/Makefile.local
 # The upstream Makefiles are a mess. Bash is hardcoded in many files, and only
 # some of the Makefiles allow overrides. Plus, they error out if sed .bkp files exist.
 	${FIND} ${WRKSRC} -name 'Makefile*' \
 		| ${XARGS} ${REINPLACE_CMD} -i '' -E -e '/SHELL:?=/s|bash|${SH}|'
-	@${MKDIR} ${WRKDIR}/az/include ${WRKDIR}/az/lib
-	${LN} -sf ${AZ_PREFIX}/include/readline ${WRKDIR}/az/include/readline
-	${LN} -sf ${AZ_PREFIX}/lib/libreadline.so ${AZ_PREFIX}/lib/libhistory.so \
-		${WRKDIR}/az/lib/
+	@${MKDIR} ${WRKDIR}/azsupport/include ${WRKDIR}/azsupport/lib
+	${LN} -sf ${AZSUPPORT_PREFIX}/include/readline ${WRKDIR}/azsupport/include/readline
+	${LN} -sf ${AZSUPPORT_PREFIX}/lib/libreadline.so ${AZSUPPORT_PREFIX}/lib/libhistory.so \
+		${WRKDIR}/azsupport/lib/
 
 # the programs and the libraries themselves stripped, not the links lib*.so (strip writes
 # a stripped copy in the place of a link; no debug in our packages, aZ 17.11.2026)

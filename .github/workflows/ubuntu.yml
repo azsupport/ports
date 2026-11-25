@@ -5,14 +5,14 @@ name: ubuntu
 # libstdc++ of 24.04 are newer than those of 22.04), an
 # archive per level (x86-64-v3, x86-64-v2) with ffmpeg, ffprobe (NVIDIA codecs and CUDA
 # filters too: tools/ubuntu/ffmpeg-nvidia.conf) and magick, and the Debian packages
-# az-ffmpeg and az-imagemagick7 of the same files (tools/ubuntu/deb.sh), installed by
+# azsupport-ffmpeg and azsupport-imagemagick7 of the same files (tools/ubuntu/deb.sh), installed by
 # apt here for the tests and tested as the FreeBSD
 # packages are, with tests/ports/ffmpeg-test.sh and imagemagick-test.sh of the private
 # azsupport/azsupport (secret RUNS_TOKEN; their output only into its branch runs, here
 # only "test <name>: OK|FAIL"; the samples made with the ffmpeg and the ImageMagick 6 of
 # Ubuntu), and published (input publish, on main) as the releases
-# az-ubuntu24-amd64-<v3|v2> and az-ubuntu22-amd64-<v3|v2> of this repository:
-#   https://github.com/azsupport/ports/releases/download/az-ubuntu24-amd64-v3/az-ubuntu24-amd64-v3.tar.xz
+# azsupport-ubuntu24-amd64-<v3|v2> and azsupport-ubuntu22-amd64-<v3|v2> of this repository:
+#   https://github.com/azsupport/ports/releases/download/azsupport-ubuntu24-amd64-v3/azsupport-ubuntu24-amd64-v3.tar.xz
 # On the runners of GitHub (ubuntu-24.04, ubuntu-22.04): our runners are FreeBSD jails.
 
 on:
@@ -27,15 +27,15 @@ on:
         required: false
         default: 'both'
       publish:
-        description: 'Publish the archives and packages (releases az-ubuntu<24|22>-amd64-<level>) when built and tested (main only)'
+        description: 'Publish the archives and packages (releases azsupport-ubuntu<24|22>-amd64-<level>) when built and tested (main only)'
         type: boolean
         default: false
       ffmpeg_lto:
-        description: 'The LTO of FFmpeg: auto or no (AZ_FFMPEG_LTO)'
+        description: 'The LTO of FFmpeg: auto or no (AZSUPPORT_FFMPEG_LTO)'
         required: false
         default: 'auto'
       x264_lto:
-        description: 'The LTO of x264: false or true (AZ_X264_LTO; tools/ubuntu/build.sh, b_x264: why not)'
+        description: 'The LTO of x264: false or true (AZSUPPORT_X264_LTO; tools/ubuntu/build.sh, b_x264: why not)'
         required: false
         default: 'false'
       debug:
@@ -61,10 +61,10 @@ jobs:
         ubuntu: ${{ fromJSON(inputs.ubuntu == 'both' && '["24.04","22.04"]' || format('["{0}"]', inputs.ubuntu)) }}
         cputype: ${{ fromJSON(inputs.cputype == 'both' && '["x86-64-v3","x86-64-v2"]' || format('["{0}"]', inputs.cputype)) }}
     env:
-      AZ_UBUNTU: ${{ matrix.ubuntu }}
-      AZ_CPUTYPE: ${{ matrix.cputype }}
-      AZ_FFMPEG_LTO: ${{ inputs.ffmpeg_lto }}
-      AZ_X264_LTO: ${{ inputs.x264_lto }}
+      AZSUPPORT_UBUNTU: ${{ matrix.ubuntu }}
+      AZSUPPORT_CPUTYPE: ${{ matrix.cputype }}
+      AZSUPPORT_FFMPEG_LTO: ${{ inputs.ffmpeg_lto }}
+      AZSUPPORT_X264_LTO: ${{ inputs.x264_lto }}
     steps:
       - uses: actions/checkout@v5
 
@@ -90,31 +90,31 @@ jobs:
             echo "::error title=tests::no RUNS_TOKEN: no tests"
             exit 1
           fi
-          t="$RUNNER_TEMP/az-tests.tgz"
+          t="$RUNNER_TEMP/azsupport-tests.tgz"
           curl -fsSL --retry 5 --retry-all-errors -H "Authorization: Bearer $RUNS_TOKEN" -H "Accept: application/vnd.github+json" \
             -o "$t" "https://api.github.com/repos/azsupport/azsupport/tarball/main"
           tar -xzf "$t" -C tools --wildcards --strip-components=3 '*/tests/ports/ffmpeg-test.sh' '*/tests/ports/imagemagick-test.sh'
           # the codecs of libheif: plugins on 24.04, inside libheif1 on 22.04
           heif=""
-          [ "$AZ_UBUNTU" = 22.04 ] || heif="libheif-plugin-x265 libheif-plugin-aomenc libheif-plugin-dav1d libheif-plugin-libde265"
+          [ "$AZSUPPORT_UBUNTU" = 22.04 ] || heif="libheif-plugin-x265 libheif-plugin-aomenc libheif-plugin-dav1d libheif-plugin-libde265"
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ffmpeg imagemagick \
             fontconfig fonts-dejavu-core $heif \
             > results/tests/apt.log 2>&1 || { echo "::error title=tests::apt-get install of the references failed"; exit 1; }
           export FFMPEG_REF=/usr/bin/ffmpeg IM_REF=/usr/bin/convert IM_ONLY=imagemagick7
-          export AZ_FFMPEG_CONF="$PWD/ubuntu-results/ffmpeg.conf"
-          AZ_RESULTS=results/tests/ffmpeg sh tools/ffmpeg-test.sh --samples > results/tests/ffmpeg-samples.log 2>&1
-          AZ_RESULTS=results/tests/imagemagick sh tools/imagemagick-test.sh --samples > results/tests/imagemagick-samples.log 2>&1
+          export AZSUPPORT_FFMPEG_CONF="$PWD/ubuntu-results/ffmpeg.conf"
+          AZSUPPORT_RESULTS=results/tests/ffmpeg sh tools/ffmpeg-test.sh --samples > results/tests/ffmpeg-samples.log 2>&1
+          AZSUPPORT_RESULTS=results/tests/imagemagick sh tools/imagemagick-test.sh --samples > results/tests/imagemagick-samples.log 2>&1
           # our packages, with apt (their Depends and preinst), in the place of the archive
-          l="${AZ_CPUTYPE#x86-64-}"
-          r="ubuntu${AZ_UBUNTU%%.*}"
-          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q "./az-ffmpeg-$r-amd64-$l.deb" \
-            "./az-imagemagick7-$r-amd64-$l.deb" > results/tests/apt-az.log 2>&1 ||
-            { echo "::error title=tests::apt-get install of az-ffmpeg and az-imagemagick7 failed"; tail -n 5 results/tests/apt-az.log; exit 1; }
-          dpkg -s az-ffmpeg az-imagemagick7 | grep -E '^(Package|Status|Version):'
+          l="${AZSUPPORT_CPUTYPE#x86-64-}"
+          r="ubuntu${AZSUPPORT_UBUNTU%%.*}"
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q "./azsupport-ffmpeg-$r-amd64-$l.deb" \
+            "./azsupport-imagemagick7-$r-amd64-$l.deb" > results/tests/apt-az.log 2>&1 ||
+            { echo "::error title=tests::apt-get install of azsupport-ffmpeg and azsupport-imagemagick7 failed"; tail -n 5 results/tests/apt-az.log; exit 1; }
+          dpkg -s azsupport-ffmpeg azsupport-imagemagick7 | grep -E '^(Package|Status|Version):'
           rc=0
           : > results/checks.txt
           for n in ffmpeg imagemagick; do
-            if AZ_RESULTS="results/tests/$n" sh "tools/$n-test.sh" > "results/tests/$n.log" 2>&1; then s=OK; else s=FAIL; rc=1; fi
+            if AZSUPPORT_RESULTS="results/tests/$n" sh "tools/$n-test.sh" > "results/tests/$n.log" 2>&1; then s=OK; else s=FAIL; rc=1; fi
             echo "test $n: $s" | tee -a results/checks.txt
           done
           exit $rc
@@ -126,7 +126,7 @@ jobs:
         continue-on-error: true
         run: |
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends gdb > /dev/null 2>&1
-          g="/tmp/az-ubuntu-${AZ_CPUTYPE#x86-64-}/src/ffmpeg/ffmpeg_g"
+          g="/tmp/azsupport-ubuntu-${AZSUPPORT_CPUTYPE#x86-64-}/src/ffmpeg/ffmpeg_g"
           T=/var/tmp/ffmpeg-test
           ls -la "$g" "$T"/h264_aac.mp4 "$T"/vp9_opus.webm "$T"/av1_aac.mp4 2>&1 | sed 's/^/    /'
           bt() {
@@ -179,7 +179,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "## ubuntu $AZ_UBUNTU $AZ_CPUTYPE"
+            echo "## ubuntu $AZSUPPORT_UBUNTU $AZSUPPORT_CPUTYPE"
             echo
             echo "build: ${{ steps.build.outcome }}, tests: ${{ steps.tests.outcome }}"
             echo
@@ -213,12 +213,12 @@ jobs:
           retention-days: 14
           path: |
             ubuntu-results/
-            az-ubuntu*-amd64-*.tar.xz
-            az-ubuntu*-amd64-*.tar.xz.sha256
-            az-*-ubuntu*-amd64-*.deb
-            az-*-ubuntu*-amd64-*.deb.sha256
+            azsupport-ubuntu*-amd64-*.tar.xz
+            azsupport-ubuntu*-amd64-*.tar.xz.sha256
+            azsupport-*-ubuntu*-amd64-*.deb
+            azsupport-*-ubuntu*-amd64-*.deb.sha256
 
-      # the release az-ubuntu<24|22>-amd64-<level>: the archive, the packages and their
+      # the release azsupport-ubuntu<24|22>-amd64-<level>: the archive, the packages and their
       # .sha256 in the place of those before (the same addresses), VERSIONS (with the
       # commit of the build) as its notes; never the latest release of the repository. Its
       # tag is not moved: the token of the workflow may not set a tag to a commit whose
@@ -231,13 +231,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          r="ubuntu${AZ_UBUNTU%%.*}"
-          tag="az-$r-amd64-${AZ_CPUTYPE#x86-64-}"
+          r="ubuntu${AZSUPPORT_UBUNTU%%.*}"
+          tag="azsupport-$r-amd64-${AZSUPPORT_CPUTYPE#x86-64-}"
           a="$tag.tar.xz"
-          dff="az-ffmpeg-$r-amd64-${AZ_CPUTYPE#x86-64-}.deb"
-          dim="az-imagemagick7-$r-amd64-${AZ_CPUTYPE#x86-64-}.deb"
+          dff="azsupport-ffmpeg-$r-amd64-${AZSUPPORT_CPUTYPE#x86-64-}.deb"
+          dim="azsupport-imagemagick7-$r-amd64-${AZSUPPORT_CPUTYPE#x86-64-}.deb"
           {
-            echo "FFmpeg and ImageMagick 7 of this repository for Ubuntu $AZ_UBUNTU (amd64, $AZ_CPUTYPE): tools/ubuntu/build.sh,"
+            echo "FFmpeg and ImageMagick 7 of this repository for Ubuntu $AZSUPPORT_UBUNTU (amd64, $AZSUPPORT_CPUTYPE): tools/ubuntu/build.sh,"
             echo "run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID, commit $GITHUB_SHA."
             echo
             echo "The packages (apt installs their dependencies):"
@@ -251,7 +251,7 @@ jobs:
             echo "sudo apt-get install -y ./$dff ./$dim"
             echo '```'
             echo
-            echo "Or, on a server, from the apt repository of them, https://apt.azsupport.com (azsupport/apt; it takes"
+            echo "Or, on a server, from the apt repository of them, https://deb.azsupport.dev (azsupport/deb; it takes"
             echo "these files within the hour). Or the archive of the same files:"
             echo
             echo '```'

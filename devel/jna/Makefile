@@ -10,8 +10,8 @@
 # - without JAWT on FreeBSD (-DNO_JAWT in native/Makefile, as JNA builds for
 #   Android and macOS: Native.getWindowHandle0 gives 0), without the include
 #   directories of X11 there: nothing of X11;
-# - the libffi of az, shared (DYNAMIC_LIBFFI: the property dynlink.native of
-#   build.xml), with the pkg-config of az and its directory as the run path, not
+# - the libffi of azsupport, shared (DYNAMIC_LIBFFI: the property dynlink.native of
+#   build.xml), with the pkg-config of azsupport and its directory as the run path, not
 #   the static copy JNA bundles (so no texinfo, autoreconf and libtool);
 # - built with our java/openjdk21 (JAVA_VERSION 21; aZ, 12.11.2026: the one JDK
 #   of this tree) and the Ant of our devel/apache-ant, which runs on it: one JDK
@@ -27,11 +27,11 @@
 # - checked after the install: the libjnidispatch.so of jna.jar, that of
 #   jna-platform.jar (the official port installs build/freebsd-x86-64.jar, the jar
 #   of the native library, under this name) and lib/jna/libjnidispatch.so are the
-#   one built here, which links the libffi of az by its run path and nothing of
-#   X11; the package needs az only.
+#   one built here, which links the libffi of azsupport by its run path and nothing of
+#   X11; the package needs azsupport only.
 
 PORTNAME=	jna
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	devel java
 
 MAINTAINER=	github@azsupport.com
@@ -47,26 +47,26 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 
 # the official port of the pinned tree: its version (these variables of its
 # Makefile), distinfo, pkg-descr and patches (before those of files/)
-AZ_OFFICIAL_PORT=	${PORTSDIR:U/usr/ports}/devel/jna
-AZ_OFFICIAL_VARS=	PORTVERSION GH_TAGNAME
-.for v in ${AZ_OFFICIAL_VARS}
-${v}!=		/usr/bin/sed -n -E 's/^${v}=[[:space:]]*//p' ${AZ_OFFICIAL_PORT}/Makefile 2> /dev/null || :
+AZSUPPORT_OFFICIAL_PORT=	${PORTSDIR:U/usr/ports}/devel/jna
+AZSUPPORT_OFFICIAL_VARS=	PORTVERSION GH_TAGNAME
+.for v in ${AZSUPPORT_OFFICIAL_VARS}
+${v}!=		/usr/bin/sed -n -E 's/^${v}=[[:space:]]*//p' ${AZSUPPORT_OFFICIAL_PORT}/Makefile 2> /dev/null || :
 .  if empty(${v})
-IGNORE=		has no ${v} of the official port (${AZ_OFFICIAL_PORT}/Makefile)
+IGNORE=		has no ${v} of the official port (${AZSUPPORT_OFFICIAL_PORT}/Makefile)
 .  endif
 .endfor
-DISTINFO_FILE=	${AZ_OFFICIAL_PORT}/distinfo
-DESCR=		${AZ_OFFICIAL_PORT}/pkg-descr
-_AZ_OFFICIAL_PATCHES!=	cd ${AZ_OFFICIAL_PORT}/files 2> /dev/null && ls patch-* 2> /dev/null || :
+DISTINFO_FILE=	${AZSUPPORT_OFFICIAL_PORT}/distinfo
+DESCR=		${AZSUPPORT_OFFICIAL_PORT}/pkg-descr
+_AZ_OFFICIAL_PATCHES!=	cd ${AZSUPPORT_OFFICIAL_PORT}/files 2> /dev/null && ls patch-* 2> /dev/null || :
 .if empty(_AZ_OFFICIAL_PATCHES)
-IGNORE=		has no patches of the official port (${AZ_OFFICIAL_PORT}/files)
+IGNORE=		has no patches of the official port (${AZSUPPORT_OFFICIAL_PORT}/files)
 .endif
-EXTRA_PATCHES=	${_AZ_OFFICIAL_PATCHES:S|^|${AZ_OFFICIAL_PORT}/files/|}
+EXTRA_PATCHES=	${_AZ_OFFICIAL_PATCHES:S|^|${AZSUPPORT_OFFICIAL_PORT}/files/|}
 
-# the libffi of az, to build and to run (by a file: no ldconfig hints for
-# /usr/local/az/lib)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libffi.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libffi.so:az/az
+# the libffi of azsupport, to build and to run (by a file: no ldconfig hints for
+# /usr/local/azsupport/lib)
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport
 
 USES=		gmake java:ant pkgconfig
 USE_GITHUB=	yes
@@ -78,7 +78,7 @@ MAKE_ARGS=	-DCC="${CC}" \
 		-Dcflags_extra.native="${CFLAGS}"
 MAKE_ENV=	ANT_OPTS="-Drelease -DARCH=${ANT_ARCH}" \
 		JAVACMD=${JAVA} \
-		PKG_CONFIG_LIBDIR=${AZ_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig
+		PKG_CONFIG_LIBDIR=${AZSUPPORT_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig
 ALL_TARGET=	native jar
 TEST_TARGET=	test
 
@@ -115,15 +115,15 @@ do-install-DOCS-on:
 	${INSTALL_DATA} ${WRKSRC}/dist/platform-${PORTVERSION}-javadoc.jar \
 		${STAGEDIR}${DOCSDIR}
 
-# the libjnidispatch.so of the two jars and lib/jna: built here, the libffi of az
+# the libjnidispatch.so of the two jars and lib/jna: built here, the libffi of azsupport
 # by the run path, nothing of X11 (or of JAWT); the classes of jna.jar for Java 8
 # (class file version 52: for every JDK from 8)
 post-install:
 	@v="$$(${TAR} -xOf ${STAGEDIR}${JAVAJARDIR}/jna.jar com/sun/jna/Native.class | od -An -j 7 -N 1 -t u1 | ${TR} -d ' ')"; \
 	[ "$$v" = 52 ] || { ${ECHO_MSG} "jna.jar: com/sun/jna/Native.class is of class file version $${v:-none}, not 52 (Java 8)"; exit 1; }
-	@[ -z "${LIB_DEPENDS}${RUN_DEPENDS:N*\:az/az}" ] || \
-		{ ${ECHO_MSG} "the package needs more than az: ${LIB_DEPENDS} ${RUN_DEPENDS:N*\:az/az}"; ${FALSE}; }
-	@d=${WRKDIR}/az-jars && ${RM} -r $$d && ${MKDIR} $$d/jna.jar $$d/jna-platform.jar && \
+	@[ -z "${LIB_DEPENDS}${RUN_DEPENDS:N*\:azsupport/azsupport}" ] || \
+		{ ${ECHO_MSG} "the package needs more than azsupport: ${LIB_DEPENDS} ${RUN_DEPENDS:N*\:azsupport/azsupport}"; ${FALSE}; }
+	@d=${WRKDIR}/azsupport-jars && ${RM} -r $$d && ${MKDIR} $$d/jna.jar $$d/jna-platform.jar && \
 	${TAR} -xf ${STAGEDIR}${JAVAJARDIR}/jna.jar -C $$d/jna.jar com/sun/jna/freebsd-${ANT_ARCH}/libjnidispatch.so && \
 	${TAR} -xf ${STAGEDIR}${JAVAJARDIR}/jna-platform.jar -C $$d/jna-platform.jar libjnidispatch.so || \
 		{ ${ECHO_MSG} "no libjnidispatch.so of freebsd-${ANT_ARCH} in jna.jar and jna-platform.jar"; exit 1; }; \
@@ -133,11 +133,11 @@ post-install:
 		cmp -s $$f ${WRKSRC}/build/native-freebsd-${ANT_ARCH}/libjnidispatch.so || \
 			{ ${ECHO_MSG} "the libjnidispatch.so of $$j is not the one built here"; exit 1; }; \
 		so="$$(${READELF} -d $$f | ${SED} -n 's/.*Shared library: \[\(libffi\.so\.[0-9.]*\)\].*/\1/p')"; \
-		[ -n "$$so" ] && [ -f ${AZ_PREFIX}/lib/$$so ] || \
-			{ ${ECHO_MSG} "the libjnidispatch.so of $$j does not link the libffi of ${AZ_PREFIX}/lib: $${so:-none}"; exit 1; }; \
+		[ -n "$$so" ] && [ -f ${AZSUPPORT_PREFIX}/lib/$$so ] || \
+			{ ${ECHO_MSG} "the libjnidispatch.so of $$j does not link the libffi of ${AZSUPPORT_PREFIX}/lib: $${so:-none}"; exit 1; }; \
 		rp="$$(${READELF} -d $$f | ${SED} -n 's/.*Library r[a-z]*path: \[\(.*\)\].*/\1/p')"; \
-		case ":$$rp:" in *:${AZ_PREFIX}/lib:*) ;; \
-		*) ${ECHO_MSG} "the libjnidispatch.so of $$j: the run path is '$$rp', not ${AZ_PREFIX}/lib"; exit 1 ;; esac; \
+		case ":$$rp:" in *:${AZSUPPORT_PREFIX}/lib:*) ;; \
+		*) ${ECHO_MSG} "the libjnidispatch.so of $$j: the run path is '$$rp', not ${AZSUPPORT_PREFIX}/lib"; exit 1 ;; esac; \
 		b="$$(${READELF} -d $$f | ${SED} -n 's/.*Shared library: \[\(.*\)\].*/\1/p' | ${GREP} -E '^lib(X|xcb|jawt)' | ${TR} '\n' ' ')"; \
 		[ -z "$$b" ] || { ${ECHO_MSG} "the libjnidispatch.so of $$j links $$b"; exit 1; }; \
 	done

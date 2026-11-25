@@ -19,7 +19,7 @@
 
 PORTNAME=	microcode
 PORTVERSION=	20260926
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	sysutils
 MASTER_SITES=	https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/amd-ucode/ \
 		https://gitlab.com/kernel-firmware/linux-firmware/-/raw/${_REV}/amd-ucode/

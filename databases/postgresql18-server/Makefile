@@ -19,20 +19,20 @@
 # off as everywhere (tools/make.conf.in), OPTIMIZED_CFLAGS on (-O3 -funroll-loops, as
 # the make.conf of his servers), the time zones of the base system (TZDATA off), the
 # man pages of the client off (MANPAGES, as everywhere: no docbook to build them).
-# The libraries of az (ICU, lz4, zstd, libxml2, libxslt) with the run path
-# /usr/local/az/lib, alone in a directory of the work with .pc files of their own (as
-# mail/postfix: no other header or library of /usr/local/az); libedit of the base
+# The libraries of azsupport (ICU, lz4, zstd, libxml2, libxslt) with the run path
+# /usr/local/azsupport/lib, alone in a directory of the work with .pc files of their own (as
+# mail/postfix: no other header or library of /usr/local/azsupport); libedit of the base
 # system for psql.
 
 PORTNAME?=	postgresql
 DISTVERSION?=	18.7
-PORTREVISION?=	${AZ_STAMP:U0}
+PORTREVISION?=	${AZSUPPORT_STAMP:U0}
 CATEGORIES?=	databases
 MASTER_SITES=	PGSQL/source/v${DISTVERSION}
-.if defined(AZ_PG_OPENSSL)
-AZ_PG_SSL=	-openssl
+.if defined(AZSUPPORT_PG_OPENSSL)
+AZSUPPORT_PG_SSL=	-openssl
 .endif
-PKGNAMESUFFIX?= ${PORTVERSION:R}${COMPONENT}${AZ_PG_SSL}
+PKGNAMESUFFIX?= ${PORTVERSION:R}${COMPONENT}${AZSUPPORT_PG_SSL}
 
 MAINTAINER?=	github@azsupport.com
 COMMENT?=	PostgreSQL database server (of azsupport/ports)
@@ -43,7 +43,7 @@ LICENSE=	PostgreSQL
 
 CONFLICTS+=	${PORTNAME}1[^${PORTVERSION:R:C/.*([0-9]$)/\\1/}]*
 # the same component of the other chain
-.if defined(AZ_PG_OPENSSL)
+.if defined(AZSUPPORT_PG_OPENSSL)
 CONFLICTS_INSTALL=	${PORTNAME}${PORTVERSION:R}${COMPONENT}
 .else
 CONFLICTS_INSTALL=	${PORTNAME}${PORTVERSION:R}${COMPONENT}-openssl
@@ -68,17 +68,17 @@ PG_USER?=	postgres
 PG_GROUP?=	postgres
 PG_UID?=	770
 
-# the libraries of az of the component (AZ_PG_LIBS: icu lz4 zstd xml2 xslt), alone in
-# ${WRKDIR}/az (pre-configure), with the run path of az
-LDFLAGS+=	-L${WRKDIR}/az/lib -Wl,-rpath,${AZ_PREFIX}/lib -L${LOCALBASE}/lib
-INCLUDES+=	-I${WRKDIR}/az/include -I${WRKDIR}/az/include/libxml2 -I${LOCALBASE}/include
+# the libraries of azsupport of the component (AZSUPPORT_PG_LIBS: icu lz4 zstd xml2 xslt), alone in
+# ${WRKDIR}/azsupport (pre-configure), with the run path of azsupport
+LDFLAGS+=	-L${WRKDIR}/azsupport/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib -L${LOCALBASE}/lib
+INCLUDES+=	-I${WRKDIR}/azsupport/include -I${WRKDIR}/azsupport/include/libxml2 -I${LOCALBASE}/include
 CONFIGURE_ARGS+=--with-libraries=${PREFIX}/lib \
 		--with-includes=${PREFIX}/include \
 		--enable-thread-safety
 CONFIGURE_ENV+=	INCLUDES="${INCLUDES}" \
 		PTHREAD_LIBS="-lpthread" \
 		LDFLAGS_SL="${LDFLAGS_SL}" \
-		PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc:${LOCALBASE}/libdata/pkgconfig:/usr/libdata/pkgconfig
+		PKG_CONFIG_LIBDIR=${WRKDIR}/azsupport/pc:${LOCALBASE}/libdata/pkgconfig:/usr/libdata/pkgconfig
 LDFLAGS+=	-lpthread
 MAKE_ENV=	MAKELEVEL=0
 
@@ -107,7 +107,7 @@ USES+=		pgsql:${DISTVERSION:C/([0-9]\.?[0-9]).*/\1/g}
 USERS=		${PG_USER}
 GROUPS=		${PG_GROUP}
 SUB_FILES+=	502.pgsql
-AZ_PG_LIBS=	icu lz4 zstd xml2
+AZSUPPORT_PG_LIBS=	icu lz4 zstd xml2
 .endif
 
 # the server and the contrib modules take the client of their chain (not the one
@@ -116,7 +116,7 @@ AZ_PG_LIBS=	icu lz4 zstd xml2
 # readline in them
 .if !defined(CLIENT_ONLY)
 WANT_PGSQL=
-LIB_DEPENDS+=	libpq.so.5:databases/postgresql${PORTVERSION:R}-client${AZ_PG_SSL}
+LIB_DEPENDS+=	libpq.so.5:databases/postgresql${PORTVERSION:R}-client${AZSUPPORT_PG_SSL}
 CONFIGURE_ARGS+=--without-readline
 .endif
 
@@ -137,8 +137,8 @@ DTRACE_LDFLAGS=		-lelf
 DTRACE_INSTALL_TARGET=	install
 
 LZ4_CONFIGURE_WITH=	lz4
-LZ4_BUILD_DEPENDS=	${AZ_PREFIX}/lib/liblz4.so:az/az
-LZ4_RUN_DEPENDS=	${AZ_PREFIX}/lib/liblz4.so:az/az
+LZ4_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport
+LZ4_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport
 
 LLVM_CONFIGURE_WITH=	llvm
 LLVM_CONFIGURE_ENV=	LLVM_CONFIG=${LLVM_CONFIG} \
@@ -146,16 +146,16 @@ LLVM_CONFIGURE_ENV=	LLVM_CONFIG=${LLVM_CONFIG} \
 LLVM_USES=		llvm:lib
 
 CONFIGURE_ARGS+=	--with-icu
-BUILD_DEPENDS+=		${AZ_PREFIX}/lib/libicuuc.so:az/az
-RUN_DEPENDS+=		${AZ_PREFIX}/lib/libicuuc.so:az/az
+BUILD_DEPENDS+=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/azsupport
+RUN_DEPENDS+=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/azsupport
 USES+=			pkgconfig
 
 XML_CONFIGURE_WITH=	libxml
-# libxml2 of az, its flags given (they go before pkg-config and xml2-config)
-XML_CONFIGURE_ENV=	XML2_CFLAGS=-I${WRKDIR}/az/include/libxml2 \
-			XML2_LIBS="-L${WRKDIR}/az/lib -Wl,-rpath,${AZ_PREFIX}/lib -lxml2"
-XML_BUILD_DEPENDS=	${AZ_PREFIX}/lib/libxml2.so:az/az
-XML_RUN_DEPENDS=	${AZ_PREFIX}/lib/libxml2.so:az/az
+# libxml2 of azsupport, its flags given (they go before pkg-config and xml2-config)
+XML_CONFIGURE_ENV=	XML2_CFLAGS=-I${WRKDIR}/azsupport/include/libxml2 \
+			XML2_LIBS="-L${WRKDIR}/azsupport/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib -lxml2"
+XML_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+XML_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
 .else
 CONFIGURE_ARGS+=	--without-icu
 .endif
@@ -171,7 +171,7 @@ SSL_DESC=		Build with OpenSSL support
 # the options of aZ (16.11.2026): OpenSSL in the chain -openssl only; -O3 and
 # -funroll-loops as the make.conf of his servers
 OPTIONS_DEFAULT+=	OPTIMIZED_CFLAGS
-.  if defined(AZ_PG_OPENSSL)
+.  if defined(AZSUPPORT_PG_OPENSSL)
 OPTIONS_DEFAULT+=	SSL
 .  endif
 
@@ -186,8 +186,8 @@ OPTIONS_DEFINE+=	ZSTD
 OPTIONS_DEFAULT+=	ZSTD
 ZSTD_DESC=		Build with ZSTD compression support
 ZSTD_CONFIGURE_WITH=	zstd
-ZSTD_BUILD_DEPENDS=	${AZ_PREFIX}/lib/libzstd.so:az/az
-ZSTD_RUN_DEPENDS=	${AZ_PREFIX}/lib/libzstd.so:az/az
+ZSTD_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+ZSTD_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
 USES+=			pkgconfig
 .endif
 
@@ -221,7 +221,7 @@ SUB_LIST+=		PG_VERSION=${PORTVERSION:R} \
 .include <bsd.port.options.mk>
 
 .if ${PORT_OPTIONS:MZSTD}
-AZ_PG_LIBS+=	zstd
+AZSUPPORT_PG_LIBS+=	zstd
 .endif
 
 # For testing files in FILESDIR
@@ -231,12 +231,12 @@ AZ_PG_LIBS+=	zstd
 INSTALL_DIRS+=		src/backend/jit/llvm
 .endif
 
-# the libraries of az: their headers and shared libraries alone in ${WRKDIR}/az, a .pc
-# of each with the version of that of az, the run path of az; nothing else of
-# /usr/local/az is seen (as mail/postfix)
+# the libraries of azsupport: their headers and shared libraries alone in ${WRKDIR}/azsupport, a .pc
+# of each with the version of that of azsupport, the run path of azsupport; nothing else of
+# /usr/local/azsupport is seen (as mail/postfix)
 pre-configure:
-	@${MKDIR} ${WRKDIR}/az/include ${WRKDIR}/az/lib ${WRKDIR}/az/pc
-	@for l in ${AZ_PG_LIBS:O:u}; do \
+	@${MKDIR} ${WRKDIR}/azsupport/include ${WRKDIR}/azsupport/lib ${WRKDIR}/azsupport/pc
+	@for l in ${AZSUPPORT_PG_LIBS:O:u}; do \
 	    case $$l in \
 	    icu) pc="icu-uc:-licuuc,-licudata icu-i18n:-licui18n"; \
 		libs="libicuuc libicui18n libicudata"; incs="unicode" ;; \
@@ -244,17 +244,17 @@ pre-configure:
 	    zstd) pc="libzstd:-lzstd"; libs="libzstd"; incs="zstd.h zdict.h zstd_errors.h" ;; \
 	    xml2) pc="libxml-2.0:-lxml2"; libs="libxml2"; incs="libxml2" ;; \
 	    xslt) pc=""; libs="libxslt libexslt"; incs="libxslt libexslt" ;; \
-	    *) ${ECHO_MSG} "AZ_PG_LIBS: unknown $$l"; exit 1 ;; \
+	    *) ${ECHO_MSG} "AZSUPPORT_PG_LIBS: unknown $$l"; exit 1 ;; \
 	    esac; \
-	    for i in $$incs; do ${LN} -sf ${AZ_PREFIX}/include/$$i ${WRKDIR}/az/include/$$i; done; \
-	    for f in $$libs; do ${LN} -sf ${AZ_PREFIX}/lib/$$f.so ${WRKDIR}/az/lib/$$f.so; done; \
+	    for i in $$incs; do ${LN} -sf ${AZSUPPORT_PREFIX}/include/$$i ${WRKDIR}/azsupport/include/$$i; done; \
+	    for f in $$libs; do ${LN} -sf ${AZSUPPORT_PREFIX}/lib/$$f.so ${WRKDIR}/azsupport/lib/$$f.so; done; \
 	    for p in $$pc; do n=$${p%%:*}; L=$$(${ECHO_CMD} "$${p#*:}" | ${TR} , ' '); \
-		v=$$(${SED} -n 's/^Version: *//p' ${AZ_PREFIX}/lib/pkgconfig/$$n.pc); \
-		[ -n "$$v" ] || { ${ECHO_MSG} "no ${AZ_PREFIX}/lib/pkgconfig/$$n.pc"; exit 1; }; \
+		v=$$(${SED} -n 's/^Version: *//p' ${AZSUPPORT_PREFIX}/lib/pkgconfig/$$n.pc); \
+		[ -n "$$v" ] || { ${ECHO_MSG} "no ${AZSUPPORT_PREFIX}/lib/pkgconfig/$$n.pc"; exit 1; }; \
 		r=""; [ $$n = icu-i18n ] && r="Requires: icu-uc"; \
-		c="-I${WRKDIR}/az/include"; [ $$n = libxml-2.0 ] && c="$$c -I${WRKDIR}/az/include/libxml2"; \
-		${PRINTF} 'Name: %s\nDescription: %s of az\nVersion: %s\n%s\nCflags: %s\nLibs: -L${WRKDIR}/az/lib -Wl,-rpath,${AZ_PREFIX}/lib %s\n' \
-		    "$$n" "$$n" "$$v" "$$r" "$$c" "$$L" > ${WRKDIR}/az/pc/$$n.pc; \
+		c="-I${WRKDIR}/azsupport/include"; [ $$n = libxml-2.0 ] && c="$$c -I${WRKDIR}/azsupport/include/libxml2"; \
+		${PRINTF} 'Name: %s\nDescription: %s of azsupport\nVersion: %s\n%s\nCflags: %s\nLibs: -L${WRKDIR}/azsupport/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib %s\n' \
+		    "$$n" "$$n" "$$v" "$$r" "$$c" "$$L" > ${WRKDIR}/azsupport/pc/$$n.pc; \
 	    done; \
 	done
 

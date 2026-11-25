@@ -1,4 +1,4 @@
-tidy-html5, the libtidy of az (www/tidy-html5; the official port took
+tidy-html5, the libtidy of azsupport (www/tidy-html5; the official port took
 www/tidy-lib, the tidy of 2009), names buffio.h tidybuffio.h, which ext/tidy
 of PHP 5.6 does not know: the check of config.m4 and the include of tidy.c of
 ext/tidy of PHP 7.4.

@@ -1,9 +1,9 @@
 # devel/github-act-runner of azsupport/ports: the official port as it is
-# (Mk/az-official.mk), github-act-runner, the self-hosted runner of GitHub Actions
+# (Mk/azsupport-official.mk), github-act-runner, the self-hosted runner of GitHub Actions
 # in Go (aZ, 20.11.2026: the builds in a jail of FreeBSD; actions/runner of GitHub
 # has no FreeBSD build): a static binary (CGO_ENABLED=0 of the official port).
 
-AZ_OFFICIAL=	devel/github-act-runner
+AZSUPPORT_OFFICIAL=	devel/github-act-runner
 # A job cancelled on GitHub stops on the runner (aZ, 24.11.2026 21:28: «надо бы
 # пофиксить чтобы через гитхаб работало»; run 45475520418 of build-jail.yml, cancelled
 # and force-cancelled, went on with its steps until make was killed on the server):
@@ -23,4 +23,4 @@ EXTRA_PATCHES=	${.CURDIR}/files/patch-actionsrunner_runner.go \
 		${.CURDIR}/files/patch-protocol_session.go \
 		${.CURDIR}/files/patch-vendor_github.com_actions-oss_act-cli_pkg_container_host__environment.go
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

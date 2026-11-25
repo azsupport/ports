@@ -1,5 +1,5 @@
 Gettext: the gettext API of native language support, with libintl of
-the package az.
+the package azsupport.
 
 The module gettext of PHP 8.3 for php83 of azsupport/ports, which
 installs side by side with the other versions of PHP:

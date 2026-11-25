@@ -2,7 +2,7 @@
 # dns/bind-tools (aZ, 10.11.2026): delv, dig, host, nslookup, nsupdate, mdig and the
 # DNSSEC tools of BIND 9.20. As the official one, a slave of dns/bind920 (its
 # BIND_TOOLS_SLAVE part: the options, the libraries of our ports, the version);
-# aZ's options there: IDN (libidn2 of az) on, DNSTAP, FIXED_RRSET and LARGE_FILE
+# aZ's options there: IDN (libidn2 of azsupport) on, DNSTAP, FIXED_RRSET and LARGE_FILE
 # off, no GSSAPI.
 
 MASTERDIR=	${.CURDIR}/../bind920

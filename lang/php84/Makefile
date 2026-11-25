@@ -3,7 +3,7 @@
 # 21.11.2026: «давай еще разделим php-cgi и php-fpm на отдельные порты и
 # соответственно phpXX-cgi phpXX-fpm и подредактируй название rc.d под новые названия
 # в php-fpm»; «тут тоже php84-»), built by this Makefile with the SAPI alone
-# (AZ_PHP_SAPI); this core has the CLI. What follows of the FPM is theirs.
+# (AZSUPPORT_PHP_SAPI); this core has the CLI. What follows of the FPM is theirs.
 #
 # PHP 8.4 of azsupport/php-src for the overlay azsupport/ports: the official
 # port lang/php84 of freebsd-ports 1a235373d266 (the ports commit of PHP 8.4 in
@@ -22,19 +22,19 @@
 #   checks of the ifunc and target attributes on FreeBSD and the option
 #   --with-openssl-legacy-provider (php84-openssl-legacy) are upstream since
 #   PHP 8.4: the fork needs no patch for them. A new dated release of the same
-#   version: AZ_PHP_RELEASE and distinfo.
-# - PORTREVISION is the stamp of the build, AZ_STAMP of the builder (0 without
+#   version: AZSUPPORT_PHP_RELEASE and distinfo.
+# - PORTREVISION is the stamp of the build, AZSUPPORT_STAMP of the builder (0 without
 #   it; Mk/bsd.overlay.mk); the modules take it from here.
 # - Versions side by side: every path of PHP 8.4 has 84 in it: bin/php84 ...
 #   (--program-suffix=84), etc/php84 (php.ini by @sample from php.ini.sample:
-#   php.ini-production with the defaults of az, files/php.ini-az-84.in, at its
+#   php.ini-production with the defaults of azsupport, files/php.ini-az-84.in, at its
 #   end; errors in /var/log/php84_error.log, made at install when missing; FPM
 #   with /var/run/php84-fpm.pid, /var/log/php84-fpm.log, the pool www on
 #   /var/run/php84-fpm.sock), the scan dir etc/php84/conf.d, lib/php84 (the
 #   build files of phpize84), include/php84, share/php84, etc/rc.d/php84_fpm,
 #   libexec/apache24/libphp84.so (www/mod_php84); the modules in
 #   lib/php/20240924 as the ports. No CONFLICTS_INSTALL with other versions.
-# - Libraries: libxml2 and argon2 of the package az (${AZ_PREFIX}), by a file,
+# - Libraries: libxml2 and argon2 of the package azsupport (${AZSUPPORT_PREFIX}), by a file,
 #   with its run path and pkg-config; PCRE2 the shared library of devel/pcre2
 #   of this tree, not the one the fork bundles (no option PCRE). OpenSSL is
 #   not in the core (the official one has
@@ -43,7 +43,7 @@
 #   PHP_EXT_INC. So not the --with-openssl-argon2 of the official 8.4 either
 #   (the argon2 of OpenSSL 3.2 and later of its core, where OpenSSL is the base
 #   one of FreeBSD 15): password_hash() with argon2 in the core is that of
-#   ext/standard with the libargon2 of az, as for 7.4 to 8.3 (the module
+#   ext/standard with the libargon2 of azsupport, as for 7.4 to 8.3 (the module
 #   openssl of 8.4 registers its own argon2 only where the core has none). No
 #   USES=localbase: no library of the ports.
 # - Options: no MYSQLND (the module php84-mysqlnd), no PCRE (above); EMBED and
@@ -77,10 +77,10 @@
 
 PORTNAME=	php84
 DISTVERSION?=	8.4.28
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES?=	lang devel www
-MASTER_SITES=	https://github.com/azsupport/php-src/releases/download/freebsd-8.4-${AZ_PHP_RELEASE}/
-DISTNAME=	php-8.4.28-fbsd-${AZ_PHP_RELEASE}
+MASTER_SITES=	https://github.com/azsupport/php-src/releases/download/freebsd-8.4-${AZSUPPORT_PHP_RELEASE}/
+DISTNAME=	php-8.4.28-fbsd-${AZSUPPORT_PHP_RELEASE}
 DIST_SUBDIR=	php
 
 MAINTAINER=	github@azsupport.com
@@ -97,20 +97,20 @@ PHP_VER=	84
 
 # the dated release of the fork: its tag freebsd-8.4-<date>-<commit>; DISTNAME
 # without DISTVERSION, which the slaves of PECL extensions set to their version
-AZ_PHP_RELEASE=	20261124-6c4c8ecd
+AZSUPPORT_PHP_RELEASE=	20261124-6c4c8ecd
 
 # the files of this port that the ports needing it need not see (tools/build.sh),
 # as in lang/php74: run-time files of the core only (post-install, USE_RC_SUBR,
-# SUB_FILES), read by no module and not by mod_php84: the block of az for
+# SUB_FILES), read by no module and not by mod_php84: the block of azsupport for
 # php.ini, bin/php84-profile and pkg-message
-AZ_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-84.in ${MASTERDIR}/files/php-profile.in \
+AZSUPPORT_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-84.in ${MASTERDIR}/files/php-profile.in \
 				${MASTERDIR}/files/pkg-message.in
 
 .if !defined(PKGNAMESUFFIX)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
-		${AZ_PREFIX}/lib/libxml2.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
-		${AZ_PREFIX}/lib/libxml2.so:az/az
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
 
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS+=	\
@@ -121,20 +121,20 @@ CONFIGURE_ARGS+=	\
 		--with-config-file-scan-dir=${PREFIX}/etc/php${PHP_VER}/conf.d \
 		--with-layout=GNU \
 		--with-libxml \
-		--with-password-argon2=${AZ_PREFIX} \
+		--with-password-argon2=${AZSUPPORT_PREFIX} \
 		--sysconfdir=${PREFIX}/etc/php${PHP_VER} \
 		--libdir=${PREFIX}/lib/php${PHP_VER} \
 		--includedir=${PREFIX}/include/php${PHP_VER} \
 		--datadir=${PREFIX}/share/php${PHP_VER}
-CONFIGURE_ENV=	CPPFLAGS="-I${AZ_PREFIX}/include" \
+CONFIGURE_ENV=	CPPFLAGS="-I${AZSUPPORT_PREFIX}/include" \
 		EXTENSION_DIR=${PREFIX}/lib/php/${PHP_EXT_DIR}
-LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+LDFLAGS+=	-L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 # PCRE2: the shared library of devel/pcre2 of this tree, not the one the fork
 # bundles (aZ, 10.11.2026: our ports link each other's shared libraries; one PCRE2
 # for PHP, Apache, git, nginx): --with-external-pcre, its flags by hand (the
-# pkg-config of the core is that of az): pcre2.h and libpcre2-8.so alone in a
+# pkg-config of the core is that of azsupport): pcre2.h and libpcre2-8.so alone in a
 # directory of the work (links to those of /usr/local: no other header or library
-# of /usr/local is seen; pre-configure), -lpcre2-8 by its -L after that of az; no
+# of /usr/local is seen; pre-configure), -lpcre2-8 by its -L after that of azsupport; no
 # run path, libpcre2-8.so.0 is in /usr/local/lib, one of ldconfig. The modules
 # find pcre2.h, which php_pcre.h of 8.4 includes as <pcre2.h> (7.4 to 8.3: "pcre2.h",
 # next to it), in the first include directory of php-config --includes: the link
@@ -212,11 +212,11 @@ WARNING=		"!!! If you have a threaded Apache, you must build ${PHP_PORT} with ZT
 WARNING+=	"!!! Consider switching to php-fpm and mod_proxy_fcgi as per Apache httpd recommendations !!!"
 .  endif
 
-# the FPM and the CGI of the version, www/php84-fpm and www/php84-cgi (AZ_PHP_SAPI):
+# the FPM and the CGI of the version, www/php84-fpm and www/php84-cgi (AZSUPPORT_PHP_SAPI):
 # the SAPI alone, with etc/php84 and the modules of php84
-.  if defined(AZ_PHP_SAPI)
+.  if defined(AZSUPPORT_PHP_SAPI)
 RUN_DEPENDS+=	${LOCALBASE}/include/php84/php/main/php.h:lang/php84
-.    if ${AZ_PHP_SAPI} == fpm
+.    if ${AZSUPPORT_PHP_SAPI} == fpm
 COMMENT=	FastCGI Process Manager of PHP (8.4.X branch of azsupport/php-src)
 SUB_FILES+=	pkg-message
 SUB_LIST+=	PHP_VER=${PHP_VER}
@@ -261,9 +261,9 @@ PLIST_SUB+=	SAPI_INC="@comment "
 CONFIGURE_ENV+=	ac_cv_decimal_fp_supported="no" \
 		lt_cv_path_SED="sed"
 
-# the pkg-config of the package az, after the PKG_CONFIG=pkgconf of
+# the pkg-config of the package azsupport, after the PKG_CONFIG=pkgconf of
 # USES=pkgconfig (the last one in CONFIGURE_ENV is the one configure gets)
-CONFIGURE_ENV+=	PKG_CONFIG=${AZ_PREFIX}/bin/pkg-config
+CONFIGURE_ENV+=	PKG_CONFIG=${AZSUPPORT_PREFIX}/bin/pkg-config
 
 post-patch:
 	@${TOUCH} ${WRKSRC}/ext/php_config.h
@@ -293,7 +293,7 @@ pre-configure:
 post-configure:
 	@${ECHO_CMD} '#include <ext/php_config.h>' >> ${WRKSRC}/main/php_config.h
 
-.  if !defined(PKGNAMEPREFIX) && !defined(AZ_PHP_SAPI)
+.  if !defined(PKGNAMEPREFIX) && !defined(AZSUPPORT_PHP_SAPI)
 post-build:
 	@${ECHO_CMD} "PHP_VER=${PHP_VER}" > ${WRKDIR}/php.conf
 	@${ECHO_CMD} "PHP_VERSION=${PORTVERSION}" >> ${WRKDIR}/php.conf
@@ -305,7 +305,7 @@ post-build:
 test: build
 	@(cd ${WRKSRC} && ${MAKE} test)
 
-# bin/php84-profile, the pkg-message (profiles, php.ini) and the block of az
+# bin/php84-profile, the pkg-message (profiles, php.ini) and the block of azsupport
 # for php.ini, from templates (PHP_VER; the block one file per version); in
 # files/, so that the modules do not take the message
 SUB_FILES+=	php-profile pkg-message php.ini-az-${PHP_VER}
@@ -313,7 +313,7 @@ SUB_LIST+=	PHP_VER=${PHP_VER}
 
 # etc/php84: php.conf (the version for Mk/Uses/php.mk), php.ini-development,
 # php.ini-production and php.ini.sample (php.ini-production with the block of
-# az at its end; php.ini by @sample); the empty directories of the modules: the
+# azsupport at its end; php.ini by @sample); the empty directories of the modules: the
 # scan dir etc/php84/conf.d and lib/php/20240924 (@dir)
 post-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/etc/php${PHP_VER}/conf.d \
@@ -341,10 +341,10 @@ post-install-EMBED-on:
 post-install-PHPDBG-on:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/phpdbg${PHP_VER}
 
-.  elif defined(AZ_PHP_SAPI)
+.  elif defined(AZSUPPORT_PHP_SAPI)
 # the SAPI alone: sbin/php84-fpm with its configuration and status page, or
 # bin/php84-cgi
-.    if ${AZ_PHP_SAPI} == fpm
+.    if ${AZSUPPORT_PHP_SAPI} == fpm
 do-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/sbin ${STAGEDIR}${PREFIX}/etc/php${PHP_VER} \
 		${STAGEDIR}${PREFIX}/share/php${PHP_VER}/fpm

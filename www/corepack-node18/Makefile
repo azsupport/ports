@@ -11,7 +11,7 @@
 
 PORTNAME=	corepack
 PORTVERSION=	0.33.0
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	www
 MASTER_SITES=	https://registry.npmjs.org/${PORTNAME}/-/
 # the package node18-corepack (aZ, 21.11.2026: the name with the version first, as

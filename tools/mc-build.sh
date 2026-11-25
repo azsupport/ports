@@ -7,11 +7,11 @@
 #
 # Usage (FreeBSD; the port misc/mc runs it in its post-fetch and do-build):
 #   sh tools/mc-build.sh --fetch    fetch the distfiles of the official ports of
-#                                   mc.conf into AZ_DISTDIR (their make fetch)
+#                                   mc.conf into AZSUPPORT_DISTDIR (their make fetch)
 #   sh tools/mc-build.sh            build mc
 #
 # The ports framework fetches the distfiles of each port of the program lines at the
-# ports commit of az/az/files/deps.conf (the official tree PORTSDIR, at that commit),
+# ports commit of azsupport/azsupport/files/deps.conf (the official tree PORTSDIR, at that commit),
 # checks them against its distinfo, extracts them and applies the port's patches
 # (make patch; those of misc/mc make mcdiff run gdiff), then those of files/ of
 # misc/mc (files/*.patch, in the order of their names), then autoreconf -fi (a patch
@@ -19,55 +19,55 @@
 # build checks in config.h); this script then builds mc
 # (prefix /usr/local) against the shared libraries of our ports (aZ, 10.11.2026: our
 # ports link each other's shared libraries): GLib of devel/glib20 (libglib-2.0.so of
-# /usr/local/lib, itself on libintl, libiconv and libffi of az and PCRE2 of
+# /usr/local/lib, itself on libintl, libiconv and libffi of azsupport and PCRE2 of
 # devel/pcre2; mc had a static GLib of its own before 11.11.2026), seen through a .pc
-# of its own in the work (AZ_WORK/mc/deps: glib-2.0 with the include directories of
+# of its own in the work (AZSUPPORT_WORK/mc/deps: glib-2.0 with the include directories of
 # GLib and libglib-2.0.so alone in a directory, nothing else of /usr/local), and
-# libssh2 of az (with the OpenSSL of the base system, which it was built with), with
-# the run path /usr/local/az/lib, into the stage AZ_STAGEDIR (default
-# AZ_WORK/stage/mc) and runs the unit test of upstream for file cloning
+# libssh2 of azsupport (with the OpenSSL of the base system, which it was built with), with
+# the run path /usr/local/azsupport/lib, into the stage AZSUPPORT_STAGEDIR (default
+# AZSUPPORT_WORK/stage/mc) and runs the unit test of upstream for file cloning
 # (tests/lib/vfs/vfs_clone_file.c, with check of devel/check, in a build of its own),
 # with files/ubsdtar in libexec/mc/extfs.d, its VERSIONS in
-# share/doc/mc and its licence in share/licenses/mc. So mc needs the packages az and
+# share/doc/mc and its licence in share/licenses/mc. So mc needs the packages azsupport and
 # glib (with pcre2) and libraries of the base system (libutil, libz, libthr, libc;
-# the termcap of libtinfow through the S-Lang of az, the screen of mc). The work directory is AZ_WORK/mc (default
-# /var/tmp/az-work/mc). Results go to AZ_RESULTS (default mc-results/ of the current
+# the termcap of libtinfow through the S-Lang of azsupport, the screen of mc). The work directory is AZSUPPORT_WORK/mc (default
+# /var/tmp/azsupport-work/mc). Results go to AZSUPPORT_RESULTS (default mc-results/ of the current
 # directory: summary.txt, a log per port, bins.txt, version.txt, VERSIONS); the
 # summary is printed at the end.
 #
 # Compiler flags as for the other programs: CPUTYPE and CFLAGS of /etc/make.conf with
-# -fstack-protector-strong and -fno-strict-aliasing; AZ_CPUTYPE and AZ_CFLAGS win over
+# -fstack-protector-strong and -fno-strict-aliasing; AZSUPPORT_CPUTYPE and AZSUPPORT_CFLAGS win over
 # make.conf (MAKE_CONF, default /etc/make.conf); without either: x86-64-v3 and -O3
-# -pipe. mc: PIE, RELRO and BIND_NOW. AZ_MC_VERSION (the port misc/mc gives its
+# -pipe. mc: PIE, RELRO and BIND_NOW. AZSUPPORT_MC_VERSION (the port misc/mc gives its
 # DISTVERSION): the version the official port has to have, so that the package has
 # the version of what it builds.
 #
-# Exit status: 0 built, 1 a port failed, the libraries of az are not there, the
+# Exit status: 0 built, 1 a port failed, the libraries of azsupport are not there, the
 # official port has another version, or this CPU cannot run the level, 2 usage.
 
 set -u
 # A build as from a shell: the make of the port that runs this script leaves its
 # MAKEFLAGS in the environment, which every gmake here would take as variables of its
-# own command line (as tools/az-build.sh says).
+# own command line (as tools/azsupport-build.sh says).
 unset MAKEFLAGS MFLAGS MAKELEVEL __MKLVL__
 tools="$(cd "$(dirname "$0")" && pwd)"
-files="${AZ_FILESDIR:-$tools/../misc/mc/files}"
+files="${AZSUPPORT_FILESDIR:-$tools/../misc/mc/files}"
 conf="$files/mc.conf"
-deps_conf="${AZ_DEPS_CONF:-$tools/../az/az/files/deps.conf}"
-A="${AZ_PREFIX:-/usr/local/az}"
-work="${AZ_WORK:-/var/tmp/az-work}/mc"
+deps_conf="${AZSUPPORT_DEPS_CONF:-$tools/../azsupport/azsupport/files/deps.conf}"
+A="${AZSUPPORT_PREFIX:-/usr/local/azsupport}"
+work="${AZSUPPORT_WORK:-/var/tmp/azsupport-work}/mc"
 # the .pc of GLib and the link of its library, for the build of mc only
 W="$work/deps"
 F=/usr/local
-stage="${AZ_STAGEDIR:-${AZ_WORK:-/var/tmp/az-work}/stage/mc}"
-res="${AZ_RESULTS:-$(pwd)/mc-results}"
+stage="${AZSUPPORT_STAGEDIR:-${AZSUPPORT_WORK:-/var/tmp/azsupport-work}/stage/mc}"
+res="${AZSUPPORT_RESULTS:-$(pwd)/mc-results}"
 ports="${PORTSDIR:-/usr/ports}"
-distdir="${AZ_DISTDIR:-$work/distfiles}"
+distdir="${AZSUPPORT_DISTDIR:-$work/distfiles}"
 ncpu="$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 major="$(uname -r | cut -d. -f1)"
 
-[ -f "$conf" ] || { echo "mc-build: no $conf (AZ_FILESDIR: files/ of the port misc/mc)" >&2; exit 2; }
-[ -f "$deps_conf" ] || { echo "mc-build: no $deps_conf (AZ_DEPS_CONF: deps.conf of the port az/az)" >&2; exit 2; }
+[ -f "$conf" ] || { echo "mc-build: no $conf (AZSUPPORT_FILESDIR: files/ of the port misc/mc)" >&2; exit 2; }
+[ -f "$deps_conf" ] || { echo "mc-build: no $deps_conf (AZSUPPORT_DEPS_CONF: deps.conf of the port azsupport/azsupport)" >&2; exit 2; }
 
 say() { printf '[mc-build %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
@@ -83,14 +83,14 @@ mkconf_get() {
     ' "$mk_conf"
 }
 
-cputype="${AZ_CPUTYPE:-$(mkconf_get CPUTYPE)}"
+cputype="${AZSUPPORT_CPUTYPE:-$(mkconf_get CPUTYPE)}"
 cputype="${cputype:-x86-64-v3}"
-opt="${AZ_CFLAGS:-$(mkconf_get CFLAGS)}"
+opt="${AZSUPPORT_CFLAGS:-$(mkconf_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 cflags="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing"
 export CC=cc CXX=c++
-# The build sees W (GLib of devel/glib20: glib_dir below) and the shared tree of az,
+# The build sees W (GLib of devel/glib20: glib_dir below) and the shared tree of azsupport,
 # nothing else of /usr/local (the base compiler does not search it; pkg-config only
 # these and the base system)
 export PKG_CONFIG=pkgconf
@@ -115,7 +115,7 @@ pm() {
 conf_opts() { awk '$1 == "configure" { for (i = 2; i <= NF; i++) print $i }' "$conf"; }
 
 # The official tree PORTSDIR has to be at the commit of deps.conf (as in
-# tools/az-build.sh); it is only read here, never changed.
+# tools/azsupport-build.sh); it is only read here, never changed.
 ports_check() {
     [ -f "$ports/Mk/bsd.port.mk" ] || { echo "mc-build: no ports tree in $ports (PORTSDIR)" >&2; return 1; }
     h="$(git -C "$ports" rev-parse HEAD 2>/dev/null)"
@@ -166,7 +166,7 @@ glib_dir() {
 # configure with the paths of the port and the configure lines of mc.conf; the
 # programs its scripts run at the paths of the servers, not those the build machine
 # happens to have (configure takes them from PATH): Perl and zip of the packages,
-# unzip of the base system, Python and Ruby from PATH; the screen of the S-Lang of az
+# unzip of the base system, Python and Ruby from PATH; the screen of the S-Lang of azsupport
 # (files/mc.conf; slang.pc among those of PKG_CONFIG_LIBDIR); PIE, RELRO, BIND_NOW
 # need_defines <config.h> <macro>...: each macro defined there (by configure)
 need_defines() {
@@ -244,7 +244,7 @@ b_mc() {
     # OPTIONS_UNSET of the make.conf of the servers); the help of mc (F1) stays
     rm -rf "$stage$F/share/man"
     install -m 755 "$files/ubsdtar" "$stage$F/libexec/mc/extfs.d/ubsdtar" || return 1
-    # the licence of mc (the shared libraries it links are those of the packages az
+    # the licence of mc (the shared libraries it links are those of the packages azsupport
     # and glib, with their licences, and of the base system)
     lic="$stage$F/share/licenses/mc"
     mkdir -p "$lic" && cp "$1/COPYING" "$lic/mc-COPYING" || return 1
@@ -292,13 +292,13 @@ manifest() {
         echo "Midnight Commander for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $cflags"
         echo "GLib: libglib-2.0.so of devel/glib20 ($(pkgconf --modversion /usr/local/libdata/pkgconfig/glib-2.0.pc 2>/dev/null));"
-        echo "libssh2: the shared library of $A/lib (the package az, with that run path), with the"
+        echo "libssh2: the shared library of $A/lib (the package azsupport, with that run path), with the"
         echo "OpenSSL of the base system:"
         awk '$1 == "libssh2" { print "    " $0 }' \
-            "$A/share/doc/az/VERSIONS" 2>/dev/null
-        echo "S-Lang, the screen of mc: the shared library of $A/lib (the package az):"
+            "$A/share/doc/azsupport/VERSIONS" 2>/dev/null
+        echo "S-Lang, the screen of mc: the shared library of $A/lib (the package azsupport):"
         awk '$1 == "slang" { print "    " $0 }' \
-            "$A/share/doc/az/VERSIONS" 2>/dev/null
+            "$A/share/doc/azsupport/VERSIONS" 2>/dev/null
         echo
         while read -r n pkgname port; do
             printf '%-8s %-24s %s\n' "$n" "$pkgname" "$port"
@@ -341,14 +341,14 @@ check_bins() {
     rp="$(readelf -d "$f" | sed -n 's/.*[Ll]ibrary r[a-z]*path: \[\(.*\)\].*/\1/p')"
     printf 'mc: %s KB, ELF type %s, RELRO %s, BIND_NOW %s, run path %s; libraries: %s\n' \
         "$(du -Ak "$f" | cut -f1)" "$type" "$relro" "$now" "${rp:-none}" "$libs" >> "$res/bins.txt"
-    # the base system, the shared tree of az (by the run path), GLib of devel/glib20
+    # the base system, the shared tree of azsupport (by the run path), GLib of devel/glib20
     # and PCRE2 of devel/pcre2 (which GLib links)
     for l in $libs; do
         case "$l" in
             /lib/* | /usr/lib/* | /usr/local/lib/libglib-2.0.so.* | /usr/local/lib/libpcre2-8.so.*) ;;
             "$A"/static/*) echo "mc: $l of the static tree" ;;
             "$A"/lib/*) case ":$rp:" in *":$A/lib:"*) ;; *) echo "mc: $l without the run path $A/lib (${rp:-none})" ;; esac ;;
-            *) echo "mc: $l, not of the base system, az, glib or pcre2" ;;
+            *) echo "mc: $l, not of the base system, azsupport, glib or pcre2" ;;
         esac
     done >> "$res/bins-bad.txt"
     [ "$type" = DYN ] || echo "mc: not a PIE (ELF type $type)" >> "$res/bins-bad.txt"
@@ -380,7 +380,7 @@ check_bins() {
 }
 
 mkdir -p "$res" "$work"
-# --fetch: the distfiles of the ports, by their own make fetch into AZ_DISTDIR (the
+# --fetch: the distfiles of the ports, by their own make fetch into AZSUPPORT_DISTDIR (the
 # post-fetch of the port misc/mc), so that the build needs no network
 if [ "${1:-}" = "--fetch" ]; then
     ports_check || exit 1
@@ -424,17 +424,17 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
 fi
 for f in lib/libssh2.so lib/pkgconfig/libssh2.pc include/libssh2.h lib/libslang.so lib/pkgconfig/slang.pc include/slang.h; do
     if [ ! -e "$A/$f" ]; then
-        printf '%-8s FAIL  no %s of the shared libraries in %s: install the package az first (az/az)\n' libs "$f" "$A" >> "$res/summary.txt"
-        echo "mc-build: no $A/$f; install the package az first (the port az/az)" >&2
+        printf '%-8s FAIL  no %s of the shared libraries in %s: install the package azsupport first (azsupport/azsupport)\n' libs "$f" "$A" >> "$res/summary.txt"
+        echo "mc-build: no $A/$f; install the package azsupport first (the port azsupport/azsupport)" >&2
         exit 1
     fi
 done
 ports_check || { echo "ports    FAIL  $ports is not freebsd-ports $ports_commit of deps.conf" >> "$res/summary.txt"; report; exit 1; }
-if [ -n "${AZ_MC_VERSION:-}" ]; then
+if [ -n "${AZSUPPORT_MC_VERSION:-}" ]; then
     pv="$(pmake misc/mc -V PORTVERSION 2>/dev/null)"
-    if [ "$pv" != "$AZ_MC_VERSION" ]; then
+    if [ "$pv" != "$AZSUPPORT_MC_VERSION" ]; then
         printf 'mc       FAIL  the official misc/mc is %s, the port misc/mc of this tree %s: set its DISTVERSION\n' \
-            "${pv:-?}" "$AZ_MC_VERSION" >> "$res/summary.txt"
+            "${pv:-?}" "$AZSUPPORT_MC_VERSION" >> "$res/summary.txt"
         report
         exit 1
     fi

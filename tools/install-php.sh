@@ -55,7 +55,7 @@ case "$t" in [5-8].[0-9]) ;; *) die "not a version of PHP: $t (7.4)" ;; esac
 short="$(echo "$t" | tr -d .)"
 [ "$(uname -s)" = FreeBSD ] || die "FreeBSD only"
 [ "$(id -u)" = 0 ] || die "as root (pkg install, pkg delete)"
-repo="${repo:-${AZ_WORK:-$top/work}/repo}"
+repo="${repo:-${AZSUPPORT_WORK:-$top/work}/repo}"
 repo="$(cd "$repo" 2>/dev/null && pwd)"
 [ -n "$repo" ] && [ -f "$repo/meta.conf" ] || die "no repository of pkg (meta.conf) in ${repo:-the directory given}: tools/build.sh first"
 mkdir -p "$top/results" || die "cannot make $top/results"

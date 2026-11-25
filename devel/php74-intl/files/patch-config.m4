@@ -1,4 +1,4 @@
-ICU 75 and later (ICU 76 of the package az) need C++17. PHP 7.4 asks for C++11,
+ICU 75 and later (ICU 76 of the package azsupport) need C++17. PHP 7.4 asks for C++11,
 and its -std=c++11 comes after CXXFLAGS on the command line (USES=compiler:c++17-lang
 of the Makefile), so it won (build.yml 42519391339: no template is_convertible_v in
 std). PHP 8.1 and later pick C++17 for ICU 74 and later themselves.

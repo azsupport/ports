@@ -1,4 +1,4 @@
-intl: internationalization with ICU of the package az (collation,
+intl: internationalization with ICU of the package azsupport (collation,
 number and date formats, normalization, transliteration).
 
 The module intl of PHP 8.2 for php82 of azsupport/ports, which installs

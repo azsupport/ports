@@ -6,9 +6,9 @@
 # TCP_FASTOPEN, IDN (libidn2) and no GSSAPI; DNSTAP, LMDB, STATS_JSON and
 # STATS_XML, on in the official one, off. The libraries of our ports, as shared
 # ones (aZ, 10.11.2026: our ports link each other's shared libraries): libuv,
-# liburcu, nghttp2 (DNS over HTTPS) and libidn2 of az, with the run path
-# /usr/local/az/lib, and by their options libxml2 (STATS_XML) and libmaxminddb
-# (GEOIP) of az; of the base system OpenSSL, zlib and libedit (the line editing of
+# liburcu, nghttp2 (DNS over HTTPS) and libidn2 of azsupport, with the run path
+# /usr/local/azsupport/lib, and by their options libxml2 (STATS_XML) and libmaxminddb
+# (GEOIP) of azsupport; of the base system OpenSSL, zlib and libedit (the line editing of
 # nslookup and nsupdate). The other options take the libraries of the ports, as
 # the official one: fstrm and protobuf-c (DNSTAP), lmdb0 (LMDB), json-c
 # (STATS_JSON). No manual pages (MANPAGES of the make.conf of the servers, as the
@@ -18,7 +18,7 @@
 
 PORTNAME=	bind
 DISTVERSION=	9.20.31
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	dns net
 MASTER_SITES=	ISC/bind9/${DISTVERSION}
 .if defined(BIND_TOOLS_SLAVE)
@@ -39,14 +39,14 @@ WWW=		https://www.isc.org/bind/ \
 LICENSE=	MPL20
 LICENSE_FILE=	${WRKSRC}/COPYRIGHT
 
-# the libraries of az, to build and to run (no ldconfig hints for /usr/local/az/lib:
+# the libraries of azsupport, to build and to run (no ldconfig hints for /usr/local/azsupport/lib:
 # by a file)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libuv.so:az/az \
-		${AZ_PREFIX}/lib/liburcu.so:az/az \
-		${AZ_PREFIX}/lib/libnghttp2.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libuv.so:az/az \
-		${AZ_PREFIX}/lib/liburcu.so:az/az \
-		${AZ_PREFIX}/lib/libnghttp2.so:az/az
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/liburcu.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libnghttp2.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/liburcu.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libnghttp2.so:azsupport/azsupport
 .if !defined(BIND_TOOLS_SLAVE)
 RUN_DEPENDS+=	bind-tools>0:dns/bind-tools
 .endif
@@ -71,23 +71,23 @@ CONFIGURE_ARGS=	--enable-dnsrps \
 		--with-openssl=${OPENSSLBASE} \
 		--with-readline=libedit \
 		--disable-tracing
-# libuv, liburcu, nghttp2 of az and libedit of the base system by hand, their
+# libuv, liburcu, nghttp2 of azsupport and libedit of the base system by hand, their
 # headers alone in directories of the work (pre-configure: the include directory
-# of az has others, GNU iconv.h among them; the code includes <editline/readline.h>,
-# the base system has edit/readline/readline.h), -L of az, which has no other
+# of azsupport has others, GNU iconv.h among them; the code includes <editline/readline.h>,
+# the base system has edit/readline/readline.h), -L of azsupport, which has no other
 # library BIND links; pkg-config only the base system (OpenSSL, zlib), so that
 # nothing of /usr/local is taken (lmdb, libxml2, json-c, libmaxminddb: by their
 # options below)
 CONFIGURE_ENV=	PKG_CONFIG_LIBDIR=/usr/libdata/pkgconfig \
-		LIBUV_CFLAGS="-I${WRKDIR}/az/include" \
-		LIBUV_LIBS="-L${AZ_PREFIX}/lib -luv" \
-		LIBURCU_CFLAGS="-I${WRKDIR}/az/include" \
-		LIBURCU_LIBS="-L${AZ_PREFIX}/lib -lurcu -lurcu-cds -lurcu-common" \
-		LIBNGHTTP2_CFLAGS="-I${WRKDIR}/az/include" \
-		LIBNGHTTP2_LIBS="-L${AZ_PREFIX}/lib -lnghttp2" \
+		LIBUV_CFLAGS="-I${WRKDIR}/azsupport/include" \
+		LIBUV_LIBS="-L${AZSUPPORT_PREFIX}/lib -luv" \
+		LIBURCU_CFLAGS="-I${WRKDIR}/azsupport/include" \
+		LIBURCU_LIBS="-L${AZSUPPORT_PREFIX}/lib -lurcu -lurcu-cds -lurcu-common" \
+		LIBNGHTTP2_CFLAGS="-I${WRKDIR}/azsupport/include" \
+		LIBNGHTTP2_LIBS="-L${AZSUPPORT_PREFIX}/lib -lnghttp2" \
 		READLINE_CFLAGS="-I${WRKDIR}/rl" \
 		READLINE_LIBS="-ledit"
-LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
+LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 MAKE_JOBS_UNSAFE=	yes
 
@@ -155,14 +155,14 @@ DOCS_ALL_TARGET=	all html
 
 FIXED_RRSET_CONFIGURE_ENABLE=	fixed-rrset
 
-# GEOIP: libmaxminddb of az, its two headers alone in a directory of the work; the
+# GEOIP: libmaxminddb of azsupport, its two headers alone in a directory of the work; the
 # GeoIP databases where net/geoipupdate puts them (MAXMINDDB_PREFIX/share/GeoIP)
-GEOIP_BUILD_DEPENDS=		${AZ_PREFIX}/lib/libmaxminddb.so:az/az
-GEOIP_RUN_DEPENDS=		${AZ_PREFIX}/lib/libmaxminddb.so:az/az
+GEOIP_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/azsupport
+GEOIP_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/azsupport
 GEOIP_CONFIGURE_ENABLE=		geoip
 GEOIP_CONFIGURE_WITH=		maxminddb
 GEOIP_CONFIGURE_ENV=		MAXMINDDB_CFLAGS="-I${WRKDIR}/mmdb" \
-				MAXMINDDB_LIBS="-L${AZ_PREFIX}/lib -lmaxminddb" \
+				MAXMINDDB_LIBS="-L${AZSUPPORT_PREFIX}/lib -lmaxminddb" \
 				MAXMINDDB_PREFIX="${LOCALBASE}"
 
 GSSAPI_BASE_USES=		gssapi
@@ -176,10 +176,10 @@ GSSAPI_MIT_CONFIGURE_ON=	${GSSAPI_CONFIGURE_ARGS} \
 				--with-gssapi="${KRB5CONFIG}"
 GSSAPI_NONE_CONFIGURE_ON=	--without-gssapi
 
-# libidn2 of az: its idn2.h and libidn2.so alone in a directory of the work
+# libidn2 of azsupport: its idn2.h and libidn2.so alone in a directory of the work
 # (--with-libidn2=<path>: -I<path>/include, -L<path>/lib), its run path above
-IDN_BUILD_DEPENDS=	${AZ_PREFIX}/lib/libidn2.so:az/az
-IDN_RUN_DEPENDS=	${AZ_PREFIX}/lib/libidn2.so:az/az
+IDN_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/azsupport
+IDN_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/azsupport
 IDN_CONFIGURE_ON=	--with-libidn2=${WRKDIR}/idn2
 IDN_CONFIGURE_OFF=	--without-libidn2
 
@@ -204,12 +204,12 @@ STATS_JSON_CONFIGURE_WITH=	json-c
 STATS_JSON_CONFIGURE_ENV=	JSON_C_CFLAGS="-I${LOCALBASE}/include/json-c" \
 				JSON_C_LIBS="-L${WRKDIR}/json-c -ljson-c"
 
-# STATS_XML: libxml2 of az (<libxml/...>: its include/libxml2 has only libxml)
-STATS_XML_BUILD_DEPENDS=	${AZ_PREFIX}/lib/libxml2.so:az/az
-STATS_XML_RUN_DEPENDS=		${AZ_PREFIX}/lib/libxml2.so:az/az
+# STATS_XML: libxml2 of azsupport (<libxml/...>: its include/libxml2 has only libxml)
+STATS_XML_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+STATS_XML_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
 STATS_XML_CONFIGURE_WITH=	libxml2
-STATS_XML_CONFIGURE_ENV=	LIBXML2_CFLAGS="-I${AZ_PREFIX}/include/libxml2" \
-				LIBXML2_LIBS="-L${AZ_PREFIX}/lib -lxml2"
+STATS_XML_CONFIGURE_ENV=	LIBXML2_CFLAGS="-I${AZSUPPORT_PREFIX}/include/libxml2" \
+				LIBXML2_LIBS="-L${AZSUPPORT_PREFIX}/lib -lxml2"
 
 TCP_FASTOPEN_CONFIGURE_ENABLE=	tcp-fastopen
 
@@ -232,16 +232,16 @@ SUB_LIST+=	ENGINES=${LOCALBASE}/lib/engines
 .endif
 
 pre-configure:
-	@${MKDIR} ${WRKDIR}/az/include ${WRKDIR}/rl ${WRKDIR}/idn2/include ${WRKDIR}/idn2/lib
-	@${LN} -sf ${AZ_PREFIX}/include/uv.h ${AZ_PREFIX}/include/uv \
-		${AZ_PREFIX}/include/nghttp2 ${AZ_PREFIX}/include/urcu* ${WRKDIR}/az/include/
+	@${MKDIR} ${WRKDIR}/azsupport/include ${WRKDIR}/rl ${WRKDIR}/idn2/include ${WRKDIR}/idn2/lib
+	@${LN} -sf ${AZSUPPORT_PREFIX}/include/uv.h ${AZSUPPORT_PREFIX}/include/uv \
+		${AZSUPPORT_PREFIX}/include/nghttp2 ${AZSUPPORT_PREFIX}/include/urcu* ${WRKDIR}/azsupport/include/
 	@${LN} -sf /usr/include/edit/readline ${WRKDIR}/rl/editline
-	@${LN} -sf ${AZ_PREFIX}/include/idn2.h ${WRKDIR}/idn2/include/
-	@${LN} -sf ${AZ_PREFIX}/lib/libidn2.so ${WRKDIR}/idn2/lib/
+	@${LN} -sf ${AZSUPPORT_PREFIX}/include/idn2.h ${WRKDIR}/idn2/include/
+	@${LN} -sf ${AZSUPPORT_PREFIX}/lib/libidn2.so ${WRKDIR}/idn2/lib/
 
 pre-configure-GEOIP-on:
 	@${MKDIR} ${WRKDIR}/mmdb
-	@${LN} -sf ${AZ_PREFIX}/include/maxminddb.h ${AZ_PREFIX}/include/maxminddb_config.h ${WRKDIR}/mmdb/
+	@${LN} -sf ${AZSUPPORT_PREFIX}/include/maxminddb.h ${AZSUPPORT_PREFIX}/include/maxminddb_config.h ${WRKDIR}/mmdb/
 
 pre-configure-STATS_JSON-on:
 	@${MKDIR} ${WRKDIR}/json-c

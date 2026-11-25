@@ -6,7 +6,7 @@
 # PostgreSQL, Cyrus SASL (Dovecot SASL is always built in), SQLite, the test
 # programs and the docs (the official default has blocklistd, CDB and LMDB too).
 # The libraries of our ports, as shared ones (aZ, 10.11.2026: our ports link each
-# other's shared libraries): ICU of az for EAI, with the run path /usr/local/az/lib
+# other's shared libraries): ICU of azsupport for EAI, with the run path /usr/local/azsupport/lib
 # (its headers alone in a directory of the work), PCRE2 of devel/pcre2, libtlsrpt
 # of mail/libtlsrpt and, in postfix-mysql, the client library of
 # databases/mariadb1011-client (mysql=10.11m of tools/make.conf.in; the official one takes icu, pcre2, libtlsrpt and
@@ -15,7 +15,7 @@
 
 PORTNAME=	postfix
 DISTVERSION=	3.11.8
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 PORTEPOCH=	1
 CATEGORIES=	mail
 MASTER_SITES=	https://postfix-mirror.horus-it.com/postfix-release/ \
@@ -91,8 +91,8 @@ TLSRPT_DESC=		Enable sending RFC 8460 TLS reports
 
 BDB_USES=			bdb
 CDB_LIB_DEPENDS=		libcdb.so:databases/tinycdb
-EAI_BUILD_DEPENDS=		${AZ_PREFIX}/lib/libicuuc.so:az/az
-EAI_RUN_DEPENDS=		${AZ_PREFIX}/lib/libicuuc.so:az/az
+EAI_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/azsupport
+EAI_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/azsupport
 LDAP_USES=			ldap
 MONGO_LIB_DEPENDS=		libbson2.so:devel/libbson \
 				libmongoc2.so:devel/mongo-c-driver
@@ -196,9 +196,9 @@ POSTFIX_CCARGS+=	-DUSE_SASL_AUTH
 
 # Email Address Internationalization (EAI, RFC 6531..6533)
 .if ${PORT_OPTIONS:MEAI}
-# ICU of az: its headers and libraries alone in a directory of the work
-POSTFIX_CCARGS+=	-DHAS_EAI -I${WRKDIR}/az
-POSTFIX_AUXLIBS+=	-L${WRKDIR}/az/lib -licuuc -Wl,-rpath,${AZ_PREFIX}/lib
+# ICU of azsupport: its headers and libraries alone in a directory of the work
+POSTFIX_CCARGS+=	-DHAS_EAI -I${WRKDIR}/azsupport
+POSTFIX_AUXLIBS+=	-L${WRKDIR}/azsupport/lib -licuuc -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 .else
 POSTFIX_CCARGS+=	-DNO_EAI
 .endif
@@ -371,18 +371,18 @@ post-patch:
 
 # makedefs takes EAI only when pkg-config gives it icu-uc and icu-i18n and a test of
 # uidna_openUTS46() built with them runs, else -DNO_EAI (run 43714775412:
-# smtputf8_enable = no): .pc files of their own for the headers and libraries of az
-# in the work, with the run path /usr/local/az/lib
+# smtputf8_enable = no): .pc files of their own for the headers and libraries of azsupport
+# in the work, with the run path /usr/local/azsupport/lib
 pre-configure-EAI-on:
-	@${MKDIR} ${WRKDIR}/az/lib ${WRKDIR}/az/pc
-	@${LN} -sfh ${AZ_PREFIX}/include/unicode ${WRKDIR}/az/unicode
-	@${LN} -sf ${AZ_PREFIX}/lib/libicuuc.so ${AZ_PREFIX}/lib/libicui18n.so ${AZ_PREFIX}/lib/libicudata.so ${WRKDIR}/az/lib/
-	@v=$$(${SED} -n 's/^Version: *//p' ${AZ_PREFIX}/lib/pkgconfig/icu-uc.pc); \
-	${PRINTF} 'Name: icu-uc\nDescription: ICU of az\nVersion: %s\nCflags: -I${WRKDIR}/az\nLibs: -L${WRKDIR}/az/lib -Wl,-rpath,${AZ_PREFIX}/lib -licuuc -licudata\n' "$$v" > ${WRKDIR}/az/pc/icu-uc.pc; \
-	${PRINTF} 'Name: icu-i18n\nDescription: ICU of az\nVersion: %s\nRequires: icu-uc\nLibs: -licui18n\n' "$$v" > ${WRKDIR}/az/pc/icu-i18n.pc
+	@${MKDIR} ${WRKDIR}/azsupport/lib ${WRKDIR}/azsupport/pc
+	@${LN} -sfh ${AZSUPPORT_PREFIX}/include/unicode ${WRKDIR}/azsupport/unicode
+	@${LN} -sf ${AZSUPPORT_PREFIX}/lib/libicuuc.so ${AZSUPPORT_PREFIX}/lib/libicui18n.so ${AZSUPPORT_PREFIX}/lib/libicudata.so ${WRKDIR}/azsupport/lib/
+	@v=$$(${SED} -n 's/^Version: *//p' ${AZSUPPORT_PREFIX}/lib/pkgconfig/icu-uc.pc); \
+	${PRINTF} 'Name: icu-uc\nDescription: ICU of azsupport\nVersion: %s\nCflags: -I${WRKDIR}/azsupport\nLibs: -L${WRKDIR}/azsupport/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib -licuuc -licudata\n' "$$v" > ${WRKDIR}/azsupport/pc/icu-uc.pc; \
+	${PRINTF} 'Name: icu-i18n\nDescription: ICU of azsupport\nVersion: %s\nRequires: icu-uc\nLibs: -licui18n\n' "$$v" > ${WRKDIR}/azsupport/pc/icu-i18n.pc
 
 do-configure:
-	${SETENV} PKG_CONFIG_LIBDIR=${WRKDIR}/az/pc:${LOCALBASE}/libdata/pkgconfig:/usr/libdata/pkgconfig \
+	${SETENV} PKG_CONFIG_LIBDIR=${WRKDIR}/azsupport/pc:${LOCALBASE}/libdata/pkgconfig:/usr/libdata/pkgconfig \
 	${MAKE} -C ${WRKSRC} -f Makefile.init makefiles \
 	${MAKEFILEFLAGS} CCARGS="${POSTFIX_CCARGS}" \
 	shared=yes shlib_directory=${SHLIB_DIRECTORY} \
@@ -448,7 +448,7 @@ do-install:
 	${SED} -i '' -e '/^\$$readme_directory/d' -e '/^\$$html_directory/d' \
 		${STAGEDIR}${META_DIRECTORY}/postfix-files
 .endif
-# No manual pages in our packages (Mk/bsd.overlay.mk, az-no-docs), so no entries of
+# No manual pages in our packages (Mk/bsd.overlay.mk, azsupport-no-docs), so no entries of
 # manpage_directory in postfix-files either (aZ, 20.11.2026): the "postfix set-permissions"
 # of the package script chowned $manpage_directory/man1/mailq.1.gz of the main.cf of the
 # server (/usr/local/man of an older main.cf: "No such file or directory")

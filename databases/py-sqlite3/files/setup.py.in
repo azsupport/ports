@@ -4,12 +4,12 @@ import platform
 import sysconfig
 from setuptools import setup, Extension
 
-# the SQLite of az (azsupport/ports): its headers, its library and its directory as
+# the SQLite of azsupport (azsupport/ports): its headers, its library and its directory as
 # the run path, not those of the prefix of Python
-az = '%%AZ_PREFIX%%'
+azsupport = '%%AZSUPPORT_PREFIX%%'
 inc_dirs = [sysconfig.get_path('include') + "/internal",
-            az + "/include"]
-lib_dirs = [az + "/lib"]
+            azsupport + "/include"]
+lib_dirs = [azsupport + "/lib"]
 libs = ["sqlite3"]
 macros = [('MODULE_NAME', '"sqlite3"')]
 sqlite_srcs = [
@@ -34,10 +34,10 @@ if (major, minor) >= (3, 11):
 # PY_SQLITE_ENABLE_LOAD_EXTENSION (what --enable-loadable-sqlite-extensions of
 # configure defines); SQLITE_OMIT_LOAD_EXTENSION, which this file of the official
 # port still sets, means nothing there, so the module had none (run 43162996074:
-# "load_extension absent"). The SQLite of az has it.
+# "load_extension absent"). The SQLite of azsupport has it.
 try:
     import ctypes
-    ctypes.CDLL(az + '/lib/libsqlite3.so').sqlite3_load_extension
+    ctypes.CDLL(azsupport + '/lib/libsqlite3.so').sqlite3_load_extension
     macros.append(('PY_SQLITE_ENABLE_LOAD_EXTENSION', '1'))
 except AttributeError:
     macros.append(('SQLITE_OMIT_LOAD_EXTENSION', '1'))

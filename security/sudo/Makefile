@@ -1,10 +1,10 @@
-# security/sudo of azsupport/ports: the official port (Mk/az-official.mk) with
+# security/sudo of azsupport/ports: the official port (Mk/azsupport-official.mk) with
 # PAM, without AUDIT (BSM), NLS (translations: gettext), LOGSRVD (sudo_logsrvd, the
 # server of the I/O logs of other hosts) and SSL (TLS for that server only) (aZ,
 # 10.11.2026); with the fixes of CVE-2026-96512 (11.11.2026), CVE-2026-35535 and of
 # @includedir (12.11.2026).
 
-AZ_OFFICIAL=	security/sudo
+AZSUPPORT_OFFICIAL=	security/sudo
 OPTIONS_EXCLUDE=	AUDIT LOGSRVD NLS SSL
 # the fix of CVE-2026-96512 (the time zone of the user), which the official port
 # lacks: the three upstream commits, as OpenBSD carries them (see the file); that
@@ -23,4 +23,4 @@ EXTRA_PATCHES=	${.CURDIR}/files/patch-CVE-2026-96512:-p1 \
 post-stage:
 	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${.CURDIR:H:H}/tools/strip-elf.sh ${STAGEDIR}${PREFIX}
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

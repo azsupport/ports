@@ -10,7 +10,7 @@ on:
         description: 'The id of the run of build.yml (its URL ends with it)'
         required: true
       files:
-        description: 'Files of the results, as globs of their paths under results/, e.g. "test-programs.log az-results/*"'
+        description: 'Files of the results, as globs of their paths under results/, e.g. "test-programs.log azsupport-results/*"'
         required: false
         default: '*.txt'
 

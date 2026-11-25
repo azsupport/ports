@@ -4,37 +4,37 @@
 # /usr/local/bin/ffmpeg, /usr/local/bin/ffprobe) from the official FreeBSD port of
 # multimedia/ffmpeg/files/ffmpeg.conf, with only the formats, codecs and protocols
 # listed there (see the head of that file for why), against the shared libraries of
-# the package az, /usr/local/az/lib (installed). Moved from
+# the package azsupport, /usr/local/azsupport/lib (installed). Moved from
 # tools/build-ffmpeg.sh of https://github.com/azsupport/php-src (08.11.2026).
 #
 # Usage (FreeBSD; the port multimedia/ffmpeg runs it in its post-fetch and do-build):
 #   sh tools/ffmpeg-build.sh --tools    install the build tools (pkg)
 #   sh tools/ffmpeg-build.sh --fetch    fetch the distfiles of the official port
-#                                       into AZ_DISTDIR (its make fetch)
+#                                       into AZSUPPORT_DISTDIR (its make fetch)
 #   sh tools/ffmpeg-build.sh            build FFmpeg
 #
-# As tools/az-build.sh: the ports framework fetches the distfiles of the port at
-# the ports commit of az/az/files/deps.conf (the official tree PORTSDIR, at that
+# As tools/azsupport-build.sh: the ports framework fetches the distfiles of the port at
+# the ports commit of azsupport/azsupport/files/deps.conf (the official tree PORTSDIR, at that
 # commit), checks them against its distinfo, extracts them and applies the port's
 # patches (make patch), then those of files/ffmpeg/; this script then builds the
 # source tree with its own options. A take line gives a new upstream release
-# instead (from AZ_TAKE_DISTFILES, else fetched; with the port's patches, or those
+# instead (from AZSUPPORT_TAKE_DISTFILES, else fetched; with the port's patches, or those
 # of files/deps/<name>-<version>/). FFmpeg links x264, dav1d, SVT-AV1 and libwebp, the
-# shared libraries of AZ_PREFIX/lib (AZ_PREFIX: default /usr/local/az), with that
+# shared libraries of AZSUPPORT_PREFIX/lib (AZSUPPORT_PREFIX: default /usr/local/azsupport), with that
 # run path (our ports link each other's shared libraries: aZ, 10.11.2026); its own
 # libraries (libavcodec, libavformat ...) are in its two programs, which need
 # nothing else of /usr/local (libc, libm, libthr and libz of the base system), and
-# is installed (prefix /usr/local) into the stage AZ_STAGE/ffmpeg (default
-# AZ_WORK/stage/ffmpeg): usr/local/bin/ffmpeg, usr/local/bin/ffprobe,
+# is installed (prefix /usr/local) into the stage AZSUPPORT_STAGE/ffmpeg (default
+# AZSUPPORT_WORK/stage/ffmpeg): usr/local/bin/ffmpeg, usr/local/bin/ffprobe,
 # usr/local/share/licenses/ffmpeg/, usr/local/share/doc/ffmpeg/VERSIONS
-# (AZ_STAGEDIR: the stage itself). Its work directory is AZ_WORK/ffmpeg (default
-# /var/tmp/az-work/ffmpeg). Results go to AZ_RESULTS (default ffmpeg-results/ of
+# (AZSUPPORT_STAGEDIR: the stage itself). Its work directory is AZSUPPORT_WORK/ffmpeg (default
+# /var/tmp/azsupport-work/ffmpeg). Results go to AZSUPPORT_RESULTS (default ffmpeg-results/ of
 # the current directory: summary.txt, the log, VERSIONS); the summary is printed at
 # the end. tools/ffmpeg-test.sh tests it, once installed.
 #
 # Compiler flags as for PHP and the libraries: CPUTYPE and CFLAGS of
 # /etc/make.conf with -fstack-protector-strong and -fno-strict-aliasing;
-# AZ_CPUTYPE and AZ_CFLAGS win over make.conf
+# AZSUPPORT_CPUTYPE and AZSUPPORT_CFLAGS win over make.conf
 # (MAKE_CONF, default /etc/make.conf); without either: x86-64-v3 and -O3 -pipe.
 # FFmpeg: LTO, PIE, RELRO and BIND_NOW (configure lines of ffmpeg.conf); its own
 # assembly picks the instructions of the CPU at run time.
@@ -51,25 +51,25 @@ set -u
 # was built (ld: undefined symbol ff_bwdif_init_x86 ..., 08.11.2026).
 unset MAKEFLAGS MFLAGS MAKELEVEL __MKLVL__
 tools="$(cd "$(dirname "$0")" && pwd)"
-# the conf and patches: files/ of the port multimedia/ffmpeg; the ports commit: deps.conf of az/az
-files="${AZ_FILESDIR:-$tools/../multimedia/ffmpeg/files}"
+# the conf and patches: files/ of the port multimedia/ffmpeg; the ports commit: deps.conf of azsupport/azsupport
+files="${AZSUPPORT_FILESDIR:-$tools/../multimedia/ffmpeg/files}"
 conf="$files/ffmpeg.conf"
-# AZ_FFMPEG_NONFREE=yes (set by multimedia/ffmpeg, aZ 16.11.2026): the lines of
+# AZSUPPORT_FFMPEG_NONFREE=yes (set by multimedia/ffmpeg, aZ 16.11.2026): the lines of
 # files/ffmpeg-nonfree.conf too, its programs before FFmpeg and its configure lines
 # after those of ffmpeg.conf (after --disable-everything). FFmpeg with libfdk_aac and
 # libx264 needs --enable-nonfree; the package is published on aZ's responsibility.
-nonfree="${AZ_FFMPEG_NONFREE:-}"
-case "$nonfree" in yes) ;; ""|no) nonfree="" ;; *) echo "ffmpeg-build: AZ_FFMPEG_NONFREE is yes or empty, not $nonfree" >&2; exit 2 ;; esac
-deps_conf="${AZ_DEPS_CONF:-$tools/../az/az/files/deps.conf}"
-# the shared tree of az (its libraries, .pc files and headers)
-A="${AZ_PREFIX:-/usr/local/az}"
-work="${AZ_WORK:-/var/tmp/az-work}/ffmpeg"
+nonfree="${AZSUPPORT_FFMPEG_NONFREE:-}"
+case "$nonfree" in yes) ;; ""|no) nonfree="" ;; *) echo "ffmpeg-build: AZSUPPORT_FFMPEG_NONFREE is yes or empty, not $nonfree" >&2; exit 2 ;; esac
+deps_conf="${AZSUPPORT_DEPS_CONF:-$tools/../azsupport/azsupport/files/deps.conf}"
+# the shared tree of azsupport (its libraries, .pc files and headers)
+A="${AZSUPPORT_PREFIX:-/usr/local/azsupport}"
+work="${AZSUPPORT_WORK:-/var/tmp/azsupport-work}/ffmpeg"
 F=/usr/local
-stage="${AZ_STAGEDIR:-${AZ_WORK:-/var/tmp/az-work}/stage/ffmpeg}"
-res="${AZ_RESULTS:-$(pwd)/ffmpeg-results}"
+stage="${AZSUPPORT_STAGEDIR:-${AZSUPPORT_WORK:-/var/tmp/azsupport-work}/stage/ffmpeg}"
+res="${AZSUPPORT_RESULTS:-$(pwd)/ffmpeg-results}"
 ports="${PORTSDIR:-/usr/ports}"
-distdir="${AZ_DISTDIR:-$work/distfiles}"
-takedist="${AZ_TAKE_DISTFILES:-$(pwd)/distfiles}"
+distdir="${AZSUPPORT_DISTDIR:-$work/distfiles}"
+takedist="${AZSUPPORT_TAKE_DISTFILES:-$(pwd)/distfiles}"
 ncpu="$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 major="$(uname -r | cut -d. -f1)"
 
@@ -83,15 +83,15 @@ if [ "${1:-}" = "--tools" ]; then
     for t in $pkgs; do pkg info -e "$t" || echo "ffmpeg-build: package $t is not installed"; done
     exit $rc
 fi
-[ -f "$conf" ] || { echo "ffmpeg-build: no $conf (AZ_FILESDIR: files/ of the port multimedia/ffmpeg)" >&2; exit 2; }
+[ -f "$conf" ] || { echo "ffmpeg-build: no $conf (AZSUPPORT_FILESDIR: files/ of the port multimedia/ffmpeg)" >&2; exit 2; }
 if [ -n "$nonfree" ]; then
     nfc="$files/ffmpeg-nonfree.conf"
-    [ -f "$nfc" ] || { echo "ffmpeg-build: AZ_FFMPEG_NONFREE=yes, but no $nfc" >&2; exit 2; }
+    [ -f "$nfc" ] || { echo "ffmpeg-build: AZSUPPORT_FFMPEG_NONFREE=yes, but no $nfc" >&2; exit 2; }
     mkdir -p "$work" || exit 2
     { awk '$1 == "program"' "$nfc"; cat "$conf"; awk '$1 == "configure"' "$nfc"; } > "$work/ffmpeg-nonfree.conf"
     conf="$work/ffmpeg-nonfree.conf"
 fi
-[ -f "$deps_conf" ] || { echo "ffmpeg-build: no $deps_conf (AZ_DEPS_CONF: deps.conf of the port az/az)" >&2; exit 2; }
+[ -f "$deps_conf" ] || { echo "ffmpeg-build: no $deps_conf (AZSUPPORT_DEPS_CONF: deps.conf of the port azsupport/azsupport)" >&2; exit 2; }
 
 say() { printf '[ffmpeg-build %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
@@ -106,9 +106,9 @@ mc_get() {
     ' "$mk_conf"
 }
 
-cputype="${AZ_CPUTYPE:-$(mc_get CPUTYPE)}"
+cputype="${AZSUPPORT_CPUTYPE:-$(mc_get CPUTYPE)}"
 cputype="${cputype:-x86-64-v3}"
-opt="${AZ_CFLAGS:-$(mc_get CFLAGS)}"
+opt="${AZSUPPORT_CFLAGS:-$(mc_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 level="${cputype#x86-64-}"
@@ -135,7 +135,7 @@ take_of() { awk -v n="$1" '$1 == "take" && $2 == n { print $3, $4, $5, $6 }' "$c
 conf_opts() { awk '$1 == "configure" { for (i = 2; i <= NF; i++) print $i }' "$conf"; }
 
 # The official tree PORTSDIR has to be at the commit of deps.conf (as in
-# tools/az-build.sh); it is only read here, never changed.
+# tools/azsupport-build.sh); it is only read here, never changed.
 ports_check() {
     [ -f "$ports/Mk/bsd.port.mk" ] || { echo "ffmpeg-build: no ports tree in $ports (PORTSDIR)" >&2; return 1; }
     h="$(git -C "$ports" rev-parse HEAD 2>/dev/null)"
@@ -166,11 +166,11 @@ fix_guess() {
 # the work directory; its .pc there comes first for the configure of FFmpeg
 fdk="$work/fdk-aac"
 b_fdkaac() {
-    rm -rf "$fdk" "$1/az-build"
-    cmake -S "$1" -B "$1/az-build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$fdk" \
+    rm -rf "$fdk" "$1/azsupport-build"
+    cmake -S "$1" -B "$1/azsupport-build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$fdk" \
         -DBUILD_SHARED_LIBS=OFF -DBUILD_PROGRAMS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCMAKE_C_FLAGS="$ffcflags" -DCMAKE_CXX_FLAGS="$ffcflags" &&
-        cmake --build "$1/az-build" -j "$ncpu" && cmake --install "$1/az-build" || return 1
+        cmake --build "$1/azsupport-build" -j "$ncpu" && cmake --install "$1/azsupport-build" || return 1
     [ -f "$fdk/lib/libfdk-aac.a" ] && [ -f "$fdk/lib/pkgconfig/fdk-aac.pc" ] || { echo "== no $fdk/lib/libfdk-aac.a or its .pc"; return 1; }
     mkdir -p "$work/licenses" && cp "$1/NOTICE" "$work/licenses/fdk-aac-NOTICE"
 }
@@ -237,7 +237,7 @@ take_args() {
         "$(stat -f %z "$work/distfiles/$tf")" > "$work/distinfo-take-$n"
     wd="$(pmake "$5" -V WRKDIR)"
     pd="$files/deps/$n-$take_ver"
-    # its own DISTDIR: the ports' one (AZ_DISTDIR) may not be writable
+    # its own DISTDIR: the ports' one (AZSUPPORT_DISTDIR) may not be writable
     printf '%s\n' "DISTDIR=$work/distfiles" "DISTFILES=$tf" "PATCHFILES=" "DISTINFO_FILE=$work/distinfo-take-$n" "WRKSRC=$wd/$4"
     if [ -d "$pd" ]; then printf '%s\n' "PATCHDIR=$pd"; fi
 }
@@ -301,7 +301,7 @@ manifest() {
     {
         echo "FFmpeg for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $ffcflags"
-        echo "x264, dav1d, SVT-AV1 and libwebp: the shared libraries of $A/lib (the package az, with that run path)"
+        echo "x264, dav1d, SVT-AV1 and libwebp: the shared libraries of $A/lib (the package azsupport, with that run path)"
         [ -z "$nonfree" ] || echo "fdk-aac: its static library, built here (the nonfree build, files/ffmpeg-nonfree.conf)"
         echo
         while read -r n pkgname port; do
@@ -337,10 +337,10 @@ manifest() {
             echo "Licence: nonfree and unredistributable (FFmpeg with --enable-gpl and --enable-nonfree:"
             echo "x264 under the GPL and libfdk_aac under the licence of the Fraunhofer FDK AAC library);"
             echo "this package may not be given to anyone. The licences are in share/licenses/ffmpeg/"
-            echo "(fdk-aac-NOTICE; x264, dav1d, SVT-AV1 and webp, shared libraries: LICENSES/ of /usr/local/az, the package az)."
+            echo "(fdk-aac-NOTICE; x264, dav1d, SVT-AV1 and webp, shared libraries: LICENSES/ of /usr/local/azsupport, the package azsupport)."
         else
             echo "Licence: GPL version 2 or later (FFmpeg with --enable-gpl, x264); the licences are in"
-            echo "share/licenses/ffmpeg/ (x264, dav1d, SVT-AV1 and webp, shared libraries: LICENSES/ of /usr/local/az, the package az)."
+            echo "share/licenses/ffmpeg/ (x264, dav1d, SVT-AV1 and webp, shared libraries: LICENSES/ of /usr/local/azsupport, the package azsupport)."
         fi
         echo "Sources: the distfiles above (their SHA-256), the patches of the port at the commit above,"
         echo "files/ffmpeg/ and tools/ffmpeg-build.sh of https://github.com/azsupport/ports (multimedia/ffmpeg/files/ffmpeg.conf)."
@@ -360,13 +360,13 @@ check_bins() {
         rp="$(readelf -d "$f" | sed -n 's/.*[Ll]ibrary r[a-z]*path: \[\(.*\)\].*/\1/p')"
         printf '%s: %s KB, ELF type %s, RELRO %s, BIND_NOW %s, run path %s; libraries: %s\n' "$b" \
             "$(du -Ak "$f" | cut -f1)" "$type" "$relro" "$now" "${rp:-none}" "$libs" >> "$res/bins.txt"
-        # the base system and the shared tree of az (by the run path), nothing else
+        # the base system and the shared tree of azsupport (by the run path), nothing else
         for l in $libs; do
             case "$l" in
                 /lib/* | /usr/lib/*) ;;
                 "$A"/static/*) echo "$b: $l of the static tree" ;;
                 "$A"/lib/*) case ":$rp:" in *":$A/lib:"*) ;; *) echo "$b: $l without the run path $A/lib (${rp:-none})" ;; esac ;;
-                *) echo "$b: $l, not of the base system or of az" ;;
+                *) echo "$b: $l, not of the base system or of azsupport" ;;
             esac
         done >> "$res/bins-bad.txt"
         [ "$type" = DYN ] || echo "$b: not a PIE (ELF type $type)" >> "$res/bins-bad.txt"
@@ -377,7 +377,7 @@ check_bins() {
 }
 
 mkdir -p "$res" "$work"
-# --fetch: the distfiles of the port, by its own make fetch into AZ_DISTDIR (the
+# --fetch: the distfiles of the port, by its own make fetch into AZSUPPORT_DISTDIR (the
 # post-fetch of the port multimedia/ffmpeg), so that the build needs no network;
 # not for a program with a take line (its release file is a distfile of our port)
 if [ "${1:-}" = "--fetch" ]; then
@@ -421,8 +421,8 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
 fi
 for pc in x264 dav1d SvtAv1Enc libwebp; do
     if [ ! -f "$A/lib/pkgconfig/$pc.pc" ]; then
-        printf '%-8s FAIL  no %s of the shared libraries in %s/lib/pkgconfig: install the package az first (az/az)\n' libs "$pc" "$A" >> "$res/summary.txt"
-        echo "ffmpeg-build: no $A/lib/pkgconfig/$pc.pc; install the package az first (the port az/az)" >&2
+        printf '%-8s FAIL  no %s of the shared libraries in %s/lib/pkgconfig: install the package azsupport first (azsupport/azsupport)\n' libs "$pc" "$A" >> "$res/summary.txt"
+        echo "ffmpeg-build: no $A/lib/pkgconfig/$pc.pc; install the package azsupport first (the port azsupport/azsupport)" >&2
         exit 1
     fi
 done

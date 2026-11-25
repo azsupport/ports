@@ -5,8 +5,8 @@
 # (those of his servers, without libwrap: no tcpwrap in his configurations, aZ
 # 15.11.2026): no GSSAPI, CDB, LDAP, PostgreSQL, SQLite, the FTS plugins (ICU,
 # CLucene, Solr, textcat), libsodium, libunwind, Lua, LZ4, the docs and the examples
-# (the official default has LDAP and libwrap too). zstd the shared library of az,
-# with the run path /usr/local/az/lib (our ports link each other's shared libraries:
+# (the official default has LDAP and libwrap too). zstd the shared library of azsupport,
+# with the run path /usr/local/azsupport/lib (our ports link each other's shared libraries:
 # aZ, 10.11.2026), its headers and library alone in a directory of the work; in
 # dovecot-mysql the client library of databases/mariadb1011-client (mysql=10.11m of
 # tools/make.conf.in; the official
@@ -18,7 +18,7 @@
 
 PORTNAME=	dovecot
 DISTVERSION=	2.3.21.1
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	mail
 MASTER_SITES=	https://dovecot.org/releases/2.3/
 
@@ -71,13 +71,13 @@ DOVECOT_CVE_PATCHES=	01-CVE-2022-30550 02-CVE-2026-0394-1 03-CVE-2026-0394-2 \
 			48-CVE-2026-52687
 EXTRA_PATCHES=	${DOVECOT_CVE_PATCHES:@p@${FILESDIR}/cve/${p}.patch:-p1@}
 
-# zstd of az, with its run path: its headers and library alone in a directory of the
+# zstd of azsupport, with its run path: its headers and library alone in a directory of the
 # work (the pkg-config check of configure takes ZSTD_CFLAGS and ZSTD_LIBS, the
 # checks of zstd_errors.h and of ZSTD_getErrorCode CPPFLAGS and LDFLAGS)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libzstd.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libzstd.so:az/az
-CONFIGURE_ENV=	ZSTD_CFLAGS="-I${WRKDIR}/az" \
-		ZSTD_LIBS="-L${WRKDIR}/az/lib -lzstd"
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+CONFIGURE_ENV=	ZSTD_CFLAGS="-I${WRKDIR}/azsupport" \
+		ZSTD_LIBS="-L${WRKDIR}/azsupport/lib -lzstd"
 
 USES=		cpe iconv libtool pkgconfig ssl
 USE_LDCONFIG=	${PREFIX}/lib/${PORTNAME}
@@ -94,9 +94,9 @@ CONFIGURE_ARGS=	--localstatedir=/var \
 
 INSTALL_TARGET=	install-strip
 
-CPPFLAGS+=	-I${WRKDIR}/az -I${LOCALBASE}/include -I${OPENSSLINC}
-LDFLAGS+=	-L${WRKDIR}/az/lib -L${LOCALBASE}/lib -L${OPENSSLLIB} \
-		-Wl,-rpath,${AZ_PREFIX}/lib
+CPPFLAGS+=	-I${WRKDIR}/azsupport -I${LOCALBASE}/include -I${OPENSSLINC}
+LDFLAGS+=	-L${WRKDIR}/azsupport/lib -L${LOCALBASE}/lib -L${OPENSSLLIB} \
+		-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 SUB_FILES+=	pkg-message
 SUB_LIST+=	REQUIRE="${_REQUIRE}"
@@ -196,9 +196,9 @@ TEXTCAT_LIB_DEPENDS=		libexttextcat-2.0.so:textproc/libexttextcat
 TEXTCAT_CONFIGURE_WITH=		textcat
 
 pre-configure:
-	@${MKDIR} ${WRKDIR}/az/lib
-	@${LN} -sf ${AZ_PREFIX}/include/zstd.h ${AZ_PREFIX}/include/zstd_errors.h ${WRKDIR}/az/
-	@${LN} -sf ${AZ_PREFIX}/lib/libzstd.so ${WRKDIR}/az/lib/
+	@${MKDIR} ${WRKDIR}/azsupport/lib
+	@${LN} -sf ${AZSUPPORT_PREFIX}/include/zstd.h ${AZSUPPORT_PREFIX}/include/zstd_errors.h ${WRKDIR}/azsupport/
+	@${LN} -sf ${AZSUPPORT_PREFIX}/lib/libzstd.so ${WRKDIR}/azsupport/lib/
 
 post-patch:
 	@${REINPLACE_CMD} -e 's,/etc/dovecot,${ETCDIR},g; \

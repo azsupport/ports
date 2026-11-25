@@ -1,6 +1,6 @@
-# databases/phpmyadmin5 of azsupport/ports: the official port (Mk/az-official.mk),
+# databases/phpmyadmin5 of azsupport/ports: the official port (Mk/azsupport-official.mk),
 # phpMyAdmin 5.2.3 for PHP 8.4, the package php84-phpmyadmin (aZ, 19.11.2026: the
-# stable line of phpMyAdmin for each PHP of az), and the master of
+# stable line of phpMyAdmin for each PHP of azsupport), and the master of
 # databases/phpmyadmin5-php74, -php81, -php82 and -php83 (php74-phpmyadmin ...). The
 # line 5.2 is for PHP 7.2.5 and later (5.2.3 of 08.10.2025 with the deprecations of
 # PHP 8.4 and 8.5 fixed); PHP 5.6 takes databases/phpmyadmin (4.9.11); 6.0 (PHP 8.2
@@ -13,7 +13,7 @@
 # devel/php84-composer). One phpMyAdmin on a server: each package installs into
 # www/phpMyAdmin (CONFLICTS_INSTALL of the official port).
 
-AZ_OFFICIAL=	databases/phpmyadmin5
+AZSUPPORT_OFFICIAL=	databases/phpmyadmin5
 PHP_VER?=	84
 WITHOUT_PHP_DEPENDS=	yes
 USE_PHP=	bz2 ctype filter gd iconv mbstring session xml xmlwriter zip zlib
@@ -29,4 +29,4 @@ PKGBASE=	${PHP_PKGNAMEPREFIX}phpmyadmin
 .MAKEFLAGS:	PKGNAME=$${PHP_PKGNAMEPREFIX}phpmyadmin-$${PKGVERSION} \
 		CONFLICTS_INSTALL="phpMyAdmin-php[0-9][0-9] phpMyAdmin[0-9]-php[0-9][0-9] php[0-9][0-9]-phpmyadmin"
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

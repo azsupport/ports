@@ -1,5 +1,5 @@
-# Mk/az-services.awk: the services of a package from its plist (Mk/bsd.overlay.mk,
-# az-services), a name a line: each rc.d script; php_fpm<NN> for the modules of PHP NN
+# Mk/azsupport-services.awk: the services of a package from its plist (Mk/bsd.overlay.mk,
+# azsupport-services), a name a line: each rc.d script; php_fpm<NN> for the modules of PHP NN
 # (etc/php<NN>/conf.d, lib/php/<API>); nginx for libexec/nginx; apache24 for
 # libexec/apache24 (its modules, mod_php<NN>). p: the prefix with a slash at its end.
 BEGIN {

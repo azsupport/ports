@@ -2,13 +2,13 @@
 # for the libvips of net-im/rocketchat8 (text of SVG and of vips_text through Pango;
 # aZ, 18.11.2026 16:02: «да конечно» — the libraries sharp needs that we do not have
 # as ports of this tree become ours, shared, with the options of sharp-libvips). The
-# library harfbuzz alone, as sharp-libvips builds it: FreeType (of az) and GLib (of
+# library harfbuzz alone, as sharp-libvips builds it: FreeType (of azsupport) and GLib (of
 # devel/glib20); no GObject, ICU, Cairo, Graphite, chafa, subset, raster, vector, GPU,
 # utilities, benchmark, documents, introspection, tests. LTO (aZ, 18.11.2026 12:29).
 
 PORTNAME=	harfbuzz
 DISTVERSION=	15.0.0
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	print
 MASTER_SITES=	https://github.com/${PORTNAME}/${PORTNAME}/releases/download/${DISTVERSION}/
 
@@ -52,8 +52,8 @@ MESON_ARGS=	-Dfreetype=enabled \
 		-Dwasm=disabled \
 		-Dzlib=disabled
 
-AZ_LIBS=	freetype2:libfreetype.so
-.include "${.CURDIR:H:H}/Mk/az-libs.mk"
+AZSUPPORT_LIBS=	freetype2:libfreetype.so
+.include "${.CURDIR:H:H}/Mk/azsupport-libs.mk"
 
 # the plist: what meson installed (headers, the library, its .pc and CMake files)
 post-install:

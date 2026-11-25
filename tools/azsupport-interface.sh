@@ -1,26 +1,26 @@
 #!/bin/sh
-# az-interface.sh - the interfaces of the libraries of the package az, from the
-# manifests tools/az-build.sh writes into it (AZ_PREFIX/share/az/interface: <name>.txt
+# azsupport-interface.sh - the interfaces of the libraries of the package azsupport, from the
+# manifests tools/azsupport-build.sh writes into it (AZSUPPORT_PREFIX/share/azsupport/interface: <name>.txt
 # a library, common.txt the files of no library), for tools/build.sh (aZ, 12.11.2026):
-# a port that needs az takes into its az_hash the interface hash of each library of
-# az it uses and of those these need, so that a fix inside a library (the same
-# headers, .pc files, SONAMEs, version and options) builds again only az, and a port
-# that links the archives of a library into its package (AZ_STATIC_LIBS) its content
+# a port that needs azsupport takes into its azsupport_hash the interface hash of each library of
+# azsupport it uses and of those these need, so that a fix inside a library (the same
+# headers, .pc files, SONAMEs, version and options) builds again only azsupport, and a port
+# that links the archives of a library into its package (AZSUPPORT_STATIC_LIBS) its content
 # hash.
 #
 # Usage:
-#   sh tools/az-interface.sh extract <package of az> <dir> [<AZ_PREFIX>]
-#       the manifests of a package file of az into <dir> (AZ_PREFIX: default
-#       /usr/local/az); exit 1 when the package has none (built before 12.11.2026)
-#   sh tools/az-interface.sh hashes <dir>
+#   sh tools/azsupport-interface.sh extract <package of azsupport> <dir> [<AZSUPPORT_PREFIX>]
+#       the manifests of a package file of azsupport into <dir> (AZSUPPORT_PREFIX: default
+#       /usr/local/azsupport); exit 1 when the package has none (built before 12.11.2026)
+#   sh tools/azsupport-interface.sh hashes <dir>
 #       a line a library: <name> <interface hash> <content hash> <closure>, the closure
 #       the library and those it needs, in turn (its requires lines), separated by
 #       commas; first "common <hash> <hash> common" of the files of no library
-#   sh tools/az-interface.sh paths <dir>
-#       "<path> <library>" for each path of the manifests (relative to AZ_PREFIX)
-#   sh tools/az-interface.sh sonames <dir>
+#   sh tools/azsupport-interface.sh paths <dir>
+#       "<path> <library>" for each path of the manifests (relative to AZSUPPORT_PREFIX)
+#   sh tools/azsupport-interface.sh sonames <dir>
 #       "<SONAME> <library>" for each shared library of the manifests
-#   sh tools/az-interface.sh diff <old dir> <new dir>
+#   sh tools/azsupport-interface.sh diff <old dir> <new dir>
 #       a line a library whose interface differs, with what differs (version, options,
 #       requires, the paths of the files that differ, came or went)
 #
@@ -36,35 +36,35 @@ cmd="$1"; shift
 
 # the manifests of a directory: <name>.txt of the libraries, common.txt
 mans() {
-    [ -d "$1" ] || { echo "az-interface: no directory $1" >&2; exit 1; }
-    [ -f "$1/common.txt" ] || { echo "az-interface: no manifests in $1 (common.txt)" >&2; exit 1; }
+    [ -d "$1" ] || { echo "azsupport-interface: no directory $1" >&2; exit 1; }
+    [ -f "$1/common.txt" ] || { echo "azsupport-interface: no manifests in $1 (common.txt)" >&2; exit 1; }
 }
 
 case "$cmd" in
 extract)
     [ $# -ge 2 ] || usage
-    pf="$1"; d="$2"; pre="${3:-/usr/local/az}"
-    [ -f "$pf" ] || { echo "az-interface: no package $pf" >&2; exit 1; }
-    t="$(mktemp -d "${TMPDIR:-/tmp}/az-interface.XXXXXX")" || exit 1
+    pf="$1"; d="$2"; pre="${3:-/usr/local/azsupport}"
+    [ -f "$pf" ] || { echo "azsupport-interface: no package $pf" >&2; exit 1; }
+    t="$(mktemp -d "${TMPDIR:-/tmp}/azsupport-interface.XXXXXX")" || exit 1
     trap 'rm -rf "$t"' EXIT
     # the paths of a package start with / (bsdtar takes it away)
-    tar -xf "$pf" -C "$t" "$pre/share/az/interface/*" 2> "$t/err"
+    tar -xf "$pf" -C "$t" "$pre/share/azsupport/interface/*" 2> "$t/err"
     rm -rf "$d" && mkdir -p "$d" || exit 1
-    if [ -d "$t$pre/share/az/interface" ]; then
-        cp "$t$pre"/share/az/interface/*.txt "$d/" 2> /dev/null
+    if [ -d "$t$pre/share/azsupport/interface" ]; then
+        cp "$t$pre"/share/azsupport/interface/*.txt "$d/" 2> /dev/null
     fi
     if [ ! -f "$d/common.txt" ]; then
-        echo "az-interface: $pf has no manifests in $pre/share/az/interface ($(grep . "$t/err" | grep -v 'Removing leading' | head -n 1))" >&2
+        echo "azsupport-interface: $pf has no manifests in $pre/share/azsupport/interface ($(grep . "$t/err" | grep -v 'Removing leading' | head -n 1))" >&2
         exit 1
     fi
     exit 0 ;;
 hashes)
     mans "$1"
-    t="$(mktemp -d "${TMPDIR:-/tmp}/az-interface.XXXXXX")" || exit 1
+    t="$(mktemp -d "${TMPDIR:-/tmp}/azsupport-interface.XXXXXX")" || exit 1
     trap 'rm -rf "$t"' EXIT
     for m in "$1"/*.txt; do
         n="$(awk '$1 == "library" { print $2; exit }' "$m")"
-        [ -n "$n" ] || { echo "az-interface: $m has no library line" >&2; exit 1; }
+        [ -n "$n" ] || { echo "azsupport-interface: $m has no library line" >&2; exit 1; }
         ih="$(awk '$1 == "archive" { print $1, $2; next } { print }' "$m" | hin)"
         ch="$(hin < "$m")"
         echo "$n $ih $ch" >> "$t/h"

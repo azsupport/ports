@@ -1,4 +1,4 @@
-SQLite3: SQLite 3 databases, with SQLite of the package az.
+SQLite3: SQLite 3 databases, with SQLite of the package azsupport.
 
 The module sqlite3 of PHP 8.4 for php84 of azsupport/ports, which
 installs side by side with the other versions of PHP:

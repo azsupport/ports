@@ -4,17 +4,17 @@
 # files/ffmpeg-nonfree.conf, files/ffmpeg/*.patch; tools/ffmpeg-build.sh) and of
 # graphics/ImageMagick7 (files/imagemagick.conf, files/policy.xml,
 # files/imagemagick7-*.patch; tools/imagemagick-build.sh) of this tree, with the
-# libraries of the package az they link built with the options of tools/az-build.sh
-# (and files/deps/<name>-<version>.patch of az/az), from the release files of
+# libraries of the package azsupport they link built with the options of tools/azsupport-build.sh
+# (and files/deps/<name>-<version>.patch of azsupport/azsupport), from the release files of
 # tools/ubuntu/sources.conf, their SHA-256 checked. FFmpeg also with the NVIDIA codecs
 # and the CUDA filters (tools/ubuntu/ffmpeg-nvidia.conf; aZ, 25.11.2026). Built on the
 # release it is for (the glibc and libstdc++ of 24.04 are newer than those of 22.04):
-# the archive and the packages are named by it, az-ubuntu24 and az-ubuntu22 (aZ,
+# the archive and the packages are named by it, azsupport-ubuntu24 and azsupport-ubuntu22 (aZ,
 # 25.11.2026: «надо ешё для ubuntu 22, дополни к 24»).
 #
 # What is not as on FreeBSD, and why:
 #   - the libraries are static archives of the work directory, inside the programs:
-#     there is no /usr/local/az here; ffmpeg, ffprobe and magick need only the
+#     there is no /usr/local/azsupport here; ffmpeg, ffprobe and magick need only the
 #     libraries of Ubuntu itself: glibc, libstdc++ and libgcc_s (libheif, libde265 and
 #     fdk-aac are C++), zlib and bzip2 (as the FreeBSD builds take those of the base
 #     system), and FFmpeg loads the NVIDIA driver when it opens a CUDA device (dlopen:
@@ -36,28 +36,28 @@
 #
 # Usage (Ubuntu 24.04 or 22.04, amd64; the workflow .github/workflows/ubuntu.yml):
 #   sh tools/ubuntu/build.sh --tools    install the build tools (apt-get; as root)
-#   sh tools/ubuntu/build.sh            build; the archive az-ubuntu<24|22>-amd64-<v3|v2>.tar.xz and
-#                                       the packages az-ffmpeg and az-imagemagick7 of the
+#   sh tools/ubuntu/build.sh            build; the archive azsupport-ubuntu<24|22>-amd64-<v3|v2>.tar.xz and
+#                                       the packages azsupport-ffmpeg and azsupport-imagemagick7 of the
 #                                       same files (tools/ubuntu/deb.sh)
 #
-# The archive (tar -xJf az-ubuntu24-amd64-v3.tar.xz -C /; az-ubuntu22 on 22.04): /usr/local/bin/ffmpeg,
+# The archive (tar -xJf azsupport-ubuntu24-amd64-v3.tar.xz -C /; azsupport-ubuntu22 on 22.04): /usr/local/bin/ffmpeg,
 # ffprobe, magick and the names linked to it (convert, identify, mogrify, composite,
 # montage, compare, stream, animate, display, import, magick-script; not conjure, which
 # runs MSL scripts), /usr/local/etc/ImageMagick-7 (with our policy.xml),
 # /usr/local/share/ImageMagick-7, /usr/local/lib/ImageMagick-7.1.2 (configure.xml),
 # /usr/local/share/licenses/ (FFmpeg, ImageMagick and each library), and
-# /usr/local/share/doc/az-ubuntu24/VERSIONS (az-ubuntu22 on 22.04: what was built from what).
+# /usr/local/share/doc/azsupport-ubuntu24/VERSIONS (azsupport-ubuntu22 on 22.04: what was built from what).
 #
 # Environment:
-#   AZ_CPUTYPE   x86-64-v3 (default) or x86-64-v2: -march and the name of the archive
-#   AZ_CFLAGS    default -O3 -pipe (as CFLAGS of make.conf of the servers)
-#   AZ_WORK      the work directory (default /tmp/az-ubuntu-<level>)
-#   AZ_RESULTS   the results (default ubuntu-results/ of the current directory):
+#   AZSUPPORT_CPUTYPE   x86-64-v3 (default) or x86-64-v2: -march and the name of the archive
+#   AZSUPPORT_CFLAGS    default -O3 -pipe (as CFLAGS of make.conf of the servers)
+#   AZSUPPORT_WORK      the work directory (default /tmp/azsupport-ubuntu-<level>)
+#   AZSUPPORT_RESULTS   the results (default ubuntu-results/ of the current directory):
 #                summary.txt, a log per part, VERSIONS, bins.txt, ffmpeg.conf (the
 #                configure lines of FFmpeg, for tests/ports/ffmpeg-test.sh)
-#   AZ_OUT       where the archive goes (default: the current directory)
-#   AZ_FFMPEG_LTO  the LTO of FFmpeg: auto (default, -flto=auto) or no (without --enable-lto)
-#   AZ_X264_LTO    the LTO of x264 (b_lto of meson): false (default; b_x264: why) or true
+#   AZSUPPORT_OUT       where the archive goes (default: the current directory)
+#   AZSUPPORT_FFMPEG_LTO  the LTO of FFmpeg: auto (default, -flto=auto) or no (without --enable-lto)
+#   AZSUPPORT_X264_LTO    the LTO of x264 (b_lto of meson): false (default; b_x264: why) or true
 #
 # Exit status: 0 built, 1 a part failed or a check of the programs, 2 usage.
 
@@ -65,18 +65,18 @@ set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 tree="$(cd "$here/../.." && pwd)"
 sources="$here/sources.conf"
-deps_conf="$tree/az/az/files/deps.conf"
+deps_conf="$tree/azsupport/azsupport/files/deps.conf"
 ffconf="$tree/multimedia/ffmpeg/files/ffmpeg.conf"
 ffnonfree="$tree/multimedia/ffmpeg/files/ffmpeg-nonfree.conf"
 ffnvidia="$here/ffmpeg-nvidia.conf"
 imconf="$tree/graphics/ImageMagick7/files/imagemagick.conf"
 policy="$tree/graphics/ImageMagick7/files/policy.xml"
-cputype="${AZ_CPUTYPE:-x86-64-v3}"
-case "$cputype" in x86-64-v2|x86-64-v3) ;; *) echo "ubuntu/build: AZ_CPUTYPE is x86-64-v3 or x86-64-v2, not $cputype" >&2; exit 2 ;; esac
+cputype="${AZSUPPORT_CPUTYPE:-x86-64-v3}"
+case "$cputype" in x86-64-v2|x86-64-v3) ;; *) echo "ubuntu/build: AZSUPPORT_CPUTYPE is x86-64-v3 or x86-64-v2, not $cputype" >&2; exit 2 ;; esac
 level="${cputype#x86-64-}"
-work="${AZ_WORK:-/tmp/az-ubuntu-$level}"
-res="${AZ_RESULTS:-$(pwd)/ubuntu-results}"
-out="${AZ_OUT:-$(pwd)}"
+work="${AZSUPPORT_WORK:-/tmp/azsupport-ubuntu-$level}"
+res="${AZSUPPORT_RESULTS:-$(pwd)/ubuntu-results}"
+out="${AZSUPPORT_OUT:-$(pwd)}"
 # the static libraries, their headers and .pc files; the files of the archive
 P="$work/prefix"
 stage="$work/stage"
@@ -84,20 +84,20 @@ F=/usr/local
 dist="$work/distfiles"
 src="$work/src"
 ncpu="$(nproc 2>/dev/null || echo 2)"
-fflto="${AZ_FFMPEG_LTO:-auto}"
+fflto="${AZSUPPORT_FFMPEG_LTO:-auto}"
 # no: --enable-lto of ffmpeg.conf left out (FFmpeg has no --disable-lto)
-case "$fflto" in auto) fflto_opt=--enable-lto=auto ;; no) fflto_opt="" ;; *) echo "ubuntu/build: AZ_FFMPEG_LTO is auto or no, not $fflto" >&2; exit 2 ;; esac
-x264lto="${AZ_X264_LTO:-false}"
-case "$x264lto" in true|false) ;; *) echo "ubuntu/build: AZ_X264_LTO is true or false, not $x264lto" >&2; exit 2 ;; esac
+case "$fflto" in auto) fflto_opt=--enable-lto=auto ;; no) fflto_opt="" ;; *) echo "ubuntu/build: AZSUPPORT_FFMPEG_LTO is auto or no, not $fflto" >&2; exit 2 ;; esac
+x264lto="${AZSUPPORT_X264_LTO:-false}"
+case "$x264lto" in true|false) ;; *) echo "ubuntu/build: AZSUPPORT_X264_LTO is true or false, not $x264lto" >&2; exit 2 ;; esac
 # the release of Ubuntu this runs on, 24.04 or 22.04: rel names the archive, the
-# packages and the directories of VERSIONS and of the licences (az-ubuntu24, az-ubuntu22)
+# packages and the directories of VERSIONS and of the licences (azsupport-ubuntu24, azsupport-ubuntu22)
 ubuntu="$(. /etc/os-release 2>/dev/null && [ "${ID:-}" = ubuntu ] && echo "${VERSION_ID:-}")"
 case "$ubuntu" in
     24.04|22.04) ;;
     *) echo "ubuntu/build: Ubuntu 24.04 or 22.04 (amd64), not $(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-}")" >&2; exit 2 ;;
 esac
 rel="ubuntu${ubuntu%%.*}"
-name="az-$rel-amd64-$level"
+name="azsupport-$rel-amd64-$level"
 
 if [ "${1:-}" = "--tools" ]; then
     # build-essential (gcc, g++, make), clang (the CUDA kernels of FFmpeg), nasm (the
@@ -119,10 +119,10 @@ done
 
 say() { printf '[ubuntu/build %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
-opt="${AZ_CFLAGS:--O3 -pipe}"
+opt="${AZSUPPORT_CFLAGS:--O3 -pipe}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' $opt | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
-# as tools/az-build.sh and tools/ffmpeg-build.sh: the level, the two protections, and
+# as tools/azsupport-build.sh and tools/ffmpeg-build.sh: the level, the two protections, and
 # position independent code (FFmpeg adds -fPIC itself: --enable-pic)
 ffcflags="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing"
 export CC=gcc CXX=g++
@@ -173,10 +173,10 @@ if [ -n "$bad" ]; then
     cat "$res/summary.txt"
     exit 1
 fi
-# a fix of files/deps of az for another version of a library here stops the build, as
-# in tools/az-build.sh: it is to be reviewed
+# a fix of files/deps of azsupport for another version of a library here stops the build, as
+# in tools/azsupport-build.sh: it is to be reviewed
 for n in $names; do
-    for p in "$tree/az/az/files/deps/$n"-*.patch; do
+    for p in "$tree/azsupport/azsupport/files/deps/$n"-*.patch; do
         [ -f "$p" ] || continue
         [ "${p##*/}" = "$n-$(src_ver "$n").patch" ] && continue
         echo "patches FAIL  ${p#"$tree/"} is for another version than $n $(src_ver "$n") of sources.conf" >> "$res/summary.txt"
@@ -230,7 +230,7 @@ extract() {
         tar -xf "$dist/$(src_file "$1")" -C "$src/$1" --strip-components=1 --no-same-owner
 }
 
-# The builds: $1 is the source tree. As in tools/az-build.sh (at, cm, ms), static and
+# The builds: $1 is the source tree. As in tools/azsupport-build.sh (at, cm, ms), static and
 # position independent, into $P.
 at() {
     s="$1"; shift
@@ -261,7 +261,7 @@ b_meson() {
 }
 b_png() { cm "$1" -DPNG_SHARED=OFF -DPNG_STATIC=ON -DPNG_TESTS=OFF -DPNG_TOOLS=OFF -DPNG_DEBUG_POSTFIX=""; }
 b_mozjpeg() {
-    # JPEG8 API, SIMD; without the tools' PNG input and TurboJPEG (tools/az-build.sh)
+    # JPEG8 API, SIMD; without the tools' PNG input and TurboJPEG (tools/azsupport-build.sh)
     cm "$1" -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DWITH_JPEG8=ON -DWITH_SIMD=ON -DREQUIRE_SIMD=OFF \
         -DWITH_ARITH_DEC=OFF -DWITH_ARITH_ENC=OFF -DWITH_12BIT=OFF -DWITH_JAVA=OFF -DWITH_JPEG7=OFF \
         -DWITH_TURBOJPEG=OFF -DPNG_SUPPORTED=OFF -DWITH_MEM_SRCDST=ON -DFORCE_INLINE=ON \
@@ -277,7 +277,7 @@ b_webp() {
         --disable-png --disable-jpeg --disable-tiff --disable-gif --disable-wic
 }
 # FreeType with the option LONG_PCF_NAMES of the port on (its post-patch: the long family
-# names of PCF fonts), as tools/az-build.sh gets it from make patch
+# names of PCF fonts), as tools/azsupport-build.sh gets it from make patch
 b_freetype2() {
     sed -i 's|.*\(#define PCF_CONFIG_OPTION_LONG_FAMILY_NAMES\).*|\1|' "$1/include/freetype/config/ftoption.h" &&
         grep -q '^#define PCF_CONFIG_OPTION_LONG_FAMILY_NAMES' "$1/include/freetype/config/ftoption.h" ||
@@ -312,7 +312,7 @@ b_lcms2() { at "$1" --with-fastfloat --with-threaded --without-jpeg --without-ti
 # only. Its version and commit into meson.build, as the port does
 # (files/patch-meson.build and the post-patch of multimedia/x264): version.py of the
 # release file finds no git; without optimization=2 in its default options. Without
-# the LTO of the port here (AZ_X264_LTO): its meson.build compiles it with
+# the LTO of the port here (AZSUPPORT_X264_LTO): its meson.build compiles it with
 # -mpreferred-stack-boundary=6 (a stack of 64 bytes for its assembly), which went
 # with its LTO objects into the LTO of FFmpeg, so that FFmpeg's own code took its
 # stack for 64-byte aligned: x86-64-v3 stored AVX registers with vmovdqa where the
@@ -455,7 +455,7 @@ lic_files() {
     esac
 }
 lic() {
-    d="$stage$F/share/licenses/az-$rel/$1"
+    d="$stage$F/share/licenses/azsupport-$rel/$1"
     for f in $(lic_files "$1"); do
         [ -f "$2/$f" ] || continue
         mkdir -p "$d" && cp "$2/$f" "$d/${f##*/}"
@@ -480,7 +480,7 @@ build_one() {
             case "$pf" in *.gz) gzip -dc "$dist/$pf" ;; *) cat "$dist/$pf" ;; esac | patch -p1 -N -s -d "$s" ||
                 { echo "== $pf does not apply"; exit 1; }
         done || exit 1
-        p="$tree/az/az/files/deps/$n-$(src_ver "$n").patch"
+        p="$tree/azsupport/azsupport/files/deps/$n-$(src_ver "$n").patch"
         if [ -f "$p" ]; then
             echo "== ${p#"$tree/"}"
             patch -p0 -N -s -d "$s" < "$p" || { echo "== ${p##*/} does not apply"; exit 1; }
@@ -563,7 +563,7 @@ manifest() {
         echo "CFLAGS: $CFLAGS (FFmpeg: $ffcflags, ${fflto_opt:-no LTO}; x264: b_lto=$x264lto)"
         echo "The libraries are in the programs (static); they need the libraries of Ubuntu: $ok_libs"
         echo
-        echo "Sources (tools/ubuntu/sources.conf; the versions of az/az/files/deps.conf, ffmpeg.conf and imagemagick.conf):"
+        echo "Sources (tools/ubuntu/sources.conf; the versions of azsupport/azsupport/files/deps.conf, ffmpeg.conf and imagemagick.conf):"
         for n in $names; do
             printf '  %-12s %-12s %s sha256 %s\n' "$n" "$(src_ver "$n")" "$(src_file "$n")" "$(src_sha "$n")"
         done
@@ -571,9 +571,9 @@ manifest() {
         echo "Patches:"
         awk '$1 == "patch" { printf "  %s of the FreeBSD port, to %s: sha256 %s\n", $3, $2, $4 }' "$sources"
         echo "  the version of x264 in its meson.build and LONG_PCF_NAMES of FreeType, as their ports"
-        for p in "$tree"/az/az/files/deps/*.patch; do
+        for p in "$tree"/azsupport/azsupport/files/deps/*.patch; do
             b="${p##*/}"
-            for n in $names; do [ "$b" = "$n-$(src_ver "$n").patch" ] && echo "  az/az/files/deps/$b: $(head -n 1 "$p" | cut -c 1-150)"; done
+            for n in $names; do [ "$b" = "$n-$(src_ver "$n").patch" ] && echo "  azsupport/azsupport/files/deps/$b: $(head -n 1 "$p" | cut -c 1-150)"; done
         done
         for p in "$tree"/multimedia/ffmpeg/files/ffmpeg/*.patch "$here"/ffmpeg/*.patch "$tree"/graphics/ImageMagick7/files/imagemagick7-*.patch; do
             [ -f "$p" ] && echo "  ${p#"$tree/"}: $(head -n 1 "$p" | cut -c 1-150)"
@@ -590,7 +590,7 @@ manifest() {
         echo "x264 under the GPL and libfdk_aac under the licence of the Fraunhofer FDK AAC library),"
         echo "published by aZ on his responsibility, as the package ffmpeg of FreeBSD; ImageMagick under"
         echo "the ImageMagick License; the licences are in share/licenses/ (ffmpeg, ImageMagick7, and"
-        echo "az-$rel/<library>)."
+        echo "azsupport-$rel/<library>)."
     } > "$res/VERSIONS"
 }
 
@@ -603,7 +603,7 @@ for n in $names; do
 done
 if [ "$rc" = 0 ]; then
     manifest
-    mkdir -p "$stage$F/share/doc/az-$rel" && cp "$res/VERSIONS" "$stage$F/share/doc/az-$rel/VERSIONS" ||
+    mkdir -p "$stage$F/share/doc/azsupport-$rel" && cp "$res/VERSIONS" "$stage$F/share/doc/azsupport-$rel/VERSIONS" ||
         echo "VERSIONS not into the stage" >> "$res/bins-bad.txt"
     check_bins
     if [ -s "$res/bins-bad.txt" ]; then
@@ -613,7 +613,7 @@ if [ "$rc" = 0 ]; then
             tar -C "$stage" --owner=0 --group=0 --numeric-owner -cJf "$out/$name.tar.xz" usr &&
             (cd "$out" && sha256sum "$name.tar.xz" > "$name.tar.xz.sha256") || rc=1
         [ "$rc" = 0 ] && echo "archive: $name.tar.xz, $(du -k "$out/$name.tar.xz" | cut -f 1) KB, sha256 $(cut -d ' ' -f 1 "$out/$name.tar.xz.sha256")" >> "$res/summary.txt"
-        # the Debian packages az-ffmpeg and az-imagemagick7 of the same files (tools/ubuntu/deb.sh)
+        # the Debian packages azsupport-ffmpeg and azsupport-imagemagick7 of the same files (tools/ubuntu/deb.sh)
         if [ "$rc" = 0 ]; then
             if sh "$here/deb.sh" "$stage" "$cputype" "$out" "$res" "$ubuntu" > "$res/deb.log" 2>&1; then
                 sed -n 's/^== /deb: /p' "$res/debs.txt" >> "$res/summary.txt"

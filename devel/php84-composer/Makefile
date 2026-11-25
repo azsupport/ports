@@ -19,7 +19,7 @@
 
 PORTNAME=	composer
 DISTVERSION?=	2.11.3
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	devel
 MASTER_SITES=	https://github.com/composer/composer/releases/download/${DISTVERSION}/ \
 		https://getcomposer.org/download/${DISTVERSION}/

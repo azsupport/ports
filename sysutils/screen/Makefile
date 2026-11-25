@@ -1,10 +1,10 @@
-# sysutils/screen of azsupport/ports: the official port (Mk/az-official.mk) with
+# sysutils/screen of azsupport/ports: the official port (Mk/azsupport-official.mk) with
 # ncurses of the base system (NCURSES_BASE: never that of devel/ncurses) and the
 # sockets of the sessions in ~/.screen (NOSOCKETDIR: a cleaning of /tmp does not take
 # those of running sessions) (aZ, 10.11.2026); with three fixes of Debian
 # (12.11.2026).
 
-AZ_OFFICIAL=	sysutils/screen
+AZSUPPORT_OFFICIAL=	sysutils/screen
 OPTIONS_EXCLUDE=	NCURSES_DEFAULT NCURSES_PORT
 OPTIONS_SLAVE=	NCURSES_BASE NOSOCKETDIR
 # The fixes of screen 5.0.2 that Debian sid carries (5.0.2-1; sent to savannah,
@@ -18,4 +18,4 @@ EXTRA_PATCHES=	${.CURDIR}/files/patch-resize.c:-p1 \
 		${.CURDIR}/files/patch-winmsg.c:-p1 \
 		${.CURDIR}/files/patch-termcap.c:-p1
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

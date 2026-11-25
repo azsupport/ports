@@ -39,7 +39,7 @@
 
 PORTNAME=	3proxy
 DISTVERSION=	0.9.9.3
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	net
 MASTER_SITES=	https://github.com/3proxy/3proxy/releases/download/${DISTVERSION}/
 

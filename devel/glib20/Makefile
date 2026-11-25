@@ -6,7 +6,7 @@
 # gobject-introspection to build it), translations (NLS), the documents and the
 # manual pages (USES=meson gives --auto-features=enabled: each feature of GLib named
 # below; libelf on, of the base system). libffi, libintl and libiconv (GNU, as the official one takes it:
-# USES=iconv:wchar_t) of az, with the run path /usr/local/az/lib, as the GLib of
+# USES=iconv:wchar_t) of azsupport, with the run path /usr/local/azsupport/lib, as the GLib of
 # tools/mc-build.sh had them; PCRE2 of devel/pcre2, zlib and libelf of the base
 # system; the file monitor of GIO the inotify of the base system (FreeBSD 15).
 # Python only to build: the scripts of GLib (glib-mkenums, gdbus-codegen ...) need
@@ -21,7 +21,7 @@
 
 PORTNAME=	glib
 DISTVERSION=	2.88.4
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 PORTEPOCH=	2
 CATEGORIES=	devel
 MASTER_SITES=	GNOME
@@ -34,15 +34,15 @@ WWW=		https://www.gtk.org/ \
 
 LICENSE=	LGPL20
 
-# the libraries of az, to build and to run (no ldconfig hints for /usr/local/az/lib:
+# the libraries of azsupport, to build and to run (no ldconfig hints for /usr/local/azsupport/lib:
 # by a file)
 BUILD_DEPENDS=	${PYTHON_PKGNAMEPREFIX}packaging>0:devel/py-packaging@${PY_FLAVOR} \
-		${AZ_PREFIX}/lib/libffi.so:az/az \
-		${AZ_PREFIX}/lib/libiconv.so:az/az \
-		${AZ_PREFIX}/lib/libintl.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libffi.so:az/az \
-		${AZ_PREFIX}/lib/libiconv.so:az/az \
-		${AZ_PREFIX}/lib/libintl.so:az/az
+		${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libiconv.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libiconv.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport
 LIB_DEPENDS=	libpcre2-8.so:devel/pcre2
 
 USES=		compiler:c11 cpe meson perl5 pkgconfig python:build tar:xz trigger
@@ -70,14 +70,14 @@ CPE_VENDOR=	gnome
 
 CONFLICTS_INSTALL=	p5-Giovanni
 
-# libffi, libintl and libiconv of az: its include directory and its libraries (as
+# libffi, libintl and libiconv of azsupport: its include directory and its libraries (as
 # for the GLib of tools/mc-build.sh: GNU iconv.h and libintl.h are those GLib is to
 # take there), its .pc files; PCRE2 of devel/pcre2 by pcre2.h, libpcre2-8.so and a
 # .pc of its own alone in a directory of the work (pre-configure): nothing else of
 # /usr/local is seen
-CONFIGURE_ENV=	PKG_CONFIG_LIBDIR=${WRKDIR}/pcre2/pc:${AZ_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig
-CPPFLAGS+=	-I${WRKDIR}/pcre2 -I${AZ_PREFIX}/include
-LDFLAGS+=	-L${WRKDIR}/pcre2 -L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+CONFIGURE_ENV=	PKG_CONFIG_LIBDIR=${WRKDIR}/pcre2/pc:${AZSUPPORT_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig
+CPPFLAGS+=	-I${WRKDIR}/pcre2 -I${AZSUPPORT_PREFIX}/include
+LDFLAGS+=	-L${WRKDIR}/pcre2 -L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 _LIBVERSION=	0.${DISTVERSION:R:E}00.${DISTVERSION:E}
 PLIST_SUB=	LIBVERSION=${_LIBVERSION}

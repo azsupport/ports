@@ -21,26 +21,26 @@
 # Usage:	USES=azgcc
 # Valid ARGS:	(none)
 #
-# AZ_GCC: the version of GCC, that of lang/gcc${AZ_GCC}. AZ_GCC=no in the
+# AZSUPPORT_GCC: the version of GCC, that of lang/gcc${AZSUPPORT_GCC}. AZSUPPORT_GCC=no in the
 # Makefile of a port (before bsd.port.pre.mk): the base clang, as without this
-# file. The PHP modules with C++ (intl, swoole, openswoole) have AZ_GCC=no:
-# they link C++ libraries of az built by clang with libc++ (ICU), and g++ would
+# file. The PHP modules with C++ (intl, swoole, openswoole) have AZSUPPORT_GCC=no:
+# they link C++ libraries of azsupport built by clang with libc++ (ICU), and g++ would
 # link libstdc++ of the gcc package, a library of the ports, so that one
 # process would have two C++ runtimes of different ABIs. imagick and gmagick
 # too: their configure links the OpenMP runtime of the compiler, which for GCC
 # is libgomp of the gcc package.
-# AZ_GCC_CFLAGS: more flags for the C compiled by GCC, for a port that needs
+# AZSUPPORT_GCC_CFLAGS: more flags for the C compiled by GCC, for a port that needs
 # them (none now: lang/php56 had -Wno-error=incompatible-pointer-types until
 # its tarball fixed the three places, 09.11.2026).
 #
 # What it does:
-# - USE_GCC=${AZ_GCC}:build of the framework (Mk/bsd.gcc.mk): CC, CPP and CXX
-#   of lang/gcc${AZ_GCC}, the binutils of the ports (USE_BINUTILS, with which
+# - USE_GCC=${AZSUPPORT_GCC}:build of the framework (Mk/bsd.gcc.mk): CC, CPP and CXX
+#   of lang/gcc${AZSUPPORT_GCC}, the binutils of the ports (USE_BINUTILS, with which
 #   GCC assembles and links), both in BUILD_DEPENDS only;
 # - not the run path bsd.gcc.mk adds for the libraries of GCC, -Wl,-rpath= and
-#   -L ${LOCALBASE}/lib/gcc${AZ_GCC} in CFLAGS, CXXFLAGS and LDFLAGS (removed in
+#   -L ${LOCALBASE}/lib/gcc${AZSUPPORT_GCC} in CFLAGS, CXXFLAGS and LDFLAGS (removed in
 #   the post part, after bsd.gcc.mk): the run path of our files is
-#   ${AZ_PREFIX}/lib only (tools/check-php.sh);
+#   ${AZSUPPORT_PREFIX}/lib only (tools/check-php.sh);
 # - -static-libgcc: libgcc and its unwinder linked into each file, no NEEDED
 #   libgcc_s.so.1 (/lib has that of the base system, older than that of GCC).
 #   In the CC that configure gets, not in LDFLAGS: the libtool 1.5 of PHP
@@ -65,8 +65,8 @@
 #   keeps the section .comment (the compilers of the objects of the file,
 #   "GCC: (FreeBSD Ports Collection) 16.1.0"); the strip of the base system
 #   removes it. tools/check-php.sh checks the compiler of the files by it;
-# - the annotation az_cc of the package: gcc${AZ_GCC}, or clang with
-#   AZ_GCC=no (pkg info -A; tools/check-php.sh).
+# - the annotation azsupport_cc of the package: gcc${AZSUPPORT_GCC}, or clang with
+#   AZSUPPORT_GCC=no (pkg info -A; tools/check-php.sh).
 #
 # MAINTAINER: github@azsupport.com
 
@@ -77,14 +77,14 @@ _INCLUDE_USES_AZGCC_MK=	yes
 IGNORE=	USES=azgcc takes no arguments
 .  endif
 
-AZ_GCC?=	16
+AZSUPPORT_GCC?=	16
 
-# the compiler of the package as its annotation az_cc (pkg info -A), which
+# the compiler of the package as its annotation azsupport_cc (pkg info -A), which
 # tools/check-php.sh compares with the files: gcc16, or clang (the base cc)
-PKG_NOTES+=	az_cc
-.  if ${AZ_GCC} != no
-USE_GCC=	${AZ_GCC}:build
-PKG_NOTE_az_cc=	gcc${AZ_GCC}
+PKG_NOTES+=	azsupport_cc
+.  if ${AZSUPPORT_GCC} != no
+USE_GCC=	${AZSUPPORT_GCC}:build
+PKG_NOTE_az_cc=	gcc${AZSUPPORT_GCC}
 .  else
 PKG_NOTE_az_cc=	clang
 .  endif
@@ -95,8 +95,8 @@ _USES_POST+=	azgcc
 .if defined(_POSTMKINCLUDED) && !defined(_INCLUDE_USES_AZGCC_POST_MK)
 _INCLUDE_USES_AZGCC_POST_MK=	yes
 
-.  if ${AZ_GCC} != no && defined(_GCC_RUNTIME)
-CFLAGS:=	${CFLAGS:N-Wl,-rpath=${_GCC_RUNTIME}} -fno-semantic-interposition ${AZ_GCC_CFLAGS}
+.  if ${AZSUPPORT_GCC} != no && defined(_GCC_RUNTIME)
+CFLAGS:=	${CFLAGS:N-Wl,-rpath=${_GCC_RUNTIME}} -fno-semantic-interposition ${AZSUPPORT_GCC_CFLAGS}
 CXXFLAGS:=	${CXXFLAGS:N-Wl,-rpath=${_GCC_RUNTIME}}
 LDFLAGS:=	${LDFLAGS:N-Wl,-rpath=${_GCC_RUNTIME}:N-L${_GCC_RUNTIME}}
 # the CC of configure (the last CC= of its environment), which writes it into

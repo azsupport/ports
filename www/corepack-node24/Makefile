@@ -9,7 +9,7 @@
 
 PORTNAME=	corepack
 PORTVERSION=	0.36.0
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 DISTVERSIONPREFIX=	v
 CATEGORIES=	www
 MASTER_SITES=	https://github.com/nodejs/corepack/releases/download/v${PORTVERSION}/

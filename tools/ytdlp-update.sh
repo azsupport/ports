@@ -27,7 +27,7 @@
 #    official www/deno: a warning when that is older (deno stays the official package).
 # 4. The ports checked with make -V (tools/check-tree-ci.sh), then one commit of aZ and
 #    a push to main (a refused push: again on top of the new main, 5 times).
-# 5. The build, when the releases az-fbsd<major>-amd64-v3 and -v2 do not have the
+# 5. The build, when the releases azsupport-fbsd<major>-amd64-v3 and -v2 do not have the
 #    yt-dlp of the tree (and its yt-dlp-ejs, when that is ours): build-jail.yml of main for
 #    www/yt-dlp, both levels, on the first free build runner of our jails (runner any;
 #    24.11.2026: the builds on our runners, not those of GitHub), publish with
@@ -190,7 +190,7 @@ build_check() {
     if [ "$committed" = 0 ]; then
         miss=""
         for lv in v3 v2; do
-            t="az-fbsd$major-amd64-$lv"
+            t="azsupport-fbsd$major-amd64-$lv"
             if ! gh api "repos/$repo/releases/tags/$t" --jq '.assets[].name' > "$w/assets" 2> "$w/err"; then
                 if grep -q 'HTTP 404' "$w/err"; then
                     line "- the build: no release $t yet (its first publish is aZ's): no build"
@@ -205,7 +205,7 @@ build_check() {
             fi
         done
         if [ -z "$miss" ]; then
-            line "- the build: none needed, the releases az-fbsd$major-amd64-v3 and -v2 have yt-dlp $v${ev:+ and yt-dlp-ejs $ev}"
+            line "- the build: none needed, the releases azsupport-fbsd$major-amd64-v3 and -v2 have yt-dlp $v${ev:+ and yt-dlp-ejs $ev}"
             return 0
         fi
         notable=1

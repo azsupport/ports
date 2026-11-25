@@ -1,5 +1,5 @@
 Provides a wrapper to the GraphicsMagick library; here with the
-GraphicsMagick of the package GraphicsMagick in /usr/local/az.
+GraphicsMagick of the package GraphicsMagick in /usr/local/azsupport.
 
 PECL gmagick for php83 of azsupport/ports, built from ext/gmagick of
 the release tarball of azsupport/php-src, which bundles it:

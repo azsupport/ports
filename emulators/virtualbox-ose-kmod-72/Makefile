@@ -1,5 +1,5 @@
 # emulators/virtualbox-ose-kmod-72 of azsupport/ports: the official port as it is
-# (Mk/az-official.mk), the kernel modules of VirtualBox 7.2 (vboxdrv, vboxnetflt,
+# (Mk/azsupport-official.mk), the kernel modules of VirtualBox 7.2 (vboxdrv, vboxnetflt,
 # vboxnetadp) and the rc.d script vboxnet for emulators/virtualbox-ose-72 (aZ,
 # 20.11.2026), with VIMAGE (vboxnetflt for a kernel with VIMAGE: GENERIC and the
 # kernel az.st of aZ have it), without DEBUG and INVARIANTS (neither kernel has
@@ -17,9 +17,9 @@
 PKGBASE=	virtualbox72-kmod
 .MAKEFLAGS:	PKGNAME=virtualbox72-kmod-$${PKGVERSION} CONFLICTS_INSTALL=virtualbox-ose-kmod*
 
-AZ_OFFICIAL=	emulators/virtualbox-ose-kmod-72
+AZSUPPORT_OFFICIAL=	emulators/virtualbox-ose-kmod-72
 OPTIONS_SLAVE=	VIMAGE
 OPTIONS_EXCLUDE=	DEBUG INVARIANTS
 .MAKEFLAGS:	PATCHDIR=${PORTSDIR:U/usr/ports}/emulators/virtualbox-ose-72/files
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

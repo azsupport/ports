@@ -7,13 +7,13 @@
 # MsgPack and the docs; the client without GSSAPI. The libraries of our ports, as
 # shared ones (aZ, 10.11.2026: our ports link each other's shared libraries): PCRE2
 # of devel/pcre2, lz4 (the compression provider provider_lz4) and zstd (that of the
-# client library) of az with the run path /usr/local/az/lib, fmt of az
+# client library) of azsupport with the run path /usr/local/azsupport/lib, fmt of azsupport
 # (header-only); of the base system: OpenSSL, zlib (MariaDB would take its own
 # copy: WITH_ZLIB=system), libedit (the line editing of the client), ncurses,
 # libwrap, PAM, bzip2 and lzma (their providers). The official one takes libfmt,
 # liblz4, pcre2, zstd, libedit, libiconv and readline (the client) of the ports. Their
 # headers alone in a directory of the work (pre-configure: no other header of
-# /usr/local or of az is seen), pkg-config only that and the base system. The
+# /usr/local or of azsupport is seen), pkg-config only that and the base system. The
 # socket /tmp/mysql.sock (MARIADB_SOCKET) compiled into the server and the client
 # library and in the sample configurations (aZ: /tmp is a memory disk on his
 # servers, tmpmfs), instead of /var/run/mysql/mysql.sock of the official one; the
@@ -30,7 +30,7 @@
 
 PORTNAME?=	mariadb
 PORTVERSION=	10.11.20
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	databases
 MASTER_SITES=	\
 		https://ftp.nluug.nl/db/${SITESDIR}/ \
@@ -56,18 +56,18 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 
 #EXPIRATION_DATE=	2028-02-01
 
-# fmt (its headers), lz4 and zstd of az, to build and to run (no ldconfig hints for
-# /usr/local/az/lib: by a file); PCRE2 of devel/pcre2
-BUILD_DEPENDS+=	${AZ_PREFIX}/lib/libfmt.so:az/az \
-		${AZ_PREFIX}/lib/liblz4.so:az/az \
-		${AZ_PREFIX}/lib/libzstd.so:az/az
-RUN_DEPENDS+=	${AZ_PREFIX}/lib/liblz4.so:az/az \
-		${AZ_PREFIX}/lib/libzstd.so:az/az
+# fmt (its headers), lz4 and zstd of azsupport, to build and to run (no ldconfig hints for
+# /usr/local/azsupport/lib: by a file); PCRE2 of devel/pcre2
+BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libfmt.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
 LIB_DEPENDS+=	libpcre2-8.so:devel/pcre2
 
-# the run path of the libraries of az (cmake takes LDFLAGS for every link); no
+# the run path of the libraries of azsupport (cmake takes LDFLAGS for every link); no
 # -L/usr/local/lib of the official port: cmake/os/FreeBSD.cmake of MariaDB has it
-LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
+LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 # no iconv:translit of the official one: GNU libiconv of the ports, which only
 # the CONNECT engine linked, by the ICONV_LIBRARY that USES=iconv gives cmake
@@ -151,14 +151,14 @@ CMAKE_ARGS+=	-DCMAKE_PREFIX_PATH=${PREFIX} \
 		-DINSTALL_SYSCONF2DIR="${ETCDIR}/conf.d" \
 		-DINSTALL_UNIX_ADDRDIR="${MARIADB_SOCKET}" \
 		-DWITH_PCRE=system \
-		-DPCRE_LIBRARY_DIRS=${WRKDIR}/az/lib \
+		-DPCRE_LIBRARY_DIRS=${WRKDIR}/azsupport/lib \
 		-DWITH_LIBFMT=system \
-		-DLIBFMT_INCLUDE_DIR=${WRKDIR}/az/include \
+		-DLIBFMT_INCLUDE_DIR=${WRKDIR}/azsupport/include \
 		-DHAVE_SYSTEM_LIBFMT=yes \
-		-DLZ4_INCLUDE_DIRS=${WRKDIR}/az/include \
-		-DLZ4_LIBRARIES=${AZ_PREFIX}/lib/liblz4.so \
-		-DZSTD_INCLUDE_DIRS=${WRKDIR}/az/include \
-		-DZSTD_LIBRARIES=${AZ_PREFIX}/lib/libzstd.so \
+		-DLZ4_INCLUDE_DIRS=${WRKDIR}/azsupport/include \
+		-DLZ4_LIBRARIES=${AZSUPPORT_PREFIX}/lib/liblz4.so \
+		-DZSTD_INCLUDE_DIRS=${WRKDIR}/azsupport/include \
+		-DZSTD_LIBRARIES=${AZSUPPORT_PREFIX}/lib/libzstd.so \
 		-DWITH_ZLIB=system \
 		-DLIBEDIT_INCLUDE_DIR=/usr/include/edit/readline \
 		-DLIBEDIT_LIBRARY=/usr/lib/libedit.so \
@@ -196,7 +196,7 @@ SUB_LIST+=	MARIADB_RUNDIR="${MARIADB_RUNDIR}" \
 		MARIADB_SOCK="${MARIADB_SOCK}" \
 		MARIADB_SOCKET="${MARIADB_SOCKET}"
 # pkg-config: the directory of the work and the base system only
-CONFIGURE_ENV+=	PKG_CONFIG_LIBDIR=${WRKDIR}/az/pkgconfig:/usr/libdata/pkgconfig
+CONFIGURE_ENV+=	PKG_CONFIG_LIBDIR=${WRKDIR}/azsupport/pkgconfig:/usr/libdata/pkgconfig
 
 .if ${PKGNAMESUFFIX:M*-client}
 # MySQL-Client part
@@ -290,23 +290,23 @@ post-patch:
 		${WRKSRC}/cmake/os/DragonFly.cmake
 .endif
 
-# the headers of az and of devel/pcre2 MariaDB takes, alone in a directory of the
+# the headers of azsupport and of devel/pcre2 MariaDB takes, alone in a directory of the
 # work (LIBFMT_INCLUDE_DIR, LZ4_INCLUDE_DIRS, ZSTD_INCLUDE_DIRS above), PCRE2 with
 # its libraries and a .pc of its own there (cmake/pcre.cmake takes the include
 # directory pkg-config gives; MariaDB links -lpcre2-8 with -L/usr/local/lib)
 pre-configure:
-	@${MKDIR} ${WRKDIR}/az/include ${WRKDIR}/az/lib ${WRKDIR}/az/pkgconfig
-	@${LN} -sf ${AZ_PREFIX}/include/fmt ${AZ_PREFIX}/include/lz4.h \
-		${AZ_PREFIX}/include/zstd.h ${AZ_PREFIX}/include/zstd_errors.h \
+	@${MKDIR} ${WRKDIR}/azsupport/include ${WRKDIR}/azsupport/lib ${WRKDIR}/azsupport/pkgconfig
+	@${LN} -sf ${AZSUPPORT_PREFIX}/include/fmt ${AZSUPPORT_PREFIX}/include/lz4.h \
+		${AZSUPPORT_PREFIX}/include/zstd.h ${AZSUPPORT_PREFIX}/include/zstd_errors.h \
 		${LOCALBASE}/include/pcre2.h ${LOCALBASE}/include/pcre2posix.h \
-		${WRKDIR}/az/include/
+		${WRKDIR}/azsupport/include/
 	@${LN} -sf ${LOCALBASE}/lib/libpcre2-8.so ${LOCALBASE}/lib/libpcre2-posix.so \
-		${WRKDIR}/az/lib/
-	@${PRINTF} '%s\n' 'prefix=${WRKDIR}/az' 'Name: libpcre2-8' \
+		${WRKDIR}/azsupport/lib/
+	@${PRINTF} '%s\n' 'prefix=${WRKDIR}/azsupport' 'Name: libpcre2-8' \
 		'Description: PCRE2 of devel/pcre2' \
 		"Version: $$(pkgconf --modversion ${LOCALBASE}/libdata/pkgconfig/libpcre2-8.pc)" \
 		'Libs: -L$${prefix}/lib -lpcre2-8' 'Cflags: -I$${prefix}/include' \
-		> ${WRKDIR}/az/pkgconfig/libpcre2-8.pc
+		> ${WRKDIR}/azsupport/pkgconfig/libpcre2-8.pc
 
 post-configure:
 	${REINPLACE_CMD} -Ee 's|(#define INCLUDE.*)"$$|\1 -I${PREFIX}/include"|' \

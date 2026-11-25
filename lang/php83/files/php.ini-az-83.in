@@ -1,4 +1,4 @@
-@comment The defaults of az for PHP 8.3, appended to the php.ini-production of
+@comment The defaults of azsupport for PHP 8.3, appended to the php.ini-production of
 @comment the tarball to make etc/php83/php.ini.sample (@sample: pkg copies it
 @comment to php.ini and keeps a changed php.ini), as for 7.4 (the head of
 @comment lang/php74/files/php.ini-az-74.in). The block of 7.4 with two changes:
@@ -7,7 +7,7 @@
 @comment and opcache.jit_buffer_size = 128M (PHP 8.0-8.3 come with tracing and a
 @comment buffer of 0, which keeps it off; 8.4 with disable and 64M). The buffer
 @comment is in the shared memory of OPcache, next to opcache.memory_consumption.
-@comment None of the modules of az turns it off (an extension that overrides
+@comment None of the modules of azsupport turns it off (an extension that overrides
 @comment zend_execute_ex or sets user opcode handlers does, with a warning at
 @comment each start; swoole's handlers come only with --enable-swoole-stdext,
 @comment which the port does not use). Every other line holds
@@ -17,7 +17,7 @@
 @comment deprecation (only On does). Lines that begin with @comment are not in
 @comment the file (SUB_FILES drops them).
 
-; --- az: defaults of PHP 8.3, on top of php.ini-production above ---
+; --- azsupport: defaults of PHP 8.3, on top of php.ini-production above ---
 [PHP]
 expose_php = Off
 short_open_tag = On

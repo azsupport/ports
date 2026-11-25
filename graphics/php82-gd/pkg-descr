@@ -1,4 +1,4 @@
-GD: image creation and manipulation with libgd of the package az (PNG,
+GD: image creation and manipulation with libgd of the package azsupport (PNG,
 JPEG, WebP, FreeType).
 
 The module gd of PHP 8.2 for php82 of azsupport/ports, which installs

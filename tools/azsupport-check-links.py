@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """check-deps-links.py - look for missing libraries in the static link lines of
-the static tree of azsupport (/usr/local/az/static, tools/build-deps.sh) or
+the static tree of azsupport (/usr/local/azsupport/static, tools/build-deps.sh) or
 of an extracted /usr/local/phpdeps bundle of before.
 
 For every .pc file of the bundle, the archives that `pkgconf --static --libs`
@@ -17,7 +17,7 @@ other functions of libm and of the compiler runtime of its own
 Usage: python3 tools/check-deps-links.py <dir that holds lib/ and lib/pkgconfig/> [more pkgconfig dirs]
 The more dirs (colon separated) are for the .pc files of the base system that the
 bundle's ones require (zlib, bzip2: /usr/libdata/pkgconfig on FreeBSD).
-AZ_BASE_LIBS (colon separated) names other runtime libraries than those of
+AZSUPPORT_BASE_LIBS (colon separated) names other runtime libraries than those of
 FreeBSD (BASE below), for a test elsewhere.
 Needs nm (binutils or llvm) and pkgconf. Exit status 1 when something is missing.
 """
@@ -35,7 +35,7 @@ BASE = ['/lib/libc.so.7', '/lib/libm.so.5', '/lib/libthr.so.3', '/lib/libgcc_s.s
 def base_symbols():
     """The symbols the runtime libraries of the base system define."""
     out = set()
-    libs = os.environ['AZ_BASE_LIBS'].split(':') if os.environ.get('AZ_BASE_LIBS') else BASE
+    libs = os.environ['AZSUPPORT_BASE_LIBS'].split(':') if os.environ.get('AZSUPPORT_BASE_LIBS') else BASE
     for lib in libs:
         if not os.path.exists(lib):
             continue

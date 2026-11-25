@@ -10,19 +10,19 @@
 #   EXAMPLES off, YJIT on (aZ, 20.11.2026: «включай. У нас же правило - скорость.»: the
 #   JIT of Ruby, which Rails 7.2 and later turn on themselves: faster, more memory;
 #   Rust only to build it, the rustc of the official lang/rust);
-# - libffi (fiddle), GMP and libyaml (psych) of az, with the run path /usr/local/az/lib
-#   (Mk/az-libs.mk: each with its own headers and .pc files), instead of devel/libffi,
-#   math/gmp and textproc/libyaml: the package takes no package but az; OpenSSL, zlib
+# - libffi (fiddle), GMP and libyaml (psych) of azsupport, with the run path /usr/local/azsupport/lib
+#   (Mk/azsupport-libs.mk: each with its own headers and .pc files), instead of devel/libffi,
+#   math/gmp and textproc/libyaml: the package takes no package but azsupport; OpenSSL, zlib
 #   and libexecinfo of the base system;
 # - no libunwind (devel/libunwind, which the official port takes on amd64 for the C
 #   level backtrace of a crash report; the backtrace of the base libexecinfo stays):
 #   the configure test of libunwind.h answered no, so no build machine decides it.
 # The flags of the build go into rbconfig.rb as there: a native extension of a gem built
-# with this Ruby (mkmf) links with the -L and the run path of az too.
+# with this Ruby (mkmf) links with the -L and the run path of azsupport too.
 
 PORTNAME=	ruby
 PORTVERSION=	${RUBY_DISTVERSION}
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 PORTEPOCH=	${RUBY_PORTEPOCH}
 CATEGORIES=	lang ruby
 MASTER_SITES=	RUBY/${MASTER_SITE_SUBDIR_RUBY}
@@ -39,8 +39,8 @@ LICENSE_COMB=	dual
 LICENSE_FILE_BSD2CLAUSE=${WRKSRC}/BSDL
 LICENSE_FILE_RUBY=	${WRKSRC}/COPYING
 
-# libffi, GMP and libyaml of az (Mk/az-libs.mk below), not the ports
-AZ_LIBS=	libffi:libffi.so gmp:libgmp.so libyaml:libyaml.so
+# libffi, GMP and libyaml of azsupport (Mk/azsupport-libs.mk below), not the ports
+AZSUPPORT_LIBS=	libffi:libffi.so gmp:libgmp.so libyaml:libyaml.so
 
 USES=		autoreconf cpe ruby:none ssl tar:xz
 
@@ -99,7 +99,7 @@ RDOC_CONFIGURE_ENABLE=	install-rdoc
 YJIT_BUILD_DEPENDS=	${RUST_DEFAULT}>=1.58.0:lang/${RUST_DEFAULT}
 YJIT_CONFIGURE_ENABLE=	yjit
 
-.include "${.CURDIR:H:H}/Mk/az-libs.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-libs.mk"
 
 .include <bsd.port.pre.mk>
 

@@ -1,7 +1,7 @@
-# ports-mgmt/portmaster of azsupport/ports: the official port (Mk/az-official.mk)
+# ports-mgmt/portmaster of azsupport/ports: the official port (Mk/azsupport-official.mk)
 # with the completion of bash, without that of zsh (aZ, 10.11.2026).
 
-AZ_OFFICIAL=	ports-mgmt/portmaster
+AZSUPPORT_OFFICIAL=	ports-mgmt/portmaster
 OPTIONS_EXCLUDE=	ZSH
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

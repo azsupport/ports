@@ -1,7 +1,7 @@
-# www/rubygem-rackup of azsupport/ports: the official port (Mk/az-official.mk), rackup
+# www/rubygem-rackup of azsupport/ports: the official port (Mk/azsupport-official.mk), rackup
 # 2.3.1, which www/rubygem-passenger needs (aZ, 20.11.2026).
 
-AZ_OFFICIAL=	www/rubygem-rackup
+AZSUPPORT_OFFICIAL=	www/rubygem-rackup
 
 # The package ruby34-rackup (aZ, 21.11.2026: the name with the version first, as
 # php84): PKGNAMEPREFIX of Ruby, which USES=gem sets to rubygem- only when it is not
@@ -13,4 +13,4 @@ PKGNAMEPREFIX=	${RUBY_PKGNAMEPREFIX}
 .MAKEFLAGS:	RUN_DEPENDS="$${RUBY_PKGNAMEPREFIX}rack>=3,3:www/rubygem-rack $${DEPEND_RUBY} \
 		$${RUBYGEMBIN}:devel/ruby-gems" CONFLICTS_INSTALL="rubygem-rackup rubygem-rackup21"
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

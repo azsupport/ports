@@ -17,7 +17,7 @@ Applied by post-patch in WRKSRC_headers_more, -p0.
 +
 +#if defined(NGX_HTTP_AZ_SERVER) && !(NGX_HTTP_AZ_SERVER)
 +        /*
-+         * az: the nginx-devel of azsupport/ports writes no Server line of its
++         * azsupport: the nginx-devel of azsupport/ports writes no Server line of its
 +         * own, so where no backend and no module has set one there is nothing
 +         * to clear: no search of the header lines and no empty line made to
 +         * keep nginx from adding its own

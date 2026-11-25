@@ -19,7 +19,7 @@
 #   the compiler (the official patch sets SSSE3 off, and with -march=x86-64-v3 the AVX2
 #   copy of snappy.cc, which __AVX2__ turns on, missed <immintrin.h>: build run
 #   44305504975, 18.11.2026);
-# - the disk cache of Bazel between the runs of build.yml (AZ_PORT_CACHE, tools/build.sh:
+# - the disk cache of Bazel between the runs of build.yml (AZSUPPORT_PORT_CACHE, tools/build.sh:
 #   --disk_cache in portcache/): a build the time of a run stopped goes on in the next
 #   one from the actions done («с докачкой»);
 # - curl of our ftp/curl (LIB_DEPENDS, as every port of this tree), OpenSSL of the base
@@ -30,7 +30,7 @@
 PORTNAME=	mongodb
 DISTVERSIONPREFIX=	r
 DISTVERSION=	8.0.38
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	databases net
 MASTER_SITES+=	https://codeload.github.com/bazelbuild/bazel-central-registry/tar.gz/${BAZEL_REGISTRY_COMMIT}?dummy=/:bazel_registry \
 		https://codeload.github.com/mongodb-forks/rules_poetry/tar.gz/${RULES_POETRY_COMMIT}?dummy=/:rules_poetry
@@ -232,9 +232,9 @@ EXTRA_PATCHES=	${FILESDIR}/extrapatch-src_third__party_mozjs_extract_mozglue_mis
 
 # the disk cache of Bazel between the runs of build.yml (tools/build.sh): the actions
 # done in a run the time stopped are not done again in the next one
-AZ_PORT_CACHE=	bazel
-.if !empty(AZ_PORT_CACHE_DIR)
-BAZEL_ARGS+=	--disk_cache=${AZ_PORT_CACHE_DIR}/disk
+AZSUPPORT_PORT_CACHE=	bazel
+.if !empty(AZSUPPORT_PORT_CACHE_DIR)
+BAZEL_ARGS+=	--disk_cache=${AZSUPPORT_PORT_CACHE_DIR}/disk
 .endif
 
 MOZJS_WRKSRC=	${WRKSRC}/src/third_party/mozjs

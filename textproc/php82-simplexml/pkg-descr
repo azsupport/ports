@@ -1,4 +1,4 @@
-SimpleXML: XML documents as objects, with libxml2 of the package az.
+SimpleXML: XML documents as objects, with libxml2 of the package azsupport.
 
 The module simplexml of PHP 8.2 for php82 of azsupport/ports, which
 installs side by side with the other versions of PHP:

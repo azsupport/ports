@@ -1,5 +1,5 @@
 # graphics/ImageMagick6: the programs of the ImageMagick 6 of azsupport/ports in the
-# place of the official graphics/ImageMagick6 (the design: the head of az/az/Makefile):
+# place of the official graphics/ImageMagick6 (the design: the head of azsupport/azsupport/Makefile):
 # bin/convert, identify, mogrify, composite and the others by their usual names (aZ,
 # 14.11.2026: without the 6 at the end, which only graphics/ImageMagick67 gives them,
 # next to ImageMagick 7), with only what the video sites need. Its libraries,
@@ -10,9 +10,9 @@
 # 14.11.2026: the libraries in packages of their own). tools/imagemagick-build.sh
 # makes the official port of the pinned commit with the release of the take line of
 # imagemagick.conf (a distfile of this port), applies files/imagemagick6-*.patch,
-# builds it against the shared tree of az (run path /usr/local/az/lib: our ports link
+# builds it against the shared tree of azsupport (run path /usr/local/azsupport/lib: our ports link
 # each other's shared libraries, aZ 10.11.2026) and keeps the programs
-# (AZ_IM_PART=bin). It conflicts with ImageMagick7 and ImageMagick67 (their files).
+# (AZSUPPORT_IM_PART=bin). It conflicts with ImageMagick7 and ImageMagick67 (their files).
 
 PORTNAME=	ImageMagick
 DISTVERSION=	6.9.13-61
@@ -37,13 +37,13 @@ LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 
 # its libraries: built with the programs, the package has only the programs, which
 # run with those of libimagemagick6 (also when the build checks them)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az \
-		${AZ_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az \
-		${AZ_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6
-# the libraries of az in its hash (tools/build.sh) besides libheif: those its shared
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6
+# the libraries of azsupport in its hash (tools/build.sh) besides libheif: those its shared
 # libraries and its programs link (their NEEDED)
-AZ_HASH_LIBS=	fontconfig freetype2 lcms2 mozjpeg png webp
+AZSUPPORT_HASH_LIBS=	fontconfig freetype2 lcms2 mozjpeg png webp
 
 USES=		gmake perl5 pkgconfig
 USE_PERL5=	build
@@ -57,26 +57,26 @@ CONFLICTS_INSTALL=	ImageMagick6-nox11 ImageMagick7 ImageMagick7-nox11 \
 NO_WRKSUBDIR=	yes
 EXTRACT_ONLY=
 
-.include "${.CURDIR:H:H}/az/az/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
 
-AZ_IM_ENV=	AZ_IM_CONF=${.CURDIR:H}/ImageMagick7/files/imagemagick.conf AZ_IM_PART=bin
+AZSUPPORT_IM_ENV=	AZSUPPORT_IM_CONF=${.CURDIR:H}/ImageMagick7/files/imagemagick.conf AZSUPPORT_IM_PART=bin
 # the conf (im, take and configure lines of both) and the policy of
 # graphics/ImageMagick7, one copy for all, which tools/imagemagick-build.sh reads
-# for ImageMagick 6 too: in its az_hash (tools/build.sh), so that a change of them
+# for ImageMagick 6 too: in its azsupport_hash (tools/build.sh), so that a change of them
 # builds it again
-AZ_HASH_FILES=	${.CURDIR:H}/ImageMagick7/files/imagemagick.conf \
+AZSUPPORT_HASH_FILES=	${.CURDIR:H}/ImageMagick7/files/imagemagick.conf \
 		${.CURDIR:H}/ImageMagick7/files/policy.xml
 
 post-fetch:
-	@${SETENV} ${AZ_ENV} ${AZ_IM_ENV} ${SH} ${AZ_TOOLS}/imagemagick-build.sh --fetch imagemagick6
+	@${SETENV} ${AZSUPPORT_ENV} ${AZSUPPORT_IM_ENV} ${SH} ${AZSUPPORT_TOOLS}/imagemagick-build.sh --fetch imagemagick6
 
 do-build:
-	@cd ${WRKDIR} && ${SETENV} ${AZ_ENV} ${AZ_IM_ENV} ${SH} ${AZ_TOOLS}/imagemagick-build.sh imagemagick6
+	@cd ${WRKDIR} && ${SETENV} ${AZSUPPORT_ENV} ${AZSUPPORT_IM_ENV} ${SH} ${AZSUPPORT_TOOLS}/imagemagick-build.sh imagemagick6
 
 do-install:
-	@${AZ_COPY_STAGE}
+	@${AZSUPPORT_COPY_STAGE}
 
 post-install:
-	@${AZ_PLIST}
+	@${AZSUPPORT_PLIST}
 
 .include <bsd.port.mk>

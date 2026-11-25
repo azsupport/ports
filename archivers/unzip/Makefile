@@ -1,9 +1,9 @@
-# archivers/unzip of azsupport/ports: the official port (Mk/az-official.mk) with
+# archivers/unzip of azsupport/ports: the official port (Mk/azsupport-official.mk) with
 # ICONV: the names of a Windows archive (without the UTF-8 flag) converted by
 # iconv(3) of the base system, from CP866 in a UTF-8 locale (Cyrillic names);
 # unzip -O <charset> for another one.
 
-AZ_OFFICIAL=	archivers/unzip
+AZSUPPORT_OFFICIAL=	archivers/unzip
 OPTIONS_SLAVE=	ICONV
 
 # The fixes of the vulnerabilities of UnZip 6.0 (no release since 2009) that the
@@ -24,7 +24,7 @@ OPTIONS_SLAVE=	ICONV
 # descriptor of a Zip64 entry with 32-bit lengths, as the zip library of Java writes
 # it, refused as a "possible zip bomb", status 12) and sast (a strcpy() of
 # overlapping strings for a backslash in UNZIP or UNZIPOPT, envargs.c: memmove()).
-AZ_UNZIP_FIXES=	unzip-6.0-close.patch \
+AZSUPPORT_UNZIP_FIXES=	unzip-6.0-close.patch \
 		unzip-6.0-attribs-overflow.patch \
 		unzip-6.0-format-secure.patch \
 		unzip-6.0-valgrind.patch \
@@ -66,7 +66,7 @@ AZ_UNZIP_FIXES=	unzip-6.0-close.patch \
 # newline after a prompt interrupted by SIGINT (Debian #1144371). Not taken:
 # CAN-2026-2034440 (EF_IZUNIX3 uid/gid, code this build leaves out) and the code page
 # changes of Ubuntu (this port has its own ICONV patches).
-AZ_UNZIP_FIXES_DEBIAN=	can-2026-2034442.patch \
+AZSUPPORT_UNZIP_FIXES_DEBIAN=	can-2026-2034442.patch \
 			can-2026-2034443.patch \
 			fix-integer-underflow-csiz-decrypted.patch \
 			zipgrep-cve-2022-1271.patch \
@@ -90,20 +90,20 @@ AZ_UNZIP_FIXES_DEBIAN=	can-2026-2034442.patch \
 # extra block shorter than 4 bytes: unzip -t failed on every jar of jar(1) and
 # Java (status 2); files/zipinfo-usage.patch: the help of zipinfo had four %c of
 # the official ICONV patch without their arguments (printf() read past them).
-AZ_UNZIP_FIXES_OPENBSD=	patch-explode_c \
+AZSUPPORT_UNZIP_FIXES_OPENBSD=	patch-explode_c \
 			patch-inflate_c
 
 post-patch:
-.for p in ${AZ_UNZIP_FIXES}
+.for p in ${AZSUPPORT_UNZIP_FIXES}
 	@${PATCH} -d ${WRKSRC} -p1 -s -f < ${.CURDIR}/files/fedora/${p}
 .endfor
-.for p in ${AZ_UNZIP_FIXES_DEBIAN}
+.for p in ${AZSUPPORT_UNZIP_FIXES_DEBIAN}
 	@${PATCH} -d ${WRKSRC} -p1 -s -f < ${.CURDIR}/files/debian/${p}
 .endfor
-.for p in ${AZ_UNZIP_FIXES_OPENBSD}
+.for p in ${AZSUPPORT_UNZIP_FIXES_OPENBSD}
 	@${PATCH} -d ${WRKSRC} -p0 -s -f < ${.CURDIR}/files/openbsd/${p}
 .endfor
 	@${PATCH} -d ${WRKSRC} -p1 -s -f < ${.CURDIR}/files/cve-2014-8139-pkvms.patch
 	@${PATCH} -d ${WRKSRC} -p1 -s -f < ${.CURDIR}/files/zipinfo-usage.patch
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

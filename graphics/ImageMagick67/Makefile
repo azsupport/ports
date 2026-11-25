@@ -2,14 +2,14 @@
 # one package (aZ, 14.11.2026), as ImageMagick6 and ImageMagick7 were side by side
 # before: ImageMagick 7 as in graphics/ImageMagick7 (bin/magick and the usual names
 # linked to it), ImageMagick 6 as in graphics/ImageMagick6 with a 6 at the end of the
-# name of every program (convert6, identify6, mogrify6, composite6...: AZ_IM6_SUFFIX=6
+# name of every program (convert6, identify6, mogrify6, composite6...: AZSUPPORT_IM6_SUFFIX=6
 # of tools/imagemagick-build.sh). Their libraries, headers, configuration and
 # policy are the packages libimagemagick6 and libimagemagick7, which it depends on;
 # the conf and the policy of graphics/ImageMagick7/files, the patches of
 # graphics/ImageMagick6/files. It conflicts with ImageMagick6 and ImageMagick7 (their
 # programs). The script builds each ImageMagick into a stage of its own (it starts
 # the stage of the one it builds anew); the package has the programs of both
-# (AZ_IM_PART=bin).
+# (AZSUPPORT_IM_PART=bin).
 
 PORTNAME=	ImageMagick
 IM6_VERSION=	6.9.13-61
@@ -37,13 +37,13 @@ LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 
 # the programs run with the libraries of libimagemagick6 and libimagemagick7 (also
 # when the build checks them)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az \
-		${AZ_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6 \
-		${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/libimagemagick7
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libheif.so:az/az \
-		${AZ_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6 \
-		${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/libimagemagick7
-AZ_HASH_LIBS=	fontconfig freetype2 lcms2 mozjpeg png webp
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6 \
+		${AZSUPPORT_PREFIX}/lib/libMagickWand-7.so:graphics/libimagemagick7
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6 \
+		${AZSUPPORT_PREFIX}/lib/libMagickWand-7.so:graphics/libimagemagick7
+AZSUPPORT_HASH_LIBS=	fontconfig freetype2 lcms2 mozjpeg png webp
 
 USES=		gmake perl5 pkgconfig
 USE_PERL5=	build
@@ -56,33 +56,33 @@ CONFLICTS_INSTALL=	ImageMagick6 ImageMagick6-nox11 ImageMagick7 \
 NO_WRKSUBDIR=	yes
 EXTRACT_ONLY=
 
-.include "${.CURDIR:H:H}/az/az/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
 
-AZ_IM_ENV=	AZ_IM_CONF=${.CURDIR:H}/ImageMagick7/files/imagemagick.conf AZ_IM_PART=bin
+AZSUPPORT_IM_ENV=	AZSUPPORT_IM_CONF=${.CURDIR:H}/ImageMagick7/files/imagemagick.conf AZSUPPORT_IM_PART=bin
 # what tools/imagemagick-build.sh reads of the other ports: the conf and the policy
-# of graphics/ImageMagick7, the patches of graphics/ImageMagick6 (in its az_hash,
+# of graphics/ImageMagick7, the patches of graphics/ImageMagick6 (in its azsupport_hash,
 # tools/build.sh, so that a change of them builds it again)
-AZ_HASH_FILES=	${.CURDIR:H}/ImageMagick6/files \
+AZSUPPORT_HASH_FILES=	${.CURDIR:H}/ImageMagick6/files \
 		${.CURDIR:H}/ImageMagick7/files
 
 post-fetch:
 .for im in imagemagick6 imagemagick7
-	@${SETENV} ${AZ_ENV} ${AZ_IM_ENV} ${SH} ${AZ_TOOLS}/imagemagick-build.sh --fetch ${im}
+	@${SETENV} ${AZSUPPORT_ENV} ${AZSUPPORT_IM_ENV} ${SH} ${AZSUPPORT_TOOLS}/imagemagick-build.sh --fetch ${im}
 .endfor
 
 do-build:
-	@cd ${WRKDIR} && ${SETENV} ${AZ_ENV} ${AZ_IM_ENV} AZ_STAGEDIR=${AZ_STAGEDIR}6 \
-		AZ_IM6_SUFFIX=6 ${SH} ${AZ_TOOLS}/imagemagick-build.sh imagemagick6
-	@cd ${WRKDIR} && ${SETENV} ${AZ_ENV} ${AZ_IM_ENV} AZ_STAGEDIR=${AZ_STAGEDIR}7 \
-		${SH} ${AZ_TOOLS}/imagemagick-build.sh imagemagick7
+	@cd ${WRKDIR} && ${SETENV} ${AZSUPPORT_ENV} ${AZSUPPORT_IM_ENV} AZSUPPORT_STAGEDIR=${AZSUPPORT_STAGEDIR}6 \
+		AZSUPPORT_IM6_SUFFIX=6 ${SH} ${AZSUPPORT_TOOLS}/imagemagick-build.sh imagemagick6
+	@cd ${WRKDIR} && ${SETENV} ${AZSUPPORT_ENV} ${AZSUPPORT_IM_ENV} AZSUPPORT_STAGEDIR=${AZSUPPORT_STAGEDIR}7 \
+		${SH} ${AZSUPPORT_TOOLS}/imagemagick-build.sh imagemagick7
 
 do-install:
 	@${MKDIR} ${STAGEDIR}
 .for v in 6 7
-	@(cd ${AZ_STAGEDIR}${v} && ${TAR} -cf - .) | (cd ${STAGEDIR} && ${TAR} -xpf -)
+	@(cd ${AZSUPPORT_STAGEDIR}${v} && ${TAR} -cf - .) | (cd ${STAGEDIR} && ${TAR} -xpf -)
 .endfor
 
 post-install:
-	@${AZ_PLIST}
+	@${AZSUPPORT_PLIST}
 
 .include <bsd.port.mk>

@@ -4,8 +4,8 @@
 # in the place of the official one): bin/gm with only the formats of
 # graphics/GraphicsMagick/files/graphicsmagick.conf (see the head of that file
 # for which, why, and how the coders not registered take the place of a policy),
-# linking its shared libraries and those of the package az, /usr/local/az/lib
-# (installed: the port az/az first), with that run path: our ports link each
+# linking its shared libraries and those of the package azsupport, /usr/local/azsupport/lib
+# (installed: the port azsupport/azsupport first), with that run path: our ports link each
 # other's shared libraries (aZ, 10.11.2026). Written after
 # tools/imagemagick-build.sh (08.11.2026), which builds ImageMagick 7 the same way.
 #
@@ -13,50 +13,50 @@
 # do-build):
 #   sh tools/graphicsmagick-build.sh --tools    install the build tools (pkg)
 #   sh tools/graphicsmagick-build.sh --fetch    fetch the distfiles of the official
-#                                               port into AZ_DISTDIR (its make fetch)
+#                                               port into AZSUPPORT_DISTDIR (its make fetch)
 #   sh tools/graphicsmagick-build.sh            build GraphicsMagick
 #
 # As tools/imagemagick-build.sh: the ports framework fetches the distfiles of the
-# official port at the ports commit of az/az/files/deps.conf (the official tree
+# official port at the ports commit of azsupport/azsupport/files/deps.conf (the official tree
 # PORTSDIR, at that commit), checks them against its distinfo, extracts them and
 # applies the port's patches (make patch, with the libtool and autotools fixes of
 # its configure stage); then this script narrows the coders (the module lines of
 # the conf: the table of magick/static.c; the lowest coder class "primary",
 # magick/magick.c) and applies files/graphicsmagick-*.patch, if any. A copy of
 # that source is taken for the shared build. The static build, for a static
-# gmagick of PHP built on a server (--with-gmagick=AZ_PREFIX/static): configure
+# gmagick of PHP built on a server (--with-gmagick=AZSUPPORT_PREFIX/static): configure
 # with the prefix /usr/local and the configure lines of the conf,
-# --disable-shared --enable-static, against AZ_PREFIX/static (AZ_PREFIX: default
-# /usr/local/az), installed into a stage directory first; kept: the static
-# libraries, headers and .pc files in the static tree AZ_PREFIX/static
+# --disable-shared --enable-static, against AZSUPPORT_PREFIX/static (AZSUPPORT_PREFIX: default
+# /usr/local/azsupport), installed into a stage directory first; kept: the static
+# libraries, headers and .pc files in the static tree AZSUPPORT_PREFIX/static
 # (lib/libGraphicsMagick.a, lib/libGraphicsMagickWand.a, include/GraphicsMagick,
 # lib/pkgconfig), with bin/GraphicsMagick-config and bin/GraphicsMagickWand-config
 # printing the static link line, and the configuration they read,
 # /usr/local/lib/GraphicsMagick/ (type*.mgk, and the delegates.mgk of files/: no
 # delegate); not its gm. Then the package: the copy of the source with the same
 # options, --enable-shared --disable-static, against the shared libraries of
-# AZ_PREFIX (run path AZ_PREFIX/lib) and the base system, nothing of the static
+# AZSUPPORT_PREFIX (run path AZSUPPORT_PREFIX/lib) and the base system, nothing of the static
 # tree; the prefix stays /usr/local (the library reads share/GraphicsMagick of the
-# package), the libdir is AZ_PREFIX/lib (so it reads
-# AZ_PREFIX/lib/GraphicsMagick/config, with the same delegates.mgk). Into the stage
-# of the package (AZ_STAGEDIR, default AZ_WORK/stage/GraphicsMagick): bin/gm (PIE,
+# package), the libdir is AZSUPPORT_PREFIX/lib (so it reads
+# AZSUPPORT_PREFIX/lib/GraphicsMagick/config, with the same delegates.mgk). Into the stage
+# of the package (AZSUPPORT_STAGEDIR, default AZSUPPORT_WORK/stage/GraphicsMagick): bin/gm (PIE,
 # RELRO, BIND_NOW, stripped, linking the shared libraries), share/GraphicsMagick/
 # (colors.mgk, log.mgk, modules.mgk), share/licenses/GraphicsMagick/,
-# share/doc/GraphicsMagick/VERSIONS of /usr/local, and in AZ_PREFIX
+# share/doc/GraphicsMagick/VERSIONS of /usr/local, and in AZSUPPORT_PREFIX
 # lib/libGraphicsMagick.so*, lib/libGraphicsMagickWand.so*, lib/GraphicsMagick/,
 # lib/pkgconfig/GraphicsMagick.pc and GraphicsMagickWand.pc, include/GraphicsMagick,
-# bin/GraphicsMagick-config and bin/GraphicsMagickWand-config (--prefix AZ_PREFIX,
+# bin/GraphicsMagick-config and bin/GraphicsMagickWand-config (--prefix AZSUPPORT_PREFIX,
 # the link line with the run path), for gmagick of the PHP packages
-# (--with-gmagick=AZ_PREFIX), which links the same libraries. No Magick++, no
-# manual pages. The work directory is AZ_WORK/graphicsmagick (default
-# /var/tmp/az-work/graphicsmagick). Results go to AZ_RESULTS (default
+# (--with-gmagick=AZSUPPORT_PREFIX), which links the same libraries. No Magick++, no
+# manual pages. The work directory is AZSUPPORT_WORK/graphicsmagick (default
+# /var/tmp/azsupport-work/graphicsmagick). Results go to AZSUPPORT_RESULTS (default
 # graphicsmagick-results/ of the current directory: summary.txt, the log,
 # VERSIONS, formats.txt, bins.txt, shared.txt); the summary is printed at the end.
 # tools/graphicsmagick-test.sh tests it, once installed.
 #
 # Compiler flags as for the libraries and ImageMagick: CPUTYPE and CFLAGS of
 # /etc/make.conf with -fstack-protector-strong, -fno-strict-aliasing and -fPIC;
-# AZ_CPUTYPE and AZ_CFLAGS win over make.conf (MAKE_CONF, default
+# AZSUPPORT_CPUTYPE and AZSUPPORT_CFLAGS win over make.conf (MAKE_CONF, default
 # /etc/make.conf); without either: x86-64-v3 and -O3 -pipe.
 #
 # Exit status: 0 built and checked, 1 the build or a check failed, the libraries
@@ -71,19 +71,19 @@ set -u
 # was built (ld: undefined symbol ff_bwdif_init_x86 ..., 08.11.2026).
 unset MAKEFLAGS MFLAGS MAKELEVEL __MKLVL__
 tools="$(cd "$(dirname "$0")" && pwd)"
-conf="${AZ_GM_CONF:-$tools/../graphics/GraphicsMagick/files/graphicsmagick.conf}"
+conf="${AZSUPPORT_GM_CONF:-$tools/../graphics/GraphicsMagick/files/graphicsmagick.conf}"
 files="$(dirname "$conf")"
-deps_conf="${AZ_DEPS_CONF:-$tools/../az/az/files/deps.conf}"
-A="${AZ_PREFIX:-/usr/local/az}"
+deps_conf="${AZSUPPORT_DEPS_CONF:-$tools/../azsupport/azsupport/files/deps.conf}"
+A="${AZSUPPORT_PREFIX:-/usr/local/azsupport}"
 # the static tree (gm and the static libraries); the shared libraries are those of $A
 S="$A/static"
 I=/usr/local
-work="${AZ_WORK:-/var/tmp/az-work}/graphicsmagick"
-root="${AZ_STAGEDIR:-${AZ_WORK:-/var/tmp/az-work}/stage/GraphicsMagick}"
-res="${AZ_RESULTS:-$(pwd)/graphicsmagick-results}"
+work="${AZSUPPORT_WORK:-/var/tmp/azsupport-work}/graphicsmagick"
+root="${AZSUPPORT_STAGEDIR:-${AZSUPPORT_WORK:-/var/tmp/azsupport-work}/stage/GraphicsMagick}"
+res="${AZSUPPORT_RESULTS:-$(pwd)/graphicsmagick-results}"
 ports="${PORTSDIR:-/usr/ports}"
-distdir="${AZ_DISTDIR:-$work/distfiles}"
-takedist="${AZ_TAKE_DISTFILES:-$(pwd)/distfiles}"
+distdir="${AZSUPPORT_DISTDIR:-$work/distfiles}"
+takedist="${AZSUPPORT_TAKE_DISTFILES:-$(pwd)/distfiles}"
 ncpu="$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 major="$(uname -r | cut -d. -f1)"
 
@@ -95,8 +95,8 @@ if [ "${1:-}" = "--tools" ]; then
     for t in $pkgs; do pkg info -e "$t" || echo "graphicsmagick-build: package $t is not installed"; done
     exit $rc
 fi
-[ -f "$conf" ] || { echo "graphicsmagick-build: no $conf (AZ_GM_CONF: graphicsmagick.conf of graphics/GraphicsMagick/files)" >&2; exit 2; }
-[ -f "$deps_conf" ] || { echo "graphicsmagick-build: no $deps_conf (AZ_DEPS_CONF: deps.conf of the port az/az)" >&2; exit 2; }
+[ -f "$conf" ] || { echo "graphicsmagick-build: no $conf (AZSUPPORT_GM_CONF: graphicsmagick.conf of graphics/GraphicsMagick/files)" >&2; exit 2; }
+[ -f "$deps_conf" ] || { echo "graphicsmagick-build: no $deps_conf (AZSUPPORT_DEPS_CONF: deps.conf of the port azsupport/azsupport)" >&2; exit 2; }
 
 say() { printf '[graphicsmagick-build %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
@@ -111,9 +111,9 @@ mc_get() {
     ' "$mk_conf"
 }
 
-cputype="${AZ_CPUTYPE:-$(mc_get CPUTYPE)}"
+cputype="${AZSUPPORT_CPUTYPE:-$(mc_get CPUTYPE)}"
 cputype="${cputype:-x86-64-v3}"
-opt="${AZ_CFLAGS:-$(mc_get CFLAGS)}"
+opt="${AZSUPPORT_CFLAGS:-$(mc_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 export CC=cc CXX=c++
@@ -130,7 +130,7 @@ export PKG_CONFIG="$work/bin/pkg-config"
 export PKG_CONFIG_LIBDIR="$S/lib/pkgconfig:/usr/libdata/pkgconfig"
 unset PKG_CONFIG_PATH
 export PATH="$work/bin:$PATH"
-# the libraries GraphicsMagick builds with, by their .pc names (as in the trees of az)
+# the libraries GraphicsMagick builds with, by their .pc names (as in the trees of azsupport)
 pcs="libjpeg libpng16 libwebp libheif freetype2 lcms2"
 
 ports_commit="$(awk '$1 == "ports" { print $2 }' "$deps_conf")"
@@ -141,7 +141,7 @@ take_of() { awk -v n="$1" '$1 == "take" && $2 == n { print $3, $4, $5, $6 }' "$c
 conf_opts() { awk -v k="$1" '$1 == k { for (i = 2; i <= NF; i++) print $i }' "$conf"; }
 
 # The official tree PORTSDIR has to be at the commit of deps.conf (as in
-# tools/az-build.sh); it is only read here, never changed.
+# tools/azsupport-build.sh); it is only read here, never changed.
 ports_check() {
     [ -f "$ports/Mk/bsd.port.mk" ] || { echo "graphicsmagick-build: no ports tree in $ports (PORTSDIR)" >&2; return 1; }
     h="$(git -C "$ports" rev-parse HEAD 2>/dev/null)"
@@ -170,7 +170,7 @@ fix_guess() {
 }
 
 # pc_add <file.pc> <Libs|Libs.private> <-lname>...: add to that line of a .pc file the
-# libraries it does not name yet (as in tools/az-build.sh)
+# libraries it does not name yet (as in tools/azsupport-build.sh)
 pc_add() {
     pc="$1"; field="$2"; shift 2
     [ -f "$pc" ] || return 0
@@ -278,7 +278,7 @@ b_gm_shared() {
     rm -rf "$sst"
     for pc in $pcs; do
         [ -f "$A/lib/pkgconfig/$pc.pc" ] ||
-            { echo "== shared: no $A/lib/pkgconfig/$pc.pc of the shared libraries (the package az)"; return 1; }
+            { echo "== shared: no $A/lib/pkgconfig/$pc.pc of the shared libraries (the package azsupport)"; return 1; }
     done
     echo "== shared libraries and gm: configure, gmake and gmake install-strip in $1"
     (
@@ -463,7 +463,7 @@ build_one() {
         # shellcheck disable=SC2086
         pmake "$port" $targs patch || { echo "make patch failed"; exit 1; }
         # what the configure stage of the framework fixes in the sources before
-        # configure, which make patch does not do (as in tools/az-build.sh): FreeBSD 1x
+        # configure, which make patch does not do (as in tools/azsupport-build.sh): FreeBSD 1x
         # taken for 1.x by old autotools, and the libtool fixes of USES=libtool
         for fx in run-autotools-fixup patch-libtool; do
             # shellcheck disable=SC2086
@@ -500,7 +500,7 @@ build_one() {
 }
 
 # The program: PIE, RELRO, BIND_NOW, the run path $A/lib, libraries of $A/lib (its
-# own in the stage, those of az) and of the base system only; its formats (gm
+# own in the stage, those of azsupport) and of the base system only; its formats (gm
 # convert -list format) only those of the format lines, with the main ones.
 check_bins() {
     f="$root$I/bin/gm"; sl="$root$A/lib"
@@ -591,7 +591,7 @@ manifest() {
     {
         echo "GraphicsMagick for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $CFLAGS"
-        echo "libraries: the shared ones of $A/lib (the package az, with that run path): mozjpeg, libpng, libwebp,"
+        echo "libraries: the shared ones of $A/lib (the package azsupport, with that run path): mozjpeg, libpng, libwebp,"
         echo "libheif (libde265, dav1d), FreeType, lcms2; the static libraries against the static ones of $S"
         echo
         while read -r n pkgname port; do
@@ -642,7 +642,7 @@ manifest() {
 
 mkdir -p "$res" "$work"
 [ -n "$gm_name" ] && [ -n "$gm_port" ] || { echo "graphicsmagick-build: no gm line in $conf" >&2; exit 2; }
-# --fetch: the distfiles of the official port, by its own make fetch into AZ_DISTDIR
+# --fetch: the distfiles of the official port, by its own make fetch into AZSUPPORT_DISTDIR
 # (the post-fetch of our port), so that the build needs no network
 if [ "${1:-}" = "--fetch" ]; then
     ports_check || exit 1
@@ -683,8 +683,8 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
 fi
 for pc in $pcs; do
     if [ ! -f "$S/lib/pkgconfig/$pc.pc" ]; then
-        printf '%-16s FAIL  no %s of the static libraries in %s/lib/pkgconfig: install the package az first (az/az)\n' libs "$pc" "$S" >> "$res/summary.txt"
-        echo "graphicsmagick-build: no $S/lib/pkgconfig/$pc.pc; install the package az first (the port az/az)" >&2
+        printf '%-16s FAIL  no %s of the static libraries in %s/lib/pkgconfig: install the package azsupport first (azsupport/azsupport)\n' libs "$pc" "$S" >> "$res/summary.txt"
+        echo "graphicsmagick-build: no $S/lib/pkgconfig/$pc.pc; install the package azsupport first (the port azsupport/azsupport)" >&2
         report
         exit 1
     fi

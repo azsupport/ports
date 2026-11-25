@@ -10,7 +10,7 @@
 PORTNAME=	yarn
 DISTVERSIONPREFIX=	v
 PORTVERSION=	1.22.19
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	www
 MASTER_SITES=	https://yarnpkg.com/downloads/${PORTVERSION}/
 # the package node18-yarn (aZ, 21.11.2026: the name with the version first, as php84)

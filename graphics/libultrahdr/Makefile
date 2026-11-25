@@ -2,14 +2,14 @@
 # graphics/libultrahdr, for the libvips of net-im/rocketchat8 (Ultra HDR JPEG; aZ,
 # 18.11.2026 16:02: «да конечно» — the libraries sharp needs that we do not have as
 # ports of this tree become ours, shared, with the options of sharp-libvips). The
-# official port on mozjpeg of az (not USES=jpeg), with what sharp-libvips sets: no
+# official port on mozjpeg of azsupport (not USES=jpeg), with what sharp-libvips sets: no
 # examples (ultrahdr_app), UHDR_ENABLE_HEIF off, the largest dimension 65500; the shared
 # library alone (no static one). LTO (aZ, 18.11.2026 12:29).
 
 PORTNAME=	libultrahdr
 PORTVERSION=	2.0.2
 DISTVERSIONPREFIX=	v
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	graphics
 
 MAINTAINER=	github@azsupport.com
@@ -46,15 +46,15 @@ CMAKE_ON=	BUILD_SHARED_LIBS \
 		UHDR_ENABLE_INSTALL \
 		UHDR_ENABLE_INTRINSICS \
 		UHDR_WRITE_ISO
-# the headers of mozjpeg of az alone (Mk/az-libs.mk), its library in az
+# the headers of mozjpeg of azsupport alone (Mk/azsupport-libs.mk), its library in azsupport
 CMAKE_ARGS=	-DUHDR_MAX_DIMENSION=65500 \
-		-DCMAKE_PREFIX_PATH=${WRKDIR}/az-libs \
-		-DCMAKE_LIBRARY_PATH=${AZ_PREFIX}/lib
+		-DCMAKE_PREFIX_PATH=${WRKDIR}/azsupport-libs \
+		-DCMAKE_LIBRARY_PATH=${AZSUPPORT_PREFIX}/lib
 
 PLIST_SUB=	PORTVERSION=${PORTVERSION}
 
-AZ_LIBS=	mozjpeg:libjpeg.so
-.include "${.CURDIR:H:H}/Mk/az-libs.mk"
+AZSUPPORT_LIBS=	mozjpeg:libjpeg.so
+.include "${.CURDIR:H:H}/Mk/azsupport-libs.mk"
 
 post-install:
 	@/usr/bin/readelf -d ${STAGEDIR}${PREFIX}/lib/libuhdr.so | ${GREP} -q 'NEEDED.*\[libjpeg\.' || \

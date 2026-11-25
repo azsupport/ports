@@ -3,7 +3,7 @@
 # 21.11.2026: «давай еще разделим php-cgi и php-fpm на отдельные порты и
 # соответственно phpXX-cgi phpXX-fpm и подредактируй название rc.d под новые названия
 # в php-fpm»; «тут тоже php84-»), built by this Makefile with the SAPI alone
-# (AZ_PHP_SAPI); this core has the CLI. What follows of the FPM is theirs.
+# (AZSUPPORT_PHP_SAPI); this core has the CLI. What follows of the FPM is theirs.
 #
 # PHP 7.4 of azsupport/php-src for the overlay azsupport/ports: the official
 # port lang/php74 of freebsd-ports 036685c034ba (the ports commit of PHP 7.4 in
@@ -17,14 +17,14 @@
 #   autoreconf). Of the official patches the fork leaves out (php-src
 #   freebsd/patches/7.4/SKIPPED) one hunk matters here, main/php_config.h
 #   including ext/php_config.h (patch-configure.ac): post-configure adds it.
-#   A new dated release of the same PHP version: AZ_PHP_RELEASE and distinfo.
-# - PORTREVISION is the stamp of the build, AZ_STAMP of the builder (0 without
+#   A new dated release of the same PHP version: AZSUPPORT_PHP_RELEASE and distinfo.
+# - PORTREVISION is the stamp of the build, AZSUPPORT_STAMP of the builder (0 without
 #   it; Mk/bsd.overlay.mk), so that every build is an upgrade; the modules take
 #   it from here.
 # - Versions side by side (aZ): every path of PHP 7.4 has 74 in it, nothing is
 #   shared with another version: bin/php74 ... (--program-suffix=74), etc/php74
 #   (php.ini by @sample from php.ini.sample: php.ini-production with the
-#   defaults of az, files/php.ini-az-74.in, at its end; errors in
+#   defaults of azsupport, files/php.ini-az-74.in, at its end; errors in
 #   /var/log/php74_error.log, made at install when missing; FPM with
 #   /var/run/php74-fpm.pid, /var/log/php74-fpm.log, the pool www on
 #   /var/run/php74-fpm.sock), the scan
@@ -33,8 +33,8 @@
 #   libexec/apache24/libphp74.so (www/mod_php74); the modules in
 #   lib/php/20190902 as the ports. So no CONFLICTS_INSTALL with the other
 #   versions (the modules set theirs in Makefile.ext).
-# - Libraries: libxml2 and argon2 of the package az (${AZ_PREFIX}), depended
-#   on by a file (no ldconfig hints for ${AZ_PREFIX}/lib: never LIB_DEPENDS),
+# - Libraries: libxml2 and argon2 of the package azsupport (${AZSUPPORT_PREFIX}), depended
+#   on by a file (no ldconfig hints for ${AZSUPPORT_PREFIX}/lib: never LIB_DEPENDS),
 #   linked with its run path and found by its pkg-config; PCRE2 the shared
 #   library of devel/pcre2 of this tree, not the one the fork bundles.
 # - Options: no MYSQLND (mysqlnd is the module php74-mysqlnd); EMBED and DTRACE
@@ -53,7 +53,7 @@
 #   and how no file needs a library of GCC at run time): the core, mod_php74
 #   and the modules (they take it from here), but those with C++ (intl, swoole,
 #   openswoole) and imagick and gmagick (OpenMP), which keep the base clang
-#   (AZ_GCC=no in their rules).
+#   (AZSUPPORT_GCC=no in their rules).
 # - No DEPRECATED/EXPIRATION_DATE: the fork carries the security fixes.
 # - The Apache module (PKGNAMEPREFIX mod_) with the idioms of the framework of
 #   f16b6dd (USES=apache before bsd.port.pre.mk, as lang/php84 there).
@@ -79,10 +79,10 @@
 
 PORTNAME=	php74
 DISTVERSION?=	7.4.33
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES?=	lang devel www
-MASTER_SITES=	https://github.com/azsupport/php-src/releases/download/freebsd-7.4-${AZ_PHP_RELEASE}/
-DISTNAME=	php-7.4.33-fbsd-${AZ_PHP_RELEASE}
+MASTER_SITES=	https://github.com/azsupport/php-src/releases/download/freebsd-7.4-${AZSUPPORT_PHP_RELEASE}/
+DISTNAME=	php-7.4.33-fbsd-${AZSUPPORT_PHP_RELEASE}
 DIST_SUBDIR=	php
 
 MAINTAINER=	github@azsupport.com
@@ -99,22 +99,22 @@ NO_OPTIONS_SORT=yes
 
 # the dated release of the fork: its tag freebsd-7.4-<date>-<commit>; DISTNAME
 # without DISTVERSION, which the slaves of PECL extensions set to their version
-AZ_PHP_RELEASE=	20261124-9a0a020f
+AZSUPPORT_PHP_RELEASE=	20261124-9a0a020f
 
 # the files of this port that the ports needing it need not see (tools/build.sh):
 # they are installed and used at run time only (post-install, USE_RC_SUBR,
 # SUB_FILES of the core) and no module or mod_php74 build reads them, so a change
 # of one builds php74 again, not the modules and mod_php74 (the slaves of this
-# Makefile leave them out of their az_hash too): the block of az for php.ini,
+# Makefile leave them out of their azsupport_hash too): the block of azsupport for php.ini,
 # bin/php74-profile and pkg-message
-AZ_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-74.in ${MASTERDIR}/files/php-profile.in \
+AZSUPPORT_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-74.in ${MASTERDIR}/files/php-profile.in \
 				${MASTERDIR}/files/pkg-message.in
 
 .if !defined(PKGNAMESUFFIX)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
-		${AZ_PREFIX}/lib/libxml2.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libargon2.so:az/az \
-		${AZ_PREFIX}/lib/libxml2.so:az/az
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
 
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS+=--with-layout=GNU \
@@ -122,22 +122,22 @@ CONFIGURE_ARGS+=--with-layout=GNU \
 		--with-config-file-scan-dir=${PREFIX}/etc/php74/conf.d \
 		--disable-all \
 		--with-libxml \
-		--with-password-argon2=${AZ_PREFIX} \
+		--with-password-argon2=${AZSUPPORT_PREFIX} \
 		--program-prefix="" \
 		--program-suffix=74 \
 		--sysconfdir=${PREFIX}/etc/php74 \
 		--libdir=${PREFIX}/lib/php74 \
 		--includedir=${PREFIX}/include/php74 \
 		--datadir=${PREFIX}/share/php74
-CONFIGURE_ENV=	CPPFLAGS="-I${AZ_PREFIX}/include" \
+CONFIGURE_ENV=	CPPFLAGS="-I${AZSUPPORT_PREFIX}/include" \
 		EXTENSION_DIR=${PREFIX}/lib/php/${PHP_EXT_DIR}
-LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+LDFLAGS+=	-L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 # PCRE2: the shared library of devel/pcre2 of this tree, not the one the fork
 # bundles (aZ, 10.11.2026: our ports link each other's shared libraries; one PCRE2
 # for PHP, Apache, git, nginx): --with-external-pcre, its flags by hand (the
-# pkg-config of the core is that of az): pcre2.h and libpcre2-8.so alone in a
+# pkg-config of the core is that of azsupport): pcre2.h and libpcre2-8.so alone in a
 # directory of the work (links to those of /usr/local: no other header or library
-# of /usr/local is seen; pre-configure), -lpcre2-8 by its -L after that of az; no
+# of /usr/local is seen; pre-configure), -lpcre2-8 by its -L after that of azsupport; no
 # run path, libpcre2-8.so.0 is in /usr/local/lib, one of ldconfig. The modules find pcre2.h next to
 # php_pcre.h, which includes it ("pcre2.h"): the link ext/pcre/pcre2.h of the
 # headers (post-install)
@@ -217,11 +217,11 @@ SHORTMODNAME=	php7
 WARNING=	"!!! If you have a threaded Apache, you must build ${PHP_PORT} with ZTS support to enable thread-safety in extensions !!!"
 .endif
 
-# the FPM and the CGI of the version, www/php74-fpm and www/php74-cgi (AZ_PHP_SAPI):
+# the FPM and the CGI of the version, www/php74-fpm and www/php74-cgi (AZSUPPORT_PHP_SAPI):
 # the SAPI alone, with etc/php74 and the modules of php74
-.if defined(AZ_PHP_SAPI)
+.if defined(AZSUPPORT_PHP_SAPI)
 RUN_DEPENDS+=	${LOCALBASE}/include/php74/php/main/php.h:lang/php74
-.  if ${AZ_PHP_SAPI} == fpm
+.  if ${AZSUPPORT_PHP_SAPI} == fpm
 COMMENT=	FastCGI Process Manager of PHP (7.4.X branch of azsupport/php-src)
 SUB_FILES+=	pkg-message
 SUB_LIST+=	PHP_VER=${PHP_VER}
@@ -249,10 +249,10 @@ PLIST_SUB+=	SAPI_INC="@comment "
 CONFIGURE_ENV+=	ac_cv_decimal_fp_supported="no" \
 		lt_cv_path_SED="sed"
 
-# the pkg-config of the package az (it runs pkgconf of USES=pkgconfig with the
-# .pc files of ${AZ_PREFIX} first): after USES=pkgconfig added PKG_CONFIG=pkgconf
+# the pkg-config of the package azsupport (it runs pkgconf of USES=pkgconfig with the
+# .pc files of ${AZSUPPORT_PREFIX} first): after USES=pkgconfig added PKG_CONFIG=pkgconf
 # to CONFIGURE_ENV, so that this one, the last, is the one configure gets
-CONFIGURE_ENV+=	PKG_CONFIG=${AZ_PREFIX}/bin/pkg-config
+CONFIGURE_ENV+=	PKG_CONFIG=${AZSUPPORT_PREFIX}/bin/pkg-config
 
 post-patch:
 	@${TOUCH} ${WRKSRC}/ext/php_config.h
@@ -283,7 +283,7 @@ pre-configure:
 post-configure:
 	@${ECHO_CMD} '#include <ext/php_config.h>' >> ${WRKSRC}/main/php_config.h
 
-.if !defined(PKGNAMEPREFIX) && !defined(AZ_PHP_SAPI)
+.if !defined(PKGNAMEPREFIX) && !defined(AZSUPPORT_PHP_SAPI)
 post-build:
 	@${ECHO_CMD} "PHP_VER=74" > ${WRKDIR}/php.conf
 	@${ECHO_CMD} "PHP_VERSION=${PORTVERSION}" >> ${WRKDIR}/php.conf
@@ -295,7 +295,7 @@ post-build:
 test: build
 	@(cd ${WRKSRC} && ${MAKE} test)
 
-# bin/php74-profile, the pkg-message (profiles, php.ini) and the block of az
+# bin/php74-profile, the pkg-message (profiles, php.ini) and the block of azsupport
 # for php.ini, from templates (PHP_VER; the block one file per version); in
 # files/, so that the modules do not take the message
 PHP_VER=	74
@@ -304,7 +304,7 @@ SUB_LIST+=	PHP_VER=${PHP_VER}
 
 # etc/php74: php.conf (the version for Mk/Uses/php.mk), php.ini-development,
 # php.ini-production and php.ini.sample (php.ini-production with the block of
-# az at its end; php.ini by @sample); the empty directories of the modules: the
+# azsupport at its end; php.ini by @sample); the empty directories of the modules: the
 # scan dir etc/php74/conf.d and lib/php/20190902 (@dir)
 post-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/etc/php74/conf.d \
@@ -327,10 +327,10 @@ post-install-EMBED-on:
 
 post-install-PHPDBG-on:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/phpdbg${PHP_VER}
-.elif defined(AZ_PHP_SAPI)
+.elif defined(AZSUPPORT_PHP_SAPI)
 # the SAPI alone: sbin/php74-fpm with its configuration and status page, or
 # bin/php74-cgi
-.  if ${AZ_PHP_SAPI} == fpm
+.  if ${AZSUPPORT_PHP_SAPI} == fpm
 do-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/sbin ${STAGEDIR}${PREFIX}/etc/php${PHP_VER} \
 		${STAGEDIR}${PREFIX}/share/php${PHP_VER}/fpm

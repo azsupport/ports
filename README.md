@@ -1,7 +1,7 @@
 # azsupport/ports
 
 FreeBSD ports of aZ (azsupport.com): an overlay of the FreeBSD ports tree, from
-which the packages of his pkg repository **az** are built for his FreeBSD 15
+which the packages of his pkg repository **azsupport** are built for his FreeBSD 15
 servers (amd64), so that nothing is built on the servers.
 [README.ru.md](README.ru.md): the same in Russian.
 
@@ -9,7 +9,7 @@ servers (amd64), so that nothing is built on the servers.
 - [The packages](#the-packages)
 - [The ports](#the-ports)
 - [The layout of PHP on a server](#the-layout-of-php-on-a-server)
-- [A server and the repository az](#a-server-and-the-repository-az)
+- [A server and the repository azsupport](#a-server-and-the-repository-azsupport)
 - [How it is built](#how-it-is-built)
 - [The rules of the ports](#the-rules-of-the-ports)
 
@@ -57,10 +57,10 @@ servers (amd64), so that nothing is built on the servers.
   `Zend/bench.php` and `micro_bench.php` run 33–44% faster with PHP 7.4 than with clang
   19, 36–38% with 8.3 without OPcache (5–15% with its JIT), and mod_php gets as much
   ([the benchmark](https://github.com/azsupport/php-src#benchmark-of-the-builds));
-  sqlite3, expat, lcms2 and xxhash of az, Python 3.12 and Redis 8.2 with GCC too ([The
+  sqlite3, expat, lcms2 and xxhash of azsupport, Python 3.12 and Redis 8.2 with GCC too ([The
   libraries and programs with GCC](#the-libraries-and-programs-with-gcc)).
 - PHP 5.6, 7.4, 8.1, 8.2, 8.3 and 8.4, for x86-64-v3 and x86-64-v2 (a CPU without
-  AVX2: the release `az-fbsd15-amd64-v2`).
+  AVX2: the release `azsupport-fbsd15-amd64-v2`).
 
 ## The packages
 
@@ -68,89 +68,89 @@ Names and origins as the ports, files at the paths of the ports:
 
 | Package | Origin | What |
 |---|---|---|
-| `az` | `az/az` | the libraries of the builds in `/usr/local/az`: `lib` (shared, with the run path `/usr/local/az/lib`, no ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`), which every package links; the static ones in `/usr/local/az/static` only for the special builds of `az-menu.sh`. OpenSSL, zlib and bzip2 are those of the base system |
-| `curl` | `ftp/curl` | `bin/curl` and `libcurl.so.4`, in the place of the package of the port, with SCP and SFTP (libssh2 of az, without the old algorithms of SSH: the MACs on MD5, 3DES, RC4, Blowfish, CAST; so are `ssh2` of PHP and the SFTP of `mc`); its `libcurl.so.4` is the libcurl of every package (the PHP module curl, git) |
-| `curl-impersonate` | `ftp/curl-impersonate` | curl-impersonate 2.3.2, built from source: `curl-impersonate` and the wrappers `curl_<browser>` (the TLS, HTTP/2 and HTTP/3 handshakes of Chrome, Edge, Firefox, Safari and Tor Browser), `libcurl-impersonate.so` (for `py-curl-cffi`; not the libcurl of the other packages); BoringSSL, nghttp2 1.63.0, nghttp3 and ngtcp2 inside it (patched by upstream for the browsers), c-ares, brotli, zstd, libidn2 (IDN) and libpsl (PSL) of az, zlib of the base system |
+| `azsupport` | `azsupport/azsupport` | the libraries of the builds in `/usr/local/azsupport`: `lib` (shared, with the run path `/usr/local/azsupport/lib`, no ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`), which every package links; the static ones in `/usr/local/azsupport/static` only for the special builds of `azsupport-menu.sh`. OpenSSL, zlib and bzip2 are those of the base system |
+| `curl` | `ftp/curl` | `bin/curl` and `libcurl.so.4`, in the place of the package of the port, with SCP and SFTP (libssh2 of azsupport, without the old algorithms of SSH: the MACs on MD5, 3DES, RC4, Blowfish, CAST; so are `ssh2` of PHP and the SFTP of `mc`); its `libcurl.so.4` is the libcurl of every package (the PHP module curl, git) |
+| `curl-impersonate` | `ftp/curl-impersonate` | curl-impersonate 2.3.2, built from source: `curl-impersonate` and the wrappers `curl_<browser>` (the TLS, HTTP/2 and HTTP/3 handshakes of Chrome, Edge, Firefox, Safari and Tor Browser), `libcurl-impersonate.so` (for `py-curl-cffi`; not the libcurl of the other packages); BoringSSL, nghttp2 1.63.0, nghttp3 and ngtcp2 inside it (patched by upstream for the browsers), c-ares, brotli, zstd, libidn2 (IDN) and libpsl (PSL) of azsupport, zlib of the base system |
 | `py312-curl-cffi` | `ftp/py-curl-cffi` | curl_cffi 0.17.0 for our `python312`, on the `libcurl-impersonate.so` of `curl-impersonate`: the impersonation of `yt-dlp` (`--impersonate`); the official port as it is |
 | `ffmpeg` | `multimedia/ffmpeg` | `ffmpeg` and `ffprobe` with only the formats the video sites need |
 | `ImageMagick6` | `graphics/ImageMagick6` | the programs of ImageMagick 6 by their usual names (`convert`, `identify`, ...); conflicts with `ImageMagick7` and `ImageMagick67` |
 | `ImageMagick7` | `graphics/ImageMagick7` | the programs of ImageMagick 7 (`magick` and the usual names linked to it); conflicts with `ImageMagick6` and `ImageMagick67` |
 | `ImageMagick67` | `graphics/ImageMagick67` | the programs of both: ImageMagick 7 as in `ImageMagick7` and ImageMagick 6 with 6 at the end (`convert6`, `identify6`, ...); conflicts with `ImageMagick6` and `ImageMagick7` |
-| `libimagemagick6` | `graphics/libimagemagick6` | the libraries of ImageMagick 6 (`libMagickCore-6`, `libMagickWand-6` in `/usr/local/az/lib`), their headers, `.pc` files, `MagickWand-config` (`/usr/local/az/libexec/ImageMagick-6/bin`) and `etc/ImageMagick-6` with our policy; a dependency of `ImageMagick6`, `ImageMagick67` and the module imagick6 |
-| `libimagemagick7` | `graphics/libimagemagick7` | the libraries of ImageMagick 7 (`libMagickCore-7.so`, `libMagickWand-7.so` in `/usr/local/az/lib`), their headers, `.pc` files, `MagickWand-config` and static build, and `etc/ImageMagick-7` with our policy; a dependency of `ImageMagick7`, `ImageMagick67` and the module imagick7 |
-| `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) with the formats of our ImageMagick; its libraries in `/usr/local/az/lib`, which `gm` and the module gmagick link |
-| `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; the screen of S-Lang of az (the default of mc; no 200 ms of ESCDELAY of ncurses on an Esc), GLib of `glib`, libssh2 of az, PCRE2 of `pcre2`; zip, 7z, rar and ISO images through `tar` of the base system (the names of a zip of Windows in CP866); fixes of mc after 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), each with its source): the overflow of `%cd` with a long name in an archive, Reget spoiling the next files of a copy, the mouse with `TERM=xterm` (Gentoo) and a crash of a drag, the exit of the subshell on FreeBSD (NetBSD), the prompt of tcsh kept, a prompt with bytes not UTF-8, the descriptor of the subshell's pipe (Debian), "ls -l" lines with names of one byte (Alpine), ftp: reconnect after an idle timeout, the password of `~/.netrc`; copies that clone the blocks on ZFS (`copy_file_range`, upstream #5082); ours: none of mc's own lines (its cd, its init, the user menu) in the history of a tcsh subshell |
+| `libimagemagick6` | `graphics/libimagemagick6` | the libraries of ImageMagick 6 (`libMagickCore-6`, `libMagickWand-6` in `/usr/local/azsupport/lib`), their headers, `.pc` files, `MagickWand-config` (`/usr/local/azsupport/libexec/ImageMagick-6/bin`) and `etc/ImageMagick-6` with our policy; a dependency of `ImageMagick6`, `ImageMagick67` and the module imagick6 |
+| `libimagemagick7` | `graphics/libimagemagick7` | the libraries of ImageMagick 7 (`libMagickCore-7.so`, `libMagickWand-7.so` in `/usr/local/azsupport/lib`), their headers, `.pc` files, `MagickWand-config` and static build, and `etc/ImageMagick-7` with our policy; a dependency of `ImageMagick7`, `ImageMagick67` and the module imagick7 |
+| `GraphicsMagick` | `graphics/GraphicsMagick` | GraphicsMagick (`gm`) with the formats of our ImageMagick; its libraries in `/usr/local/azsupport/lib`, which `gm` and the module gmagick link |
+| `mc` | `misc/mc` | Midnight Commander: the editor, the subshell, the charsets, SFTP; the screen of S-Lang of azsupport (the default of mc; no 200 ms of ESCDELAY of ncurses on an Esc), GLib of `glib`, libssh2 of azsupport, PCRE2 of `pcre2`; zip, 7z, rar and ISO images through `tar` of the base system (the names of a zip of Windows in CP866); fixes of mc after 4.8.33 ([`misc/mc/files/*.patch`](misc/mc/files), each with its source): the overflow of `%cd` with a long name in an archive, Reget spoiling the next files of a copy, the mouse with `TERM=xterm` (Gentoo) and a crash of a drag, the exit of the subshell on FreeBSD (NetBSD), the prompt of tcsh kept, a prompt with bytes not UTF-8, the descriptor of the subshell's pipe (Debian), "ls -l" lines with names of one byte (Alpine), ftp: reconnect after an idle timeout, the password of `~/.netrc`; copies that clone the blocks on ZFS (`copy_file_range`, upstream #5082); ours: none of mc's own lines (its cd, its init, the user menu) in the history of a tcsh subshell |
 | `pcre2`, `pcre` | `devel/pcre2`, `devel/pcre` | PCRE2 10.49 and PCRE 8.45, the official ports: the PCRE of every package (PHP, Apache, git, wget, mc, MariaDB; nginx later) |
 | `git` | `devel/git` | git without Perl, Python, Tcl/Tk, gettext, the manual pages and git daemon; HTTPS through our `curl`, `git grep -P` with `pcre2` |
-| `apache24`, `apache24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi, env and headers too), no SSL; APR and libmaxminddb of az |
-| `apache24-mod_fastcgi` | `www/mod_fastcgi` | the FastCGI module of our Apache 2.4 (aZ, 19.11.2026): the official port as it is ([`Mk/az-official.mk`](Mk/az-official.mk)) |
+| `apache24`, `apache24-mod_maxminddb` | `www/apache24`, `www/mod_maxminddb` | Apache 2.4 with prefork only and the modules of the servers (cgi, env and headers too), no SSL; APR and libmaxminddb of azsupport |
+| `apache24-mod_fastcgi` | `www/mod_fastcgi` | the FastCGI module of our Apache 2.4 (aZ, 19.11.2026): the official port as it is ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)) |
 | `apache24-suexec` | `www/apache24-suexec` | suexec of our Apache 2.4 apart from it, for the one server that runs the CGI and FastCGI programs of its sites as their users (aZ, 19.11.2026): `libexec/apache24/mod_suexec.so` and `sbin/suexec` (setuid root, only the user `www` may run it) of the same Apache built with SUEXEC, on the httpd of `apache24`; the docroot `/var/www`, the rest the defaults of the ports |
-| `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached without TLS, SASL and DTrace, libevent of az; the variant with TLS; one of the two |
-| `gearmand`, `gearmand-openssl`, `libgearman` | `devel/gearmand`, `devel/gearmand-openssl`, `devel/libgearman` | Gearman 2.2.0 with the fixes of master after it: the job server gearmand (the persistent queue in SQLite of az; libevent of az), its variant with TLS, one of the two; libgearman (the client library, with TLS) and the tools gearman and gearadmin, which the servers and the modules `phpXY-gearman` take |
+| `memcached`, `memcached-openssl` | `databases/memcached`, `databases/memcached-openssl` | memcached without TLS, SASL and DTrace, libevent of azsupport; the variant with TLS; one of the two |
+| `gearmand`, `gearmand-openssl`, `libgearman` | `devel/gearmand`, `devel/gearmand-openssl`, `devel/libgearman` | Gearman 2.2.0 with the fixes of master after it: the job server gearmand (the persistent queue in SQLite of azsupport; libevent of azsupport), its variant with TLS, one of the two; libgearman (the client library, with TLS) and the tools gearman and gearadmin, which the servers and the modules `phpXY-gearman` take |
 | `mariadb1011-server`, `mariadb1011-client` | `databases/mariadb1011-server`, `databases/mariadb1011-client` | MariaDB 10.11.20 (ahead of the official 10.11.19): of the engines of the options InnoDB only, no GSSAPI; the socket `/tmp/mysql.sock` compiled in and in `my.cnf` |
-| `postgresql18-server`, `postgresql18-client`, `postgresql18-contrib` and their `-openssl` | `databases/postgresql18-server`, `-server-openssl`, `-client`, `-client-openssl`, `-contrib`, `-contrib-openssl` | PostgreSQL 18.7 in two chains, one of each component: without OpenSSL, and `-openssl` with that of the base system (pgcrypto and sslinfo only in `contrib-openssl`); the JIT of LLVM (`devel/llvm19`), ICU, LZ4, ZSTD, XML, `-O3 -funroll-loops`; no PAM, LDAP, GSSAPI, pl*, NLS, DTrace; the time zones of the base system; ICU, lz4, zstd, libxml2 and libxslt of az, libedit of the base system for psql |
+| `postgresql18-server`, `postgresql18-client`, `postgresql18-contrib` and their `-openssl` | `databases/postgresql18-server`, `-server-openssl`, `-client`, `-client-openssl`, `-contrib`, `-contrib-openssl` | PostgreSQL 18.7 in two chains, one of each component: without OpenSSL, and `-openssl` with that of the base system (pgcrypto and sslinfo only in `contrib-openssl`); the JIT of LLVM (`devel/llvm19`), ICU, LZ4, ZSTD, XML, `-O3 -funroll-loops`; no PAM, LDAP, GSSAPI, pl*, NLS, DTrace; the time zones of the base system; ICU, lz4, zstd, libxml2 and libxslt of azsupport, libedit of the base system for psql |
 | `llvm19` | `devel/llvm19` | LLVM 19.1.7 for the JIT of PostgreSQL: the backend of X86 and clang only (no lld, lldb, MLIR, OpenMP, Polly, Flang, compiler-rt, extra tools), libLLVM whole with its optimization, Release; no zstd |
 | `gcc16`, `gcc16-libs` | `lang/gcc16`, `lang/gcc16-libs` | GCC 16.2.0 (the official port is at 16.1.0), C and C++ only, in two packages: `gcc16-libs` the run-time libraries alone (`libgcc_s`, `libstdc++`, `libatomic`, `libgomp` in `lib/gcc16`, for `arcconf`), `gcc16` the compiler (needs `gcc16-libs` and the binutils of the ports): profiledbootstrap with LTO (bootstrap-lto-lean), Graphite, gmp, mpfr, mpc and isl built in; no Fortran, Objective-C, libgccjit, multilib, sanitizers, libitm, libquadmath, plugins, NLS; the CFLAGS of the build in every stage and library; the ports that build with GCC keep the official `gcc16` until the next full build |
 | `vsftpd-ext`, `vsftpd-ext-openssl` | `ftp/vsftpd-ext`, `ftp/vsftpd-ext-openssl` | vsftpd-ext with its rc.d script (its check of `/etc/inetd.conf` only where the file is there: a base without inetd has none), the fix of CVE-2021-3618 (ALPACA) of vsftpd 3.0.5, ours of CVE-2026-119567, CVE-2026-119568 and `deny_file`, and of Debian: `deny_file` by the real path (CVE-2015-1419), PAM modules that start processes, and of openSUSE: no stderr of a session on the FTP connection; the variant with SSL; one of the two |
 | `3proxy`, `3proxy-openssl` | `net/3proxy`, `net/3proxy-openssl` | 3proxy 0.9.9.3 of the LTS line, ahead of the official 0.9.5 for its security fixes, with the names and paths of the official port; PAM, PCRE2 of `pcre2`, no TLS; the variant with TLS; one of the two |
-| `postfix`, `postfix-mysql` | `mail/postfix`, `mail/postfix-mysql` | Postfix 3.11.7 with the options of aZ: EAI (SMTPUTF8, the ICU of az), PCRE2 of `pcre2`, TLS (the OpenSSL of the base system) and TLSRPT (`libtlsrpt`); no LMDB, CDB, blocklistd, LDAP, Cyrus SASL; the variant with the MySQL maps (the client of `mariadb1011-client`); one of the two; the package installs `/usr/local/etc/mail/mailer.conf` (Postfix for `sendmail`, `mailq` and `newaliases` of mailwrapper) when there is none, and leaves one that is there as it is (aZ, 19.11.2026) |
-| `dovecot`, `dovecot-mysql` | `mail/dovecot`, `mail/dovecot-mysql` | Dovecot 2.3.21.1, the branch 2.3 as long as upstream supports it, with the options of aZ: no GSSAPI, LDAP, libwrap, FTS, Lua, LZ4; zstd of az; the variant with the SQL driver of MySQL; one of the two; the security fixes after 2.3.21.1 of Ubuntu noble and RHEL 10 |
+| `postfix`, `postfix-mysql` | `mail/postfix`, `mail/postfix-mysql` | Postfix 3.11.7 with the options of aZ: EAI (SMTPUTF8, the ICU of azsupport), PCRE2 of `pcre2`, TLS (the OpenSSL of the base system) and TLSRPT (`libtlsrpt`); no LMDB, CDB, blocklistd, LDAP, Cyrus SASL; the variant with the MySQL maps (the client of `mariadb1011-client`); one of the two; the package installs `/usr/local/etc/mail/mailer.conf` (Postfix for `sendmail`, `mailq` and `newaliases` of mailwrapper) when there is none, and leaves one that is there as it is (aZ, 19.11.2026) |
+| `dovecot`, `dovecot-mysql` | `mail/dovecot`, `mail/dovecot-mysql` | Dovecot 2.3.21.1, the branch 2.3 as long as upstream supports it, with the options of aZ: no GSSAPI, LDAP, libwrap, FTS, Lua, LZ4; zstd of azsupport; the variant with the SQL driver of MySQL; one of the two; the security fixes after 2.3.21.1 of Ubuntu noble and RHEL 10 |
 | `redis82`, `redis82-openssl` | `databases/redis82`, `databases/redis82-openssl` | Redis 8.2.11 (the line of 8.x with the long support of upstream), without the modules: JEMALLOC on (its own jemalloc: active defragmentation), no TLS; the variant with TLS (the OpenSSL of the base system); one of the two; the configurations of aZ: `redis.conf.sample` (the main cache), `redis-session.conf.sample` (PHP sessions), on 127.0.0.1, without snapshots |
 | `mongodb80` | `databases/mongodb80` | MongoDB 8.0.38 Community (the database of Rocket.Chat 8): ThinLTO, `-O3` and the `-march` of the level, the AVX2 of SpiderMonkey by the level (no NOAVX), no debug symbols; the allocator of the system, no libunwind; OpenSSL of the base system, curl of `ftp/curl`; a build the time of a run stopped goes on in the next run (the disk cache of Bazel) |
 | `mongodb-tools` | `databases/mongodb-tools` | the MongoDB Database Tools 100.20.1: bsondump, mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat, mongotop; TLS on (crypto/tls of Go), SASL and docs off; GOAMD64 by the level, `-trimpath`, `-s -w` |
 | `nginx-devel`, `nginx-devel-stream`, `nginx-devel-image-filter`, `nginx-devel-lua`, `nginx-devel-stream-lua`, `nginx-devel-vts`, `nginx-devel-cache-purge`, `nginx-devel-testcookie`, `nginx-devel-dav`, `nginx-devel-dav-ext`, `nginx-devel-vod`, `nginx-devel-passenger` | `www/nginx-devel`, `www/nginx-devel-stream`, `www/nginx-devel-image-filter`, `www/nginx-devel-lua`, `www/nginx-devel-stream-lua`, `www/nginx-devel-vts`, `www/nginx-devel-cache-purge`, `www/nginx-devel-testcookie`, `www/nginx-devel-dav`, `www/nginx-devel-dav-ext`, `www/nginx-devel-vod`, `www/nginx-devel-passenger` | nginx 1.31.9 with brotli, headers-more and geoip2 built in (`--with-compat`); stream, image_filter, Lua (LuaJIT), VTS, cache_purge, testcookie, WebDAV (DAV, dav-ext), VOD (nginx-vod-module 1.11.2, HLS and DASH on the fly, without FFmpeg) and Phusion Passenger 6.2.2 (its agent of `ruby34-passenger-nginx`) as packages of their own (`load_module`) |
 | `lua51-vips`, `lua51-base64` | `graphics/lua51-vips`, `converters/lua51-base64` | lua-vips 1.1-12 and lbase64 1.5.3 for the LuaJIT of nginx (`share/lua/5.1`) |
-| `aria2`, `aria2-ssh2` | `www/aria2`, `www/aria2-ssh2` | aria2 1.37.0: Metalink and XML-RPC (libxml2 of az), asynchronous DNS (c-ares of az), BitTorrent, HTTPS (the OpenSSL of the base system), the event poll kqueue; no libuv, no SQLite (the cookies of the browsers), no NLS, no static build; SFTP (libssh2 of az) only in `aria2-ssh2`, one of the two |
+| `aria2`, `aria2-ssh2` | `www/aria2`, `www/aria2-ssh2` | aria2 1.37.0: Metalink and XML-RPC (libxml2 of azsupport), asynchronous DNS (c-ares of azsupport), BitTorrent, HTTPS (the OpenSSL of the base system), the event poll kqueue; no libuv, no SQLite (the cookies of the browsers), no NLS, no static build; SFTP (libssh2 of azsupport) only in `aria2-ssh2`, one of the two |
 | `php56-composer` … `php84-composer` | `devel/php56-composer` … `devel/php84-composer` | Composer 2.11.2 (for PHP 5.6 2.2.32, its LTS line) as `bin/composerXY`, which runs it with `bin/phpXY`: one for each PHP, side by side |
 | `bind920`, `bind-tools` | `dns/bind920`, `dns/bind-tools` | BIND 9.20: the DNS server `named` with TCP Fast Open, no GSSAPI, DNSTAP, LMDB and statistics channels; dig, host, nslookup, delv, nsupdate and the DNSSEC tools, with IDN |
 | `unbound` | `dns/unbound` | Unbound 1.26.2, the validating, recursive and caching DNS resolver, in the place of local_unbound of the base system (aZ, 20.11.2026): the resolver of the server itself, with ECDSA, libevent, threads and TCP Fast Open; the rc.d script unbound |
 | `vips` | `graphics/vips` | libvips 8.18 for the Lua scripts of nginx that convert images on the fly: JPEG (mozjpeg), PNG, WebP, HEIC (load), AVIF (load and save), GIF, with ICC profiles, EXIF and SIMD (Highway); `vips`, `vipsthumbnail`, `vipsheader`, `vipsedit` |
-| `glib`, `libexif`, `cgif`, `libimagequant`, `highway` | `devel/glib20`, `graphics/libexif`, `graphics/cgif`, `graphics/libimagequant`, `devel/highway` | the libraries of `vips` (GLib of `mc` too, libimagequant of the libgd of az too: LIQ, the palette of `imagegif()` and `imagetruecolortopalette()` of PHP 5.6 to 8.4; GPLv3 or later): GLib 2.88 shared, without introspection, NLS, documents and manual pages, on libffi, libintl and libiconv of az and PCRE2 of `pcre2`; the others the official ports as they are (libexif without NLS) |
+| `glib`, `libexif`, `cgif`, `libimagequant`, `highway` | `devel/glib20`, `graphics/libexif`, `graphics/cgif`, `graphics/libimagequant`, `devel/highway` | the libraries of `vips` (GLib of `mc` too, libimagequant of the libgd of azsupport too: LIQ, the palette of `imagegif()` and `imagetruecolortopalette()` of PHP 5.6 to 8.4; GPLv3 or later): GLib 2.88 shared, without introspection, NLS, documents and manual pages, on libffi, libintl and libiconv of azsupport and PCRE2 of `pcre2`; the others the official ports as they are (libexif without NLS) |
 | `rocketchat8` | `net-im/rocketchat8` | Rocket.Chat 8.9.1, the Meteor bundle on our node24 (`/usr/local/www/rocketchat8`, rc script `rocketchat8`, the user `rocketchat`), its npm modules checked against the advisory database of npm and fixed as aZ agreed, every native module built here (sharp on a libvips 8.18.7 of its own, static in it) |
 | `tiff`, `harfbuzz`, `fribidi`, `pixman`, `cairo`, `pango`, `librsvg2-rust`, `libultrahdr` | `graphics/tiff`, `print/harfbuzz`, `converters/fribidi`, `x11/pixman`, `graphics/cairo`, `x11-toolkits/pango`, `graphics/librsvg2-rust`, `graphics/libultrahdr` | the libraries of the libvips of sharp in `rocketchat8` that `vips` does not take (TIFF, text, SVG, Ultra HDR), shared, with the options of sharp-libvips: no X11, documents, NLS, tests, introspection, tools |
 | `dejavu` | `x11-fonts/dejavu` | the DejaVu fonts 2.37 (the letters of the avatars of `rocketchat8`, the text of ImageMagick and Java), as the official port: with its fc-cache and mkfontscale |
 | `qt-faststart` | `multimedia/qt-faststart` | qt-faststart (the moov atom of an MP4 first), back for compatibility: the official port expired on 30.06.2022 |
 | `yt-dlp` | `www/yt-dlp` | yt-dlp at the latest release of GitHub, not at the version of the official port (aZ, 12.11.2026): [`yt-dlp-update.yml`](.github/workflows/yt-dlp-update.yml) looks every 6 hours, takes a new release into the port by itself (and its `yt-dlp-ejs`, ours when the official port is behind), builds it and publishes it when nothing else differs from the release ([yt-dlp from GitHub](#yt-dlp-from-github)); with our `ffmpeg` and, by the option IMPERSONATE (on by default, aZ, 16.11.2026), our `py312-curl-cffi` for `--impersonate` |
-| `node24`, `node24-npm`, `node24-yarn`, `node24-corepack` | `www/node24`, `www/npm-node24`, `www/yarn-node24`, `www/corepack-node24` | Node.js 24.22.3 (for yt-dlp and Kibana 6; the security release of 11.11.2026, ahead of the official port at 24.22.2) with npm, Yarn 1 and corepack: `node` on brotli, c-ares, ICU, nghttp2, libuv, zstd and SQLite of az, the OpenSSL (with the CA store of the base system) and zlib of the base system and the libraries below; no DTrace; npm and Yarn the official ports as they are, corepack ours (node24-corepack: 0.36 runs on Node 22 and 24 only, Node 18 gets node18-corepack; one of the two) |
-| `node18`, `node18-npm`, `node18-yarn`, `node18-corepack` | `www/node18`, `www/npm-node18`, `www/yarn-node18`, `www/corepack-node18` | Node.js 18.20.8, the last 18.x (end of life since 30.04.2025), for a legacy project, back in the ports (the official port went on 2025-09-03), with npm 10.9.10 and corepack 0.33.0 (the last ones for Node 18) and Yarn 1.22.19 (that of `node24-yarn`): `node` on brotli, c-ares, ICU, nghttp2 and libuv of az, llhttp 9.4.3 of `www/llhttp` and the OpenSSL and zlib of the base system; the fixes of the vulnerabilities after the end of life as SUSE carries them for its nodejs18 18.20.8 (SLE 15 SP4 LTSS; with llhttp 9) and, backported, those of the Node.js 22 and 24 security releases of October and November 2026 (dns, http.Agent, tls.checkServerIdentity, https.Agent, zlib, crypto in startup snapshots; the fixes of the TLS and HTTP/2 code, for servers too; the eMudhra/emSign intermediates of compromised keys refused in every chain), with undici 6.29.1 of Node.js 22.23.4 in the place of 5.29.0 (the list, and what is left out and why, in `www/node18/Makefile`); npm with the fix of CVE-2026-9496 (that of pacote 21.5.1) in both its pacote and with brace-expansion 2.1.8, ip-address 10.7.6, picomatch 4.0.7 and postcss-selector-parser 7.1.8 of the npm registry in the place of the 2.0.2, 10.1.0, 4.0.3 and 7.1.1 it bundles (their 17 CVEs, and those of glob, minimatch and sigstore, not taken: fixed only in a new major version, in `www/npm-node18/Makefile`); one of `node18` and `node24`, with their npm, yarn and corepack (`pkg install node18 node18-npm node18-yarn` takes those of node24 away; not with `kibana6`, which needs node24) |
-| `libada`, `llhttp`, `nbytes`, `libnghttp3`, `libngtcp2`, `simdjson`, `uvwasi`, `hdr_histogram` | `devel/libada`, `www/llhttp`, `www/nbytes`, `www/libnghttp3`, `net/libngtcp2`, `devel/simdjson`, `devel/uvwasi`, `graphics/hdr_histogram` | the libraries that Node.js bundles, as ports of this tree (aZ, 11.11.2026): the official ports as they are, `uvwasi` ours on the libuv of az, `libada` ours: ada 4.1.1 ahead of the official 3.4.4 (aZ, 16.11.2026: 4.0.0, the one of Node.js 24.22.3; 22.11.2026: 4.1.1, its memory safety fixes) |
-| `python312`, `py312-sqlite3`, `mpdecimal`, `python3` | `lang/python312`, `databases/py-sqlite3`, `math/mpdecimal`, `lang/python3` | Python 3.12, the default Python of the ports tree, under the names of the official packages (aZ, 11.11.2026), so that the `py312-*` packages of the FreeBSD repository (those of yt-dlp) install over it and use it: the options of the official package (LTO, PYMALLOC, IPV6) but NLS (off, as everywhere: 16.11.2026), libffi, expat and readline of az, OpenSSL, ncurses, zlib, bzip2 and liblzma of the base system, libmpdec of `mpdecimal` (the official port as it is); its module sqlite3, `py312-sqlite3`, on the SQLite of az; no gdbm and tkinter; `python3` the official meta port as it is (`bin/python3` and the other links to Python 3.12) |
-| `ruby34`, `ruby34-gems`, `ruby34-rake`, `ruby34-etc`, `ruby34-logger`, `ruby34-rack`, `ruby34-rackup`, `ruby34-passenger-nginx` | `lang/ruby34`, `devel/ruby-gems`, `devel/rubygem-rake`, `devel/rubygem-etc`, `devel/rubygem-logger`, `www/rubygem-rack`, `www/rubygem-rackup`, `www/rubygem-passenger` | Ruby 3.4.13 (the fixes of Regexp and String of 18.11.2026, before the ports tree has it), the default Ruby of the ports tree, under the names of the official packages (aZ, 20.11.2026), ours: GMP and YJIT on, RDOC off, libffi, GMP and libyaml of az, no libunwind; RubyGems 4.0.24 and the gems Passenger needs, the official ports as they are; Phusion Passenger 6.2.2 for nginx (the agent of `nginx-devel-passenger`), ours: the flavor nginx alone, without APR, on the libcurl of our `curl` |
-| `erlang-runtime28`, `rabbitmq` | `lang/erlang-runtime28`, `net/rabbitmq` | RabbitMQ 4.4.1 on Erlang/OTP 28.5 (aZ, 20.11.2026): the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)), Erlang with KQUEUE, OPENSSL (the crypto of the base system) and SHARING, without CHUNKS, CORBA, SCTP, DTrace, Java, ODBC and WX |
+| `node24`, `node24-npm`, `node24-yarn`, `node24-corepack` | `www/node24`, `www/npm-node24`, `www/yarn-node24`, `www/corepack-node24` | Node.js 24.22.3 (for yt-dlp and Kibana 6; the security release of 11.11.2026, ahead of the official port at 24.22.2) with npm, Yarn 1 and corepack: `node` on brotli, c-ares, ICU, nghttp2, libuv, zstd and SQLite of azsupport, the OpenSSL (with the CA store of the base system) and zlib of the base system and the libraries below; no DTrace; npm and Yarn the official ports as they are, corepack ours (node24-corepack: 0.36 runs on Node 22 and 24 only, Node 18 gets node18-corepack; one of the two) |
+| `node18`, `node18-npm`, `node18-yarn`, `node18-corepack` | `www/node18`, `www/npm-node18`, `www/yarn-node18`, `www/corepack-node18` | Node.js 18.20.8, the last 18.x (end of life since 30.04.2025), for a legacy project, back in the ports (the official port went on 2025-09-03), with npm 10.9.10 and corepack 0.33.0 (the last ones for Node 18) and Yarn 1.22.19 (that of `node24-yarn`): `node` on brotli, c-ares, ICU, nghttp2 and libuv of azsupport, llhttp 9.4.3 of `www/llhttp` and the OpenSSL and zlib of the base system; the fixes of the vulnerabilities after the end of life as SUSE carries them for its nodejs18 18.20.8 (SLE 15 SP4 LTSS; with llhttp 9) and, backported, those of the Node.js 22 and 24 security releases of October and November 2026 (dns, http.Agent, tls.checkServerIdentity, https.Agent, zlib, crypto in startup snapshots; the fixes of the TLS and HTTP/2 code, for servers too; the eMudhra/emSign intermediates of compromised keys refused in every chain), with undici 6.29.1 of Node.js 22.23.4 in the place of 5.29.0 (the list, and what is left out and why, in `www/node18/Makefile`); npm with the fix of CVE-2026-9496 (that of pacote 21.5.1) in both its pacote and with brace-expansion 2.1.8, ip-address 10.7.6, picomatch 4.0.7 and postcss-selector-parser 7.1.8 of the npm registry in the place of the 2.0.2, 10.1.0, 4.0.3 and 7.1.1 it bundles (their 17 CVEs, and those of glob, minimatch and sigstore, not taken: fixed only in a new major version, in `www/npm-node18/Makefile`); one of `node18` and `node24`, with their npm, yarn and corepack (`pkg install node18 node18-npm node18-yarn` takes those of node24 away; not with `kibana6`, which needs node24) |
+| `libada`, `llhttp`, `nbytes`, `libnghttp3`, `libngtcp2`, `simdjson`, `uvwasi`, `hdr_histogram` | `devel/libada`, `www/llhttp`, `www/nbytes`, `www/libnghttp3`, `net/libngtcp2`, `devel/simdjson`, `devel/uvwasi`, `graphics/hdr_histogram` | the libraries that Node.js bundles, as ports of this tree (aZ, 11.11.2026): the official ports as they are, `uvwasi` ours on the libuv of azsupport, `libada` ours: ada 4.1.1 ahead of the official 3.4.4 (aZ, 16.11.2026: 4.0.0, the one of Node.js 24.22.3; 22.11.2026: 4.1.1, its memory safety fixes) |
+| `python312`, `py312-sqlite3`, `mpdecimal`, `python3` | `lang/python312`, `databases/py-sqlite3`, `math/mpdecimal`, `lang/python3` | Python 3.12, the default Python of the ports tree, under the names of the official packages (aZ, 11.11.2026), so that the `py312-*` packages of the FreeBSD repository (those of yt-dlp) install over it and use it: the options of the official package (LTO, PYMALLOC, IPV6) but NLS (off, as everywhere: 16.11.2026), libffi, expat and readline of azsupport, OpenSSL, ncurses, zlib, bzip2 and liblzma of the base system, libmpdec of `mpdecimal` (the official port as it is); its module sqlite3, `py312-sqlite3`, on the SQLite of azsupport; no gdbm and tkinter; `python3` the official meta port as it is (`bin/python3` and the other links to Python 3.12) |
+| `ruby34`, `ruby34-gems`, `ruby34-rake`, `ruby34-etc`, `ruby34-logger`, `ruby34-rack`, `ruby34-rackup`, `ruby34-passenger-nginx` | `lang/ruby34`, `devel/ruby-gems`, `devel/rubygem-rake`, `devel/rubygem-etc`, `devel/rubygem-logger`, `www/rubygem-rack`, `www/rubygem-rackup`, `www/rubygem-passenger` | Ruby 3.4.13 (the fixes of Regexp and String of 18.11.2026, before the ports tree has it), the default Ruby of the ports tree, under the names of the official packages (aZ, 20.11.2026), ours: GMP and YJIT on, RDOC off, libffi, GMP and libyaml of azsupport, no libunwind; RubyGems 4.0.24 and the gems Passenger needs, the official ports as they are; Phusion Passenger 6.2.2 for nginx (the agent of `nginx-devel-passenger`), ours: the flavor nginx alone, without APR, on the libcurl of our `curl` |
+| `erlang-runtime28`, `rabbitmq` | `lang/erlang-runtime28`, `net/rabbitmq` | RabbitMQ 4.4.1 on Erlang/OTP 28.5 (aZ, 20.11.2026): the official ports as they are ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)), Erlang with KQUEUE, OPENSSL (the crypto of the base system) and SHARING, without CHUNKS, CORBA, SCTP, DTrace, Java, ODBC and WX |
 | `procmail` | `mail/procmail` | procmail at the master of upstream (BuGlessRB/procmail at 8b379c4, 12.08.2026: v3.24 and the 13 commits after it, the hardening of its memory safety of 2026 among them; 3.24.20260812), the local delivery with its filters (aZ, 20.11.2026; the master: aZ, 21.11.2026), ours: of the patches of the official port for 3.22 those 3.24 still needs (paths, the build) |
 | `py312-pip`, `py312-wheel`, `py312-packaging`, `py312-supervisor` | `devel/py-pip`, `devel/py-wheel`, `devel/py-packaging`, `sysutils/py-supervisor` | for our `python312`: pip 26.3, ahead of the official 23.3.2 (CVE-2025-8869: its own unpacking of tar archives does not check where symbolic links point); wheel, packaging and supervisor, the official ports as they are |
-| `py312-spf-engine`, `py312-pyspf`, `py312-authres`, `py312-pymilter`, `py312-dnspython`, `libmilter` | `mail/py-spf-engine`, `mail/py-pyspf`, `mail/py-authres`, `mail/py-pymilter`, `dns/py-dnspython`, `mail/libmilter` | the SPF policy server of Postfix (`policyd-spf`) and `pyspf-milter` with what they need, on our `python312` (aZ, 19.11.2026): the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)), `py312-pymilter` on the libmilter of `mail/libmilter` (its default), not the one of a base system that may be built without sendmail |
-| `opendkim` | `mail/opendkim` | the DKIM milter of Postfix (aZ, 19.11.2026): the official port ([`Mk/az-official.mk`](Mk/az-official.mk)) with FILTER (the milter, rc.d `milter-opendkim`) on the libmilter of `mail/libmilter`, the stock resolver of the base system in the place of UNBOUND (no `unbound`), no LUA; the other options off, as in the official default |
+| `py312-spf-engine`, `py312-pyspf`, `py312-authres`, `py312-pymilter`, `py312-dnspython`, `libmilter` | `mail/py-spf-engine`, `mail/py-pyspf`, `mail/py-authres`, `mail/py-pymilter`, `dns/py-dnspython`, `mail/libmilter` | the SPF policy server of Postfix (`policyd-spf`) and `pyspf-milter` with what they need, on our `python312` (aZ, 19.11.2026): the official ports as they are ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)), `py312-pymilter` on the libmilter of `mail/libmilter` (its default), not the one of a base system that may be built without sendmail |
+| `opendkim` | `mail/opendkim` | the DKIM milter of Postfix (aZ, 19.11.2026): the official port ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)) with FILTER (the milter, rc.d `milter-opendkim`) on the libmilter of `mail/libmilter`, the stock resolver of the base system in the place of UNBOUND (no `unbound`), no LUA; the other options off, as in the official default |
 | `proxychains-ng` | `net/proxychains-ng` | programs through a chain of SOCKS and HTTP proxies (`proxychains`; aZ, 19.11.2026): the official port as it is |
-| `rtorrent`, `libtorrent` | `net-p2p/rtorrent`, `net-p2p/libtorrent` | the BitTorrent client in the console with its library (aZ, 19.11.2026): the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)), XML-RPC on the tinyxml2 inside rtorrent, kqueue, the OpenSSL of the base system, the libcurl of our `curl` |
-| `vm-bhyve`, `bhyve-firmware`, `edk2-bhyve`, `grub2-bhyve` | `sysutils/vm-bhyve`, `sysutils/bhyve-firmware`, `sysutils/edk2`, `sysutils/grub2-bhyve` | the manager of the virtual machines of bhyve, vm-bhyve 1.7.5 (aZ, 19.11.2026): the official ports ([`Mk/az-official.mk`](Mk/az-official.mk)), vm-bhyve with BHYVE_FIRMWARE (UEFI guests: the edk2-bhyve of `sysutils/edk2`), GRUB2_BHYVE (guests booted by grub: `grub2-bhyve`), TMUX (the consoles of the guests in tmux) and EXAMPLES (the templates of guests: `vm init` copies their `default.conf` into `.templates`) |
+| `rtorrent`, `libtorrent` | `net-p2p/rtorrent`, `net-p2p/libtorrent` | the BitTorrent client in the console with its library (aZ, 19.11.2026): the official ports as they are ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)), XML-RPC on the tinyxml2 inside rtorrent, kqueue, the OpenSSL of the base system, the libcurl of our `curl` |
+| `vm-bhyve`, `bhyve-firmware`, `edk2-bhyve`, `grub2-bhyve` | `sysutils/vm-bhyve`, `sysutils/bhyve-firmware`, `sysutils/edk2`, `sysutils/grub2-bhyve` | the manager of the virtual machines of bhyve, vm-bhyve 1.7.5 (aZ, 19.11.2026): the official ports ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)), vm-bhyve with BHYVE_FIRMWARE (UEFI guests: the edk2-bhyve of `sysutils/edk2`), GRUB2_BHYVE (guests booted by grub: `grub2-bhyve`), TMUX (the consoles of the guests in tmux) and EXAMPLES (the templates of guests: `vm init` copies their `default.conf` into `.templates`) |
 | `amnezia-tools`, `amnezia-kmod` | `net/amnezia-tools`, `net/amnezia-kmod` | `awg`, `awg-quick` and the rc.d script `amnezia` of AmneziaWG (WireGuard with its anti-detection; aZ, 19.11.2026) and its kernel module `if_amn`: the official ports as they are; the module built against the sources of the kernel of the release (gitup of `releng/15.1` in the build), one for GENERIC and the kernel of aZ; no `amneziawg-go`, which `awg-quick` runs only without the module |
-| `virtualbox72`, `virtualbox72-kmod`, `virtualbox72-additions` | `emulators/virtualbox-ose-72` (flavor nox11), `emulators/virtualbox-ose-kmod-72`, `emulators/virtualbox-ose-additions-72` (flavor nox11) | VirtualBox 7.2.22 without a desktop (aZ, 20.11.2026): the official ports ([`Mk/az-official.mk`](Mk/az-official.mk)); VirtualBox (`VBoxManage`, `VBoxHeadless`, `VBoxSVC`, the rc.d scripts `vboxheadless` and `vboxwatchdog`) with AIO, TPM, UDPTUNNEL and VNC (the extension pack VNC), without PYTHON, R0LOGGING, VBOXIMG, VDE and WEBSERVICE (ALSA, DBUS, DEBUG, DOCS, GUESTADDITIONS, NLS, PULSEAUDIO, QT6 and X11 are not in nox11), on libjpeg (mozjpeg), libpng and libxml2 of az and the libcurl of our `curl`, with libvpx, libogg, libvorbis, libtpms and libvncserver the official packages (so installed without `-r az`, as `yt-dlp`); the kernel modules `vboxdrv`, `vboxnetflt` and `vboxnetadp` (the rc.d script `vboxnet`) with VIMAGE, without DEBUG and INVARIANTS, built against the sources of the kernel of the release (gitup of `releng/15.1` in the build), one for GENERIC and the kernel of aZ; the Guest Additions of a FreeBSD guest (`vboxguest`, `vboxvfs`, `VBoxService`, `VBoxControl`), without X11, DBUS and DEBUG |
+| `virtualbox72`, `virtualbox72-kmod`, `virtualbox72-additions` | `emulators/virtualbox-ose-72` (flavor nox11), `emulators/virtualbox-ose-kmod-72`, `emulators/virtualbox-ose-additions-72` (flavor nox11) | VirtualBox 7.2.22 without a desktop (aZ, 20.11.2026): the official ports ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)); VirtualBox (`VBoxManage`, `VBoxHeadless`, `VBoxSVC`, the rc.d scripts `vboxheadless` and `vboxwatchdog`) with AIO, TPM, UDPTUNNEL and VNC (the extension pack VNC), without PYTHON, R0LOGGING, VBOXIMG, VDE and WEBSERVICE (ALSA, DBUS, DEBUG, DOCS, GUESTADDITIONS, NLS, PULSEAUDIO, QT6 and X11 are not in nox11), on libjpeg (mozjpeg), libpng and libxml2 of azsupport and the libcurl of our `curl`, with libvpx, libogg, libvorbis, libtpms and libvncserver the official packages (so installed without `-r azsupport`, as `yt-dlp`); the kernel modules `vboxdrv`, `vboxnetflt` and `vboxnetadp` (the rc.d script `vboxnet`) with VIMAGE, without DEBUG and INVARIANTS, built against the sources of the kernel of the release (gitup of `releng/15.1` in the build), one for GENERIC and the kernel of aZ; the Guest Additions of a FreeBSD guest (`vboxguest`, `vboxvfs`, `VBoxService`, `VBoxControl`), without X11, DBUS and DEBUG |
 | `axel`, `dmidecode`, `smartmontools` | `ftp/axel`, `sysutils/dmidecode`, `sysutils/smartmontools` | axel 2.17.14 (downloads over several connections), dmidecode 3.7 (the SMBIOS tables), smartmontools 7.5 (`smartctl`, `smartd`; aZ, 19.11.2026): the official ports as they are, without NLS and DOCS |
-| `stunnel` | `security/stunnel` | stunnel 5.82, the TLS wrapper of plain network services (aZ, 19.11.2026): the official port ([`Mk/az-official.mk`](Mk/az-official.mk)) with IPV6 and the PTHREAD model of threads, without FIPS, LIBWRAP (TCP wrappers), the FORK and UCONTEXT models and the docs (aZ, 23.11.2026); the OpenSSL of the base system, the rc.d script `stunnel`; without `bin/stunnel3`, the Perl wrapper of the command line of stunnel 3.x (Perl only builds it; aZ, 23.11.2026) |
-| `github-act-runner`, `gh` | `devel/github-act-runner`, `devel/gh` | the self-hosted runner of GitHub Actions in Go, github-act-runner 0.13.0 of ChristopherHX (aZ, 20.11.2026: the builds in a jail of FreeBSD; the runner of GitHub, actions/runner, has no FreeBSD build), and gh 2.103.3, the command line tool of GitHub (the steps of those builds call `gh api`): the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)); github-act-runner a static binary (CGO_ENABLED=0), gh on the git of `devel/git`, its telemetry off unless the user turns it on (the patch of Fedora and the default `disabled` of its config option; `gh config set telemetry enabled` or `GH_TELEMETRY=1` turn it on); the JavaScript actions run on the `node` of `node24` |
-| `cvs` | `devel/cvs` | the CVS client of the workflows on our runners (openbsd-fetch of azsupport/php-src: the -stable branches of the OpenBSD ports through anoncvs; aZ, 24.11.2026: a port of ours, minimal): the official port ([`Mk/az-official.mk`](Mk/az-official.mk)) without KERBEROS (the official package needs the Kerberos of the base system, libgssapi_krb5.so.122 and libkrb5.so.122, which our worlds have not: it did not start), INFO and EXAMPLES; IPV6 excluded, as officially |
+| `stunnel` | `security/stunnel` | stunnel 5.82, the TLS wrapper of plain network services (aZ, 19.11.2026): the official port ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)) with IPV6 and the PTHREAD model of threads, without FIPS, LIBWRAP (TCP wrappers), the FORK and UCONTEXT models and the docs (aZ, 23.11.2026); the OpenSSL of the base system, the rc.d script `stunnel`; without `bin/stunnel3`, the Perl wrapper of the command line of stunnel 3.x (Perl only builds it; aZ, 23.11.2026) |
+| `github-act-runner`, `gh` | `devel/github-act-runner`, `devel/gh` | the self-hosted runner of GitHub Actions in Go, github-act-runner 0.13.0 of ChristopherHX (aZ, 20.11.2026: the builds in a jail of FreeBSD; the runner of GitHub, actions/runner, has no FreeBSD build), and gh 2.103.3, the command line tool of GitHub (the steps of those builds call `gh api`): the official ports as they are ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)); github-act-runner a static binary (CGO_ENABLED=0), gh on the git of `devel/git`, its telemetry off unless the user turns it on (the patch of Fedora and the default `disabled` of its config option; `gh config set telemetry enabled` or `GH_TELEMETRY=1` turn it on); the JavaScript actions run on the `node` of `node24` |
+| `cvs` | `devel/cvs` | the CVS client of the workflows on our runners (openbsd-fetch of azsupport/php-src: the -stable branches of the OpenBSD ports through anoncvs; aZ, 24.11.2026: a port of ours, minimal): the official port ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)) without KERBEROS (the official package needs the Kerberos of the base system, libgssapi_krb5.so.122 and libkrb5.so.122, which our worlds have not: it did not start), INFO and EXAMPLES; IPV6 excluded, as officially |
 | `php56-phpmyadmin`, `php74-phpmyadmin` … `php84-phpmyadmin` | `databases/phpmyadmin`, `databases/phpmyadmin5`, `databases/phpmyadmin5-php74` … `-php83` | phpMyAdmin for each PHP (aZ, 19.11.2026): 4.9.11 for PHP 5.6 (the line for 5.5 to 7.4), 5.2.3 for 7.4 and 8.1 to 8.4; the official ports with the modules of their default options (bz2, gd, mbstring, zip, zlib) and those they require, but mysqli and openssl, of which we have two variants each (`phpXY-mysqli` or `-mysqli-openssl`, `phpXY-openssl` or `-openssl-legacy`: one of each two goes with it); one phpMyAdmin on a server (`www/phpMyAdmin`) |
 | `elasticsearch6` | `textproc/elasticsearch6` | Elasticsearch 6.8.23, the last 6.x, for the legacy sites, back in the ports (the official port went on 2023-01-01, at 6.8.16): its rc script with profiles; on our OpenJDK 21 (`java/openjdk21`; aZ, 12.11.2026: one JDK with OpenSearch; `-Djava.security.manager=allow` in `jvm.options`, without which JDK 18 and later refuse its Security Manager), the four lines of the warning of the JDK about `System::setSecurityManager` and the two about the COMPAT locale provider taken out of its start; without ML; the error files of a crash of the JVM in `/var/log/elasticsearch`; no writes of no use (aZ, 11.11.2026): no heap dump at an OutOfMemoryError, no GC log, nothing in `/tmp` but the one `/tmp/elasticsearch` (no `hsperfdata`; its temporary directory, `elasticsearch_tmpdir` of `rc.conf`, made anew at each start), no archives of old logs (the log files of Elastic's `log4j2.properties` as they are, each rolled at its size alone and the rolled file deleted at once: no dated files, no `.gz`); `xpack.ssl.cipher_suites` without the four suites OpenJDK 17 and 21 no longer have (no `[ERROR]` about unsupported ciphers at start); `jvm.options` for OpenJDK 17 and later, one file for every server (`-XX:UseAVX=2` for JDK 10 alone: on JDK 17 it warned at every start on a CPU without AVX2; `-XX:+ExitOnOutOfMemoryError`; each change with its source in the file); the heap of a server is `elasticsearch_heap="4g"` in `rc.conf` (`-Xms` and `-Xmx`), without it the 31g of `jvm.options` (below the cutoff of compressed oops; for a server with 64 GB of RAM and more: with less set `elasticsearch_heap`, at most half of the RAM); its tools run by hand (`elasticsearch-keystore`, `elasticsearch-plugin` and the others) leave nothing in `/tmp` either; licences: the default distribution with X-Pack, so Apache 2.0 and the Elastic License 1.0 (its `LICENSE.txt`), which allows the use at no charge and no redistribution |
 | `kibana6` | `textproc/kibana6` | Kibana 6.8.23, the last 6.x, for the legacy sites with `elasticsearch6`, back in the ports (the official port went on 2022-03-31, at 6.8.16, with Node.js 10): on our `node24`, with what it needs of Node.js 10 put back (`util.is*` and `util.log`, the MD4 of webpack 4 as MD5, a rejected promise nothing handles a warning, the IPv4 address of `localhost` first), the fixes of hapi for Node.js 11 and 16 in its hapi 17, and `re2` (Timelion's labels) as node-re2 1.27.1 built for this Node.js, with the RE2 2025-11-05 and abseil 20260817.0 it vendors compiled in (a node-re2 that vendors others stops the build); its rc script with daemon(8), as the user www, `reload` for the log; without Machine Learning and Reporting (no Chromium or PhantomJS for FreeBSD), the bundles of the browser built in the build for that set of plugins; licences: the default distribution with X-Pack, so Apache 2.0 and the Elastic License 1.0 (its `LICENSE.txt`), which allows the use at no charge and no redistribution |
 | `perl5` | `lang/perl5.42` | Perl 5.42 under the name of FreeBSD's (aZ, 11.11.2026), so that the `p5-*` packages of the FreeBSD repository work with it: the official port as it is (threads, MULTIPLICITY, 64-bit integers, the shared libperl), without DTrace, as every build here (its probes are in the core of Perl only: the XS modules of FreeBSD's packages load and run with it, `tools/perl-test.sh`) |
-| `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | the JDK of `elasticsearch6` (and of `opensearch217` and `opensearch219` until 23.11.2026, when they left this tree), ours (aZ, 11.11.2026: so that a server with Elasticsearch gets nothing of a desktop; 12.11.2026: one JDK for them all: OpenSearch 2.x and Elasticsearch 6 do not run on JDK 24 and later, where the Security Manager is disabled for good, and OpenSearch 3.x needs 21 at least): OpenJDK 21 headless in `/usr/local/openjdk21`, without X11, sound, fonts and javavmwrapper (no `/usr/local/bin/java`), on the libjpeg, FreeType and Little CMS of az; JNA without X11 and JAWT, on the libffi of az, its library also as `/usr/local/lib/jna/libjnidispatch.so`, which `elasticsearch6`, `opensearch217` and `opensearch219` load (`-Djna.boot.library.path`, `-Djna.nounpack`: nothing unpacked at a start), built on 21 for Java 8; Ant, the official port, on our JDK 21, to build JNA (aZ, 12.11.2026: JNA and Ant on 21). `openjdk21` and `jna` need `az` only |
-| `bash`, `bsddialog`, `bsnmp-ucd`, `portconfig`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives, and the fixes of the vulnerabilities the official port lacks, from Fedora: CVE-2014-8141 … CVE-2022-0530, zip bombs, and from Debian 6.0-31 and 6.0-32 and OpenBSD (`files/debian/`): CAN-2026-2034442 and CAN-2026-2034443 (a heap and a stack overflow), a Unicode path extra field shorter than 5 bytes (a read past it), CVE-2022-1271 of zipgrep, the ZIP64 archives of Windows, the times of the Unix extra fields; and the patterns of zipgrep with `\|`, the error of closing an extracted file, an extra field cut short, the Zip64 data descriptors of Java (madler `af0d07f`), `memmove()` in the sliding window (OpenBSD, `files/openbsd/`), the fix of CVE-2014-8139 as Info-ZIP corrected it (`unzip -t` of a jar failed), `memmove()` for a backslash in `UNZIP` (Fedora) and the help of zipinfo (four `%c` of the ICONV patch of the official port without their arguments); `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR, and three fixes of Debian (a heap overflow on a resize, the padding of the status line, `defflow` after a reattach); `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS, with the fixes of CVE-2026-96512 (three upstream commits), CVE-2026-35535 (the mailer as root with the groups of the user) and of an `@includedir` file with `:` in its name (upstream `3e474c2`, `ff0b6be`, as Debian carries them); `yamdi` with the fix of Debian for `-c`; `zip` with three fixes: with `-j` the patterns of `-i` and `-x` lost their paths (openSUSE), `memmove()` for a backslash in `ZIP` (RHEL), the offsets after a name with the UTF-8 flag (`zipnote` hung; Gentoo); `bash` without NLS, with three fixes of 5.3 as Gentoo carries them: `wait` of an ended background job, command substitutions with a large environment, the prompt in a single-byte locale, and that of openSUSE for a byte 0x80–0xFF in `${…}` (bash53-019); `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of az (`wget`: IDN, PSL, no OPIE (the S/KEY logins of FTP), the fixes of CVE-2026-15146, CVE-2026-58470, CVE-2026-58471 and CVE-2026-58472 as Ubuntu carries them, of CVE-2026-16599 (the S/KEY login, upstream `e9697d9`, as Fedora carries it), of CVE-2021-31879 (the `Authorization:` and `Cookie:` of `--header` go only to the origin of the first URL after a redirect: openSUSE's patch, as curl does it) and of the SIGHUP handler (upstream `e1f2559`, as RHEL carries it); `rsync` 3.5.2, ahead of the official 3.5.1 for its security fixes: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system; `portconfig`: the options dialog of `make config` and of portmaster (DIALOG4PORTS of the pinned tree), so that they do not build it on a server (aZ, 19.11.2026) |
-| `tmux`, `keychain` | `sysutils/tmux`, `security/keychain` | tmux 3.8: the official port with libevent the shared library of az (no LIBEVENT_STATIC; no UTF8PROC: the widths of the characters come from the libc of FreeBSD, the distributions take utf8proc for macOS alone), ncurses and utempter of the base system; keychain 2.9.8: the official port as it is (sh in front of ssh-agent of the base system; its 3.x is a rewrite in Python, which the official port does not take) |
+| `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | the JDK of `elasticsearch6` (and of `opensearch217` and `opensearch219` until 23.11.2026, when they left this tree), ours (aZ, 11.11.2026: so that a server with Elasticsearch gets nothing of a desktop; 12.11.2026: one JDK for them all: OpenSearch 2.x and Elasticsearch 6 do not run on JDK 24 and later, where the Security Manager is disabled for good, and OpenSearch 3.x needs 21 at least): OpenJDK 21 headless in `/usr/local/openjdk21`, without X11, sound, fonts and javavmwrapper (no `/usr/local/bin/java`), on the libjpeg, FreeType and Little CMS of azsupport; JNA without X11 and JAWT, on the libffi of azsupport, its library also as `/usr/local/lib/jna/libjnidispatch.so`, which `elasticsearch6`, `opensearch217` and `opensearch219` load (`-Djna.boot.library.path`, `-Djna.nounpack`: nothing unpacked at a start), built on 21 for Java 8; Ant, the official port, on our JDK 21, to build JNA (aZ, 12.11.2026: JNA and Ant on 21). `openjdk21` and `jna` need `azsupport` only |
+| `bash`, `bsddialog`, `bsnmp-ucd`, `portconfig`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | their official origins | the utilities of the servers: the official ports as they are ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)) with the options of aZ in each port's Makefile (`unzip` with ICONV: the Cyrillic names of Windows archives, and the fixes of the vulnerabilities the official port lacks, from Fedora: CVE-2014-8141 … CVE-2022-0530, zip bombs, and from Debian 6.0-31 and 6.0-32 and OpenBSD (`files/debian/`): CAN-2026-2034442 and CAN-2026-2034443 (a heap and a stack overflow), a Unicode path extra field shorter than 5 bytes (a read past it), CVE-2022-1271 of zipgrep, the ZIP64 archives of Windows, the times of the Unix extra fields; and the patterns of zipgrep with `\|`, the error of closing an extracted file, an extra field cut short, the Zip64 data descriptors of Java (madler `af0d07f`), `memmove()` in the sliding window (OpenBSD, `files/openbsd/`), the fix of CVE-2014-8139 as Info-ZIP corrected it (`unzip -t` of a jar failed), `memmove()` for a backslash in `UNZIP` (Fedora) and the help of zipinfo (four `%c` of the ICONV patch of the official port without their arguments); `screen` with the ncurses of the base system and the sockets in `~/.screen`, NOSOCKETDIR, and three fixes of Debian (a heap overflow on a resize, the padding of the status line, `defflow` after a reattach); `sudo` with PAM only: no AUDIT, LOGSRVD, SSL, NLS, with the fixes of CVE-2026-96512 (three upstream commits), CVE-2026-35535 (the mailer as root with the groups of the user) and of an `@includedir` file with `:` in its name (upstream `3e474c2`, `ff0b6be`, as Debian carries them); `yamdi` with the fix of Debian for `-c`; `zip` with three fixes: with `-j` the patterns of `-i` and `-x` lost their paths (openSUSE), `memmove()` for a backslash in `ZIP` (RHEL), the offsets after a name with the UTF-8 flag (`zipnote` hung; Gentoo); `bash` without NLS, with three fixes of 5.3 as Gentoo carries them: `wait` of an ended background job, command substitutions with a large environment, the prompt in a single-byte locale, and that of openSUSE for a byte 0x80–0xFF in `${…}` (bash53-019); `portmaster` with the completion of bash only), `wget` and `rsync` ours with the shared libraries of azsupport (`wget`: IDN, PSL, no OPIE (the S/KEY logins of FTP), the fixes of CVE-2026-15146, CVE-2026-58470, CVE-2026-58471 and CVE-2026-58472 as Ubuntu carries them, of CVE-2026-16599 (the S/KEY login, upstream `e9697d9`, as Fedora carries it), of CVE-2021-31879 (the `Authorization:` and `Cookie:` of `--header` go only to the origin of the first URL after a redirect: openSUSE's patch, as curl does it) and of the SIGHUP handler (upstream `e1f2559`, as RHEL carries it); `rsync` 3.5.2, ahead of the official 3.5.1 for its security fixes: lz4, zstd, xxhash, no ICONV), PCRE2 of `pcre2` (`wget`) and the OpenSSL of the base system; `portconfig`: the options dialog of `make config` and of portmaster (DIALOG4PORTS of the pinned tree), so that they do not build it on a server (aZ, 19.11.2026) |
+| `tmux`, `keychain` | `sysutils/tmux`, `security/keychain` | tmux 3.8: the official port with libevent the shared library of azsupport (no LIBEVENT_STATIC; no UTF8PROC: the widths of the characters come from the libc of FreeBSD, the distributions take utf8proc for macOS alone), ncurses and utempter of the base system; keychain 2.9.8: the official port as it is (sh in front of ssh-agent of the base system; its 3.x is a rewrite in Python, which the official port does not take) |
 | `tcl84` | `lang/tcl84` | Tcl 8.4.20, the last release of 8.4 (2013), for an old application of aZ (19.11.2026): the official port of freebsd-ports fc3b56ba75eb before its removal (7fc25c874cfc, 21.11.2017), with its patches, on the framework of the pinned tree; THREADS on, TCLMAN off, as in that port; beside `lang/tcl86` (`tclsh8.4`, `libtcl84.so.1`, `lib/tcl8.4`, `include/tcl8.4`) |
-| `ipmitool`, `mtr`, `trafshow`, `gitup` | `sysutils/ipmitool`, `net/mtr` (flavor nox11), `net/trafshow`, `net/gitup` | the tools of an old server of aZ: the official ports with the options of aZ (`mtr` and `trafshow` with IPv6, `mtr` without GTK and JSON) and fixes they lack: `ipmitool` (its `shell` on the readline of az, not the package of `devel/readline`) with CVE-2011-4339 (the PID file of ipmievd writable by every user), a stack overflow of `tsol` `options=no-timeout` of `chassis bootparam` (Debian) and the time of the timestamps of `sel get` (upstream after 1.8.19, as Ubuntu), `mtr` (setuid root) with CVE-2026-14461 (a buffer overrun of the ASN lookup, as Debian) and no privileged source port of its UDP probes (upstream after 0.96) |
-| `calc`, `ipcalc` | `math/calc`, `net-mgmt/ipcalc` | the calculators of aZ (20.11.2026): calc 2.17.0.2 of Landon Curt Noll, the arbitrary precision calculator, the official port with FULL (libcalc, libcustcalc, the headers, the resource files and cscripts) and HELP (the help files of its `help`), without the flavor tiny, its command line on the readline of az (not the package of `devel/readline`); ipcalc 0.51 of Krischan Jodies, the IPv4 address calculator in Perl: the official port as it is ([`Mk/az-official.mk`](Mk/az-official.mk)) on the `perl5` of this tree |
-| `fcgiwrap` | `www/fcgiwrap` | fcgiwrap 1.1.0, the FastCGI server that runs CGI scripts for nginx (aZ, 20.11.2026): the official port ([`Mk/az-official.mk`](Mk/az-official.mk)) on the libfcgi of `fcgi-devkit` (`www/fcgi` of this tree, the official port as it is), the rc script `fcgiwrap` with profiles, and two fixes it lacks: the parent of the preforked children busy in its SIGCHLD handler (upstream after 1.1.0) and the CGI child of a failed request not stopped (`kill()` with its arguments swapped; upstream pull request #44, as Gentoo carries it) |
-| `net-snmp`, `mrtg`, `p5-SNMP_Session` | `net-mgmt/net-snmp`, `net-mgmt/mrtg`, `net-mgmt/p5-SNMP_Session` | the SNMP agent and tools and the traffic graphs (aZ, 20.11.2026: for Nagios and MRTG): net-snmp 5.9.5.2, the official port ([`Mk/az-official.mk`](Mk/az-official.mk)) on the OpenSSL of the base system and the libpkg of `pkg`, its tools (snmpget, snmpwalk: Nagios) and libnetsnmp; snmpd, not run on aZ's servers, with MFD_REWRITES (the ifXTable with the 64-bit counters ifHCInOctets and ifHCOutOctets, which MRTG takes over SNMPv2c), should it be run; without PERL, PERL_EMBEDDED, DUMMY, SMUX (no TCP listener on port 199) and NEWSYSLOG; MRTG 2.17.10, the official port with its options DOCS, EXAMPLES and SNMPV3 off and without IPV6 (SNMP over IPv6: IO::Socket::INET6 and Socket6, not needed on aZ's servers), but `rateup`, which draws the graphs, on the libgd and libpng of az (not the packages of `graphics/gd` and `graphics/png`), and SNMP_Session 1.13 of this tree (the official port as it is), not Pod::Parser and Module::CoreList (Pod::Usage and Module::CoreList of the core of our perl 5.42), with two fixes of upstream after 2.17.10, as Debian carries them: CVE-2026-72694 (the pid file of `mrtg --daemon`, which root created and chowned through a symbolic link of the user of the daemon) and the options of a target of RouterUpTime |
+| `ipmitool`, `mtr`, `trafshow`, `gitup` | `sysutils/ipmitool`, `net/mtr` (flavor nox11), `net/trafshow`, `net/gitup` | the tools of an old server of aZ: the official ports with the options of aZ (`mtr` and `trafshow` with IPv6, `mtr` without GTK and JSON) and fixes they lack: `ipmitool` (its `shell` on the readline of azsupport, not the package of `devel/readline`) with CVE-2011-4339 (the PID file of ipmievd writable by every user), a stack overflow of `tsol` `options=no-timeout` of `chassis bootparam` (Debian) and the time of the timestamps of `sel get` (upstream after 1.8.19, as Ubuntu), `mtr` (setuid root) with CVE-2026-14461 (a buffer overrun of the ASN lookup, as Debian) and no privileged source port of its UDP probes (upstream after 0.96) |
+| `calc`, `ipcalc` | `math/calc`, `net-mgmt/ipcalc` | the calculators of aZ (20.11.2026): calc 2.17.0.2 of Landon Curt Noll, the arbitrary precision calculator, the official port with FULL (libcalc, libcustcalc, the headers, the resource files and cscripts) and HELP (the help files of its `help`), without the flavor tiny, its command line on the readline of azsupport (not the package of `devel/readline`); ipcalc 0.51 of Krischan Jodies, the IPv4 address calculator in Perl: the official port as it is ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)) on the `perl5` of this tree |
+| `fcgiwrap` | `www/fcgiwrap` | fcgiwrap 1.1.0, the FastCGI server that runs CGI scripts for nginx (aZ, 20.11.2026): the official port ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)) on the libfcgi of `fcgi-devkit` (`www/fcgi` of this tree, the official port as it is), the rc script `fcgiwrap` with profiles, and two fixes it lacks: the parent of the preforked children busy in its SIGCHLD handler (upstream after 1.1.0) and the CGI child of a failed request not stopped (`kill()` with its arguments swapped; upstream pull request #44, as Gentoo carries it) |
+| `net-snmp`, `mrtg`, `p5-SNMP_Session` | `net-mgmt/net-snmp`, `net-mgmt/mrtg`, `net-mgmt/p5-SNMP_Session` | the SNMP agent and tools and the traffic graphs (aZ, 20.11.2026: for Nagios and MRTG): net-snmp 5.9.5.2, the official port ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)) on the OpenSSL of the base system and the libpkg of `pkg`, its tools (snmpget, snmpwalk: Nagios) and libnetsnmp; snmpd, not run on aZ's servers, with MFD_REWRITES (the ifXTable with the 64-bit counters ifHCInOctets and ifHCOutOctets, which MRTG takes over SNMPv2c), should it be run; without PERL, PERL_EMBEDDED, DUMMY, SMUX (no TCP listener on port 199) and NEWSYSLOG; MRTG 2.17.10, the official port with its options DOCS, EXAMPLES and SNMPV3 off and without IPV6 (SNMP over IPv6: IO::Socket::INET6 and Socket6, not needed on aZ's servers), but `rateup`, which draws the graphs, on the libgd and libpng of azsupport (not the packages of `graphics/gd` and `graphics/png`), and SNMP_Session 1.13 of this tree (the official port as it is), not Pod::Parser and Module::CoreList (Pod::Usage and Module::CoreList of the core of our perl 5.42), with two fixes of upstream after 2.17.10, as Debian carries them: CVE-2026-72694 (the pid file of `mrtg --daemon`, which root created and chowned through a symbolic link of the user of the daemon) and the options of a target of RouterUpTime |
 | `arcconf` | `sysutils/arcconf` | arcconf 5.12.00 build 28542 of Microchip (Adaptec RAID), the binary of its archive for FreeBSD 15 with the periodic script of the official port; its `libstdc++.so.6` from `gcc16-libs`, not the whole `lang/gcc14`; the archive may not be fetched or mirrored: the build takes it from the private repository of aZ, the package may be given out |
 | `fcron` | `sysutils/fcron` | fcron 3.4.1 ahead of the official 3.2.1 (aZ, 16.11.2026): the official port on 3.4.1, without the docs and the examples |
-| `ca_root_nss`, `cpu-microcode-intel`, `cpu-microcode-rc`, `rclone`, `fusefs-libs`, `fusefs-sshfs`, `fusefs-libs3`, `libtlsrpt` | their official origins | the official ports as they are ([`Mk/az-official.mk`](Mk/az-official.mk)): the root certificates of Mozilla (NSS 3.134: the official port of freebsd-ports b64078572ff3, after the pinned commit, copied into this tree as it is until the pin moves past it; aZ, 19.11.2026), the microcode of Intel CPUs with RC and SPLIT (its rc.d script `cpu-microcode-rc` and the split files), rclone with `rclone mount` (libfuse 2 of `fusefs-libs`, with the fix of libfuse #571 for `-o remember`), sshfs 3.7.7 (libfuse 3 of `fusefs-libs3`, the GLib of `glib`; with two fixes of master after 3.7.7: bracketed IPv6 sources, readlink targets longer than the FUSE buffer), the TLSRPT library of `postfix` |
+| `ca_root_nss`, `cpu-microcode-intel`, `cpu-microcode-rc`, `rclone`, `fusefs-libs`, `fusefs-sshfs`, `fusefs-libs3`, `libtlsrpt` | their official origins | the official ports as they are ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)): the root certificates of Mozilla (NSS 3.134: the official port of freebsd-ports b64078572ff3, after the pinned commit, copied into this tree as it is until the pin moves past it; aZ, 19.11.2026), the microcode of Intel CPUs with RC and SPLIT (its rc.d script `cpu-microcode-rc` and the split files), rclone with `rclone mount` (libfuse 2 of `fusefs-libs`, with the fix of libfuse #571 for `-o remember`), sshfs 3.7.7 (libfuse 3 of `fusefs-libs3`, the GLib of `glib`; with two fixes of master after 3.7.7: bracketed IPv6 sources, readlink targets longer than the FUSE buffer), the TLSRPT library of `postfix` |
 | `cpu-microcode-amd` | `sysutils/cpu-microcode-amd` | the microcode of AMD CPUs: the official port with the options of `cpu-microcode-intel`, RC (the rc.d script of `cpu-microcode-rc`) and SPLIT (the files of the families in `share/cpucontrol`), both on; `/boot/firmware/amd-ucode.bin` always; 20260926 (linux-firmware 9b858e5bb58d: a new `microcode_amd_fam1ah.bin`), ahead of the official 20251202 |
 | `phpXY` | `lang/phpXY` | the core of PHP X.Y (`XY`: 56, 74, 81, 82, 83, 84): CLI, phpize |
 | `apache24-phpXY` | `www/mod_phpXY` | the Apache module `libphpXY.so` |
 | `phpXY-fpm` | `www/phpXY-fpm` | the FastCGI Process Manager `sbin/phpXY-fpm` with the rc.d script `phpXY_fpm` (aZ, 21.11.2026: php-cgi and php-fpm as packages of their own) |
 | `phpXY-cgi` | `www/phpXY-cgi` | the CGI `bin/phpXY-cgi` (for suexec and mod_fastcgi of Apache) |
-| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, `phpXY-gearman` (libgearman of `libgearman`), from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 71 for 7.4 and 8.1, 69 for 8.2 to 8.4, 66 for 5.6 (with the variants below); the list of one: `pkg search -r az '^php84-'` |
+| `phpXY-<module>` | `<category>/phpXY-<module>` | a package per module (`php84-gd`: `graphics/php84-gd`): the modules of the official ports of the commit of the version and the PECL ones the fork bundles, without "pecl": `phpXY-redis`, `phpXY-igbinary`, `phpXY-memcached`, `phpXY-memcache`, `phpXY-imagick`, `phpXY-gmagick`, `phpXY-mcrypt`, `phpXY-ssh2`, `phpXY-gearman` (libgearman of `libgearman`), from 7.4 on `phpXY-swoole`, `phpXY-openswoole` and `phpXY-excimer`; OPcache is a module too (`phpXY-opcache`), json up to 7.4 (`php74-json`), mysqlnd as well (`phpXY-mysqlnd`: the database modules use it). 71 for 7.4 and 8.1, 69 for 8.2 to 8.4, 66 for 5.6 (with the variants below); the list of one: `pkg search -r azsupport '^php84-'` |
 | `phpXY-ioncube` | `devel/phpXY-ioncube` | the ionCube Loader 15.5.1 for PHP X.Y (56 to 84): the binary of ionCube for FreeBSD as it is (`ioncube_loaders_fre_11_x86-64_15.5.1.tar.gz`, built on FreeBSD 11: the kernel needs `COMPAT_FREEBSD11`), `lib/php/<API>/ioncube_loader.so`, loaded first by `etc/phpXY/conf.d/ext-05-ioncube.ini` (before `ext-10-opcache.ini`), the license of ionCube in `share/licenses/phpXY-ioncube/`; as FreeBSD `devel/ioncube`, Remi `php-ioncube-loader` and Arch `php-ioncube_loader` install it |
 
 - openssl in two kinds, one of the two: `phpXY-openssl` and `phpXY-openssl-legacy` (the
@@ -170,7 +170,7 @@ Names and origins as the ports, files at the paths of the ports:
   `phpXY-swoole-openssl`.
 - redis in four packages, one of the four (aZ, 11.11.2026; the same files): `phpXY-redis`
   without compression, `phpXY-redis-lz4`, `phpXY-redis-zstd` and `phpXY-redis-lz4-zstd`
-  with the lz4 and zstd of az (`Redis::OPT_COMPRESSION` of a site; 5.6 has only
+  with the lz4 and zstd of azsupport (`Redis::OPT_COMPRESSION` of a site; 5.6 has only
   `php56-redis`: phpredis 4.3.0 knows neither). All with igbinary and sessions in Redis.
 - gd of 5.6 also as `php56-gd-t1lib`, one of the two (aZ, 11.11.2026): with T1lib, the
   PostScript Type 1 fonts of `imagepsloadfont()` and `imagepstext()` (gone from PHP 7.0),
@@ -188,42 +188,42 @@ Names and origins as the ports, files at the paths of the ports:
 - Not built: the modules that need a library of the ports (enchant, imap, ldap, odbc,
   pdf, pdo_dblib, pdo_firebird, pdo_odbc, pdo_pgsql, pgsql, pspell, snmp).
 - A special build (a static PHP, the options of a server of its own) is not a port
-  here: `az-menu.sh` of [azsupport/php-src](https://github.com/azsupport/php-src) makes it.
+  here: `azsupport-menu.sh` of [azsupport/php-src](https://github.com/azsupport/php-src) makes it.
 
 ## The ports
 
-- **`az/az`**: the package `az`, the libraries of `/usr/local/az`, built from about 40
-  official ports of the pinned commit by [`tools/az-build.sh`](tools/az-build.sh)
-  ([`az/az/files/deps.conf`](az/az/files/deps.conf)). Two trees: `/usr/local/az`
-  (shared, SONAME and run path `/usr/local/az/lib`, no ldconfig), which every package
+- **`azsupport/azsupport`**: the package `azsupport`, the libraries of `/usr/local/azsupport`, built from about 40
+  official ports of the pinned commit by [`tools/azsupport-build.sh`](tools/azsupport-build.sh)
+  ([`azsupport/azsupport/files/deps.conf`](azsupport/azsupport/files/deps.conf)). Two trees: `/usr/local/azsupport`
+  (shared, SONAME and run path `/usr/local/azsupport/lib`, no ldconfig), which every package
   links: our ports link each other's shared libraries, never a static or bundled copy
-  of a library another of our ports has (aZ, 10.11.2026); and `/usr/local/az/static`
-  (static, position independent), only for the static PHP builds of `az-menu.sh`;
+  of a library another of our ports has (aZ, 10.11.2026); and `/usr/local/azsupport/static`
+  (static, position independent), only for the static PHP builds of `azsupport-menu.sh`;
   `bin/pkg-config` of each,
-  `VERSIONS` in `share/doc/az`, the licences in `LICENSES/`. It builds into
-  `/usr/local/az` of its chroot (as root, `NEED_ROOT`) and packages that tree.
+  `VERSIONS` in `share/doc/azsupport`, the licences in `LICENSES/`. It builds into
+  `/usr/local/azsupport` of its chroot (as root, `NEED_ROOT`) and packages that tree.
   No dependencies.
 - **`ftp/curl`**: the package `curl` in the place of the official one: `bin/curl` and
   `lib/libcurl.so.4` (only `curl_*` exported), the libcurl of every package (the PHP
   module curl, git: one libcurl, aZ 10.11.2026), the options of the official port,
-  against the shared libraries of az ([`tools/curl-build.sh`](tools/curl-build.sh)).
-  Build and run: az.
+  against the shared libraries of azsupport ([`tools/curl-build.sh`](tools/curl-build.sh)).
+  Build and run: azsupport.
 - **`ftp/curl-impersonate`** (aZ, 16.11.2026): curl-impersonate 2.3.2 of lexiforest in the
   place of the official port, built from source, the program and the library:
   `bin/curl-impersonate`, the 47 wrappers `curl_<browser>` (POSIX sh, no bash),
   `lib/libcurl-impersonate.so.4` (the program links it) with its headers in
   `include/curl-impersonate`, `curl-impersonate-config` and its `.pc`: the layout of the
   official port, so that `ftp/py-curl-cffi` (below) builds on it. c-ares, brotli,
-  zstd, libidn2 (IDN) and libpsl (PSL; aZ, 16.11.2026: as in `ftp/curl`) of az and zlib
+  zstd, libidn2 (IDN) and libpsl (PSL; aZ, 16.11.2026: as in `ftp/curl`) of azsupport and zlib
   of the base system, shared; the library is curl 8.23.0 with the
   patch of upstream, with these in it alone, static, their symbols hidden: BoringSSL with
   the patch of upstream, nghttp2 1.63.0 (1.65 dropped the priorities the HTTP/2 of the
   browsers sends), nghttp3 1.15.0 and ngtcp2 1.20.0 with the patches of upstream (the
   HTTP/3 of the browsers); the fixes of CVE-2026-27135 (nghttp2), CVE-2026-40170 (ngtcp2)
   and the conncache fix of `ftp/curl`; no static libraries; the CA certificates of the
-  base system. Build and run: az.
+  base system. Build and run: azsupport.
 - **`ftp/py-curl-cffi`** (aZ, 16.11.2026): the package `py312-curl-cffi` of our
-  `python312`, the official port as it is ([`Mk/az-official.mk`](Mk/az-official.mk)):
+  `python312`, the official port as it is ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)):
   curl_cffi 0.17.0, its extension on the `libcurl-impersonate.so` of
   `ftp/curl-impersonate` (nothing downloaded), for `yt-dlp --impersonate` (yt-dlp
   2026.10.26 takes curl_cffi 0.10.x to 0.17.x); `py312-cffi` and `py312-certifi` are
@@ -231,7 +231,7 @@ Names and origins as the ports, files at the paths of the ports:
 - **`multimedia/ffmpeg`**: the package `ffmpeg` in the place of the official one:
   `bin/ffmpeg` and `bin/ffprobe` (the libraries of FFmpeg in them) with only what the
   video sites need ([`multimedia/ffmpeg/files/ffmpeg.conf`](multimedia/ffmpeg/files/ffmpeg.conf)),
-  linking x264, dav1d, SVT-AV1 (AV1 and AVIF written, aZ 11.11.2026) and libwebp of az.
+  linking x264, dav1d, SVT-AV1 (AV1 and AVIF written, aZ 11.11.2026) and libwebp of azsupport.
   FFmpeg 9.1 before its port (a take line of `ffmpeg.conf`; aZ, 22.11.2026: a release
   of the same major line is taken when it has security fixes): it has the fixes the
   patches of 9.0.2 here brought from release/9.0 and master (the CVEs of 2026 that reach
@@ -241,19 +241,19 @@ Names and origins as the ports, files at the paths of the ports:
   upstream commit, what and why: the coefficients of a 5.1 layout restored, the
   scalefactor chain of the NMR coder, the default of 9.1, kept legal, the re-encoding
   of a frame that does not fit bounded instead of endless).
-  Build and run: az.
+  Build and run: azsupport.
 - **`graphics/libimagemagick6`** and **`graphics/libimagemagick7`** (aZ, 14.11.2026): the
   libraries of ImageMagick 6 and 7 in packages of their own, so that the module imagick of
   PHP needs no programs: `libMagickCore-6`, `libMagickWand-6` and
-  `libMagickCore-7.so`, `libMagickWand-7.so` in `/usr/local/az/lib`, their headers, `.pc`
-  files and `MagickWand-config` (ImageMagick 7 in `/usr/local/az/bin`, ImageMagick 6 in
-  `/usr/local/az/libexec/ImageMagick-6/bin`: the same names), `etc/ImageMagick-6` and
+  `libMagickCore-7.so`, `libMagickWand-7.so` in `/usr/local/azsupport/lib`, their headers, `.pc`
+  files and `MagickWand-config` (ImageMagick 7 in `/usr/local/azsupport/bin`, ImageMagick 6 in
+  `/usr/local/azsupport/libexec/ImageMagick-6/bin`: the same names), `etc/ImageMagick-6` and
   `etc/ImageMagick-7` with our policy, which the libraries read; ImageMagick 7 also its
-  static libraries and `MagickWand-config` in `/usr/local/az/static`, for the static
-  imagick of `az-menu.sh`. JPEG, PNG, WebP, GIF, HEIC and AVIF only; ImageMagick 6 with
+  static libraries and `MagickWand-config` in `/usr/local/azsupport/static`, for the static
+  imagick of `azsupport-menu.sh`. JPEG, PNG, WebP, GIF, HEIC and AVIF only; ImageMagick 6 with
   the fix OpenBSD carries for an image with a broken EXIF or 8BIM profile, which
   6.9.13-60 did not write at all ([`files/imagemagick6-write-profiles.patch`](graphics/ImageMagick6/files/imagemagick6-write-profiles.patch),
-  ImageMagick6 issue 427). Build and run: az.
+  ImageMagick6 issue 427). Build and run: azsupport.
 - **`graphics/ImageMagick6`**, **`graphics/ImageMagick7`** and
   **`graphics/ImageMagick67`** (aZ, 14.11.2026): the programs, which conflict with each
   other: `ImageMagick6` has `bin/convert`, `identify`, `mogrify`, `composite` and the
@@ -261,19 +261,19 @@ Names and origins as the ports, files at the paths of the ports:
   `ImageMagick67` both, ImageMagick 6 with 6 at the end (`convert6`, `identify6`, ...);
   each depends on the libraries of its ImageMagick (`ImageMagick67` on both). The
   modules `phpXY-imagick7` and `phpXY-imagick6` (the same `imagick.so`, so they conflict
-  too) depend on `libimagemagick7` and `libimagemagick6`. Build and run: az.
+  too) depend on `libimagemagick7` and `libimagemagick6`. Build and run: azsupport.
 - **`graphics/GraphicsMagick`**: the package `GraphicsMagick` in the place of the official
   one: `bin/gm`, built as our ImageMagick, with JPEG, PNG, WebP, GIF, BMP, HEIC and
   AVIF only; with no policy file, the coders it registers and an empty `delegates.mgk` take
   its place (`files/graphicsmagick.conf`). `gm` links its shared `libGraphicsMagick` and
-  `libGraphicsMagickWand` (symbol prefix `Gm`) in `/usr/local/az`, with
-  `GraphicsMagick-config`, which gmagick of PHP links too (`--with-gmagick=/usr/local/az`);
-  its static libraries in `/usr/local/az/static`, for a static gmagick of `az-menu.sh`.
-  Build and run: az.
+  `libGraphicsMagickWand` (symbol prefix `Gm`) in `/usr/local/azsupport`, with
+  `GraphicsMagick-config`, which gmagick of PHP links too (`--with-gmagick=/usr/local/azsupport`);
+  its static libraries in `/usr/local/azsupport/static`, for a static gmagick of `azsupport-menu.sh`.
+  Build and run: azsupport.
 - **`misc/mc`**: the package `mc` in the place of the official one: Midnight Commander
   with the editor, the subshell, the charsets and SFTP, without X11, translations and
   Aspell ([`misc/mc/files/mc.conf`](misc/mc/files/mc.conf): what and why), built by
-  [`tools/mc-build.sh`](tools/mc-build.sh) on GLib of `devel/glib20`, libssh2 and S-Lang of az
+  [`tools/mc-build.sh`](tools/mc-build.sh) on GLib of `devel/glib20`, libssh2 and S-Lang of azsupport
   (the screen library: the default of mc, in the place of the ncurses of the base system;
   aZ, 20.11.2026), shared, with the fixes of `files/*.patch` (taken from upstream after 4.8.33, from
   Gentoo, Debian, NetBSD and Alpine, and two of ours: each patch says where from, what
@@ -300,13 +300,13 @@ Names and origins as the ports, files at the paths of the ports:
   line of its conf) with the build stamp as `PORTREVISION`; every distfile in the fetch
   phase; tests after the install: `tools/ffmpeg-test.sh`,
   `imagemagick-test.sh`, `curl-test.sh`,
-  `az-test.sh`, `mc-test.sh`.
+  `azsupport-test.sh`, `mc-test.sh`.
 - **`devel/pcre2`** and **`devel/pcre`**: the official ports
-  ([`Mk/az-official.mk`](Mk/az-official.mk)), PCRE2 10.49 and PCRE 8.45 (its last
+  ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)), PCRE2 10.49 and PCRE 8.45 (its last
   release): the PCRE of PHP (7.4 to 8.4 `--with-external-pcre`, 5.6
   `--with-pcre-regex`), Apache, git, wget, mc (GLib) and MariaDB, and nginx later (aZ,
   10.11.2026). With a fix each that the releases lack (in `EXTRA_PATCHES`, not in the
-  hash of the ports that need them: a fix inside a shared library, as for az): PCRE2
+  hash of the ports that need them: a fix inside a shared library, as for azsupport): PCRE2
   the backward scans of `pcre2_dfa_match()` and of the JIT `\X` bounded by the checked
   part of a UTF subject (GHSA-9qww-pwc4-77qq, the patches of SUSE,
   [`files/patch-GHSA-9qww-pwc4-77qq`](devel/pcre2/files/patch-GHSA-9qww-pwc4-77qq)),
@@ -317,10 +317,10 @@ Names and origins as the ports, files at the paths of the ports:
   daemon; HTTPS through our `curl`, PCRE2 (`git grep -P`) of `pcre2`, iconv of libc.
 - **`www/apache24`** and **`www/mod_maxminddb`**: Apache 2.4.71 with prefork only (a
   module) and the modules of the servers (cgi, env and headers too; everything else off), no SSL,
-  APR and APR-util of az (shared: those of mod_php too), PCRE2 of `pcre2`;
-  mod_maxminddb with libmaxminddb of az.
+  APR and APR-util of azsupport (shared: those of mod_php too), PCRE2 of `pcre2`;
+  mod_maxminddb with libmaxminddb of azsupport.
 - **`databases/memcached`** and **`databases/memcached-openssl`**: memcached without TLS,
-  SASL, DTrace and the docs, libevent of az; the variant with TLS on the OpenSSL of the
+  SASL, DTrace and the docs, libevent of azsupport; the variant with TLS on the OpenSSL of the
   base system; one of the two.
 - **`devel/gearmand`** and **`devel/gearmand-openssl`** (aZ, 16.11.2026): Gearman 2.2.0 of
   18.10.2026 — the job server gearmand, the client library libgearman (of the modules
@@ -329,8 +329,8 @@ Names and origins as the ports, files at the paths of the ports:
   a port of this tree after the last official one. With the fixes of master after 2.2.0
   (background jobs without a unique ID lost by the persistent queue, a client blocked on
   one connection or sending without TLS, a server that did not stop, a division by zero
-  of gearman); the persistent queue of aZ in SQLite (libsqlite3 of az; no MySQL,
-  PostgreSQL, Redis, memcached, Tokyo Cabinet); libevent of az; Boost.Program_options and
+  of gearman); the persistent queue of aZ in SQLite (libsqlite3 of azsupport; no MySQL,
+  PostgreSQL, Redis, memcached, Tokyo Cabinet); libevent of azsupport; Boost.Program_options and
   libuuid of the official ports linked in at build time; `gearmand-openssl` with TLS on the
   OpenSSL of the base system; one of the two. The rc.d script: on 127.0.0.1:4730, the queue
   in `/var/db/gearmand/gearmand.sqlite` (`gearmand_listen`, `gearmand_port`,
@@ -340,7 +340,7 @@ Names and origins as the ports, files at the paths of the ports:
   RocksDB, Spider, Mroonga, S3, CONNECT with ODBC and XML, HashiCorp Vault, AWS key
   management), the socket `/tmp/mysql.sock` compiled into the server and the client
   library and in `my.cnf.sample` (`/tmp` is a memory disk on the servers, tmpmfs), the
-  PID file in `/var/run/mysql`; PCRE2 of `pcre2`, lz4, zstd and fmt of az, zlib (not the
+  PID file in `/var/run/mysql`; PCRE2 of `pcre2`, lz4, zstd and fmt of azsupport, zlib (not the
   copy MariaDB has), OpenSSL and libedit of the base system. 10.11.20 ahead of the
   official 10.11.19 (aZ, 16.11.2026): MDEV-42025 (before the authentication, the
   database name of the handshake without a limit of its length), MDEV-41432 (a check of
@@ -390,7 +390,7 @@ Names and origins as the ports, files at the paths of the ports:
   official port with the options of aZ (those of his servers): EAI, PCRE2, TLS and
   TLSRPT; no Berkeley DB of the ports, blocklistd, CDB, LDAP, LMDB, MongoDB, NIS,
   PostgreSQL, Cyrus SASL (Dovecot SASL is always built in), SQLite and the test
-  programs. ICU of az (its headers alone in a directory of the work), PCRE2 of
+  programs. ICU of azsupport (its headers alone in a directory of the work), PCRE2 of
   `devel/pcre2`, `libtlsrpt` of `mail/libtlsrpt`, the OpenSSL of the base system;
   `postfix-mysql` (a slave port, not a flavor) with the MySQL maps on the client of
   `databases/mariadb1011-client`. Tested by `servers-test.sh`: STARTTLS, SMTPUTF8, a
@@ -399,7 +399,7 @@ Names and origins as the ports, files at the paths of the ports:
   branch 2.3 as long as upstream supports it (only critical security fixes now), the
   official port with the options of aZ: no GSSAPI, CDB, LDAP, PostgreSQL, SQLite, FTS,
   libsodium, libunwind, Lua, LZ4 and libwrap (no `tcpwrap` on his servers); zstd of
-  az; `dovecot-mysql` with the SQL driver of MySQL. The security fixes of 2.3 after
+  azsupport; `dovecot-mysql` with the SQL driver of MySQL. The security fixes of 2.3 after
   2.3.21.1 (aZ, 16.11.2026: the patches on 2.3.21.1): 28 patches in `files/cve`, those of
   Ubuntu noble-security (2.3.21+dfsg1-2ubuntu6.5) and RHEL 10 (dovecot-2.3.21-22.el10_3)
   in their order: CVE-2022-30550 (never in the branch 2.3), CVE-2026-0394, -27852,
@@ -428,7 +428,7 @@ Names and origins as the ports, files at the paths of the ports:
   NOAVX, which leaves the choice to the CPU at run time). As the official port: the
   allocator of the system (the jemalloc of libc), libunwind off (the backtraces by the
   execinfo of the base system), OpenSSL of the base system, no enterprise features; curl
-  of `ftp/curl`. The disk cache of Bazel (`AZ_PORT_CACHE`, below) goes from run to run:
+  of `ftp/curl`. The disk cache of Bazel (`AZSUPPORT_PORT_CACHE`, below) goes from run to run:
   a build the time of a run stopped goes on in the next one from the actions it did.
 - **`databases/mongodb-tools`** (aZ, 18.11.2026 15:29): the MongoDB Database Tools
   100.20.1 of the official port of the pinned tree, its eight programs (bsondump,
@@ -448,7 +448,7 @@ Names and origins as the ports, files at the paths of the ports:
   with realip, ssl and ssl_preread, and geoip2 for stream) and
   `nginx-devel-image-filter` (image_filter), loaded by `load_module`. OpenSSL of the base
   system, PCRE2 of `devel/pcre2`, zlib of the base system; brotli, libzstd, libmaxminddb and
-  libgd of az. Tested by `servers-test.sh`: brotli; zstd (the same bytes after `zstd -d`, Vary, HTTP/1.1, HTTP/2 and HTTP/3, a proxied response, a large one without a length, `zstd, br` zstd, `br, gzip` br, `gzip` gzip, `zstd;q=0` not zstd); `zstd_static`, `brotli_static`, `gzip_static` in each of their 8 combinations with the filters off, on and gzip alone, a page with its ready files and one without, clients of every set of the encodings and with `q=0` (480 requests); the one `Vary` line over HTTP/1.1, HTTP/2 and HTTP/3; no `Server` line over HTTP/1.1, HTTP/2 and HTTP/3 (a page, a 404, the `Server` of an upstream passed and cleared); zstd of a proxied page no larger than of the same page from its file, a body that is not of its `Content-Length` whole; slice with zstd, brotli and gzip on: a `Range` a 206 not compressed, no `Range` the whole object compressed; gzip_static, headers-more, geoip2, the
+  libgd of azsupport. Tested by `servers-test.sh`: brotli; zstd (the same bytes after `zstd -d`, Vary, HTTP/1.1, HTTP/2 and HTTP/3, a proxied response, a large one without a length, `zstd, br` zstd, `br, gzip` br, `gzip` gzip, `zstd;q=0` not zstd); `zstd_static`, `brotli_static`, `gzip_static` in each of their 8 combinations with the filters off, on and gzip alone, a page with its ready files and one without, clients of every set of the encodings and with `q=0` (480 requests); the one `Vary` line over HTTP/1.1, HTTP/2 and HTTP/3; no `Server` line over HTTP/1.1, HTTP/2 and HTTP/3 (a page, a 404, the `Server` of an upstream passed and cleared); zstd of a proxied page no larger than of the same page from its file, a body that is not of its `Content-Length` whole; slice with zstd, brotli and gzip on: a `Range` a 206 not compressed, no `Range` the whole object compressed; gzip_static, headers-more, geoip2, the
   stream proxy, image_filter. Patches from Debian (aZ, 16.11.2026): `brotli_static` sets
   `Vary` only where a `.br` file is, as `gzip_static`; geoip2 takes no cached lookup
   result of a database `auto_reload` has closed. From Gentoo (aZ, 16.11.2026): `HTTP_PROXY ""`
@@ -471,7 +471,7 @@ Names and origins as the ports, files at the paths of the ports:
   dynamic with a patch to `auto/options` and `auto/modules`: nginx builds it only into the
   binary; a core of `--with-compat` parses its request headers) and `nginx-devel-dav-ext`
   (PROPFIND, OPTIONS, LOCK, UNLOCK: nginx-dav-ext-module 3.0.1 of sysadmin-labs, the fork
-  the official port takes, on libxml2 and libxslt of az; with `DAV: 1,2` when LOCK is
+  the official port takes, on libxml2 and libxslt of azsupport; with `DAV: 1,2` when LOCK is
   configured, as Alpine, and without the empty entry its PROPFIND gave for a child it cannot
   stat, such as a broken link); checked by `servers-test.sh`. From OpenResty (aZ,
   18.11.2026): the SSL handshake waits when the callback of the certificate yields
@@ -484,7 +484,7 @@ Names and origins as the ports, files at the paths of the ports:
   `nginx-devel-stream`. The sources and sums those of the official `www/nginx-module-ndk`,
   `-lua` and `-lua-stream`. LuaJIT a port of this tree: the official port on v2.1-20261107
   of OpenResty, ahead of its v2.1-20250826 (aZ, 16.11.2026); lua-resty-core and
-  lua-resty-lrucache the official ports as they are (`Mk/az-official.mk`); lua-resty-http the official port with the run
+  lua-resty-lrucache the official ports as they are (`Mk/azsupport-official.mk`); lua-resty-http the official port with the run
   dependency on `www/lua-resty-string` (0.19, a port of this tree) it misses; lua-vips
   (`graphics/lua51-vips`, on the libvips of `graphics/vips`) and lbase64
   (`converters/lua51-base64`) ports of this tree in the place of luarocks; not built:
@@ -495,9 +495,9 @@ Names and origins as the ports, files at the paths of the ports:
   its default and CARES, without STATIC, NLS and the docs, and without LIBUV, SQLITE
   and SSH2 (aZ, 17.11.2026: the event poll is kqueue anyway; the cookies of the
   browsers and SFTP are not needed, and each adds code that can be vulnerable):
-  libxml2 and c-ares of az, OpenSSL and zlib of the base system; with the fix of
+  libxml2 and c-ares of azsupport, OpenSSL and zlib of the base system; with the fix of
   openSUSE for `IOFile::getLine()` (a read before the buffer on the stack, 16.11.2026).
-  `www/aria2-ssh2` (aZ, 19.11.2026): the same with SSH2 (SFTP, the libssh2 of az), the
+  `www/aria2-ssh2` (aZ, 19.11.2026): the same with SSH2 (SFTP, the libssh2 of azsupport), the
   package `aria2-ssh2`; one of the two on a server.
 - **`devel/py-pip`** (aZ, 15.11.2026): pip 26.3 for our `python312`, ahead of the
   official 23.3.2 (CVE-2025-8869), from its source of PyPI by flit_core; `bin/pip`
@@ -516,7 +516,7 @@ Names and origins as the ports, files at the paths of the ports:
   headers of the libraries of BIND. `named` with its rc.d script and
   `/usr/local/etc/namedb` as the official port; the tools (dig, host, nslookup, delv,
   nsupdate, the DNSSEC ones) with IDN. libuv, liburcu, nghttp2 (DNS over HTTPS) and
-  libidn2 of az, OpenSSL, zlib and libedit of the base system.
+  libidn2 of azsupport, OpenSSL, zlib and libedit of the base system.
 - **`dns/unbound`**: Unbound 1.26.2 in the place of local_unbound of the base system,
   which the servers build WITHOUT_UNBOUND (aZ, 20.11.2026: a package is updated as the
   others, the resolver of the base system only with the system, cut down and with its own
@@ -525,18 +525,18 @@ Names and origins as the ports, files at the paths of the ports:
   TCP_FASTOPEN of BIND); without DNSCrypt and DNS over HTTPS for clients, the modules of
   other libraries (DYNLIB), the event API of libunbound (EVAPI), GOST (RFC 8624), DNSTAP,
   Redis cache, Python, Munin, AAAA filter, client subnet, manual pages and docs. expat
-  and libevent of az, OpenSSL of the base system. `unbound` with the rc.d script unbound of the official port
+  and libevent of azsupport, OpenSSL of the base system. `unbound` with the rc.d script unbound of the official port
   (unbound_enable, profiles, unbound-anchor before the start), `/usr/local/etc/unbound`
   with unbound.conf.sample.
 - **`graphics/vips`**: libvips 8.18 (aZ, 11.11.2026: for a Lua script of nginx that
   converts images on the fly) with aZ's formats: JPEG (mozjpeg), PNG (libpng), WebP,
-  HEIC/AVIF (libheif of az: both loaded, AVIF saved with SVT-AV1), GIF (load built in, save with cgif and
+  HEIC/AVIF (libheif of azsupport: both loaded, AVIF saved with SVT-AV1), GIF (load built in, save with cgif and
   libimagequant), with ICC profiles (lcms2), EXIF (libexif) and SIMD (Highway; ORC, the
   other choice, only without Highway). No TIFF, SVG, PDF, JPEG XL, ImageMagick or
   GraphicsMagick, text, FFTW and the other official options; not the loaders of
   Analyze, Radiance and PPM, the deprecated vips7 API, the C++ API, the static library,
   the manual pages and the translations. mozjpeg, png, webp, libheif, lcms2 and expat
-  of az; glib, libexif, cgif, libimagequant and highway of their ports of this tree; zlib
+  of azsupport; glib, libexif, cgif, libimagequant and highway of their ports of this tree; zlib
   of the base system. For images of the web, `VIPS_BLOCK_UNTRUSTED=1` in the environment
   of nginx (`env VIPS_BLOCK_UNTRUSTED=1;` in the main context of nginx.conf; the message
   of the package says so) keeps libvips from its untrusted loaders. With the fixes of
@@ -556,7 +556,7 @@ Names and origins as the ports, files at the paths of the ports:
   esbuild 0.28.1 and 0.28.2 (Go), sharp 0.35.5 on libvips 8.18.7 built in the port with
   the patches of `graphics/vips`, static in sharp, with the formats of sharp-libvips
   1.3.4 (JPEG, PNG, WebP, GIF, AVIF and HEIF, TIFF, SVG, text, ICC, EXIF, Ultra HDR, the
-  C++ API) on the shared libraries of az and of this tree; ThinLTO. No binary of
+  C++ API) on the shared libraries of azsupport and of this tree; ThinLTO. No binary of
   another system in the package.
 - **`graphics/tiff`**, **`print/harfbuzz`**, **`converters/fribidi`**, **`x11/pixman`**,
   **`graphics/cairo`**, **`x11-toolkits/pango`**, **`graphics/librsvg2-rust`**,
@@ -570,8 +570,8 @@ Names and origins as the ports, files at the paths of the ports:
   no X11); Pango 1.58.2 (Cairo, HarfBuzz, FriBidi, fontconfig; no Xft, libthai, tools);
   librsvg 2.63.4 (Cairo, Pango, libxml2; no GIF and WebP in an SVG, PDF, PostScript,
   AVIF, gdk-pixbuf, rsvg-convert); libultrahdr 2.0.2 (mozjpeg; no examples). FreeType,
-  fontconfig, libpng, mozjpeg, WebP, libxml2 of az, each with its own headers
-  ([`Mk/az-libs.mk`](Mk/az-libs.mk)).
+  fontconfig, libpng, mozjpeg, WebP, libxml2 of azsupport, each with its own headers
+  ([`Mk/azsupport-libs.mk`](Mk/azsupport-libs.mk)).
 - **`x11-fonts/dejavu`** (aZ, 18.11.2026 16:35 and 19:58): the DejaVu fonts 2.37 of the
   official port as it is, with what its `USES=fonts` adds to run it: fc-cache of the
   official `x11-fonts/fontconfig` and mkfontscale, fc-cache when it installs (without
@@ -619,11 +619,11 @@ Names and origins as the ports, files at the paths of the ports:
   PYMALLOC, IPV6 on; libmpdec of `math/mpdecimal`, the official port as it is) but NLS (off,
   as everywhere: aZ, 16.11.2026; the gettext module reads `.mo` files itself) and its
   files, so that the official `py312-*` packages install over our `python312` and use it
-  (aZ, 11.11.2026); libffi (`_ctypes`), expat (`pyexpat`) and readline of az with the run
-  path `/usr/local/az/lib` instead of their packages,
+  (aZ, 11.11.2026); libffi (`_ctypes`), expat (`pyexpat`) and readline of azsupport with the run
+  path `/usr/local/azsupport/lib` instead of their packages,
   OpenSSL, ncurses, zlib, bzip2 and liblzma of the base system; the build sees of
-  `/usr/local` only az and libmpdec. `py312-sqlite3`, the official port with its
-  flavours, on the SQLite of az. No gdbm and tkinter (as the official package; aZ: not
+  `/usr/local` only azsupport and libmpdec. `py312-sqlite3`, the official port with its
+  flavours, on the SQLite of azsupport. No gdbm and tkinter (as the official package; aZ: not
   needed). Its version is that of the official port (`Mk/Uses/python.mk` reads it there).
   With gh-115627 as RHEL carries it for its Python 3.12 (00462, upstream in 3.13 only):
   `SSL_ERROR_SYSCALL` was taken by the return value of `SSL_read_ex()`, so with the
@@ -633,7 +633,7 @@ Names and origins as the ports, files at the paths of the ports:
   `lang/python3`: the official meta port as it is (aZ, 11.11.2026), `bin/python3`,
   `bin/pydoc3`, `python3.pc` and the like as links to those of Python 3.12, depending on
   our `python312`. The build tools a port needs only to build (Python, Perl, meson: of
-  `az/az`, `ftp/curl`, `devel/glib20`, `graphics/vips`, `www/node24`) are the official
+  `azsupport/azsupport`, `ftp/curl`, `devel/glib20`, `graphics/vips`, `www/node24`) are the official
   packages, not ours (`tools/build.sh`); a port that runs with Python or is a module of
   it (`www/yt-dlp`, `www/npm-node24`, `databases/py-sqlite3`) takes ours.
   A switch of `PYTHON_DEFAULT` or `PERL5_DEFAULT` in `Mk/bsd.default-versions.mk` of
@@ -663,22 +663,22 @@ Names and origins as the ports, files at the paths of the ports:
   04.02.2026: 21u needs them headless, to compile and in its configure,
   `NEEDS_LIB_X11` of `make/autoconf/libraries.m4`), without sound (no ALSA and
   `libjsound` on FreeBSD, as on AIX and OpenBSD: `javax.sound` finds no devices) and
-  without DTrace, on the libjpeg (mozjpeg), FreeType and Little CMS of az (the run
-  path `/usr/local/az/lib` after `$ORIGIN`, in the three libraries that link them),
+  without DTrace, on the libjpeg (mozjpeg), FreeType and Little CMS of azsupport (the run
+  path `/usr/local/azsupport/lib` after `$ORIGIN`, in the three libraries that link them),
   the zlib of the base system and the HarfBuzz it bundles (no port of ours has it);
   no fonts and no javavmwrapper (no `/usr/local/bin/java`: Elasticsearch and
-  OpenSearch take `JAVA_HOME`); CUPS and the headers of fontconfig (of az) only to
+  OpenSearch take `JAVA_HOME`); CUPS and the headers of fontconfig (of azsupport) only to
   build. fontconfig is not linked: OpenJDK loads `libfontconfig.so.1` with dlopen by
   its name when it needs the fonts of the system, and the rtld of FreeBSD looks for
   it in `LD_LIBRARY_PATH`, the run path of `bin/java`, the ldconfig hints and `/lib`,
-  `/usr/lib`, never in `/usr/local/az/lib`: with our packages only Java has no fonts
+  `/usr/lib`, never in `/usr/local/azsupport/lib`: with our packages only Java has no fonts
   at all (every use of a font throws `java.lang.InternalError` of
   `sun.font.FontManagerFactory`, a font file too; Elasticsearch draws no text), with
   the official `fontconfig` and fonts installed (`pkg install dejavu`) it takes those
   (in `tools/java-test.sh`: the families of DejaVu, text
   drawn). `jna`: JNA of the official port the same way,
   without JAWT (`-DNO_JAWT` on FreeBSD, as JNA builds for Android and macOS) and X11,
-  its `libjnidispatch.so` on the shared libffi of az instead of the static copy it
+  its `libjnidispatch.so` on the shared libffi of azsupport instead of the static copy it
   bundles, and installed as a file too, `lib/jna/libjnidispatch.so` (aZ, 11.11.2026:
   with `-Djna.boot.library.path=/usr/local/lib/jna` JNA loads it from there instead of
   extracting it from the jar into a temporary directory at every start;
@@ -690,12 +690,12 @@ Names and origins as the ports, files at the paths of the ports:
   JNA compiles for Java 8 (`javac --release 8`; the port checks the class file
   version, 52). The ports check
   what they build (every ELF of the JDK without the libraries of X11, ALSA, giflib,
-  libpng, HarfBuzz and fontconfig; the libraries of az by their run path; the
-  dependencies: az only). Tests after the install:
+  libpng, HarfBuzz and fontconfig; the libraries of azsupport by their run path; the
+  dependencies: azsupport only). Tests after the install:
   `tools/java-test.sh` (`openjdk21`: headless, ImageIO with
   JPEG and PNG, an ICC conversion, text, `AudioSystem`, TLS 1.3 on 127.0.0.1, the
-  libraries of az in the process, `ldd` of every ELF file of the JDK (the libraries
-  of the JDK, of the base system and of `/usr/local/az/lib` alone, nothing of X11),
+  libraries of azsupport in the process, `ldd` of every ELF file of the JDK (the libraries
+  of the JDK, of the base system and of `/usr/local/azsupport/lib` alone, nothing of X11),
   `getpid()` through JNA, from the jar and from `lib/jna`, a dot product through the
   Vector API of `jdk.incubator.vector`, a file mapped as a `MemorySegment` and
   `getpid()` through the `Linker` of FFM, as OpenSearch 2.19 and 3.x use them; the
@@ -712,13 +712,13 @@ Names and origins as the ports, files at the paths of the ports:
   gmagick off.
 - **The compiler of PHP** (every version, aZ 09.11.2026): GCC 16 of the ports
   (`lang/gcc16`) builds the cores, the Apache modules and the modules, a build dependency
-  only: no file needs a library of GCC (`-static-libgcc`, the run path `/usr/local/az/lib`
+  only: no file needs a library of GCC (`-static-libgcc`, the run path `/usr/local/azsupport/lib`
   only). The Zend VM of PHP 7 and later keeps its registers in global register variables
   with GCC, not with clang: the CLI of 7.4 is 33–44% faster than with the base clang 19,
   that of 8.3 36–38% without OPcache and 5–15% with OPcache and its JIT
   ([bench.sh](https://github.com/azsupport/php-src/blob/master/tools/bench.sh) of php-src).
   The modules with C++ (intl, swoole, openswoole) and imagick and gmagick (they link the
-  OpenMP runtime of the compiler) keep the base clang. The annotation `az_cc` of each
+  OpenMP runtime of the compiler) keep the base clang. The annotation `azsupport_cc` of each
   package says which (`pkg info -A php74`); [`Mk/Uses/azgcc.mk`](Mk/Uses/azgcc.mk).
 
 ## The layout of PHP on a server
@@ -738,25 +738,25 @@ with their own number, and the API of their modules: 5.6 `20131226`, 8.1 `202109
 | Apache | `libexec/apache24/libphp74.so`, `etc/apache24/modules.d/280_mod_php74.conf` |
 | Data | `share/php74`, the manual pages with the suffix in `share/man` |
 
-## A server and the repository az
+## A server and the repository azsupport
 
-The repository is the files of the release `az-fbsd15-amd64-v3` of this repository
-(`az-fbsd15-amd64-v2` for a CPU without AVX2). Its catalog is signed with the key of
-aZ; [`keys/az.pub`](keys/az.pub) is its public key (the same key as
-[`freebsd/az.pub`](https://github.com/azsupport/php-src/blob/master/freebsd/az.pub) of
+The repository is the files of the release `azsupport-fbsd15-amd64-v3` of this repository
+(`azsupport-fbsd15-amd64-v2` for a CPU without AVX2). Its catalog is signed with the key of
+aZ; [`keys/azsupport.pub`](keys/azsupport.pub) is its public key (the same key as
+[`freebsd/azsupport.pub`](https://github.com/azsupport/php-src/blob/master/freebsd/azsupport.pub) of
 azsupport/php-src; SHA-256
 `2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6`).
 
-On a server, as root, [`az-menu.sh`](https://github.com/azsupport/php-src#az-menush-the-packages-and-what-goes-into-php)
+On a server, as root, [`azsupport-menu.sh`](https://github.com/azsupport/php-src#azsupport-menush-the-packages-and-what-goes-into-php)
 of azsupport/php-src writes the repository: x86-64-v3 when `cc -march=native` has AVX2,
 BMI2, FMA, F16C, LZCNT and MOVBE, else x86-64-v2; the public key into
-`/usr/local/etc/pkg/keys/az.pub`, the repository into
-`/usr/local/etc/pkg/repos/az.conf`, then `pkg update -r az`. It says the level it took
+`/usr/local/etc/pkg/keys/azsupport.pub`, the repository into
+`/usr/local/etc/pkg/repos/azsupport.conf`, then `pkg update -r azsupport`. It says the level it took
 and why, and the SHA-256 of the key (the one above):
 
 ```sh
-fetch https://github.com/azsupport/php-src/releases/download/az-menu/az-menu.sh
-sh az-menu.sh --repo
+fetch https://github.com/azsupport/php-src/releases/download/azsupport-menu/azsupport-menu.sh
+sh azsupport-menu.sh --repo
 ```
 
 The same by hand, for x86-64-v3 (for x86-64-v2: `amd64-v2` in the address); `sha256`
@@ -764,38 +764,60 @@ must print the SHA-256 above:
 
 ```sh
 mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
-fetch -o /usr/local/etc/pkg/keys/az.pub https://raw.githubusercontent.com/azsupport/ports/main/keys/az.pub
-sha256 /usr/local/etc/pkg/keys/az.pub
-printf '%s\n' 'az: { url: "https://github.com/azsupport/ports/releases/download/az-fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/az.pub", priority: 100, enabled: yes }' > /usr/local/etc/pkg/repos/az.conf
-pkg update -r az
+fetch -o /usr/local/etc/pkg/keys/azsupport.pub https://raw.githubusercontent.com/azsupport/ports/main/keys/azsupport.pub
+sha256 /usr/local/etc/pkg/keys/azsupport.pub
+printf '%s\n' 'azsupport: { url: "https://github.com/azsupport/ports/releases/download/azsupport-fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/azsupport.pub", priority: 100, enabled: yes }' > /usr/local/etc/pkg/repos/azsupport.conf
+pkg update -r azsupport
 ```
 
+### A server of the repository az
+
+Until 25.11.2026 the repository, its package of libraries and its releases were named
+az: `/usr/local/etc/pkg/repos/az.conf` with `keys/az.pub`, the package `az` in
+`/usr/local/az`, the releases `az-fbsd15-amd64-v3` and `-v2` (aZ, 25.11.2026: «надо бренд
+продвигать»). The key is the same. A server of az moves to azsupport so (its `az.conf`
+with the url of the release, not of a snapshot; `-v2` stays `-v2`):
+
+```sh
+fetch -o /usr/local/etc/pkg/keys/azsupport.pub https://raw.githubusercontent.com/azsupport/ports/main/keys/azsupport.pub
+sha256 /usr/local/etc/pkg/keys/azsupport.pub
+sed -e 's#^az:#azsupport:#' -e 's#/az-fbsd15-#/azsupport-fbsd15-#' -e 's#keys/az\.pub#keys/azsupport.pub#' /usr/local/etc/pkg/repos/az.conf > /usr/local/etc/pkg/repos/azsupport.conf
+rm /usr/local/etc/pkg/repos/az.conf /usr/local/etc/pkg/keys/az.pub
+pkg update -f -r azsupport
+pkg upgrade -r azsupport
+pkg delete az
+```
+
+`pkg upgrade` takes each package of az from azsupport, where it depends on the package
+`azsupport` (`/usr/local/azsupport`); `pkg delete az` then removes `/usr/local/az`, which
+nothing needs any more (pkg says so if something still does).
+
 Each publish also keeps the whole repository, its catalog and every package, as a
-release of its own that does not change: `az-fbsd15-amd64-v3-<YYYYMMDD>-<HHMM>` (UTC,
+release of its own that does not change: `azsupport-fbsd15-amd64-v3-<YYYYMMDD>-<HHMM>` (UTC,
 the time of the publish; `-v2-` for x86-64-v2), the newest 31 of each level
 ([releases](https://github.com/azsupport/ports/releases),
 [`tools/release-snapshot.sh`](tools/release-snapshot.sh)); the release itself has only
 the packages of its catalog, as GitHub keeps at most 1000 files in a release. A server
-goes back to a snapshot by its url (here that of 18.11.2026 04:12), `pkg upgrade -f`
-taking the packages of az as they are there, older versions too:
+goes back to a snapshot by its url (the name below is an example: take one of the releases), `pkg upgrade -f`
+taking the packages of azsupport as they are there, older versions too:
 
 ```sh
-sed -i '' 's#/releases/download/az-fbsd15-amd64-v3[^"]*"#/releases/download/az-fbsd15-amd64-v3-20261118-0412"#' /usr/local/etc/pkg/repos/az.conf
-pkg update -f -r az
-pkg upgrade -f -r az
+sed -i '' 's#/releases/download/azsupport-fbsd15-amd64-v3[^"]*"#/releases/download/azsupport-fbsd15-amd64-v3-20261118-0412"#' /usr/local/etc/pkg/repos/azsupport.conf
+pkg update -f -r azsupport
+pkg upgrade -f -r azsupport
 ```
 
 and to the release again:
 
 ```sh
-sed -i '' 's#/releases/download/az-fbsd15-amd64-v3[^"]*"#/releases/download/az-fbsd15-amd64-v3"#' /usr/local/etc/pkg/repos/az.conf
-pkg update -f -r az
-pkg upgrade -r az
+sed -i '' 's#/releases/download/azsupport-fbsd15-amd64-v3[^"]*"#/releases/download/azsupport-fbsd15-amd64-v3"#' /usr/local/etc/pkg/repos/azsupport.conf
+pkg update -f -r azsupport
+pkg upgrade -r azsupport
 ```
 
-`priority: 100`: for a package both have (`curl`), pkg prefers az to the repository
-of FreeBSD. `pkg update -r az` refuses a catalog whose signature does not verify.
-`ffmpeg`, `libimagemagick6`, `libimagemagick7` and `GraphicsMagick` of az do not have the
+`priority: 100`: for a package both have (`curl`), pkg prefers azsupport to the repository
+of FreeBSD. `pkg update -r azsupport` refuses a catalog whose signature does not verify.
+`ffmpeg`, `libimagemagick6`, `libimagemagick7` and `GraphicsMagick` of azsupport do not have the
 shared libraries of the official packages (`libavcodec.so`, `libMagickWand-7.so` in
 `/usr/local/lib`, ...): when another package needs them (`pkg info -r ffmpeg`), keep the
 official package.
@@ -803,47 +825,47 @@ official package.
 PHP 7.4 with its modules:
 
 ```sh
-pkg install -r az php74 apache24-php74 php74-opcache php74-gd php74-mbstring php74-openssl-legacy
+pkg install -r azsupport php74 apache24-php74 php74-opcache php74-gd php74-mbstring php74-openssl-legacy
 ```
 
 PHP 8.3 with its modules (installs side by side with 7.4: its own `etc/php83`, `lib/php/20230831`, `include/php83`):
 
 ```sh
-pkg install -r az php83 apache24-php83 php83-opcache php83-gd php83-mbstring php83-openssl-legacy
+pkg install -r azsupport php83 apache24-php83 php83-opcache php83-gd php83-mbstring php83-openssl-legacy
 ```
 
 PHP 8.1 with its modules (side by side as well: `etc/php81`, `lib/php/20210902`, `include/php81`):
 
 ```sh
-pkg install -r az php81 apache24-php81 php81-opcache php81-gd php81-mbstring php81-openssl-legacy
+pkg install -r azsupport php81 apache24-php81 php81-opcache php81-gd php81-mbstring php81-openssl-legacy
 ```
 
 PHP 5.6 with its modules (side by side as well: `etc/php56`, `lib/php/20131226`, `include/php56`):
 
 ```sh
-pkg install -r az php56 apache24-php56 php56-opcache php56-gd php56-mbstring php56-openssl-legacy
+pkg install -r azsupport php56 apache24-php56 php56-opcache php56-gd php56-mbstring php56-openssl-legacy
 ```
 
 PHP 8.2 with its modules (side by side as well: `etc/php82`, `lib/php/20220829`, `include/php82`):
 
 ```sh
-pkg install -r az php82 apache24-php82 php82-opcache php82-gd php82-mbstring php82-openssl-legacy
+pkg install -r azsupport php82 apache24-php82 php82-opcache php82-gd php82-mbstring php82-openssl-legacy
 ```
 
 PHP 8.4 with its modules (side by side as well: `etc/php84`, `lib/php/20240924`, `include/php84`):
 
 ```sh
-pkg install -r az php84 apache24-php84 php84-opcache php84-gd php84-mbstring php84-openssl-legacy
+pkg install -r azsupport php84 apache24-php84 php84-opcache php84-gd php84-mbstring php84-openssl-legacy
 ```
 
 The programs:
 
 ```sh
-pkg install -r az curl ffmpeg ImageMagick67 mc
+pkg install -r azsupport curl ffmpeg ImageMagick67 mc
 ```
 
-yt-dlp without `-r az`: its Python packages are in the repository of FreeBSD, and pkg
-takes `yt-dlp`, `python312`, `python3` and `py312-sqlite3` of az by `priority: 100`:
+yt-dlp without `-r azsupport`: its Python packages are in the repository of FreeBSD, and pkg
+takes `yt-dlp`, `python312`, `python3` and `py312-sqlite3` of azsupport by `priority: 100`:
 
 ```sh
 pkg install yt-dlp
@@ -857,7 +879,7 @@ owner's responsibility, until the nonfree part goes (a move to open libraries).
 php-fpm of 7.4:
 
 ```sh
-pkg install -r az php74-fpm
+pkg install -r azsupport php74-fpm
 sysrc php74_fpm_enable=YES
 service php74_fpm start
 ```
@@ -884,18 +906,18 @@ package is there, another level, the ports tree of the build server:
 ```sh
 sh tools/build.sh lang/php74 www/mod_php74
 sh tools/build.sh --force lang/php74
-env AZ_CPUTYPE=x86-64-v2 sh tools/build.sh
-env AZ_PORTSDIR=/usr/ports sh tools/build.sh
-env AZ_JOBS=1 sh tools/build.sh
-env AZ_DRYRUN=1 sh tools/build.sh
-env AZ_PLAN=1 sh tools/build.sh
-env AZ_CONFIGURE_CHECK=1 sh tools/build.sh --force
+env AZSUPPORT_CPUTYPE=x86-64-v2 sh tools/build.sh
+env AZSUPPORT_PORTSDIR=/usr/ports sh tools/build.sh
+env AZSUPPORT_JOBS=1 sh tools/build.sh
+env AZSUPPORT_DRYRUN=1 sh tools/build.sh
+env AZSUPPORT_PLAN=1 sh tools/build.sh
+env AZSUPPORT_CONFIGURE_CHECK=1 sh tools/build.sh --force
 ```
 
 What it does, with the logic of poudriere:
 
 - the official tree at the pinned commit (git, depth 1) in `work/freebsd-ports`, reused
-  when it is at that commit (`AZ_PORTSDIR`: a tree taken as it is, with a warning when
+  when it is at that commit (`AZSUPPORT_PORTSDIR`: a tree taken as it is, with a warning when
   it is at another commit), this tree as `OVERLAYS` over it;
 - `work/make.conf` from [`tools/make.conf.in`](tools/make.conf.in), the make.conf of
   aZ's servers in the style of style.Makefile(5) (`CPUTYPE` of the level,
@@ -913,7 +935,7 @@ What it does, with the logic of poudriere:
   its own);
 - the queue: the ports and the ports of this tree they need (the origins of their
   `*_DEPENDS` that are ours), each after those it needs;
-- a port whose origin has a package with the same `az_hash` in the repository is not
+- a port whose origin has a package with the same `azsupport_hash` in the repository is not
   built again (an incremental build; [Versions and rebuilds](#versions-and-rebuilds))
   unless `--force`; a port that fails stops the ports that need it (skipped, with the
   reason);
@@ -925,51 +947,51 @@ What it does, with the logic of poudriere:
   add; not `/etc/ssh`), devfs, `/tmp`, an empty `/usr/local` and a pkg database of its
   own; this tree, the official tree, `packages/` and the repository read only at their
   paths; the distfiles, the work directories (`WRKDIRPREFIX`), the packages directory
-  of the port and `results/az-results` read-write. The catalogs of pkg are those of the
+  of the port and `results/azsupport-results` read-write. The catalogs of pkg are those of the
   run (the machine's, updated once at the start; `pkg -U` in a chroot) and the cache of
   pkg is that of the machine, shared: the official packages of the ports to build are
   fetched at the start, later fetches one chroot at a time. In the chroot the official
   packages of the port's dependencies (and those our packages it gets need to run) come
   by `pkg -c <chroot> install` from the FreeBSD repositories of the machine (never ours,
-  `az` or `azbuild`), ours by `pkg -c <chroot> add` of the packages built before or of
+  `azsupport` or `azbuild`), ours by `pkg -c <chroot> add` of the packages built before or of
   the repository, in the order of the queue (`-f` in the place of an official package
   of the same name); then `make clean package` in it (`chroot`, the environment of a
-  login of root with the make.conf of the run and `AZ_CPUTYPE`) with
+  login of root with the make.conf of the run and `AZSUPPORT_CPUTYPE`) with
   `USE_PACKAGE_DEPENDS_ONLY=yes` (nothing is built from source but the port itself);
   its log and its time, with those of its chroot and of its dependencies (a line
   `chroots:` in the summary). No build touches the `/usr/local` of the machine: the
   checks after the run see only what they install;
-- the build tools of `AZ_TOOLS_OFFICIAL` in `tools/build.sh` (`lang/python3`,
+- the build tools of `AZSUPPORT_TOOLS_OFFICIAL` in `tools/build.sh` (`lang/python3`,
   `lang/python312`, `lang/perl5.42`, `devel/meson`) come from the official packages of
   FreeBSD also when this tree has the origin (aZ, 11.11.2026: our Python and Perl link
-  libraries of az, which needs them to build): a port that needs one only to build it
+  libraries of azsupport, which needs them to build): a port that needs one only to build it
   (`FETCH_`, `EXTRACT_`, `PATCH_`, `BUILD_` or `PKG_DEPENDS`) gets the official package
-  in its chroot, and the hash of our port is not in its `az_hash`; a port that runs
+  in its chroot, and the hash of our port is not in its `azsupport_hash`; a port that runs
   with it (`LIB_` or `RUN_DEPENDS`) or builds an extension for it (a `FLAVOR` `py*`)
   gets ours (`results/hashes.txt` names the tools a port gets official); automake
   (`devel/automake`) is ours, the official port as it is: the `Mk/Uses/autoreconf.mk`
   of a new pin can want an automake the official packages do not have yet (19.11.2026:
-  `automake>=1.20`, az failed without it);
-- up to `AZ_JOBS` ports at once (default 4), in waves: the ports whose ports of this
+  `automake>=1.20`, azsupport failed without it);
+- up to `AZSUPPORT_JOBS` ports at once (default 4), in waves: the ports whose ports of this
   tree they need are done form a wave, the biggest first, each in its chroot with its
   log and its own packages directory (two packages with the same files, `php84-mysqlnd`
   and `php84-mysqlnd-openssl`, build side by side); the summary in the order of the
-  queue; `results/waves.txt`. `AZ_JOBS=1`: one port after another, as before;
-  `AZ_DRYRUN=1`: the waves of the run said, nothing built (the ports that need az are
-  decided after az is built, when it is to be built);
-- `AZ_PLAN=1` (the input `plan` of the workflow), the plan of a run, to check its
-  decisions cheaply: `az/az` and the ports it needs are built when they are to be (the
-  ports that need az are decided by the interfaces of the new az), every other port only
+  queue; `results/waves.txt`. `AZSUPPORT_JOBS=1`: one port after another, as before;
+  `AZSUPPORT_DRYRUN=1`: the waves of the run said, nothing built (the ports that need azsupport are
+  decided after azsupport is built, when it is to be built);
+- `AZSUPPORT_PLAN=1` (the input `plan` of the workflow), the plan of a run, to check its
+  decisions cheaply: `azsupport/azsupport` and the ports it needs are built when they are to be (the
+  ports that need azsupport are decided by the interfaces of the new azsupport), every other port only
   decided, kept from the repository or to be built and why (`PLAN` lines of the
-  summary, `results/plan.txt`), not built; the repository gets what was built (az, so
+  summary, `results/plan.txt`), not built; the repository gets what was built (azsupport, so
   that the next run keeps it); no checks, never published;
-- a port that names no file of the static tree of az (`/usr/local/az/static`) in its
-  dependencies builds without the archives of az (they go from its chroot): only a port
-  that says `AZ_STATIC_LIBS` can link them into its package
+- a port that names no file of the static tree of azsupport (`/usr/local/azsupport/static`) in its
+  dependencies builds without the archives of azsupport (they go from its chroot): only a port
+  that says `AZSUPPORT_STATIC_LIBS` can link them into its package
   ([Versions and rebuilds](#versions-and-rebuilds));
-- a `NEED_ROOT` port (`az/az`: it builds into `/usr/local/az`): into that of its own
+- a `NEED_ROOT` port (`azsupport/azsupport`: it builds into `/usr/local/azsupport`): into that of its own
   chroot, as any port;
-- `AZ_CONFIGURE_CHECK=1`, the configure check: after the build of each PHP port (the
+- `AZSUPPORT_CONFIGURE_CHECK=1`, the configure check: after the build of each PHP port (the
   cores, `apache24-phpXY`, every module, the PECL ones and those of clang too), also when
   the build fails after its configure, `make configure` once more in a work directory
   of its own, with the same compiler and the errors of C of GCC 14+ and clang 16+ as
@@ -987,71 +1009,71 @@ What it does, with the logic of poudriere:
   every PHP port);
 - the repository (`--repo <dir>`, default `work/repo`): one package per origin, the new
   ones in the place of the old ones, `pkg repo`, signed with the key of
-  `AZ_PKG_KEY_FILE` and checked ([`tools/pkg-repo-sign.sh`](tools/pkg-repo-sign.sh));
+  `AZSUPPORT_PKG_KEY_FILE` and checked ([`tools/pkg-repo-sign.sh`](tools/pkg-repo-sign.sh));
 - the results in `results/`: `summary.txt` (a line per port, `result: OK` or
   `result: FAIL (...)` at the end), `queue.txt`, `hashes.txt`, `waves.txt`, `logs/`
   (`logs/chroots.log`: the catalogs and the official packages fetched at the start),
-  `az-interface.txt` and `abi-check.txt` (az), `plan.txt` (`AZ_PLAN`),
-  `configure-check.txt` (`AZ_CONFIGURE_CHECK`).
+  `azsupport-interface.txt` and `abi-check.txt` (azsupport), `plan.txt` (`AZSUPPORT_PLAN`),
+  `configure-check.txt` (`AZSUPPORT_CONFIGURE_CHECK`).
 
 ### Versions and rebuilds
 
-As poudriere: each port that a run builds gets `AZ_STAMP` (the hour of the start of
+As poudriere: each port that a run builds gets `AZSUPPORT_STAMP` (the hour of the start of
 the run, `yymmddhh` UTC) as its `PORTREVISION`, so that each build is an upgrade for
-pkg (`php74-7.4.33_26110817`), and `AZ_HASH`, which goes into the package as the
-annotation `az_hash` (`pkg info -A php74`): the SHA-256 of the files of the port (with
-those of its `MASTERDIR`, of its `EXTRA_PATCHES` and `AZ_HASH_FILES` in this tree: the
+pkg (`php74-7.4.33_26110817`), and `AZSUPPORT_HASH`, which goes into the package as the
+annotation `azsupport_hash` (`pkg info -A php74`): the SHA-256 of the files of the port (with
+those of its `MASTERDIR`, of its `EXTRA_PATCHES` and `AZSUPPORT_HASH_FILES` in this tree: the
 files of the directory of another port its build reads, `graphics/ImageMagick6` the
 `imagemagick.conf` and `policy.xml` of `graphics/ImageMagick7`), of the makefiles of
 `Mk/` of this tree it reads
 (`Mk/bsd.overlay.mk`; `Mk/Uses/php.mk` only for the PHP ports), of the official commit,
 the level, `tools/make.conf.in` and the way the builder builds (`builder chroot`: each
 port in a chroot of its own; every port was built again once for it, 11.11.2026), and
-of the `az_hash` of each port of this tree it needs (not of a build tool it gets
-official, `AZ_TOOLS_OFFICIAL`: the official commit is in its hash already). A port
-whose package in the repository has the same `az_hash` is not built again; a change of
-a port builds it and every port that needs it again (a change of `az/az`: all that
-link it). The files a port lists in `AZ_HASH_NOT_FOR_DEPENDENTS` (installed and used
-at run time only) count in its own `az_hash` but not in that of the ports that need it
+of the `azsupport_hash` of each port of this tree it needs (not of a build tool it gets
+official, `AZSUPPORT_TOOLS_OFFICIAL`: the official commit is in its hash already). A port
+whose package in the repository has the same `azsupport_hash` is not built again; a change of
+a port builds it and every port that needs it again (a change of `azsupport/azsupport`: all that
+link it). The files a port lists in `AZSUPPORT_HASH_NOT_FOR_DEPENDENTS` (installed and used
+at run time only) count in its own `azsupport_hash` but not in that of the ports that need it
 or of its slaves: a change of the php.ini block, the profile script, the rc.d script or
 the pkg-message of `lang/php74` builds `php74` again, not the modules and `apache24-php74`
 (pkg takes a dependency by its name, not its version). No revisions bumped by hand.
 
-`az/az` is built again when anything of it changes; a port that needs it takes into its
-`az_hash` not the hash of az but the interfaces of the libraries of az it uses (aZ,
+`azsupport/azsupport` is built again when anything of it changes; a port that needs it takes into its
+`azsupport_hash` not the hash of azsupport but the interfaces of the libraries of azsupport it uses (aZ,
 12.11.2026: as FreeBSD and Debian, which do not build again the dependents of a shared
-library for a fix inside it). The interface of a library comes out of the build of az:
-[`tools/az-build.sh`](tools/az-build.sh) writes a manifest a library into the package
-(`/usr/local/az/share/az/interface/<library>.txt`) from what its builds installed (the
+library for a fix inside it). The interface of a library comes out of the build of azsupport:
+[`tools/azsupport-build.sh`](tools/azsupport-build.sh) writes a manifest a library into the package
+(`/usr/local/azsupport/share/azsupport/interface/<library>.txt`) from what its builds installed (the
 files whose inode changed after the start of each of its builds, in both trees): its
 headers, `.pc` files, `*-config` scripts, cmake and other files with their SHA-256, the
 SONAMEs of its shared libraries, the names of its archives, its version, the hash of its
-build functions (`b_`, `s_` of `tools/az-build.sh`, `lib_` of
-`files/curl/build-libcurl.sh`: its configure and cmake options) and the libraries of az
+build functions (`b_`, `s_` of `tools/azsupport-build.sh`, `lib_` of
+`files/curl/build-libcurl.sh`: its configure and cmake options) and the libraries of azsupport
 it requires (the `NEEDED` of its shared libraries, `Requires` and `-l` of its `.pc`
 files, the `#include` lines of its headers); `common.txt` has the files of no library
-(`bin/pkg-config`). [`tools/az-interface.sh`](tools/az-interface.sh) makes of a manifest
+(`bin/pkg-config`). [`tools/azsupport-interface.sh`](tools/azsupport-interface.sh) makes of a manifest
 the interface hash (the hashes of the archives left out) and the content hash, and the
 closure of what a library requires. A port takes the interface hash of each library of
-the closure of those it uses (those whose manifests have the files of az its
-dependencies name, `${AZ_PREFIX}/lib/libxml2.so:az/az`: libxml2, and those its
-`AZ_HASH_LIBS` names: a program that links more than its dependencies name, `ftp/curl`,
+the closure of those it uses (those whose manifests have the files of azsupport its
+dependencies name, `${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport`: libxml2, and those its
+`AZSUPPORT_HASH_LIBS` names: a program that links more than its dependencies name, `ftp/curl`,
 `multimedia/ffmpeg`, `graphics/ImageMagick*`, `graphics/GraphicsMagick`) and of
 `common.txt`. So a fix inside the code of a library (the same headers, `.pc` files,
-SONAMEs, version and options) builds again only az; a new version, a changed header or
+SONAMEs, version and options) builds again only azsupport; a new version, a changed header or
 `.pc` file, a new SONAME or a changed option builds again the ports that use that
-library. The hashes of the ports that need az are made once az is done: at once when its
-package in the repository has the same `az_hash` (its manifests), after its build when it
-is built (az is the first stage); a package of az without manifests is built again.
+library. The hashes of the ports that need azsupport are made once azsupport is done: at once when its
+package in the repository has the same `azsupport_hash` (its manifests), after its build when it
+is built (azsupport is the first stage); a package of azsupport without manifests is built again.
 
-Static use: no port of this tree links the archives of az (`/usr/local/az/static`) into
+Static use: no port of this tree links the archives of azsupport (`/usr/local/azsupport/static`) into
 its package; `graphics/ImageMagick7` and `graphics/GraphicsMagick` build their own static
-libraries against that tree, for PHP built on a server (`AZ_STATIC_LIBS= none`: their
+libraries against that tree, for PHP built on a server (`AZSUPPORT_STATIC_LIBS= none`: their
 headers and `.pc` files are in the interfaces, both trees). A port that would link them
-names them in `AZ_STATIC_LIBS` (the content hash of those libraries, archives too, goes
-into its `az_hash`); [`tools/check-tree.sh`](tools/check-tree.sh) asks for
-`AZ_STATIC_LIBS` of a port whose dependencies name a file of the static tree, and
-`tools/build.sh` builds every other port without the archives of az in its chroot.
+names them in `AZSUPPORT_STATIC_LIBS` (the content hash of those libraries, archives too, goes
+into its `azsupport_hash`); [`tools/check-tree.sh`](tools/check-tree.sh) asks for
+`AZSUPPORT_STATIC_LIBS` of a port whose dependencies name a file of the static tree, and
+`tools/build.sh` builds every other port without the archives of azsupport in its chroot.
 
 The files of the directory of another port that a build reads:
 [`tools/check-tree.sh`](tools/check-tree.sh) evaluates with `make` the paths the
@@ -1059,9 +1081,9 @@ makefiles of this tree a port reads name from its directory upward (`${.CURDIR:H
 `${.CURDIR}/..`: the value of the variable of such a line, so that a branch not taken does
 not count, or the expression of a line of a target); one outside its directory, `Mk/`
 and `tools/`, and not in its hash (its `MASTERDIR`, `FILESDIR`, `PATCHDIR`, `PKGDIR`,
-`DISTINFO_FILE`, `EXTRA_PATCHES`, the makefiles it reads, `AZ_HASH_FILES`) is a FAIL: the
-port names it in `AZ_HASH_FILES`. Two such reads go into no package and stay out of the
-hashes: `az/az/files/deps.conf` (`AZ_DEPS_CONF` of `az/az/Makefile.common`: its line
+`DISTINFO_FILE`, `EXTRA_PATCHES`, the makefiles it reads, `AZSUPPORT_HASH_FILES`) is a FAIL: the
+port names it in `AZSUPPORT_HASH_FILES`. Two such reads go into no package and stay out of the
+hashes: `azsupport/azsupport/files/deps.conf` (`AZSUPPORT_DEPS_CONF` of `azsupport/azsupport/Makefile.common`: its line
 `ports` only, the official commit, in the base of every hash) and the `pkg-plist` of
 `databases/mariadb1011-client`, which the server takes as `@comment` lines. A path a script
 of `tools/` makes itself is not seen there (the `policy.xml` next to the conf of
@@ -1069,22 +1091,22 @@ of `tools/` makes itself is not seen there (the `policy.xml` next to the conf of
 
 Nothing slips by unseen:
 
-- after az is built in a run, before the tests, the ABI check of every package of the
-  repository that needs az ([`tools/az-abi-check.sh`](tools/az-abi-check.sh)): each
-  SONAME of az its files need (`shlibs_required` of pkg) is in the new az, and each
-  undefined dynamic symbol they bind from a library of az is defined there (the symbols
-  the new az lost against the az of the repository, `nm -D`; the ELF files only of the
+- after azsupport is built in a run, before the tests, the ABI check of every package of the
+  repository that needs azsupport ([`tools/azsupport-abi-check.sh`](tools/azsupport-abi-check.sh)): each
+  SONAME of azsupport its files need (`shlibs_required` of pkg) is in the new azsupport, and each
+  undefined dynamic symbol they bind from a library of azsupport is defined there (the symbols
+  the new azsupport lost against the azsupport of the repository, `nm -D`; the ELF files only of the
   packages that need a SONAME that lost some, `readelf -d`, `nm -D`); a package that
   fails is built again in the same run, one not built goes from the repository
   (`results/abi-check.txt`);
 - the tests of all the programs run in every run (`tools/test-programs.sh`), with the
-  packages kept against the new az;
-- a package that links a library of az its `az_hash` does not take (its
+  packages kept against the new azsupport;
+- a package that links a library of azsupport its `azsupport_hash` does not take (its
   `shlibs_required` against the closures of its own libraries and of the ports it
-  needs) fails the run: `AZ_HASH_LIBS` of its Makefile is short;
-- `results/az-interface.txt` (a section of the report): the interfaces of the libraries
-  of az, those that changed against the az of the repository, the ABI check, and the
-  ports kept by interface while az was built again (a line `az:` of the summary).
+  needs) fails the run: `AZSUPPORT_HASH_LIBS` of its Makefile is short;
+- `results/azsupport-interface.txt` (a section of the report): the interfaces of the libraries
+  of azsupport, those that changed against the azsupport of the repository, the ABI check, and the
+  ports kept by interface while azsupport was built again (a line `azsupport:` of the summary).
 
 [`tools/install-php.sh`](tools/install-php.sh) `<version>` installs the PHP packages of
 a version from that repository, as a server does (the core, `apache24-php74` and the
@@ -1099,7 +1121,7 @@ gd of 5.6 with T1lib, `php74-openssl-legacy` (RC4 with ssh2 in the same process)
 
 ### The workflow
 
-[`build.yml`](.github/workflows/build.yml), "Build the packages of the repository az":
+[`build.yml`](.github/workflows/build.yml), "Build the packages of the repository azsupport":
 https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 **Run workflow**.
 
@@ -1108,22 +1130,22 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, the button
 | `release` | the FreeBSD release of the VM, `15.1` |
 | `cputype` | `x86-64-v3` (default), `x86-64-v2` or `both` (a job each); one job of a level and a branch at a time, the levels side by side (each has its own release and cache) |
 | `ports` | the ports to build, separated by spaces; empty: all |
-| `force` | build them also when their package with the same `az_hash` is in the release already |
-| `jobs` | the ports built at once (`AZ_JOBS`, default 4; `1`: one after another) |
-| `configure_check` | the configure check (`AZ_CONFIGURE_CHECK`, off by default): each PHP port built configured once more, permissive, and compared; with `force` every PHP port |
-| `plan` | the plan only (`AZ_PLAN`, off by default): `az/az` and the ports it needs built when they are to be, every other port decided, kept or to be built and why (`results/plan.txt`, a section of the report), not built; no checks, never published |
-| `fork_ref` | the branch of azsupport/php-src the curl of az is compared with (`FORK_REF` of `tools/curl-sync-check.sh`, default `master`): a change of curl and its libraries goes to a branch of the fork first, a run of the branch here that carries it names that branch, and both go into their main branches at the same moment |
+| `force` | build them also when their package with the same `azsupport_hash` is in the release already |
+| `jobs` | the ports built at once (`AZSUPPORT_JOBS`, default 4; `1`: one after another) |
+| `configure_check` | the configure check (`AZSUPPORT_CONFIGURE_CHECK`, off by default): each PHP port built configured once more, permissive, and compared; with `force` every PHP port |
+| `plan` | the plan only (`AZSUPPORT_PLAN`, off by default): `azsupport/azsupport` and the ports it needs built when they are to be, every other port decided, kept or to be built and why (`results/plan.txt`, a section of the report), not built; no checks, never published |
+| `fork_ref` | the branch of azsupport/php-src the curl of azsupport is compared with (`FORK_REF` of `tools/curl-sync-check.sh`, default `master`): a change of curl and its libraries goes to a branch of the fork first, a run of the branch here that carries it names that branch, and both go into their main branches at the same moment |
 | `publish` | publish the repository when everything built and every check passed (off by default: the repository the servers read is published on aZ's word) |
 | `publish_only` | with `publish`: publish only when the repository differs from the release by packages of these ports alone (`category/port`, separated by spaces: the runs of [yt-dlp from GitHub](#yt-dlp-from-github)), else nothing; empty: whatever differs |
-| `continuation` | set by a run whose time was over for the run it starts (its number in a row; `0` by hand). The job has 350 minutes: no port starts after about 245 of them, the builds still going stop at about 285 (`AZ_TIME_SOFT`, `AZ_TIME_HARD` of `tools/build.sh`); what was built is kept in the cache, and so is the cache of a port with `AZ_PORT_CACHE` whose build stopped (MongoDB: the disk cache of Bazel; a draft release `portcache-<level>-<key>-<run>`, which the next run unpacks into `portcache/`, so that the build goes on from what it did), checks and publishing wait, and the last step starts the next run with the same inputs (not `force`), at most 6 in a row; with `both`, `x86-64-v2` starts only after `x86-64-v3` is done |
+| `continuation` | set by a run whose time was over for the run it starts (its number in a row; `0` by hand). The job has 350 minutes: no port starts after about 245 of them, the builds still going stop at about 285 (`AZSUPPORT_TIME_SOFT`, `AZSUPPORT_TIME_HARD` of `tools/build.sh`); what was built is kept in the cache, and so is the cache of a port with `AZSUPPORT_PORT_CACHE` whose build stopped (MongoDB: the disk cache of Bazel; a draft release `portcache-<level>-<key>-<run>`, which the next run unpacks into `portcache/`, so that the build goes on from what it did), checks and publishing wait, and the last step starts the next run with the same inputs (not `force`), at most 6 in a row; with `both`, `x86-64-v2` starts only after `x86-64-v3` is done |
 
 It takes the repository of the last run (an actions/cache, saved also when a run
-fails, so that a run that fails in PHP keeps `az` and the libraries) and the files of
-the release `az-fbsd15-amd64-<level>`, checks the ports with `make -V` against a sparse
+fails, so that a run that fails in PHP keeps `azsupport` and the libraries) and the files of
+the release `azsupport-fbsd15-amd64-<level>`, checks the ports with `make -V` against a sparse
 official tree on the runner ([`tools/check-tree.sh`](tools/check-tree.sh), bmake: a
-FAIL stops the run there), compares the curl of az with that of the PHP of
+FAIL stops the run there), compares the curl of azsupport with that of the PHP of
 azsupport/php-src ([`tools/curl-sync-check.sh`](tools/curl-sync-check.sh): the data
-lines of `az/az/files/curl.conf` and `curl-deps.conf` and the patches of `curl/` against
+lines of `azsupport/azsupport/files/curl.conf` and `curl-deps.conf` and the patches of `curl/` against
 those of `freebsd/` on its master, or on the branch of the fork that the input `fork_ref` names; a difference stops the run there too), runs
 `tools/build.sh` in a FreeBSD VM
 ([vmactions/freebsd-vm](https://github.com/vmactions/freebsd-vm)), then, for each PHP
@@ -1136,9 +1158,9 @@ branch `runs` of azsupport/azsupport) and publishes: the packages first, the cat
 last, then away with what the repository has no more. Only a signed catalog is
 published. Before that the release as it is becomes a snapshot when none has its catalog
 yet, after it the repository just published becomes the snapshot
-`az-fbsd15-amd64-<level>-<YYYYMMDD>-<HHMM>`, the newest 31 of each level kept
+`azsupport-fbsd15-amd64-<level>-<YYYYMMDD>-<HHMM>`, the newest 31 of each level kept
 ([`tools/release-snapshot.sh`](tools/release-snapshot.sh); a server and the repository
-az, above). The packages each run built are saved as they come into the draft release
+azsupport, above). The packages each run built are saved as they come into the draft release
 `wip-<level>-<branch>-<run>-<attempt>` ([`tools/runs-save.sh`](tools/runs-save.sh)); the
 next run of the branch takes what its cache lacks from those drafts, and they go once a
 publish has their packages (those of a branch with it, `delete-branches.yml`): a cache
@@ -1154,7 +1176,7 @@ The secrets (https://github.com/azsupport/ports/settings/secrets/actions, the bu
 
 | Secret | |
 |---|---|
-| `PKG_SIGNING_KEY` | the RSA private key (PEM) of `keys/az.pub`: it goes into the VM as a file only, is used by `pkg repo` and removed |
+| `PKG_SIGNING_KEY` | the RSA private key (PEM) of `keys/azsupport.pub`: it goes into the VM as a file only, is used by `pkg repo` and removed |
 | `RUNS_TOKEN` | a fine-grained token with Contents read and write on azsupport/azsupport, for the reports |
 
 ### The merged branches
@@ -1212,9 +1234,9 @@ push and the build with the token of the run.
 
 ### The libraries and programs with GCC
 
-Which C libraries of `az` are built with GCC 16 instead of the base clang, and why (a
+Which C libraries of `azsupport` are built with GCC 16 instead of the base clang, and why (a
 library goes to GCC 16 when it is at least 2% faster through what the sites do: aZ,
-09.11.2026), is in the head of `tools/az-build.sh`. The benchmark that measured it is kept
+09.11.2026), is in the head of `tools/azsupport-build.sh`. The benchmark that measured it is kept
 in the private repository with the tests of the build.
 
 The programs measured the same way, from the sources of our ports, by
@@ -1227,7 +1249,7 @@ Actions), with GCC 16 (aZ, 17.11.2026):
   that pip builds an extension with the base clang;
 - Redis 8.2 (`databases/redis82`): redis-benchmark, the median 6.3% and 5.9% faster on
   two CPUs; no C++ runtime (its one C++ file needs none);
-- xxhash of az (the checksums of rsync): XXH3 and XXH128 about 30% faster.
+- xxhash of azsupport (the checksums of rsync): XXH3 and XXH128 about 30% faster.
 
 With the base clang, as they are faster or the same with it: ImageMagick 7, vips, zstd,
 lz4, brotli and PostgreSQL 18 (2% at best); GraphicsMagick and ImageMagick 6 are faster
@@ -1240,10 +1262,10 @@ the CPUs of the servers.
   what is needed; the Makefile says why it differs from the official one.
 - Makefiles in the style of the ports tree (tabs, the order of the variables as portlint
   wants); scripts for FreeBSD `/bin/sh` with the base tools.
-- A dependency on the package `az` is by a file, never `LIB_DEPENDS` (there are no
-  ldconfig hints for `/usr/local/az/lib`):
-  `BUILD_DEPENDS+= ${LOCALBASE}/az/lib/libxml2.so:az/az`, and the same in `RUN_DEPENDS`.
-- Our ports take `PORTREVISION= ${AZ_STAMP}`: a change of a port is a new build by
+- A dependency on the package `azsupport` is by a file, never `LIB_DEPENDS` (there are no
+  ldconfig hints for `/usr/local/azsupport/lib`):
+  `BUILD_DEPENDS+= ${LOCALBASE}/azsupport/lib/libxml2.so:azsupport/azsupport`, and the same in `RUN_DEPENDS`.
+- Our ports take `PORTREVISION= ${AZSUPPORT_STAMP}`: a change of a port is a new build by
   itself ([Versions and rebuilds](#versions-and-rebuilds)).
 - Packages built with `make package` in a VM now; [poudriere](https://github.com/freebsd/poudriere)
   later, on a FreeBSD build server: it builds an overlay of its own, and the first part

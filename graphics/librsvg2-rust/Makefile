@@ -7,14 +7,14 @@
 # PostScript of cairo-rs (graphics/cairo has no such surfaces), no AVIF (dav1d), no
 # gdk-pixbuf and its loader, rsvg-convert, Vala, documents, introspection, tests; on
 # Cairo and Pango (graphics/cairo, x11-toolkits/pango), HarfBuzz (print/harfbuzz),
-# FreeType, fontconfig and libxml2 (of az), GLib (devel/glib20). The crates: those of
+# FreeType, fontconfig and libxml2 (of azsupport), GLib (devel/glib20). The crates: those of
 # the official port without the four only gif and webp need (color_quant, gif,
 # image-webp, weezl; cargo update of cargo-configure takes them out of Cargo.lock).
 # LTO (aZ, 18.11.2026 12:29): the release profile of the crates with LTO.
 
 PORTNAME=	librsvg
 DISTVERSION=	2.63.4
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	graphics gnome
 MASTER_SITES=	GNOME
 PKGNAMESUFFIX=	2-rust
@@ -59,14 +59,14 @@ MESON_ARGS=	-Davif=disabled \
 		-Dtests=false \
 		-Dvala=disabled
 
-# gettext: the libintl.h of az for glib/gi18n.h; png: the .pc cairo-png requires
-# (Mk/az-libs.mk)
-AZ_LIBS=	fontconfig:libfontconfig.so \
+# gettext: the libintl.h of azsupport for glib/gi18n.h; png: the .pc cairo-png requires
+# (Mk/azsupport-libs.mk)
+AZSUPPORT_LIBS=	fontconfig:libfontconfig.so \
 		freetype2:libfreetype.so \
 		gettext:libintl.so \
 		libxml2:libxml2.so \
 		png:libpng16.so
-.include "${.CURDIR:H:H}/Mk/az-libs.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-libs.mk"
 
 # no GIF and WebP in an SVG, no PDF and PostScript of Cairo (sharp-libvips)
 post-patch:

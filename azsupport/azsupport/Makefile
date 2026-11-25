@@ -1,17 +1,17 @@
-# az/az: the libraries of /usr/local/az (the package az).
+# azsupport/azsupport: the libraries of /usr/local/azsupport (the package azsupport).
 #
 # DESIGN of the ports that take over the builds of tools/build-az.sh of
 # https://github.com/azsupport/php-src (08.11.2026, aZ: the development of
 # these packages moves into this tree):
 #
 #   package       origin                 files
-#   az            az/az                  /usr/local/az: the shared tree lib/
-#                                        (SONAME, run path /usr/local/az/lib, no
+#   azsupport            azsupport/azsupport                  /usr/local/azsupport: the shared tree lib/
+#                                        (SONAME, run path /usr/local/azsupport/lib, no
 #                                        ldconfig), include/, lib/pkgconfig/,
 #                                        bin/pkg-config, which every package
 #                                        links, and the static tree
 #                                        static/{lib,include,bin}, for PHP built
-#                                        on a server; share/doc/az/VERSIONS,
+#                                        on a server; share/doc/azsupport/VERSIONS,
 #                                        LICENSES/
 #   curl          ftp/curl               bin/curl, lib/libcurl.so.4 (only curl_*
 #                                        exported), the libcurl of every package,
@@ -21,21 +21,21 @@
 #   ImageMagick6  graphics/ImageMagick6  bin/*6, etc/ImageMagick-6 (our policy),
 #                                        share/ImageMagick-6; its shared
 #                                        libMagickCore-6.Q16 and libMagickWand-6.Q16
-#                                        and lib/ImageMagick-6.* in az/lib
+#                                        and lib/ImageMagick-6.* in azsupport/lib
 #   ImageMagick7  graphics/ImageMagick7  bin/magick and its links,
 #                                        etc/ImageMagick-7 (our policy), ...; its
 #                                        shared libMagickCore-7.so and
-#                                        libMagickWand-7.so in az/lib, with
+#                                        libMagickWand-7.so in azsupport/lib, with
 #                                        MagickWand-config (imagick links them
 #                                        too), and its static libraries in
-#                                        az/static
+#                                        azsupport/static
 #   GraphicsMagick graphics/GraphicsMagick
 #                                        bin/gm, share/GraphicsMagick; its shared
 #                                        libGraphicsMagick.so and
-#                                        libGraphicsMagickWand.so in az/lib, with
+#                                        libGraphicsMagickWand.so in azsupport/lib, with
 #                                        GraphicsMagick-config (gmagick links them
 #                                        too), and its static libraries in
-#                                        az/static (lib/GraphicsMagick: the
+#                                        azsupport/static (lib/GraphicsMagick: the
 #                                        configuration they read)
 #                                        (added 08.11.2026, aZ: GraphicsMagick
 #                                        built as our ImageMagick)
@@ -44,32 +44,32 @@
 #                                        tools/mc-build.sh (only mc links it)
 #                                        (added 10.11.2026, aZ)
 #
-# Our ports link each other's shared libraries (aZ, 10.11.2026): those of az
-# (with the run path /usr/local/az/lib), of devel/pcre2 and devel/pcre, the
+# Our ports link each other's shared libraries (aZ, 10.11.2026): those of azsupport
+# (with the run path /usr/local/azsupport/lib), of devel/pcre2 and devel/pcre, the
 # libcurl.so.4 of ftp/curl; never a static or bundled copy of a library another of
 # our ports has. The static tree is for PHP built on a server only
-# (tools/az-menu.sh of azsupport/php-src).
+# (tools/azsupport-menu.sh of azsupport/php-src).
 #
-# The same packages as build-az.sh (the library package named az now, aZ
-# 08.11.2026): names, origins, epochs, files, comments, descriptions,
+# The same packages as build-az.sh (the library package named az on 08.11.2026, azsupport
+# since 25.11.2026, aZ: «надо бренд продвигать»): names, origins, epochs, files, comments, descriptions,
 # maintainer, licences and the annotations cputype, freebsd_ports and
 # built_by. Version: that of the official port at the commit of
 # files/deps.conf (or of its take line: ImageMagick 7.1.2-35 is 7.1.2.35, as the
 # ports write it) with the revision of the build as PORTREVISION (YYMMDDHH,
-# UTC), so that a new build is an upgrade of the official package; az: the
-# date of its libraries (YYYYMMDD). The revision is AZ_STAMP, the time of the
+# UTC), so that a new build is an upgrade of the official package; azsupport: the
+# date of its libraries (YYYYMMDD). The revision is AZSUPPORT_STAMP, the time of the
 # run, given by the builder, which decides what to rebuild by the annotation
-# az_hash (Mk/bsd.overlay.mk).
-# PREFIX stays /usr/local (the plist of az names
-# az/lib/...): with PREFIX=/usr/local/az the framework would move
-# az/lib/pkgconfig/*.pc to libdata/pkgconfig (fixup-lib-pkgconfig).
+# azsupport_hash (Mk/bsd.overlay.mk).
+# PREFIX stays /usr/local (the plist of azsupport names
+# azsupport/lib/...): with PREFIX=/usr/local/azsupport the framework would move
+# azsupport/lib/pkgconfig/*.pc to libdata/pkgconfig (fixup-lib-pkgconfig).
 #
 # How (the simplest faithful way): each port runs the tested build script of
 # php-src, moved into tools/ of this tree, with its conf and patches in files/
 # of the port, rather than ~40 ports of libraries now:
-#   az/az                  tools/az-build.sh (build-deps.sh),
-#                          tools/az-curl-sources.sh (curl-sources.sh),
-#                          tools/az-check-links.py; files/deps.conf,
+#   azsupport/azsupport                  tools/azsupport-build.sh (build-deps.sh),
+#                          tools/azsupport-curl-sources.sh (curl-sources.sh),
+#                          tools/azsupport-check-links.py; files/deps.conf,
 #                          files/curl.conf, files/curl-deps.conf, files/curl/,
 #                          files/deps/
 #   ftp/curl               tools/curl-build.sh (build_curl_program of
@@ -91,27 +91,27 @@
 # The official tree of the build has to be that commit (PORTSDIR); the scripts
 # no longer check out a tree of their own.
 #
-# Staging. az is built with the paths it has on the servers: its ~40 builds
-# find each other in /usr/local/az/static and /usr/local/az (their .pc files,
+# Staging. azsupport is built with the paths it has on the servers: its ~40 builds
+# find each other in /usr/local/azsupport/static and /usr/local/azsupport (their .pc files,
 # *-config scripts, run paths and compiled-in paths name them), so the script
-# installs into /usr/local/az of the build machine, as build-az.sh did in its
+# installs into /usr/local/azsupport of the build machine, as build-az.sh did in its
 # VM, and do-install copies that tree into ${STAGEDIR}; the plist is made from
 # the stage. So this port is built as root (NEED_ROOT: poudriere builds it as
 # root even with BUILD_AS_NON_ROOT=yes; make package as root), on a machine or
 # in a jail of its own: the script does
-# not start while a package or a PHP build has files in /usr/local/az, and
+# not start while a package or a PHP build has files in /usr/local/azsupport, and
 # removes there only what an unfinished build of its own left (marked by the
 # file .az-build, which is not packaged). The other four install with DESTDIR
-# into a stage in ${WRKDIR}, against the installed package az, and copy it
+# into a stage in ${WRKDIR}, against the installed package azsupport, and copy it
 # into ${STAGEDIR}: they write nothing outside their WRKDIR.
 #
-# Dependencies on our packages: on az by a file, never LIB_DEPENDS (no ldconfig
-# hints for /usr/local/az/lib); on pcre2, pcre and curl (in /usr/local/lib)
+# Dependencies on our packages: on azsupport by a file, never LIB_DEPENDS (no ldconfig
+# hints for /usr/local/azsupport/lib); on pcre2, pcre and curl (in /usr/local/lib)
 # LIB_DEPENDS. curl, ffmpeg, ImageMagick6 and mc: the shared tree to build and to
 # run. ImageMagick7 and GraphicsMagick: the static and the shared tree to build,
-# the shared tree to run. The PHP ports: az, ImageMagick7 (lib/libMagickWand-7.so,
+# the shared tree to run. The PHP ports: azsupport, ImageMagick7 (lib/libMagickWand-7.so,
 # for imagick), GraphicsMagick (lib/libGraphicsMagickWand.so, for gmagick), pcre2
-# or pcre (the core) and curl (the module curl). Build order: az, pcre2, pcre;
+# or pcre (the core) and curl (the module curl). Build order: azsupport, pcre2, pcre;
 # then curl, ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick (any order); then
 # PHP.
 #
@@ -120,21 +120,21 @@
 # php-src fetched the take files on the runner, tools/take-fetch.sh). The release
 # files the scripts take themselves (the take lines; the bundled curl and its
 # libraries of curl.conf and curl-deps.conf) are DISTFILES of the port, in
-# DISTDIR/az under the names the scripts look for, with a distinfo (the SHA-256
+# DISTDIR/azsupport under the names the scripts look for, with a distinfo (the SHA-256
 # of the confs, the sizes of the distinfo of the official ports); the
 # distfiles of the official ports of the libraries are fetched by their own make
-# fetch into ${DISTDIR} (post-fetch: az-build.sh --fetch) and checked against
+# fetch into ${DISTDIR} (post-fetch: azsupport-build.sh --fetch) and checked against
 # their own distinfo by their make patch in the build. A file not in DISTDIR
 # is still fetched by the script (a build outside the framework).
 #
 # Tests (tools/*-test.sh of php-src, moved): not part of make package; they
 # test the installed packages, with samples made by the official packages
-# before ours are installed (the builder runs them, tools/az-test.sh the link
+# before ours are installed (the builder runs them, tools/azsupport-test.sh the link
 # tests of build-az.sh).
 
-PORTNAME=	az
+PORTNAME=	azsupport
 PORTVERSION=	20261108
-CATEGORIES=	az devel
+CATEGORIES=	azsupport devel
 MASTER_SITES=	https://github.com/curl/curl/releases/download/curl-8_23_0/:curl \
 		https://github.com/c-ares/c-ares/releases/download/v1.34.9/:cares \
 		https://github.com/nghttp2/nghttp2/releases/download/v1.71.0/:nghttp2 \
@@ -152,7 +152,7 @@ MASTER_SITES=	https://github.com/curl/curl/releases/download/curl-8_23_0/:curl \
 		https://download.savannah.gnu.org/releases/freetype/:freetype \
 		https://downloads.sourceforge.net/project/freetype/freetype2/2.15.0/:freetype \
 		https://dist.libuv.org/dist/v1.53.0/:libuv
-# The names are those tools/az-curl-sources.sh keeps them under (the distfile of
+# The names are those tools/azsupport-curl-sources.sh keeps them under (the distfile of
 # curl-deps.conf, / made _) and the take lines of files/deps.conf give.
 DISTFILES=	curl-8.23.0.tar.xz:curl \
 		c-ares-1.34.9.tar.gz:cares \
@@ -171,16 +171,16 @@ DISTFILES=	curl-8.23.0.tar.xz:curl \
 		freetype-2.15.0.tar.xz:freetype \
 		libuv-v1.53.0-dist.tar.gz:libuv
 
-COMMENT=	Static and shared libraries of /usr/local/az, for PHP and the programs
+COMMENT=	Static and shared libraries of /usr/local/azsupport, for PHP and the programs
 WWW=		https://github.com/azsupport/ports
 
 # As build-az.sh: one licence name for the licences of all the libraries
 LICENSE=	MULTI
-LICENSE_NAME=	The licences of the libraries of /usr/local/az
-LICENSE_TEXT=	The licences of the libraries are in /usr/local/az/LICENSES
+LICENSE_NAME=	The licences of the libraries of /usr/local/azsupport
+LICENSE_TEXT=	The licences of the libraries are in /usr/local/azsupport/LICENSES
 LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 
-# The build tools of tools/az-build.sh --tools (git only checks the commit of
+# The build tools of tools/azsupport-build.sh --tools (git only checks the commit of
 # PORTSDIR, when it is there); libtool for the autoreconf -fi of gd (USES=autoreconf
 # brings autoconf and automake, libtoolize only with USES=libtool)
 BUILD_DEPENDS=	bison:devel/bison \
@@ -196,10 +196,10 @@ BUILD_DEPENDS=	bison:devel/bison \
 		tclsh8.6:lang/tcl86
 # libimagequant of graphics/libimagequant for gd (LIQ: the palette of imagegif() and
 # imagetruecolortopalette() of PHP; aZ, 11.11.2026): the one library of a port of
-# this tree in az, linked (libgd.so takes libimagequant.so of /usr/local/lib; the
+# this tree in azsupport, linked (libgd.so takes libimagequant.so of /usr/local/lib; the
 # static tree links to its archive), to build and to run. GPLv3 or later.
 LIB_DEPENDS=	libimagequant.so:graphics/libimagequant
-# GCC of the packages for the shared libraries of AZ_GCC_SO of tools/az-build.sh
+# GCC of the packages for the shared libraries of AZSUPPORT_GCC_SO of tools/azsupport-build.sh
 # (sqlite3, expat, lcms2: at least 2% faster with it, tools/lib-bench.sh); a build
 # dependency only, nothing of it at run time (-static-libgcc)
 BUILD_DEPENDS+=	gcc16:lang/gcc16
@@ -207,10 +207,10 @@ BUILD_DEPENDS+=	gcc16:lang/gcc16
 USES=		autoreconf:build gmake perl5 pkgconfig
 USE_PERL5=	build
 
-# The build installs into AZ_PREFIX of the build machine (see the head)
+# The build installs into AZSUPPORT_PREFIX of the build machine (see the head)
 NEED_ROOT=	yes
 
-# Nothing is extracted by the framework: tools/az-curl-sources.sh unpacks the
+# Nothing is extracted by the framework: tools/azsupport-curl-sources.sh unpacks the
 # bundled curl, the official ports extract their own distfiles (make patch).
 NO_WRKSUBDIR=	yes
 EXTRACT_ONLY=
@@ -218,27 +218,27 @@ EXTRACT_ONLY=
 .include "${.CURDIR}/Makefile.common"
 
 post-fetch:
-	@${SETENV} ${AZ_ENV} AZ_FILESDIR=${FILESDIR} ${SH} ${AZ_TOOLS}/az-build.sh --fetch
+	@${SETENV} ${AZSUPPORT_ENV} AZSUPPORT_FILESDIR=${FILESDIR} ${SH} ${AZSUPPORT_TOOLS}/azsupport-build.sh --fetch
 
 do-build:
-	@cd ${WRKDIR} && ${SETENV} ${AZ_ENV} AZ_FILESDIR=${FILESDIR} \
-		CURL_DISTFILES=${DISTDIR}/${DIST_SUBDIR} ${SH} ${AZ_TOOLS}/az-build.sh
+	@cd ${WRKDIR} && ${SETENV} ${AZSUPPORT_ENV} AZSUPPORT_FILESDIR=${FILESDIR} \
+		CURL_DISTFILES=${DISTDIR}/${DIST_SUBDIR} ${SH} ${AZSUPPORT_TOOLS}/azsupport-build.sh
 
-# the tree the build left in AZ_PREFIX, without the mark of the build; its programs and
+# the tree the build left in AZSUPPORT_PREFIX, without the mark of the build; its programs and
 # shared libraries stripped (no debug in our packages, aZ 17.11.2026: the build copies
 # them as they were linked; the static libraries keep their symbols)
 do-install:
-	@${MKDIR} ${STAGEDIR}${AZ_PREFIX}
-	(cd ${AZ_PREFIX} && ${TAR} -cf - .) | (cd ${STAGEDIR}${AZ_PREFIX} && ${TAR} -xpf -)
-	${RM} ${STAGEDIR}${AZ_PREFIX}/.az-build
-	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${AZ_TOOLS}/strip-elf.sh ${STAGEDIR}${AZ_PREFIX}
+	@${MKDIR} ${STAGEDIR}${AZSUPPORT_PREFIX}
+	(cd ${AZSUPPORT_PREFIX} && ${TAR} -cf - .) | (cd ${STAGEDIR}${AZSUPPORT_PREFIX} && ${TAR} -xpf -)
+	${RM} ${STAGEDIR}${AZSUPPORT_PREFIX}/.az-build
+	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${AZSUPPORT_TOOLS}/strip-elf.sh ${STAGEDIR}${AZSUPPORT_PREFIX}
 
 # the trigger of pkg that names the services of the packages of a transaction to restart
-# (files/az-services.ucl; Mk/bsd.overlay.mk gives the packages their directories
-# share/az/services/<service>)
+# (files/azsupport-services.ucl; Mk/bsd.overlay.mk gives the packages their directories
+# share/azsupport/services/<service>)
 post-install:
 	@${MKDIR} ${STAGEDIR}${PREFIX}/share/pkg/triggers
-	${INSTALL_DATA} ${FILESDIR}/az-services.ucl ${STAGEDIR}${PREFIX}/share/pkg/triggers
-	@${AZ_PLIST}
+	${INSTALL_DATA} ${FILESDIR}/azsupport-services.ucl ${STAGEDIR}${PREFIX}/share/pkg/triggers
+	@${AZSUPPORT_PLIST}
 
 .include <bsd.port.mk>

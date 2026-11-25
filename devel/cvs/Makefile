@@ -1,4 +1,4 @@
-# devel/cvs of azsupport/ports: the official port (Mk/az-official.mk), the CVS client
+# devel/cvs of azsupport/ports: the official port (Mk/azsupport-official.mk), the CVS client
 # of the workflows on our runners (openbsd-fetch of azsupport/php-src reads the -stable
 # branches of the OpenBSD ports through anoncvs; aZ, 24.11.2026: a port of ours, built
 # minimal). Without KERBEROS: the official package needs libgssapi_krb5.so.122,
@@ -8,7 +8,7 @@
 # "cvs""); anoncvs needs none of it (ssh). Without INFO and EXAMPLES; IPV6 excluded, as
 # officially.
 
-AZ_OFFICIAL=	devel/cvs
+AZSUPPORT_OFFICIAL=	devel/cvs
 OPTIONS_EXCLUDE=	EXAMPLES INFO IPV6 KERBEROS
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

@@ -6,7 +6,7 @@
 # IPV6 (on in the official package by the default of the ports framework,
 # Mk/bsd.options.mk: IO::Socket::INET6 and Socket6 for SNMP over IPv6, which MRTG does
 # not do on aZ's servers; aZ, 20.11.2026: «выключай и удаляй зависимости p5 эти»); but
-# rateup, which draws the graphs, on the libgd and libpng of az (/usr/local/az/lib,
+# rateup, which draws the graphs, on the libgd and libpng of azsupport (/usr/local/azsupport/lib,
 # our ports link each other's shared libraries: aZ, 10.11.2026), not the packages of
 # graphics/gd and graphics/png; SNMP_Session of net-mgmt/p5-SNMP_Session of this tree
 # (aZ, 20.11.2026: «давай в наши порты»), not Pod::Parser and Module::CoreList, which
@@ -20,7 +20,7 @@
 
 PORTNAME=	mrtg
 DISTVERSION=	2.17.10
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 PORTEPOCH=	1
 CATEGORIES=	net-mgmt
 MASTER_SITES=	https://github.com/oetiker/${PORTNAME}/releases/download/v${DISTVERSION}/ \
@@ -33,19 +33,19 @@ WWW=		https://oss.oetiker.ch/mrtg/ \
 
 LICENSE=	GPLv2
 
-# libgd.so and libpng.so of az (rateup links -lgd -lpng -lz: its configure)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libgd.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libgd.so:az/az \
+# libgd.so and libpng.so of azsupport (rateup links -lgd -lpng -lz: its configure)
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libgd.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libgd.so:azsupport/azsupport \
 		p5-SNMP_Session>=0:net-mgmt/p5-SNMP_Session
 
 USES=		perl5 shebangfix
 
-# the headers and the libraries of gd and png of az alone (links in ${WRKDIR}/az), not
-# the include directory of az with its other headers (iconv.h of GNU libiconv), and
+# the headers and the libraries of gd and png of azsupport alone (links in ${WRKDIR}/azsupport), not
+# the include directory of azsupport with its other headers (iconv.h of GNU libiconv), and
 # their run path
-CONFIGURE_ARGS=	--with-gd-lib=${WRKDIR}/az/lib \
-		--with-gd-inc=${WRKDIR}/az/include
-LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
+CONFIGURE_ARGS=	--with-gd-lib=${WRKDIR}/azsupport/lib \
+		--with-gd-inc=${WRKDIR}/azsupport/include
+LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 USERS=		mrtg
 GROUPS=		mrtg
@@ -103,9 +103,9 @@ post-patch:
 	@${RM} ${WRKSRC}/lib/mrtg2/BER.pm ${WRKSRC}/lib/mrtg2/SNMP_*.pm
 
 pre-configure:
-	@${MKDIR} ${WRKDIR}/az/include ${WRKDIR}/az/lib
-	${LN} -sf ${AZ_PREFIX}/include/gd*.h ${WRKDIR}/az/include/
-	${LN} -sf ${AZ_PREFIX}/lib/libgd.so ${AZ_PREFIX}/lib/libpng.so ${WRKDIR}/az/lib/
+	@${MKDIR} ${WRKDIR}/azsupport/include ${WRKDIR}/azsupport/lib
+	${LN} -sf ${AZSUPPORT_PREFIX}/include/gd*.h ${WRKDIR}/azsupport/include/
+	${LN} -sf ${AZSUPPORT_PREFIX}/lib/libgd.so ${AZSUPPORT_PREFIX}/lib/libpng.so ${WRKDIR}/azsupport/lib/
 
 do-install:
 	@${MKDIR} ${STAGEDIR}${DOCSDIR} \

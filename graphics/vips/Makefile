@@ -1,7 +1,7 @@
 # graphics/vips: libvips of azsupport/ports in the place of the official
 # graphics/vips (aZ, 11.11.2026: for a Lua script of nginx that converts images on
 # the fly). One set of formats, aZ's: JPEG (mozjpeg), PNG (libpng), WebP,
-# HEIC/AVIF (libheif of az: both loaded, AVIF saved with SVT-AV1), GIF (load built
+# HEIC/AVIF (libheif of azsupport: both loaded, AVIF saved with SVT-AV1), GIF (load built
 # in, save with cgif and libimagequant), with ICC profiles (lcms2), EXIF (libexif)
 # and SIMD (Highway; ORC is the other choice, libvips takes it only without Highway).
 # Nothing else of the official options: no TIFF, SVG, PDF, JPEG XL, ImageMagick or
@@ -11,8 +11,8 @@
 # PPM, not the deprecated vips7 API, the C++ API, the examples, the static
 # library, the manual pages and the translations; no bash and python to run. The
 # libraries of our ports, as shared ones (aZ, 10.11.2026: our ports link each
-# other's shared libraries): mozjpeg, png, webp, libheif, lcms2 and expat of az,
-# with the run path /usr/local/az/lib; glib, libexif, cgif, libimagequant and
+# other's shared libraries): mozjpeg, png, webp, libheif, lcms2 and expat of azsupport,
+# with the run path /usr/local/azsupport/lib; glib, libexif, cgif, libimagequant and
 # highway of the ports of this tree (devel/glib20, graphics/libexif, graphics/cgif,
 # graphics/libimagequant, devel/highway: aZ, 11.11.2026); zlib of the base system.
 # pkg-message: VIPS_BLOCK_UNTRUSTED for nginx.
@@ -21,11 +21,11 @@
 # the ICC profile of icc_import, LZW of libnsgif, PNGs of libpng 1.6.0 to 1.6.2, the
 # item limit of HEIF.
 # Every library through a .pc of the work with only its own headers (the include
-# directories of az and of /usr/local have others: GNU iconv.h, libintl.h ...).
+# directories of azsupport and of /usr/local have others: GNU iconv.h, libintl.h ...).
 
 PORTNAME=	vips
 PORTVERSION=	8.18.7
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	graphics
 MASTER_SITES=	https://github.com/libvips/libvips/releases/download/v${PORTVERSION}/
 
@@ -38,26 +38,26 @@ WWW=		https://www.libvips.org/ \
 LICENSE=	LGPL21
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-# the libraries of az, to build and to run (no ldconfig hints for /usr/local/az/lib:
+# the libraries of azsupport, to build and to run (no ldconfig hints for /usr/local/azsupport/lib:
 # by a file)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az \
-		${AZ_PREFIX}/lib/libintl.so:az/az \
-		${AZ_PREFIX}/lib/libjpeg.so:az/az \
-		${AZ_PREFIX}/lib/libpng16.so:az/az \
-		${AZ_PREFIX}/lib/libwebp.so:az/az \
-		${AZ_PREFIX}/lib/libwebpmux.so:az/az \
-		${AZ_PREFIX}/lib/libwebpdemux.so:az/az \
-		${AZ_PREFIX}/lib/libheif.so:az/az \
-		${AZ_PREFIX}/lib/liblcms2.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az \
-		${AZ_PREFIX}/lib/libintl.so:az/az \
-		${AZ_PREFIX}/lib/libjpeg.so:az/az \
-		${AZ_PREFIX}/lib/libpng16.so:az/az \
-		${AZ_PREFIX}/lib/libwebp.so:az/az \
-		${AZ_PREFIX}/lib/libwebpmux.so:az/az \
-		${AZ_PREFIX}/lib/libwebpdemux.so:az/az \
-		${AZ_PREFIX}/lib/libheif.so:az/az \
-		${AZ_PREFIX}/lib/liblcms2.so:az/az
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libjpeg.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libpng16.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libwebp.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libwebpmux.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libwebpdemux.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/liblcms2.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libjpeg.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libpng16.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libwebp.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libwebpmux.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libwebpdemux.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/liblcms2.so:azsupport/azsupport
 LIB_DEPENDS=	libcgif.so:graphics/cgif \
 		libexif.so:graphics/libexif \
 		libhwy.so:devel/highway \
@@ -120,12 +120,12 @@ MESON_ARGS=	--default-library=shared \
 # pkg-config: only the .pc files of the work (pre-configure) and those of the base
 # system (zlib)
 CONFIGURE_ENV=	PKG_CONFIG_LIBDIR=${WRKDIR}/vips/pc:/usr/libdata/pkgconfig
-LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
+LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 PLIST_SUB=	PATCH_VERSION=${PORTVERSION:E} \
 		VERSION=${PORTVERSION:R}
 
-# <name of the .pc>:<the .pc of az it is made from>:<its libraries>
+# <name of the .pc>:<the .pc of azsupport it is made from>:<its libraries>
 VIPS_AZ_PC=	expat:expat:-lexpat \
 		lcms2:lcms2:-llcms2 \
 		libheif:libheif:-lheif \
@@ -143,36 +143,36 @@ VIPS_OFFICIAL_PC=	cgif:-lcgif \
 # the headers of each library alone in vips/include, the libraries of the official
 # ports alone in vips/lib, a .pc each in vips/pc with the version (and the flags
 # other than -I) of its real one: libjpeg, libpng, libwebp, libheif, lcms2 and
-# expat of az (-L of az, which has no other library libvips links); cgif,
+# expat of azsupport (-L of azsupport, which has no other library libvips links); cgif,
 # libimagequant, libexif and highway of /usr/local (their ports); glib, gobject and gio with
-# their own include directories (glib-2.0), and libintl.h and libintl.so of az among
+# their own include directories (glib-2.0), and libintl.h and libintl.so of azsupport among
 # the headers and the libraries: glib/gi18n-lib.h and glib/gi18n.h of GLib include it
-# (the GLib of devel/glib20 is on the libintl of az, so no libintl.h is in
+# (the GLib of devel/glib20 is on the libintl of azsupport, so no libintl.h is in
 # /usr/local/include), and the tools (vips, vipsedit ...) call gettext of glib/gi18n.h,
 # libintl_gettext of GNU libintl.h: glib-2.0 with -lintl (libvips without NLS: the
 # strings as they are)
 pre-configure:
 	@${MKDIR} ${WRKDIR}/vips/include ${WRKDIR}/vips/lib ${WRKDIR}/vips/pc
-	@${LN} -sf ${AZ_PREFIX}/include/expat.h ${AZ_PREFIX}/include/expat_external.h \
-		${AZ_PREFIX}/include/lcms2.h ${AZ_PREFIX}/include/lcms2_plugin.h \
-		${AZ_PREFIX}/include/libheif \
-		${AZ_PREFIX}/include/jpeglib.h ${AZ_PREFIX}/include/jconfig.h \
-		${AZ_PREFIX}/include/jmorecfg.h ${AZ_PREFIX}/include/jerror.h \
-		${AZ_PREFIX}/include/png.h ${AZ_PREFIX}/include/pngconf.h \
-		${AZ_PREFIX}/include/pnglibconf.h ${AZ_PREFIX}/include/webp \
+	@${LN} -sf ${AZSUPPORT_PREFIX}/include/expat.h ${AZSUPPORT_PREFIX}/include/expat_external.h \
+		${AZSUPPORT_PREFIX}/include/lcms2.h ${AZSUPPORT_PREFIX}/include/lcms2_plugin.h \
+		${AZSUPPORT_PREFIX}/include/libheif \
+		${AZSUPPORT_PREFIX}/include/jpeglib.h ${AZSUPPORT_PREFIX}/include/jconfig.h \
+		${AZSUPPORT_PREFIX}/include/jmorecfg.h ${AZSUPPORT_PREFIX}/include/jerror.h \
+		${AZSUPPORT_PREFIX}/include/png.h ${AZSUPPORT_PREFIX}/include/pngconf.h \
+		${AZSUPPORT_PREFIX}/include/pnglibconf.h ${AZSUPPORT_PREFIX}/include/webp \
 		${LOCALBASE}/include/cgif.h ${LOCALBASE}/include/libimagequant.h \
 		${LOCALBASE}/include/libexif ${LOCALBASE}/include/hwy \
-		${AZ_PREFIX}/include/libintl.h ${WRKDIR}/vips/include/
+		${AZSUPPORT_PREFIX}/include/libintl.h ${WRKDIR}/vips/include/
 	@${LN} -sf ${LOCALBASE}/lib/libcgif.so ${LOCALBASE}/lib/libimagequant.so \
 		${LOCALBASE}/lib/libexif.so ${LOCALBASE}/lib/libhwy.so \
 		${LOCALBASE}/lib/libglib-2.0.so ${LOCALBASE}/lib/libgobject-2.0.so \
-		${LOCALBASE}/lib/libgio-2.0.so ${AZ_PREFIX}/lib/libintl.so ${WRKDIR}/vips/lib/
+		${LOCALBASE}/lib/libgio-2.0.so ${AZSUPPORT_PREFIX}/lib/libintl.so ${WRKDIR}/vips/lib/
 .for e in ${VIPS_AZ_PC}
-	@r=${AZ_PREFIX}/lib/pkgconfig/${e:C/^[^:]*://:C/:.*//}.pc; \
-	v="$$(PKG_CONFIG_LIBDIR=${AZ_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig pkgconf --modversion $$r)" && \
-	o="$$(PKG_CONFIG_LIBDIR=${AZ_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig pkgconf --cflags-only-other $$r)" && \
-	${PRINTF} '%s\n' 'Name: ${e:C/:.*//}' 'Description: ${e:C/:.*//} of az' "Version: $$v" \
-		'Libs: -L${AZ_PREFIX}/lib ${e:C/.*://}' "Cflags: -I${WRKDIR}/vips/include $$o" \
+	@r=${AZSUPPORT_PREFIX}/lib/pkgconfig/${e:C/^[^:]*://:C/:.*//}.pc; \
+	v="$$(PKG_CONFIG_LIBDIR=${AZSUPPORT_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig pkgconf --modversion $$r)" && \
+	o="$$(PKG_CONFIG_LIBDIR=${AZSUPPORT_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig pkgconf --cflags-only-other $$r)" && \
+	${PRINTF} '%s\n' 'Name: ${e:C/:.*//}' 'Description: ${e:C/:.*//} of azsupport' "Version: $$v" \
+		'Libs: -L${AZSUPPORT_PREFIX}/lib ${e:C/.*://}' "Cflags: -I${WRKDIR}/vips/include $$o" \
 		> ${WRKDIR}/vips/pc/${e:C/:.*//}.pc
 .endfor
 .for e in ${VIPS_OFFICIAL_PC}

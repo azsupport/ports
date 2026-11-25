@@ -1,10 +1,10 @@
 # ftp/vsftpd-ext-openssl of azsupport/ports: the official ftp/vsftpd-ext
-# (Mk/az-official.mk) with VSFTPD_SSL (FTP over TLS, the OpenSSL of the base
+# (Mk/azsupport-official.mk) with VSFTPD_SSL (FTP over TLS, the OpenSSL of the base
 # system) and RC_SCRIPT, as the package vsftpd-ext-openssl (the official port
 # names it vsftpd-ext-ssl); the same files as vsftpd-ext (aZ, 10.11.2026), the
 # same fixes (12.11.2026).
 
-AZ_OFFICIAL=	ftp/vsftpd-ext
+AZSUPPORT_OFFICIAL=	ftp/vsftpd-ext
 PKGNAMESUFFIX=	-openssl
 OPTIONS_SLAVE=	RC_SCRIPT VSFTPD_SSL
 CONFLICTS_INSTALL=	vsftpd-ext
@@ -37,4 +37,4 @@ EXTRA_PATCHES=	${.CURDIR}/files/patch-CVE-2021-3618 \
 		${.CURDIR}/files/patch-pam-exec-hang:-p1 \
 		${.CURDIR}/files/patch-no-stderr-on-control-connection
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

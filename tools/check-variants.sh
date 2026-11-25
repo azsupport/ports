@@ -2,7 +2,7 @@
 # check-variants.sh - the packages of a module with the same files, each in turn
 # in the place of the others (tools/install-php.sh puts in only the first of each):
 #   - redis (aZ, 11.11.2026): phpXY-redis without compression, phpXY-redis-lz4,
-#     phpXY-redis-zstd and phpXY-redis-lz4-zstd (with liblz4 and libzstd of az);
+#     phpXY-redis-zstd and phpXY-redis-lz4-zstd (with liblz4 and libzstd of azsupport);
 #     5.6 has only the first (phpredis 4.3.0 knows neither lz4 nor zstd);
 #   - gd of 5.6 (aZ, 11.11.2026): php56-gd, and php56-gd-t1lib with T1lib (libt1 of
 #     devel/t1lib);
@@ -11,8 +11,8 @@
 #     of the one wanted, a PNG made, and libMagickWand of that one named (NEEDED);
 #   - openssl: phpXY-openssl-legacy (the legacy provider of OpenSSL: RC4,
 #     Blowfish, DES, CAST5, MD4), and phpXY-openssl, with ssh2 (phpXY-ssh2) in the
-#     same process: libssh2 of az is built without RC4, 3DES, Blowfish, CAST and
-#     the MD5 MACs of SSH (az/az/files/curl/build-libcurl.sh), which must not take
+#     same process: libssh2 of azsupport is built without RC4, 3DES, Blowfish, CAST and
+#     the MD5 MACs of SSH (azsupport/azsupport/files/curl/build-libcurl.sh), which must not take
 #     them from the openssl of PHP.
 # Each goes in by pkg install -f from the repository azbuild that tools/install-php.sh
 # wrote (the others of its group out first: pkg refuses the same files), then:

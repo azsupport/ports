@@ -1,6 +1,6 @@
 XPM only with --with-xpm: libgd has gdImageCreateFromXpm also when it is built
 without libXpm (it fails then; 8.2 and later check that it works), and the libgd
-of az has no XPM (aZ 11.11.2026): no imagecreatefromxpm() that cannot work, and
+of azsupport has no XPM (aZ 11.11.2026): no imagecreatefromxpm() that cannot work, and
 gd_info() does not claim XPM support.
 
 --- config.m4.orig

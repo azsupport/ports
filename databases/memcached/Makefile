@@ -1,8 +1,8 @@
 # databases/memcached: the memcached of azsupport/ports in the place of the
 # official databases/memcached (aZ, 10.11.2026): the official port with libevent
-# the shared library of az, with the run path /usr/local/az/lib (our ports link
+# the shared library of azsupport, with the run path /usr/local/azsupport/lib (our ports link
 # each other's shared libraries: aZ, 10.11.2026), so that it takes no package but
-# az (the official one takes libevent), without DOCS, DTRACE and SASL (the
+# azsupport (the official one takes libevent), without DOCS, DTRACE and SASL (the
 # options of aZ's servers) and
 # without TLS, which the official one has on FreeBSD; databases/memcached-openssl
 # (PKGNAMESUFFIX -openssl, the same files) has it, on the OpenSSL of the base
@@ -10,7 +10,7 @@
 
 PORTNAME=	memcached
 DISTVERSION=	1.6.45
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	databases
 MASTER_SITES=	http://www.memcached.org/files/
 
@@ -22,10 +22,10 @@ WWW=		https://memcached.org/ \
 LICENSE=	BSD3CLAUSE
 LICENSE_FILE=	${WRKSRC}/COPYING
 
-# libevent.so of az (its configure links -levent with -L<dir>/lib and -I<dir>/include;
+# libevent.so of azsupport (its configure links -levent with -L<dir>/lib and -I<dir>/include;
 # iconv is not used, so the GNU iconv.h there does not matter), its run path
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libevent.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libevent.so:az/az
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
 
 USES=		autoreconf cpe pkgconfig shebangfix
 USE_CSTD=	c99
@@ -36,8 +36,8 @@ SHEBANG_FILES=	scripts/memcached-tool
 HAS_CONFIGURE=	yes
 CONFIGURE_ARGS=	--disable-coverage \
 		--program-prefix= \
-		--with-libevent=${AZ_PREFIX}
-LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
+		--with-libevent=${AZSUPPORT_PREFIX}
+LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 MAKE_JOBS_UNSAFE=	yes
 

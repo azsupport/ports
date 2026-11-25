@@ -8,7 +8,7 @@
 # inline in its Makefile there), its slave ports (their files/) and the PECL
 # ports of that commit, with the changes of this overlay as
 # lang/php74/Makefile.ext has them (its head says what and why: the libraries
-# of az, the options of php-src freebsd/ext.conf, USE_PHP, CONFLICTS_INSTALL,
+# of azsupport, the options of php-src freebsd/ext.conf, USE_PHP, CONFLICTS_INSTALL,
 # the ini of openswoole and gmagick, the profiles, ZLIB_LIBS of zlib, GCC but
 # for intl, swoole, openswoole, imagick and gmagick), as lang/php81/Makefile.ext
 # and lang/php83/Makefile.ext for 8.1 and 8.3. 438e512499a9 is the commit just
@@ -46,11 +46,11 @@
 #   and 5.6 (aZ, 09.11.2026, for 8.1; the official 8.2 has no such patch);
 # - swoole and redis with the options of their ports (swoole without four
 #   that could not be switched on here: see its rules) and the libraries of
-#   az;
+#   azsupport;
 #   mysqli with mysqlnd only and dba with lmdb0, as the official 8.2;
 # - the options of dba, gd, mbstring and pdo_mysql in the form of
 #   lang/php74/Makefile.ext (.if on PORT_OPTIONS after bsd.port.options.mk,
-#   where the libraries of az and USE_PHP go too); the official 8.2 has option
+#   where the libraries of azsupport and USE_PHP go too); the official 8.2 has option
 #   helpers with the same arguments (its GDBM, LMDB and QDBM _CONFIGURE_ARGS
 #   are no helpers: those options passed nothing);
 # - not the --with-zlib-dir=/usr of zip and the LOCAL_CREDS_PERSISTENT=yes of
@@ -73,8 +73,8 @@ COMMENT=	The ${PHP_MODNAME} shared extension for php
 
 USES+=	php:ext,noflavors
 # openssl-legacy builds ext/openssl; <module>-openssl ext/<module> (the
-# variants with OpenSSL: AZ_OPENSSL below)
-# (redis-lz4, redis-zstd, redis-lz4-zstd: the packages of redis, AZ_REDIS below)
+# variants with OpenSSL: AZSUPPORT_OPENSSL below)
+# (redis-lz4, redis-zstd, redis-lz4-zstd: the packages of redis, AZSUPPORT_REDIS below)
 PHP_MODNAME=	${PKGNAMESUFFIX:S/-//:S/-legacy$//:S/-openssl$//:C/^redis-.*/redis/:C/^imagick[67]$/imagick/}
 PHP_VER=	82
 IGNORE_WITH_PHP=	83 84 85 86
@@ -90,32 +90,32 @@ EXTRACT_AFTER_ARGS?=	${EXTSUBDIR}
 
 TEST_TARGET=	test
 
-# AZ_LIBS (per module): the libraries of ${AZ_PREFIX}/lib the module links
-# (Mk/Uses/php.mk links them with their run path, found by the pkg-config of az)
-BUILD_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
-RUN_DEPENDS+=	${AZ_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
+# AZSUPPORT_LIBS (per module): the libraries of ${AZSUPPORT_PREFIX}/lib the module links
+# (Mk/Uses/php.mk links them with their run path, found by the pkg-config of azsupport)
+BUILD_DEPENDS+=	${AZSUPPORT_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
+RUN_DEPENDS+=	${AZSUPPORT_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
 
 # The variants with OpenSSL, as lang/php74/Makefile.ext has them: ftp,
 # mysqlnd and openswoole without OpenSSL, <module>-openssl with that of the
 # base system; mysqli and pdo_mysql <module>-openssl for mysqlnd-openssl.
 # Not swoole: 6.2 has OpenSSL always and needs no mysqlnd (see its rules)
-AZ_OPENSSL_MODULES=	ftp mysqli mysqlnd openswoole pdo_mysql
-AZ_OPENSSL_LINKS=	ftp mysqlnd openswoole
+AZSUPPORT_OPENSSL_MODULES=	ftp mysqli mysqlnd openswoole pdo_mysql
+AZSUPPORT_OPENSSL_LINKS=	ftp mysqlnd openswoole
 .if ${PKGNAMESUFFIX:M-*-openssl}
-AZ_OPENSSL=	yes
+AZSUPPORT_OPENSSL=	yes
 # the patches of the module: those of its port without OpenSSL
 PATCHDIR=	${.CURDIR:S/-openssl$//}/files
 .endif
 
 # The packages of redis (aZ, 11.11.2026): phpXY-redis without compression, and
 # phpXY-redis-lz4, phpXY-redis-zstd and phpXY-redis-lz4-zstd with the lz4 and
-# zstd of az; the same files, so one of the four at a time
-AZ_REDIS_PKGS=	redis redis-lz4 redis-zstd redis-lz4-zstd
-AZ_REDIS=	${PKGNAMESUFFIX:S/^-//}
-AZ_REDIS_COMMENT.redis=		without compression
-AZ_REDIS_COMMENT.redis-lz4=	with lz4 compression
-AZ_REDIS_COMMENT.redis-zstd=	with zstd compression
-AZ_REDIS_COMMENT.redis-lz4-zstd=	with lz4 and zstd compression
+# zstd of azsupport; the same files, so one of the four at a time
+AZSUPPORT_REDIS_PKGS=	redis redis-lz4 redis-zstd redis-lz4-zstd
+AZSUPPORT_REDIS=	${PKGNAMESUFFIX:S/^-//}
+AZSUPPORT_REDIS_COMMENT.redis=		without compression
+AZSUPPORT_REDIS_COMMENT.redis-lz4=	with lz4 compression
+AZSUPPORT_REDIS_COMMENT.redis-zstd=	with zstd compression
+AZSUPPORT_REDIS_COMMENT.redis-lz4-zstd=	with lz4 and zstd compression
 
 .if ${PHP_MODNAME} == "bcmath"
 CONFIGURE_ARGS+=--enable-bcmath
@@ -138,7 +138,7 @@ CONFIGURE_ARGS+=--enable-ctype
 .if ${PHP_MODNAME} == "curl"
 # libcurl.so.4 of ftp/curl of this tree, the libcurl of every package (aZ,
 # 10.11.2026: one libcurl; our ports link each other's shared libraries), not one
-# of az: its flags by hand (the pkg-config of a module is that of az): the curl/ of
+# of azsupport: its flags by hand (the pkg-config of a module is that of azsupport): the curl/ of
 # its headers and libcurl.so alone in directories of the work (links to those of
 # /usr/local: no other header or library of /usr/local is seen; pre-configure),
 # -lcurl by that -L; no run path (libcurl.so.4 is in /usr/local/lib, one of
@@ -175,7 +175,7 @@ PHP_HEADER_DIRS=	libcdb libflatfile libinifile
 .endif
 
 .if ${PHP_MODNAME} == "dom"
-AZ_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2.so
 
 CONFIGURE_ARGS+=--enable-dom
 
@@ -187,7 +187,7 @@ CONFIGURE_ARGS+=--enable-exif
 .endif
 
 .if ${PHP_MODNAME} == "ffi"
-AZ_LIBS=	libffi.so
+AZSUPPORT_LIBS=	libffi.so
 CONFIGURE_ARGS+=--with-ffi
 .endif
 
@@ -205,7 +205,7 @@ CONFIGURE_ARGS+=--enable-filter
 # without OpenSSL (no FTP over SSL, no ftp_ssl_connect()): ext/ftp/config.m4
 # takes it by --with-openssl-dir only under phpize
 CONFIGURE_ARGS+=--enable-ftp
-.  if defined(AZ_OPENSSL)
+.  if defined(AZSUPPORT_OPENSSL)
 # ftp-openssl: FTP over SSL with the OpenSSL of the base system:
 # --with-openssl-dir of ext.conf (the port: PHP_OPENSSL=yes; ext/ftp/config.m4
 # takes either)
@@ -220,11 +220,11 @@ USES+=		ssl pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "gd"
-# libgd of az, with PNG, JPEG (mozjpeg), WebP, FreeType and LIQ (libimagequant), not
+# libgd of azsupport, with PNG, JPEG (mozjpeg), WebP, FreeType and LIQ (libimagequant), not
 # the bundled one: its formats. No options: TRUETYPE (gone since PHP 7.2), JIS
 # (--enable-gd-jis-conv) and WEBP (--with-webp) of the official port are for the
 # bundled libgd only, X11 (XPM) is gone (aZ 11.11.2026)
-AZ_LIBS=	libgd.so
+AZSUPPORT_LIBS=	libgd.so
 
 CONFIGURE_ARGS+=--enable-gd \
 		--with-external-gd
@@ -234,30 +234,30 @@ EXTRACT_AFTER_ARGS=--no-same-owner --no-same-permissions --exclude libgd \
 .endif
 
 .if ${PHP_MODNAME} == "gettext"
-AZ_LIBS=	libintl.so
-CONFIGURE_ARGS+=--with-gettext=${AZ_PREFIX}
+AZSUPPORT_LIBS=	libintl.so
+CONFIGURE_ARGS+=--with-gettext=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "gmp"
-AZ_LIBS=	libgmp.so
+AZSUPPORT_LIBS=	libgmp.so
 
-CONFIGURE_ARGS+=--with-gmp=${AZ_PREFIX}
+CONFIGURE_ARGS+=--with-gmp=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "iconv"
-# GNU libiconv of az, as ext.conf
-AZ_LIBS=	libiconv.so
-CONFIGURE_ARGS+=--with-iconv=${AZ_PREFIX}
+# GNU libiconv of azsupport, as ext.conf
+AZSUPPORT_LIBS=	libiconv.so
+CONFIGURE_ARGS+=--with-iconv=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "intl"
-# ICU of az; ext/intl/config.m4 of 8.2 builds with C++17 for ICU 74 and later
+# ICU of azsupport; ext/intl/config.m4 of 8.2 builds with C++17 for ICU 74 and later
 # itself (7.4: USES=compiler:c++17-lang in its slave)
-AZ_LIBS=	libicui18n.so
+AZSUPPORT_LIBS=	libicui18n.so
 CONFIGURE_ARGS+=--enable-intl
 USES+=		pkgconfig
 # C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
-AZ_GCC=		no
+AZSUPPORT_GCC=		no
 CPPFLAGS+=	-DU_USING_ICU_NAMESPACE=1
 .endif
 
@@ -295,7 +295,7 @@ USE_PHP=	mysqlnd:build
 # when nothing sets it (phpize of the 8.3 tarball on Linux: MYSQLND_HAVE_SSL
 # without it, none with PHP_OPENSSL_DIR=no)
 CONFIGURE_ARGS+=--enable-mysqlnd
-.  if defined(AZ_OPENSSL)
+.  if defined(AZSUPPORT_OPENSSL)
 # mysqlnd-openssl: the extended SSL, on the OpenSSL of the base system
 CONFIGURE_ENV+=	OPENSSL_CFLAGS="-I${OPENSSLINC}" \
 		OPENSSL_LIBS="-L${OPENSSLLIB} -lssl -lcrypto"
@@ -348,7 +348,7 @@ USE_PHP=	pdo:build
 .endif
 
 .if ${PHP_MODNAME} == "pdo_sqlite"
-AZ_LIBS=	libsqlite3.so
+AZSUPPORT_LIBS=	libsqlite3.so
 CONFIGURE_ARGS+=--with-pdo-sqlite
 
 USE_PHP=	pdo:build
@@ -363,9 +363,9 @@ CONFIGURE_ARGS+=--enable-posix
 .endif
 
 .if ${PHP_MODNAME} == "readline"
-# GNU readline of az
-AZ_LIBS=	libreadline.so
-CONFIGURE_ARGS+=--with-readline=${AZ_PREFIX}
+# GNU readline of azsupport
+AZSUPPORT_LIBS=	libreadline.so
+CONFIGURE_ARGS+=--with-readline=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "session"
@@ -377,14 +377,14 @@ CONFIGURE_ARGS+=--enable-shmop
 .endif
 
 .if ${PHP_MODNAME} == "simplexml"
-AZ_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2.so
 CONFIGURE_ARGS+=--enable-simplexml
 
 USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "soap"
-AZ_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2.so
 CONFIGURE_ARGS+=--enable-soap
 
 USES+=		pkgconfig
@@ -396,12 +396,12 @@ CONFIGURE_ARGS+=--enable-sockets
 .endif
 
 .if ${PHP_MODNAME} == "sodium"
-AZ_LIBS=	libsodium.so
+AZSUPPORT_LIBS=	libsodium.so
 CONFIGURE_ARGS+=	--with-sodium
 .endif
 
 .if ${PHP_MODNAME} == "sqlite3"
-AZ_LIBS=	libsqlite3.so
+AZSUPPORT_LIBS=	libsqlite3.so
 USES+=		pkgconfig
 CONFIGURE_ARGS+=--with-sqlite3
 .endif
@@ -419,8 +419,8 @@ CONFIGURE_ARGS+=--enable-sysvshm
 .endif
 
 .if ${PHP_MODNAME} == "tidy"
-AZ_LIBS=	libtidy.so
-CONFIGURE_ARGS+=--with-tidy=${AZ_PREFIX}
+AZSUPPORT_LIBS=	libtidy.so
+CONFIGURE_ARGS+=--with-tidy=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "tokenizer"
@@ -428,35 +428,35 @@ CONFIGURE_ARGS+=--enable-tokenizer
 .endif
 
 .if ${PHP_MODNAME} == "xml"
-AZ_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2.so
 CONFIGURE_ARGS+=--enable-xml
 
 USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "xmlreader"
-AZ_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2.so
 CONFIGURE_ARGS+=--enable-xmlreader
 
 USE_PHP=	dom:build
 .endif
 
 .if ${PHP_MODNAME} == "xmlwriter"
-AZ_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2.so
 CONFIGURE_ARGS+=--enable-xmlwriter
 
 USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "xsl"
-AZ_LIBS=	libxslt.so
+AZSUPPORT_LIBS=	libxslt.so
 CONFIGURE_ARGS+=--with-xsl
 
 USE_PHP=	dom:build xml:build
 .endif
 
 .if ${PHP_MODNAME} == "zip"
-AZ_LIBS=	libzip.so
+AZSUPPORT_LIBS=	libzip.so
 
 # not the --with-zlib-dir=/usr of the port: ext/zip/config.m4 of 8.2 has no
 # such option (configure only warns of it), as for 8.1
@@ -499,7 +499,7 @@ CONFIGURE_ARGS+=--with-gearman=${LOCALBASE}
 .endif
 
 .if ${PHP_MODNAME} == "gmagick"
-# GraphicsMagick of the overlay in ${AZ_PREFIX} (its libraries and
+# GraphicsMagick of the overlay in ${AZSUPPORT_PREFIX} (its libraries and
 # GraphicsMagick-config, which config.m4 runs), not LIB_DEPENDS of the port;
 # not its DEPRECATED, EXPIRATION_DATE and IGNORE_WITH_PHP (for 1.1.7RC3, PHP
 # 5.6 only; 2.0.6RC1 is for PHP 7 and 8). Not with imagick in one PHP: its ini
@@ -510,40 +510,40 @@ WWW=		https://pecl.php.net/package/gmagick
 LICENSE=	PHP301
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-AZ_GMAGICK_DEP=	${AZ_PREFIX}/lib/libGraphicsMagickWand.so:graphics/GraphicsMagick
-BUILD_DEPENDS+=	${AZ_GMAGICK_DEP}
-RUN_DEPENDS+=	${AZ_GMAGICK_DEP}
+AZSUPPORT_GMAGICK_DEP=	${AZSUPPORT_PREFIX}/lib/libGraphicsMagickWand.so:graphics/GraphicsMagick
+BUILD_DEPENDS+=	${AZSUPPORT_GMAGICK_DEP}
+RUN_DEPENDS+=	${AZSUPPORT_GMAGICK_DEP}
 
-CONFIGURE_ARGS+=--with-gmagick=${AZ_PREFIX}
+CONFIGURE_ARGS+=--with-gmagick=${AZSUPPORT_PREFIX}
 # the base clang, not GCC (Mk/Uses/azgcc.mk): its configure links -lgomp
 # when omp.h builds (omp_pause_resource_all() at shutdown), with GCC the
 # libgomp of the gcc package, a library of it at run time (with the base
 # clang the libgomp.so of the base system, its libomp)
-AZ_GCC=		no
+AZSUPPORT_GCC=		no
 
-AZ_PROFILE=	${PREFIX}/etc/php${PHP_VER}-gmagick
-AZ_INI_OFF=	"Off: imagick and gmagick must not be loaded into one PHP" \
+AZSUPPORT_PROFILE=	${PREFIX}/etc/php${PHP_VER}-gmagick
+AZSUPPORT_INI_OFF=	"Off: imagick and gmagick must not be loaded into one PHP" \
 		"(GraphicsMagick and ImageMagick have the same function names):" \
-		"gmagick is on in the CLI profile gmagick, ${AZ_PROFILE}" \
+		"gmagick is on in the CLI profile gmagick, ${AZSUPPORT_PROFILE}" \
 		"(pkg info -D ${PKGBASE})."
-AZ_MSG=		"imagick and gmagick must not be loaded into one PHP: GraphicsMagick" \
+AZSUPPORT_MSG=		"imagick and gmagick must not be loaded into one PHP: GraphicsMagick" \
 		"and ImageMagick have the same MagickWand function names, so one" \
 		"module could call the library of the other. One of the two per" \
-		"php.ini or profile, so ${AZ_INI}" \
+		"php.ini or profile, so ${AZSUPPORT_INI}" \
 		"comes with its line commented out, and the CLI profile gmagick," \
-		"${AZ_PROFILE}, has gmagick on and imagick off, with" \
-		"the other modules of ${AZ_INI:H} (it follows them; made at the" \
+		"${AZSUPPORT_PROFILE}, has gmagick on and imagick off, with" \
+		"the other modules of ${AZSUPPORT_INI:H} (it follows them; made at the" \
 		"first installation by php${PHP_VER}-profile --create gmagick --follow" \
 		"--off imagick --on gmagick --cli). Run a script with it:" \
 		"  php${PHP_VER}-profile gmagick script.php" \
 		"The profile stays when ${PKGBASE} is removed; to remove it:" \
-		"  rm -r ${AZ_PROFILE}" \
-		"To load gmagick in ${AZ_INI:H} instead of imagick:" \
+		"  rm -r ${AZSUPPORT_PROFILE}" \
+		"To load gmagick in ${AZSUPPORT_INI:H} instead of imagick:" \
 		"comment out the line of imagick in ext-*-imagick.ini there, remove" \
-		"the ';' before extension=gmagick.so in ${AZ_INI:T}, then" \
+		"the ';' before extension=gmagick.so in ${AZSUPPORT_INI:T}, then" \
 		"restart php${PHP_VER}_fpm or Apache."
-AZ_MSG_REMOVE=	"The CLI profile gmagick, ${AZ_PROFILE}, stays; to" \
-		"remove it: rm -r ${AZ_PROFILE}"
+AZSUPPORT_MSG_REMOVE=	"The CLI profile gmagick, ${AZSUPPORT_PROFILE}, stays; to" \
+		"remove it: rm -r ${AZSUPPORT_PROFILE}"
 .endif
 
 .if ${PHP_MODNAME} == "igbinary"
@@ -566,9 +566,9 @@ USE_PHP=	session:build
 .if ${PHP_MODNAME} == "imagick"
 # graphics/pecl-imagick of 438e512499a9 (USES=magick: ImageMagick 7 by
 # default; pecl-imagick-im7 was merged into it in 2023): ImageMagick 7 of the
-# overlay in ${AZ_PREFIX} (libraries, MagickWand-config) with its
+# overlay in ${AZSUPPORT_PREFIX} (libraries, MagickWand-config) with its
 # configuration in ${LOCALBASE}/etc/ImageMagick-7
-COMMENT=	PHP wrapper to the ImageMagick/GraphicsMagick library (ImageMagick ${AZ_IMAGICK})
+COMMENT=	PHP wrapper to the ImageMagick/GraphicsMagick library (ImageMagick ${AZSUPPORT_IMAGICK})
 WWW=		https://pecl.php.net/package/imagick
 
 LICENSE=	PHP301
@@ -582,40 +582,40 @@ CPE_PRODUCT=	imagick
 # libimagemagick6, not on the programs (ImageMagick7, ImageMagick6 or
 # ImageMagick67, which depend on those too); the same imagick.so and ini, so the
 # two conflict
-AZ_IMAGICK=	${PKGNAMESUFFIX:S/^-imagick//}
-.if ${AZ_IMAGICK} == 6
-AZ_IMAGICK_DEP=	${AZ_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6
+AZSUPPORT_IMAGICK=	${PKGNAMESUFFIX:S/^-imagick//}
+.if ${AZSUPPORT_IMAGICK} == 6
+AZSUPPORT_IMAGICK_DEP=	${AZSUPPORT_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6
 # MagickWand-config of ImageMagick 6 there (tools/imagemagick-build.sh)
-AZ_IMAGICK_WITH=	${AZ_PREFIX}/libexec/ImageMagick-6
+AZSUPPORT_IMAGICK_WITH=	${AZSUPPORT_PREFIX}/libexec/ImageMagick-6
 CONFLICTS_INSTALL=	php${PHP_VER}-imagick7
 # the patches of the module: those of phpXY-imagick7
 PATCHDIR=	${.CURDIR:S/-imagick6$/-imagick7/}/files
 .else
-AZ_IMAGICK_DEP=	${AZ_PREFIX}/lib/libMagickWand-7.so:graphics/libimagemagick7
-AZ_IMAGICK_WITH=	${AZ_PREFIX}
+AZSUPPORT_IMAGICK_DEP=	${AZSUPPORT_PREFIX}/lib/libMagickWand-7.so:graphics/libimagemagick7
+AZSUPPORT_IMAGICK_WITH=	${AZSUPPORT_PREFIX}
 CONFLICTS_INSTALL=	php${PHP_VER}-imagick6
 .endif
-BUILD_DEPENDS+=	${AZ_IMAGICK_DEP}
-RUN_DEPENDS+=	${AZ_IMAGICK_DEP}
+BUILD_DEPENDS+=	${AZSUPPORT_IMAGICK_DEP}
+RUN_DEPENDS+=	${AZSUPPORT_IMAGICK_DEP}
 
-CONFIGURE_ARGS+=--with-imagick=${AZ_IMAGICK_WITH}
+CONFIGURE_ARGS+=--with-imagick=${AZSUPPORT_IMAGICK_WITH}
 # the base clang, not GCC (Mk/Uses/azgcc.mk): its configure links the
 # OpenMP runtime of the compiler when omp.h builds (omp_pause_resource_all()
 # at shutdown), with GCC the libgomp of the gcc package, a library of it at
 # run time (with the base clang the libomp of the base system)
-AZ_GCC=		no
+AZSUPPORT_GCC=		no
 # not the post-patch of the port: it is for PHP 8.6 only (PHP_VER >= 86)
 .endif
 
 .if ${PHP_MODNAME} == "mcrypt"
-# libmcrypt of az, without libltdl
+# libmcrypt of azsupport, without libltdl
 COMMENT=	PHP extension for mcrypt, removed in PHP 7.2
 WWW=		https://pecl.php.net/package/mcrypt
 
 LICENSE=	PHP301
 
-AZ_LIBS=	libmcrypt.so
-CONFIGURE_ARGS+=--with-mcrypt=${AZ_PREFIX}
+AZSUPPORT_LIBS=	libmcrypt.so
+CONFIGURE_ARGS+=--with-mcrypt=${AZSUPPORT_PREFIX}
 # not files/patch-php84 of the port (1.0.7): 1.0.9 has its include already
 .endif
 
@@ -639,7 +639,7 @@ CONFIGURE_ARGS+=--enable-memcache \
 .endif
 
 .if ${PHP_MODNAME} == "memcached"
-# libmemcached of az; the json serializer as the port (json is in the core);
+# libmemcached of azsupport; the json serializer as the port (json is in the core);
 # not the protocol and SASL of the port (ext.conf: libmemcachedprotocol needs
 # libevent, SASL cyrus-sasl2)
 COMMENT=	PHP extension for interfacing with memcached via libmemcached library
@@ -654,14 +654,14 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 CPE_VENDOR=	php
 CPE_PRODUCT=	memcached
 
-AZ_LIBS=	libmemcached.so
+AZSUPPORT_LIBS=	libmemcached.so
 
 USE_PHP=	session:build
 
 CONFIGURE_ARGS+=--enable-memcached \
 		--enable-memcached-json \
 		--enable-memcached-session \
-		--with-libmemcached-dir=${AZ_PREFIX} \
+		--with-libmemcached-dir=${AZSUPPORT_PREFIX} \
 		--with-zlib-dir=/usr
 
 OPTIONS_DEFINE=	IGBINARY MSGPACK SASL
@@ -681,10 +681,10 @@ SASL_LIB_DEPENDS=	libsasl2.so:security/cyrus-sasl2
 .if ${PHP_MODNAME} == "redis"
 # databases/php-redis of 438e512499a9 (the release of GitHub there, ext/redis of
 # the tarball here): not with its options LZ4 and ZSTD (on by default there) but
-# as four packages (aZ, 11.11.2026: AZ_REDIS above): without compression, lz4,
-# zstd, lz4 and zstd, with liblz4 and libzstd of az; IGBINARY on (ext.conf); the
+# as four packages (aZ, 11.11.2026: AZSUPPORT_REDIS above): without compression, lz4,
+# zstd, lz4 and zstd, with liblz4 and libzstd of azsupport; IGBINARY on (ext.conf); the
 # json serializer of redis is on by default (json is in the core)
-COMMENT=	Extension to access Redis, ${AZ_REDIS_COMMENT.${AZ_REDIS}}
+COMMENT=	Extension to access Redis, ${AZSUPPORT_REDIS_COMMENT.${AZSUPPORT_REDIS}}
 WWW=		https://github.com/phpredis/phpredis
 
 LICENSE=	PHP301
@@ -693,17 +693,17 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 USE_PHP=	session:build
 
 CONFIGURE_ARGS+=--enable-redis
-.  if ${AZ_REDIS:M*-lz4*}
+.  if ${AZSUPPORT_REDIS:M*-lz4*}
 CONFIGURE_ARGS+=--enable-redis-lz4 \
-		--with-liblz4=${AZ_PREFIX}
-AZ_LIBS+=	liblz4.so
+		--with-liblz4=${AZSUPPORT_PREFIX}
+AZSUPPORT_LIBS+=	liblz4.so
 .  endif
-.  if ${AZ_REDIS:M*-zstd}
+.  if ${AZSUPPORT_REDIS:M*-zstd}
 CONFIGURE_ARGS+=--enable-redis-zstd \
-		--with-libzstd=${AZ_PREFIX}
-AZ_LIBS+=	libzstd.so
+		--with-libzstd=${AZSUPPORT_PREFIX}
+AZSUPPORT_LIBS+=	libzstd.so
 .  endif
-CONFLICTS_INSTALL=	${AZ_REDIS_PKGS:N${AZ_REDIS}:S/^/php${PHP_VER}-/}
+CONFLICTS_INSTALL=	${AZSUPPORT_REDIS_PKGS:N${AZSUPPORT_REDIS}:S/^/php${PHP_VER}-/}
 
 OPTIONS_DEFINE=	IGBINARY
 OPTIONS_DEFAULT=IGBINARY
@@ -714,8 +714,8 @@ IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
 .endif
 
 .if ${PHP_MODNAME} == "ssh2"
-# security/pecl-ssh2 (1.3.1 at the ports commit of az/az) with the libssh2
-# of az (aZ, 10.11.2026) instead of security/libssh2; ext/ssh2 of the
+# security/pecl-ssh2 (1.3.1 at the ports commit of azsupport/azsupport) with the libssh2
+# of azsupport (aZ, 10.11.2026) instead of security/libssh2; ext/ssh2 of the
 # tarball is 1.6.0 (php-src freebsd/pecl.conf).
 # Not the post-patch of the port, which makes $SSH2_DIR/lib of config.m4
 # $SSH2_DIR/$PHP_LIBDIR: that is lib here as well
@@ -726,8 +726,8 @@ WWW=		https://pecl.php.net/package/ssh2 \
 LICENSE=	PHP301
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-AZ_LIBS=	libssh2.so
-CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
+AZSUPPORT_LIBS=	libssh2.so
+CONFIGURE_ARGS+=--with-ssh2=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "swoole"
@@ -736,7 +736,7 @@ CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
 # makes mysqlnd a module that must be loaded (ZEND_MOD_REQUIRED) and adds a
 # line to phpinfo(); the coroutine hooks of mysqli and PDO MySQL go through
 # the streams of PHP (SWOOLE_HOOK_TCP) without it. The options BROTLI, with the
-# brotli of az, and SOCKETS on (ext.conf); not USES=localbase:ldflags: no
+# brotli of azsupport, and SOCKETS on (ext.conf); not USES=localbase:ldflags: no
 # library of the ports by default. Brotli and OpenSSL by pkg-config, into
 # SWOOLE_SHARED_LIBADD: not the --with-brotli-dir and --with-openssl-dir of
 # ext.conf, whose branches of config.m4 add the libraries to LIBS only, which
@@ -745,8 +745,8 @@ CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
 # include/swoole_ssl.h includes its headers, no build without it), so not that
 # of the port either: swoole has OpenSSL always, and no variant swoole-openssl
 # (aZ, 11.11.2026: it differed only by its dependency on mysqlnd-openssl).
-# The pkg-config of the modules is that of az
-# (Mk/Uses/php.mk): it searches ${AZ_PREFIX}/lib/pkgconfig, where az has no
+# The pkg-config of the modules is that of azsupport
+# (Mk/Uses/php.mk): it searches ${AZSUPPORT_PREFIX}/lib/pkgconfig, where azsupport has no
 # OpenSSL, then /usr/libdata/pkgconfig, where FreeBSD 15 installs libssl.pc and
 # libcrypto.pc of its OpenSSL, and nothing else (PKG_CONFIG_PATH unset): never
 # an OpenSSL of the ports. Without them configure stops (PKG_CHECK_MODULES).
@@ -755,7 +755,7 @@ CONFIGURE_ARGS+=--with-ssh2=${AZ_PREFIX}
 #   ODBC: the module odbc, which this overlay does not build;
 #   PGSQL: pdo_pgsql and the PostgreSQL client library of the ports;
 #   FIREBIRD: the Firebird client library of the ports;
-#   SSH2: libssh2 of the ports (az has none).
+#   SSH2: libssh2 of the ports (azsupport has none).
 COMMENT=	Asynchronous, concurrent, and distributed networking framework
 WWW=		https://github.com/swoole/swoole-src
 
@@ -767,7 +767,7 @@ NOT_FOR_ARCHS_REASON=	upstream drop 32 bits support
 
 USES+=		compiler:c11 pkgconfig ssl
 # C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
-AZ_GCC=		no
+AZSUPPORT_GCC=		no
 
 CONFIGURE_ARGS+=	--enable-swoole
 
@@ -778,7 +778,7 @@ OPTIONS_DEFAULT=	BROTLI SOCKETS
 CONFIGURE_ARGS+=	--disable-swoole-sqlite
 BROTLI_CONFIGURE_OFF=	--disable-brotli
 BROTLI_CONFIGURE_ON=	--enable-brotli
-BROTLI_VARS=		AZ_LIBS+=libbrotlienc.so
+BROTLI_VARS=		AZSUPPORT_LIBS+=libbrotlienc.so
 CARES_CONFIGURE_ON=	--enable-cares
 CARES_LIB_DEPENDS=	libcares.so:dns/c-ares
 CURL_CONFIGURE_ON=	--enable-swoole-curl
@@ -802,7 +802,7 @@ LDFLAGS+=	-lexecinfo
 # classes and PHP stops when both are loaded, but both install (aZ): the ini
 # comes with its line commented out, and the message of the package says why
 # and how to switch (php-src tools/build-pkg.sh). Its configure takes brotli
-# when it finds it: that of az.
+# when it finds it: that of azsupport.
 COMMENT=	Asynchronous networking framework, the OpenSwoole fork of Swoole
 WWW=		https://openswoole.com/
 
@@ -811,20 +811,20 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 
 USES+=		compiler:c11
 # C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
-AZ_GCC=		no
+AZSUPPORT_GCC=		no
 USE_PHP=	sockets:build mysqlnd:build
-AZ_LIBS=	libbrotlienc.so
+AZSUPPORT_LIBS=	libbrotlienc.so
 # its configure finds brotli by a link test only (AC_CHECK_LIB, through the -L of
-# az in LDFLAGS) and has no option for its directory: the headers of az too
+# azsupport in LDFLAGS) and has no option for its directory: the headers of azsupport too
 # (brotli/encode.h was not found for 7.4; build.yml 42519391339)
-CPPFLAGS+=	-I${AZ_PREFIX}/include
+CPPFLAGS+=	-I${AZSUPPORT_PREFIX}/include
 
 CONFIGURE_ARGS+=	--enable-openswoole \
 			--enable-sockets \
 			--enable-mysqlnd
 # without OpenSSL: its config.m4 takes it when PHP_OPENSSL (the variable of
 # --with-openssl, none under phpize, so empty) is not "no"
-.  if defined(AZ_OPENSSL)
+.  if defined(AZSUPPORT_OPENSSL)
 # openswoole-openssl: the OpenSSL of the base system
 USES+=			ssl
 CONFIGURE_ARGS+=	--with-openssl-dir=/usr
@@ -832,22 +832,22 @@ CONFIGURE_ARGS+=	--with-openssl-dir=/usr
 CONFIGURE_ENV+=		PHP_OPENSSL=no
 .  endif
 
-AZ_INI_OFF=	"Off: PHP stops when openswoole.so and swoole.so are loaded" \
+AZSUPPORT_INI_OFF=	"Off: PHP stops when openswoole.so and swoole.so are loaded" \
 		"together (pkg info -D ${PKGBASE})."
-AZ_MSG=		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops" \
+AZSUPPORT_MSG=		"OpenSwoole is a fork of Swoole with the same classes, and PHP stops" \
 		"when openswoole.so and swoole.so are loaded together, so" \
-		"${AZ_INI}" \
+		"${AZSUPPORT_INI}" \
 		"comes with its line commented out. To load openswoole: comment out" \
-		"the line of swoole in ${AZ_INI:H}/ext-*-swoole.ini," \
+		"the line of swoole in ${AZSUPPORT_INI:H}/ext-*-swoole.ini," \
 		"remove the ';' before extension=${PHP_MODNAME}.so in" \
-		"${AZ_INI}, then restart php${PHP_VER}_fpm or Apache."
+		"${AZSUPPORT_INI}, then restart php${PHP_VER}_fpm or Apache."
 .endif
 
-# The variants with OpenSSL (AZ_OPENSSL above): one of the two per module
-.if !empty(AZ_OPENSSL_MODULES:M${PHP_MODNAME})
-.  if defined(AZ_OPENSSL)
+# The variants with OpenSSL (AZSUPPORT_OPENSSL above): one of the two per module
+.if !empty(AZSUPPORT_OPENSSL_MODULES:M${PHP_MODNAME})
+.  if defined(AZSUPPORT_OPENSSL)
 CONFLICTS_INSTALL=	php${PHP_VER}-${PHP_MODNAME}
-.    if !empty(AZ_OPENSSL_LINKS:M${PHP_MODNAME})
+.    if !empty(AZSUPPORT_OPENSSL_LINKS:M${PHP_MODNAME})
 COMMENT:=	${COMMENT}, with OpenSSL
 .    else
 COMMENT:=	${COMMENT}, for mysqlnd with OpenSSL
@@ -863,9 +863,9 @@ CONFLICTS_INSTALL=	php${PHP_VER}-${PHP_MODNAME}-openssl
 # memcached set CPE_VENDOR and CPE_PRODUCT as their ports (CPE_PRODUCT here:
 # PORTNAME is php82); the ports of these have no CPE, so they have none here
 # either (openswoole has no port: none as well)
-AZ_NO_CPE=	excimer gmagick igbinary mcrypt memcache openswoole \
+AZSUPPORT_NO_CPE=	excimer gmagick igbinary mcrypt memcache openswoole \
 		redis ssh2 swoole
-.if !empty(AZ_NO_CPE:M${PHP_MODNAME})
+.if !empty(AZSUPPORT_NO_CPE:M${PHP_MODNAME})
 USES:=		${USES:Ncpe}
 .endif
 
@@ -926,8 +926,8 @@ USES+=	mysql
 
 .if ${PHP_MODNAME} == "mbstring"
 .	if ${PORT_OPTIONS:MREGEX}
-# oniguruma of az, found by its pkg-config
-AZ_LIBS+=	libonig.so
+# oniguruma of azsupport, found by its pkg-config
+AZSUPPORT_LIBS+=	libonig.so
 .	else
 CONFIGURE_ARGS+=--disable-mbregex
 .	endif
@@ -947,24 +947,24 @@ post-patch:
 .endif
 
 # The ini of the module installed (by ${PHP_EXT_INI_FILE}, an .ini.sample, and
-# @sample in the plist): AZ_INI. AZ_INI_OFF (openswoole, gmagick): the ini comes
-# with its line commented out, after these lines of the reason; AZ_MSG: the
+# @sample in the plist): AZSUPPORT_INI. AZSUPPORT_INI_OFF (openswoole, gmagick): the ini comes
+# with its line commented out, after these lines of the reason; AZSUPPORT_MSG: the
 # message of the package (why, how to switch it on) in the place of that of
-# Mk/Uses/php.mk (which says that the ini loads the module), and AZ_MSG_REMOVE
+# Mk/Uses/php.mk (which says that the ini loads the module), and AZSUPPORT_MSG_REMOVE
 # one at its removal. Lines as words in double quotes, without '"' or '$'.
 # The targets run after add-plist-phpext of php.mk, which staged the ini and
 # wrote the message.
-AZ_INI=		${PREFIX}/${PHP_EXT_INI_FILE:S/.sample$//}
-.if defined(AZ_INI_OFF)
-POST_PLIST+=	az-ini-off
-az-ini-off:
-	@${PRINTF} '; %s\n' ${AZ_INI_OFF} > ${STAGEDIR}${PREFIX}/${PHP_EXT_INI_FILE}
+AZSUPPORT_INI=		${PREFIX}/${PHP_EXT_INI_FILE:S/.sample$//}
+.if defined(AZSUPPORT_INI_OFF)
+POST_PLIST+=	azsupport-ini-off
+azsupport-ini-off:
+	@${PRINTF} '; %s\n' ${AZSUPPORT_INI_OFF} > ${STAGEDIR}${PREFIX}/${PHP_EXT_INI_FILE}
 	@${ECHO_CMD} ";extension=${PHP_MODNAME}.so" \
 		>> ${STAGEDIR}${PREFIX}/${PHP_EXT_INI_FILE}
-	@${PRINTF} '%s\n' '[' '{' '  message: <<EOD' ${AZ_MSG} 'EOD' \
+	@${PRINTF} '%s\n' '[' '{' '  message: <<EOD' ${AZSUPPORT_MSG} 'EOD' \
 		'  type: install' > ${PHP_EXT_PKGMESSAGE}
-.  if defined(AZ_MSG_REMOVE)
-	@${PRINTF} '%s\n' '},' '{' '  message: <<EOD' ${AZ_MSG_REMOVE} 'EOD' \
+.  if defined(AZSUPPORT_MSG_REMOVE)
+	@${PRINTF} '%s\n' '},' '{' '  message: <<EOD' ${AZSUPPORT_MSG_REMOVE} 'EOD' \
 		'  type: remove' >> ${PHP_EXT_PKGMESSAGE}
 .  endif
 	@${PRINTF} '%s\n' '}' ']' >> ${PHP_EXT_PKGMESSAGE}
@@ -976,15 +976,15 @@ az-ini-off:
 # php${PHP_VER}-gmagick makes the CLI profile gmagick after its ini, unless it
 # is there (it stays at the removal: the message says so).
 # (no blank before a backslash: the lines are those of the plist, one blank)
-AZ_PROFILE_SYNC=	[ -x %D/bin/php${PHP_VER}-profile ] &&\
+AZSUPPORT_PROFILE_SYNC=	[ -x %D/bin/php${PHP_VER}-profile ] &&\
 			%D/bin/php${PHP_VER}-profile --sync > /dev/null 2>&1 || true
-AZ_PROFILE_GMAGICK=	[ -d %D/etc/php${PHP_VER}-gmagick ] ||\
+AZSUPPORT_PROFILE_GMAGICK=	[ -d %D/etc/php${PHP_VER}-gmagick ] ||\
 			%D/bin/php${PHP_VER}-profile --create gmagick --follow\
 			--off imagick --on gmagick --cli
-POST_PLIST+=	az-plist-profile
-az-plist-profile:
-	@${ECHO_CMD} "@postexec ${AZ_PROFILE_SYNC}" >> ${TMPPLIST}
-	@${ECHO_CMD} "@postunexec ${AZ_PROFILE_SYNC}" >> ${TMPPLIST}
+POST_PLIST+=	azsupport-plist-profile
+azsupport-plist-profile:
+	@${ECHO_CMD} "@postexec ${AZSUPPORT_PROFILE_SYNC}" >> ${TMPPLIST}
+	@${ECHO_CMD} "@postunexec ${AZSUPPORT_PROFILE_SYNC}" >> ${TMPPLIST}
 .if ${PHP_MODNAME} == "gmagick"
-	@${ECHO_CMD} "@postexec ${AZ_PROFILE_GMAGICK}" >> ${TMPPLIST}
+	@${ECHO_CMD} "@postexec ${AZSUPPORT_PROFILE_GMAGICK}" >> ${TMPPLIST}
 .endif

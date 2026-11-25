@@ -9,7 +9,7 @@
 
 PORTNAME=	fcron
 PORTVERSION=	3.4.1
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	sysutils
 MASTER_SITES=	http://fcron.free.fr/archives/ \
 		ftp://ftp.seul.org/pub/fcron/

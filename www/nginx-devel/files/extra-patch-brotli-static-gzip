@@ -22,7 +22,7 @@ Applied by post-patch in WRKSRC_brotli after extra-patch-brotli-static-vary, -p0
    if (check_accept_encoding(req) != NGX_OK) return NGX_DECLINED;
 -  req->gzip_tested = 1;
 -  req->gzip_ok = 0;
-+  /* gzip_tested and gzip_ok are left to gzip (az) */
++  /* gzip_tested and gzip_ok are left to gzip (azsupport) */
    return NGX_OK;
  }
  
@@ -44,7 +44,7 @@ Applied by post-patch in WRKSRC_brotli after extra-patch-brotli-static-vary, -p0
 -    if (rc != NGX_OK) return NGX_DECLINED;
 +    taken = check_eligility(req);
 +    /* As gzip_static: with gzip_vary on the .br file is looked for also for a
-+       client that does not take br, for the Vary of what it gets instead (az). */
++       client that does not take br, for the Vary of what it gets instead (azsupport). */
 +    location_cfg = ngx_http_get_module_loc_conf(req, ngx_http_core_module);
 +    if (taken != NGX_OK && !location_cfg->gzip_vary) return NGX_DECLINED;
    }

@@ -4,6 +4,6 @@
 
 COMMENT=	PostgreSQL database client, with OpenSSL (of azsupport/ports)
 
-AZ_PG_OPENSSL=	yes
+AZSUPPORT_PG_OPENSSL=	yes
 
 .include "${.CURDIR}/../postgresql18-client/Makefile"

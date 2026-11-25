@@ -16,7 +16,7 @@
 # snapshots, with the variants of a snapshot commented out.
 # The C compiled by GCC 16 of the ports instead of the base clang (USES=azgcc,
 # Mk/Uses/azgcc.mk; a build dependency only), aZ 17.11.2026 («а) Python, Redis и xxhash
-# в az»): tools/prog-bench.sh measured redis-server 8.2.11 built with GCC 16 against the
+# в azsupport»): tools/prog-bench.sh measured redis-server 8.2.11 built with GCC 16 against the
 # base clang 19 (redis-benchmark, 50 clients, pipeline 16, the server alone on a CPU):
 # faster in 9 of 11 tests, the median -6.3% (prog-bench run 44043639827), and in 10 of
 # 14, the median -5.9% (run 44046254033). Its one C++ file, fast_float_strtod.cpp of
@@ -42,7 +42,7 @@
 
 PORTNAME=	redis
 DISTVERSION=	8.2.11
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	databases
 MASTER_SITES=	https://download.redis.io/releases/
 PKGNAMESUFFIX?=	82
@@ -133,7 +133,7 @@ do-test:
 
 .include <bsd.port.pre.mk>
 
-.if ${AZ_GCC} != no
+.if ${AZSUPPORT_GCC} != no
 LDFLAGS+=	-static-libgcc
 
 post-patch:

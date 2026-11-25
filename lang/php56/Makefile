@@ -3,7 +3,7 @@
 # 21.11.2026: «давай еще разделим php-cgi и php-fpm на отдельные порты и
 # соответственно phpXX-cgi phpXX-fpm и подредактируй название rc.d под новые названия
 # в php-fpm»; «тут тоже php84-»), built by this Makefile with the SAPI alone
-# (AZ_PHP_SAPI); this core has the CLI. What follows of the FPM is theirs.
+# (AZSUPPORT_PHP_SAPI); this core has the CLI. What follows of the FPM is theirs.
 #
 # PHP 5.6 of azsupport/php-src for the overlay azsupport/ports: the official
 # port lang/php56 of freebsd-ports d2c06ef5efae (the ports commit of PHP 5.6 in
@@ -21,7 +21,7 @@
 #   leaves out (php-src freebsd/patches/5.6/SKIPPED), the include of
 #   ext/php_config.h in main/php_config.h (patch-configure.in) is added in
 #   post-configure, as in lang/php74. A new dated release of the same version:
-#   AZ_PHP_RELEASE and distinfo. The others of SKIPPED are not taken:
+#   AZSUPPORT_PHP_RELEASE and distinfo. The others of SKIPPED are not taken:
 #   . patch-configure.in otherwise: its pthreads hunks are met by the
 #     CONFIGURE_ENV of the port (ac_cv_pthreads_*, pthreads_working); every
 #     build has a SAPI ("Nothing to build"); its nanosleep hunk drops a NEEDED
@@ -44,11 +44,11 @@
 #     install), which do-install of mod_php56 does not use, as for
 #     apache2handler; patch-TSRM_threads.m4: no effect on FreeBSD (SKIPPED);
 #   . files/php-fpm.in: the rc.d script is files/php56_fpm.in (below).
-# - PORTREVISION is the stamp of the build, AZ_STAMP of the builder (0 without
+# - PORTREVISION is the stamp of the build, AZSUPPORT_STAMP of the builder (0 without
 #   it; Mk/bsd.overlay.mk); the modules take it from here.
 # - Versions side by side: every path of PHP 5.6 has 56 in it: bin/php56 ...
 #   (--program-suffix=56), etc/php56 (php.ini by @sample from php.ini.sample:
-#   php.ini-production with the defaults of az, files/php.ini-az-56.in, at its
+#   php.ini-production with the defaults of azsupport, files/php.ini-az-56.in, at its
 #   end; errors in /var/log/php56_error.log, made at install when missing; FPM
 #   with /var/run/php56-fpm.pid, /var/log/php56-fpm.log, and the pool www,
 #   which 5.6 has in php-fpm.conf (no php-fpm.d), on /var/run/php56-fpm.sock),
@@ -56,14 +56,14 @@
 #   include/php56, share/php56, etc/rc.d/php56_fpm,
 #   libexec/apache24/libphp56.so (www/mod_php56); the modules in
 #   lib/php/20131226 as the ports. No CONFLICTS with other versions.
-# - Libraries: libxml2 of the package az (${AZ_PREFIX}), by a file, with its
+# - Libraries: libxml2 of the package azsupport (${AZSUPPORT_PREFIX}), by a file, with its
 #   run path; PCRE the shared library of devel/pcre of this tree (8.45, as the
 #   fork bundles; --with-pcre-regex), not the one the fork bundles (aZ,
 #   10.11.2026).
-#   PHP 5.6 takes libxml2 by xml2-config only, and that of az names the zlib of
+#   PHP 5.6 takes libxml2 by xml2-config only, and that of azsupport names the zlib of
 #   the base system with -L/lib in --libs, which configure would put into the
-#   run path of php56 (the run path is ${AZ_PREFIX}/lib only): AZ_XML2_CONFIG,
-#   xml2-config of az without that -L/lib (the modules of libxml2 take it too).
+#   run path of php56 (the run path is ${AZSUPPORT_PREFIX}/lib only): AZSUPPORT_XML2_CONFIG,
+#   xml2-config of azsupport without that -L/lib (the modules of libxml2 take it too).
 #   No --with-zlib-dir: it was for the mysqlnd of the core, and without
 #   patch-ext_zlib_config0.m4 of the port (SKIPPED by the fork) it would build
 #   zlib into the core.
@@ -93,14 +93,14 @@
 # from here PORTNAME, DISTVERSION?= (a PECL extension sets its own version
 # first), PORTREVISION, CATEGORIES?=, MASTER_SITES, DISTNAME (without
 # DISTVERSION), DIST_SUBDIR, distinfo (through MASTERDIR), MAINTAINER, WWW,
-# LICENSE, USES (azgcc cpe tar:xz), PHP_VER (56) and AZ_XML2_CONFIG.
+# LICENSE, USES (azgcc cpe tar:xz), PHP_VER (56) and AZSUPPORT_XML2_CONFIG.
 
 PORTNAME=	php56
 DISTVERSION?=	5.6.40
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES?=	lang devel www
-MASTER_SITES=	https://github.com/azsupport/php-src/releases/download/freebsd-5.6-${AZ_PHP_RELEASE}/
-DISTNAME=	php-5.6.40-fbsd-${AZ_PHP_RELEASE}
+MASTER_SITES=	https://github.com/azsupport/php-src/releases/download/freebsd-5.6-${AZSUPPORT_PHP_RELEASE}/
+DISTNAME=	php-5.6.40-fbsd-${AZSUPPORT_PHP_RELEASE}
 DIST_SUBDIR=	php
 
 MAINTAINER=	github@azsupport.com
@@ -124,23 +124,23 @@ PHP_VER=	56
 
 # the dated release of the fork: its tag freebsd-5.6-<date>-<commit>; DISTNAME
 # without DISTVERSION, which the slaves of PECL extensions set to their version
-AZ_PHP_RELEASE=	20261124-f98c3c2b
+AZSUPPORT_PHP_RELEASE=	20261124-f98c3c2b
 
-# xml2-config of az without the -L/lib of its --libs (the head): configure
+# xml2-config of azsupport without the -L/lib of its --libs (the head): configure
 # takes it from the cache variable of PHP_SETUP_LIBXML (acinclude.m4), the core
-# and the modules alike; the script is made in pre-configure (az-xml2-config)
-AZ_XML2_CONFIG=	${WRKDIR}/az-xml2-config
+# and the modules alike; the script is made in pre-configure (azsupport-xml2-config)
+AZSUPPORT_XML2_CONFIG=	${WRKDIR}/azsupport-xml2-config
 
 # the files of this port that the ports needing it need not see (tools/build.sh),
 # as in lang/php74: run-time files of the core only (post-install, USE_RC_SUBR,
-# SUB_FILES), read by no module and not by mod_php56: the block of az for
+# SUB_FILES), read by no module and not by mod_php56: the block of azsupport for
 # php.ini, bin/php56-profile and pkg-message
-AZ_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-56.in ${MASTERDIR}/files/php-profile.in \
+AZSUPPORT_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-56.in ${MASTERDIR}/files/php-profile.in \
 				${MASTERDIR}/files/pkg-message.in
 
 .if !defined(PKGNAMESUFFIX)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libxml2.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libxml2.so:az/az
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
 
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS+=--with-layout=GNU \
@@ -148,7 +148,7 @@ CONFIGURE_ARGS+=--with-layout=GNU \
 		--with-config-file-scan-dir=${PREFIX}/etc/php${PHP_VER}/conf.d \
 		--disable-all \
 		--enable-libxml \
-		--with-libxml-dir=${AZ_PREFIX} \
+		--with-libxml-dir=${AZSUPPORT_PREFIX} \
 		--program-prefix="" \
 		--program-suffix=${PHP_VER} \
 		--sysconfdir=${PREFIX}/etc/php${PHP_VER} \
@@ -156,8 +156,8 @@ CONFIGURE_ARGS+=--with-layout=GNU \
 		--includedir=${PREFIX}/include/php${PHP_VER} \
 		--datadir=${PREFIX}/share/php${PHP_VER}
 CONFIGURE_ENV=	EXTENSION_DIR=${PREFIX}/lib/php/${PHP_EXT_DIR} \
-		ac_cv_php_xml2_config_path=${AZ_XML2_CONFIG}
-LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+		ac_cv_php_xml2_config_path=${AZSUPPORT_XML2_CONFIG}
+LDFLAGS+=	-L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 # PCRE: the shared library of devel/pcre of this tree (aZ, 10.11.2026: our ports
 # link each other's shared libraries), --with-pcre-regex of a directory of the
 # work with pcre.h and libpcre.so alone in it (links to those of /usr/local:
@@ -210,11 +210,11 @@ SHORTMODNAME=	php5
 WARNING=	"!!! If you have a threaded Apache, you must build ${PHP_PORT} with ZTS support to enable thread-safety in extensions !!!"
 .endif
 
-# the FPM and the CGI of the version, www/php56-fpm and www/php56-cgi (AZ_PHP_SAPI):
+# the FPM and the CGI of the version, www/php56-fpm and www/php56-cgi (AZSUPPORT_PHP_SAPI):
 # the SAPI alone, with etc/php56 and the modules of php56
-.if defined(AZ_PHP_SAPI)
+.if defined(AZSUPPORT_PHP_SAPI)
 RUN_DEPENDS+=	${LOCALBASE}/include/php56/php/main/php.h:lang/php56
-.  if ${AZ_PHP_SAPI} == fpm
+.  if ${AZSUPPORT_PHP_SAPI} == fpm
 COMMENT=	FastCGI Process Manager of PHP (5.6.X branch of azsupport/php-src)
 SUB_FILES+=	pkg-message
 SUB_LIST+=	PHP_VER=${PHP_VER}
@@ -332,12 +332,12 @@ post-patch:
 		${WRKSRC}/sapi/fpm/php-fpm.conf.in
 .endif
 
-# xml2-config of az without -L/lib (AZ_XML2_CONFIG); the directory of PCRE
+# xml2-config of azsupport without -L/lib (AZSUPPORT_XML2_CONFIG); the directory of PCRE
 pre-configure:
 	@${PRINTF} '%s\n' '#!/bin/sh' \
-		'${AZ_PREFIX}/bin/xml2-config "$$@" | ${SED} -e "s|[[:space:]]-L/lib[[:space:]]| |g"' \
-		> ${AZ_XML2_CONFIG}
-	@${CHMOD} 755 ${AZ_XML2_CONFIG}
+		'${AZSUPPORT_PREFIX}/bin/xml2-config "$$@" | ${SED} -e "s|[[:space:]]-L/lib[[:space:]]| |g"' \
+		> ${AZSUPPORT_XML2_CONFIG}
+	@${CHMOD} 755 ${AZSUPPORT_XML2_CONFIG}
 	@${MKDIR} ${WRKDIR}/pcre/include ${WRKDIR}/pcre/lib
 	@${LN} -sf ${LOCALBASE}/include/pcre.h ${WRKDIR}/pcre/include/pcre.h
 	@${LN} -sf ${LOCALBASE}/lib/libpcre.so ${WRKDIR}/pcre/lib/libpcre.so
@@ -353,7 +353,7 @@ post-configure:
 		-e 's|-R[[:space:]]*${WRKDIR}/pcre/lib\([[:space:]]\)|\1|g' \
 		-e 's|-R[[:space:]]*${WRKDIR}/pcre/lib$$||' ${WRKSRC}/Makefile
 
-.if !defined(PKGNAMEPREFIX) && !defined(AZ_PHP_SAPI)
+.if !defined(PKGNAMEPREFIX) && !defined(AZSUPPORT_PHP_SAPI)
 post-build:
 	@${ECHO_CMD} "PHP_VER=${PHP_VER}" > ${WRKDIR}/php.conf
 	@${ECHO_CMD} "PHP_VERSION=${PORTVERSION}" >> ${WRKDIR}/php.conf
@@ -365,7 +365,7 @@ post-build:
 test: build
 	@(cd ${WRKSRC} && ${MAKE} test)
 
-# bin/php56-profile, the pkg-message (profiles, php.ini) and the block of az
+# bin/php56-profile, the pkg-message (profiles, php.ini) and the block of azsupport
 # for php.ini, from templates (PHP_VER; the block one file per version); in
 # files/, so that the modules do not take the message
 SUB_FILES+=	php-profile pkg-message php.ini-az-${PHP_VER}
@@ -373,7 +373,7 @@ SUB_LIST+=	PHP_VER=${PHP_VER}
 
 # etc/php56: php.conf (the version for Mk/Uses/php.mk), php.ini-development,
 # php.ini-production and php.ini.sample (php.ini-production with the block of
-# az at its end; php.ini by @sample); the empty directories of the modules: the
+# azsupport at its end; php.ini by @sample); the empty directories of the modules: the
 # scan dir etc/php56/conf.d and lib/php/20131226 (@dir)
 post-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/etc/php${PHP_VER}/conf.d \
@@ -398,10 +398,10 @@ post-install-EMBED-on:
 
 post-install-PHPDBG-on:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/phpdbg${PHP_VER}
-.elif defined(AZ_PHP_SAPI)
+.elif defined(AZSUPPORT_PHP_SAPI)
 # the SAPI alone: sbin/php56-fpm with its configuration and status page, or
 # bin/php56-cgi
-.  if ${AZ_PHP_SAPI} == fpm
+.  if ${AZSUPPORT_PHP_SAPI} == fpm
 do-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/sbin ${STAGEDIR}${PREFIX}/etc/php${PHP_VER} \
 		${STAGEDIR}${PREFIX}/share/php${PHP_VER}/fpm

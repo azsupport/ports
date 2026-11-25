@@ -6,8 +6,8 @@
 # of this tree (from azsupport/php-src, 09.11.2026); needs curl, git, tar, xz, sha256sum, diff; gh (GH_TOKEN) for the
 # GitHub release, gpg for a signature (both optional).
 #
-# A release taken before its port (a "take" line of the conf files of az, ffmpeg and
-# ImageMagick: az/az/files/deps.conf, multimedia/ffmpeg/files/ffmpeg.conf,
+# A release taken before its port (a "take" line of the conf files of azsupport, ffmpeg and
+# ImageMagick: azsupport/azsupport/files/deps.conf, multimedia/ffmpeg/files/ffmpeg.conf,
 # graphics/ImageMagick7/files/imagemagick.conf) must be the
 # same file from the port's MASTER_SITES (the addresses of the line) and from the
 # release of GitHub. For each name: fetches the file from every address of the
@@ -30,9 +30,9 @@ top="$(pwd)"
 work="${TAKE_SOURCES_WORK:-${TMPDIR:-/tmp}/take-sources.$$}"
 rep="$top/report.md"
 [ "$#" -gt 0 ] || { echo "usage: sh tools/take-sources.sh <name>..." >&2; exit 2; }
-confs="$top/az/az/files/deps.conf $top/multimedia/ffmpeg/files/ffmpeg.conf $top/graphics/ImageMagick7/files/imagemagick.conf"
+confs="$top/azsupport/azsupport/files/deps.conf $top/multimedia/ffmpeg/files/ffmpeg.conf $top/graphics/ImageMagick7/files/imagemagick.conf"
 # shellcheck disable=SC2086
-ls $confs >/dev/null 2>&1 || { echo "take-sources: no conf files of az, ffmpeg and ImageMagick (run from the top of a checkout of azsupport/ports)" >&2; exit 2; }
+ls $confs >/dev/null 2>&1 || { echo "take-sources: no conf files of azsupport, ffmpeg and ImageMagick (run from the top of a checkout of azsupport/ports)" >&2; exit 2; }
 for n in "$@"; do
     case "$n" in *[!a-z0-9_.+-]*|'') echo "take-sources: bad name: $n" >&2; exit 2 ;; esac
 done
@@ -67,7 +67,7 @@ for n in "$@"; do
     pre="$(awk -v n="$n" '$1 == "upstream" && $2 == n { print $5; exit }' $confs)"
     pre="${pre%%(*}"
     case "$pre" in *[!A-Za-z0-9._-]*) pre="" ;; esac
-    [ -n "$t" ] || { out "## $n"; out ""; out "FAIL: no take line of $n in the conf files of az, ffmpeg and ImageMagick"; out ""; rc=1; continue; }
+    [ -n "$t" ] || { out "## $n"; out ""; out "FAIL: no take line of $n in the conf files of azsupport, ffmpeg and ImageMagick"; out ""; rc=1; continue; }
     # shellcheck disable=SC2086
     set -- $t
     ver="$1"; urls="$2"; sha="$3"; srcdir="$4"

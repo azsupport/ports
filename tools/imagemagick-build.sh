@@ -4,11 +4,11 @@
 # and ImageMagick7 of the ports graphics/ImageMagick6 and graphics/ImageMagick7, in
 # the place of the official ones, and ImageMagick67 of graphics/ImageMagick67 with
 # both, which conflict with each other): programs in /usr/local/bin, those of
-# ImageMagick 6 with the suffix AZ_IM6_SUFFIX (none in ImageMagick6, 6 in
+# ImageMagick 6 with the suffix AZSUPPORT_IM6_SUFFIX (none in ImageMagick6, 6 in
 # ImageMagick67, next to ImageMagick 7: convert6, identify6...),
 # with only the formats listed there (see the head of that file for which and why),
-# linking their own shared libraries and those of the package az, /usr/local/az/lib
-# (installed: the port az/az first), with that run path: our ports link each
+# linking their own shared libraries and those of the package azsupport, /usr/local/azsupport/lib
+# (installed: the port azsupport/azsupport first), with that run path: our ports link each
 # other's shared libraries (aZ, 10.11.2026).
 #
 # Moved from tools/build-imagemagick.sh of https://github.com/azsupport/php-src
@@ -16,52 +16,52 @@
 #
 # Usage (FreeBSD; the ports graphics/ImageMagick6 and graphics/ImageMagick7 run
 # it in their post-fetch and do-build, each with its name, graphics/ImageMagick67
-# with each name, AZ_IM6_SUFFIX=6 and a stage of each, AZ_STAGEDIR):
+# with each name, AZSUPPORT_IM6_SUFFIX=6 and a stage of each, AZSUPPORT_STAGEDIR):
 #   sh tools/imagemagick-build.sh --tools             install the build tools (pkg)
 #   sh tools/imagemagick-build.sh --fetch [<name>]    fetch the distfiles of the
-#                                                     official port into AZ_DISTDIR
+#                                                     official port into AZSUPPORT_DISTDIR
 #   sh tools/imagemagick-build.sh [<name>]            build one ImageMagick
 #                                                     (imagemagick6, imagemagick7),
 #                                                     without a name both
 #
-# The conf and the policy: AZ_IM_CONF (default graphics/ImageMagick7/files/
+# The conf and the policy: AZSUPPORT_IM_CONF (default graphics/ImageMagick7/files/
 # imagemagick.conf, the policy.xml next to it, one copy for both); the patches of
 # an ImageMagick: graphics/ImageMagick<6|7>/files/<name>-*.patch; the ports commit:
-# AZ_DEPS_CONF (deps.conf of az/az). AZ_STAGEDIR: the stage of the one built
-# (default AZ_WORK/stage/ImageMagick<6|7>).
+# AZSUPPORT_DEPS_CONF (deps.conf of azsupport/azsupport). AZSUPPORT_STAGEDIR: the stage of the one built
+# (default AZSUPPORT_WORK/stage/ImageMagick<6|7>).
 #
-# As tools/az-build.sh: for every im line the ports framework fetches the
-# distfiles of the port at the ports commit of az/az/files/deps.conf, checks them
+# As tools/azsupport-build.sh: for every im line the ports framework fetches the
+# distfiles of the port at the ports commit of azsupport/azsupport/files/deps.conf, checks them
 # against its distinfo, extracts them and applies the port's patches (make
 # patch); this script then builds the source tree with its own options. A take
 # line gives a new upstream release instead (with the port's patches, or those of
 # graphics/ImageMagick<6|7>/files/deps/<name>-<version>/). Each ImageMagick is
 # built with --enable-shared --disable-static, coders built in, against the shared
-# libraries of AZ_PREFIX (default /usr/local/az; run path AZ_PREFIX/lib) and the
+# libraries of AZSUPPORT_PREFIX (default /usr/local/azsupport; run path AZSUPPORT_PREFIX/lib) and the
 # base system, nothing of the static tree, with the prefix /usr/local and the
-# libdir AZ_PREFIX/lib, and installed into a stage directory first; what it keeps
-# then goes to the stage of its package, AZ_STAGE/ImageMagick<6|7> (default
-# AZ_WORK/stage/...): its programs (PIE) in /usr/local/bin (ImageMagick 7: magick
+# libdir AZSUPPORT_PREFIX/lib, and installed into a stage directory first; what it keeps
+# then goes to the stage of its package, AZSUPPORT_STAGE/ImageMagick<6|7> (default
+# AZSUPPORT_WORK/stage/...): its programs (PIE) in /usr/local/bin (ImageMagick 7: magick
 # and the usual names linked to it; ImageMagick 6: the usual names with
-# AZ_IM6_SUFFIX at the end, convert6, identify6... in ImageMagick67), etc/ImageMagick-<6|7>/ (its configuration, with the
+# AZSUPPORT_IM6_SUFFIX at the end, convert6, identify6... in ImageMagick67), etc/ImageMagick-<6|7>/ (its configuration, with the
 # policy graphics/ImageMagick7/files/policy.xml), share/ImageMagick-<6|7>/ and
 # share/licenses/ImageMagick<6|7>/ of /usr/local, and its libraries
 # (libMagickCore, libMagickWand) with lib/ImageMagick-<version>/ (configure.xml) in
-# /usr/local/az/lib; the prefix stays /usr/local, so the libraries read the
+# /usr/local/azsupport/lib; the prefix stays /usr/local, so the libraries read the
 # configuration, the policy and the share files of the package
 # (/usr/local/etc/ImageMagick-<6|7>). ImageMagick 7 also keeps its headers, .pc
 # files and bin/MagickWand-config, bin/MagickCore-config (the link line with the
-# run path) in /usr/local/az, for imagick of the PHP packages (pkg mode, phpize
-# against /usr/local/az), which links the same libraries; no Magick++. And it is
+# run path) in /usr/local/azsupport, for imagick of the PHP packages (pkg mode, phpize
+# against /usr/local/azsupport), which links the same libraries; no Magick++. And it is
 # built static first, from a copy of the same patched source, for the static
 # imagick of PHP built on a server: its static libraries, headers and .pc files in
-# the static tree, /usr/local/az/static (lib, include/ImageMagick-7,
+# the static tree, /usr/local/azsupport/static (lib, include/ImageMagick-7,
 # lib/pkgconfig), with bin/MagickWand-config and bin/MagickCore-config there
 # printing the static link line (the ports links a test program with them as
 # imagick does, once installed). fontconfig takes its configuration and fonts from
 # the system (/usr/local/etc/fonts, /usr/local/share/fonts; its cache
-# /var/db/fontconfig), as the port does. The work directory is AZ_WORK/imagemagick
-# (default /var/tmp/az-work/imagemagick). Results go to imagemagick-results/
+# /var/db/fontconfig), as the port does. The work directory is AZSUPPORT_WORK/imagemagick
+# (default /var/tmp/azsupport-work/imagemagick). Results go to imagemagick-results/
 # (summary.txt with a line for the shared libraries, imagemagick<6|7>-so; one log
 # per ImageMagick, <name>.VERSIONS, shared.txt: the SONAME, run path and libraries
 # of each shared library).
@@ -69,8 +69,8 @@
 #
 # Compiler flags as for PHP, the libraries and FFmpeg: CPUTYPE and CFLAGS of
 # /etc/make.conf with -fstack-protector-strong and -fno-strict-aliasing (and
-# -fPIC: the libraries of ImageMagick 7 go into libphp.so and imagick.so); AZ_CPUTYPE and
-# AZ_CFLAGS (the inputs of the workflow az.yml) win over make.conf (MAKE_CONF,
+# -fPIC: the libraries of ImageMagick 7 go into libphp.so and imagick.so); AZSUPPORT_CPUTYPE and
+# AZSUPPORT_CFLAGS (the inputs of the workflow azsupport.yml) win over make.conf (MAKE_CONF,
 # default /etc/make.conf); without either: x86-64-v3 and -O3 -pipe. The
 # programs: PIE, RELRO and BIND_NOW; the shared libraries: RELRO and BIND_NOW.
 #
@@ -86,36 +86,36 @@ set -u
 # was built (ld: undefined symbol ff_bwdif_init_x86 ..., 08.11.2026).
 unset MAKEFLAGS MFLAGS MAKELEVEL __MKLVL__
 tools="$(cd "$(dirname "$0")" && pwd)"
-conf="${AZ_IM_CONF:-$tools/../graphics/ImageMagick7/files/imagemagick.conf}"
+conf="${AZSUPPORT_IM_CONF:-$tools/../graphics/ImageMagick7/files/imagemagick.conf}"
 policy="$(dirname "$conf")/policy.xml"
-deps_conf="${AZ_DEPS_CONF:-$tools/../az/az/files/deps.conf}"
-A="${AZ_PREFIX:-/usr/local/az}"
-# the static tree of az (the static imagick of PHP built on a server); the shared
+deps_conf="${AZSUPPORT_DEPS_CONF:-$tools/../azsupport/azsupport/files/deps.conf}"
+A="${AZSUPPORT_PREFIX:-/usr/local/azsupport}"
+# the static tree of azsupport (the static imagick of PHP built on a server); the shared
 # libraries are those of $A itself (lib, include, lib/pkgconfig, bin)
 S="$A/static"
 I=/usr/local
-work="${AZ_WORK:-/var/tmp/az-work}/imagemagick"
-stage="${AZ_STAGE:-${AZ_WORK:-/var/tmp/az-work}/stage}"
-res="${AZ_RESULTS:-$(pwd)/imagemagick-results}"
+work="${AZSUPPORT_WORK:-/var/tmp/azsupport-work}/imagemagick"
+stage="${AZSUPPORT_STAGE:-${AZSUPPORT_WORK:-/var/tmp/azsupport-work}/stage}"
+res="${AZSUPPORT_RESULTS:-$(pwd)/imagemagick-results}"
 ports="${PORTSDIR:-/usr/ports}"
-distdir="${AZ_DISTDIR:-$work/distfiles}"
-takedist="${AZ_TAKE_DISTFILES:-$(pwd)/distfiles}"
+distdir="${AZSUPPORT_DISTDIR:-$work/distfiles}"
+takedist="${AZSUPPORT_TAKE_DISTFILES:-$(pwd)/distfiles}"
 # root_of <6|7>: the stage of that ImageMagick (its files at their paths)
-root_of() { if [ -n "${AZ_STAGEDIR:-}" ]; then echo "$AZ_STAGEDIR"; else echo "$stage/ImageMagick$1"; fi; }
+root_of() { if [ -n "${AZSUPPORT_STAGEDIR:-}" ]; then echo "$AZSUPPORT_STAGEDIR"; else echo "$stage/ImageMagick$1"; fi; }
 # the suffix of the programs of ImageMagick 6 (--program-suffix): none for the
 # package ImageMagick6 (convert, identify...), 6 for ImageMagick67, where they are
 # next to those of ImageMagick 7 (convert6, identify6...; aZ, 14.11.2026)
-s6="${AZ_IM6_SUFFIX:-}"
-case "$s6" in *[!0-9A-Za-z_-]*) echo "imagemagick-build: AZ_IM6_SUFFIX=$s6: letters, digits, - and _ only" >&2; exit 2 ;; esac
-# AZ_IM_PART: what of the build goes into the stage (aZ, 14.11.2026: the libraries in
+s6="${AZSUPPORT_IM6_SUFFIX:-}"
+case "$s6" in *[!0-9A-Za-z_-]*) echo "imagemagick-build: AZSUPPORT_IM6_SUFFIX=$s6: letters, digits, - and _ only" >&2; exit 2 ;; esac
+# AZSUPPORT_IM_PART: what of the build goes into the stage (aZ, 14.11.2026: the libraries in
 # packages of their own, which the programs and imagick of PHP depend on): lib, the
 # libraries with their headers, .pc files, config scripts, configuration (the policy),
 # share files, licences and VERSIONS, ImageMagick 7 also its static build (the ports
 # graphics/libimagemagick6 and graphics/libimagemagick7); bin, the programs only (the
 # ports graphics/ImageMagick6, ImageMagick7 and ImageMagick67, which depend on those);
 # all (default), both
-part="${AZ_IM_PART:-all}"
-case "$part" in lib|bin|all) ;; *) echo "imagemagick-build: AZ_IM_PART=$part: lib, bin or all" >&2; exit 2 ;; esac
+part="${AZSUPPORT_IM_PART:-all}"
+case "$part" in lib|bin|all) ;; *) echo "imagemagick-build: AZSUPPORT_IM_PART=$part: lib, bin or all" >&2; exit 2 ;; esac
 ncpu="$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 major="$(uname -r | cut -d. -f1)"
 
@@ -127,8 +127,8 @@ if [ "${1:-}" = "--tools" ]; then
     for t in $pkgs; do pkg info -e "$t" || echo "imagemagick-build: package $t is not installed"; done
     exit $rc
 fi
-[ -f "$conf" ] || { echo "imagemagick-build: no $conf (AZ_IM_CONF: imagemagick.conf of graphics/ImageMagick7/files)" >&2; exit 2; }
-[ -f "$deps_conf" ] || { echo "imagemagick-build: no $deps_conf (AZ_DEPS_CONF: deps.conf of the port az/az)" >&2; exit 2; }
+[ -f "$conf" ] || { echo "imagemagick-build: no $conf (AZSUPPORT_IM_CONF: imagemagick.conf of graphics/ImageMagick7/files)" >&2; exit 2; }
+[ -f "$deps_conf" ] || { echo "imagemagick-build: no $deps_conf (AZSUPPORT_DEPS_CONF: deps.conf of the port azsupport/azsupport)" >&2; exit 2; }
 
 say() { printf '[imagemagick-build %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
@@ -143,9 +143,9 @@ mc_get() {
     ' "$mk_conf"
 }
 
-cputype="${AZ_CPUTYPE:-$(mc_get CPUTYPE)}"
+cputype="${AZSUPPORT_CPUTYPE:-$(mc_get CPUTYPE)}"
 cputype="${cputype:-x86-64-v3}"
-opt="${AZ_CFLAGS:-$(mc_get CFLAGS)}"
+opt="${AZSUPPORT_CFLAGS:-$(mc_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 export CC=cc CXX=c++
@@ -171,7 +171,7 @@ take_of() { awk -v n="$1" '$1 == "take" && $2 == n { print $3, $4, $5, $6 }' "$c
 conf_opts() { awk -v k="$1" '$1 == k { for (i = 2; i <= NF; i++) print $i }' "$conf"; }
 
 # The official tree PORTSDIR has to be at the commit of deps.conf (as in
-# tools/az-build.sh); it is only read here, never changed.
+# tools/azsupport-build.sh); it is only read here, never changed.
 ports_check() {
     [ -f "$ports/Mk/bsd.port.mk" ] || { echo "imagemagick-build: no ports tree in $ports (PORTSDIR)" >&2; return 1; }
     h="$(git -C "$ports" rev-parse HEAD 2>/dev/null)"
@@ -201,7 +201,7 @@ fix_guess() {
 }
 
 # pc_add <file.pc> <Libs|Libs.private> <-lname>...: add to that line of a .pc file the
-# libraries it does not name yet (as in tools/az-build.sh)
+# libraries it does not name yet (as in tools/azsupport-build.sh)
 pc_add() {
     pc="$1"; field="$2"; shift 2
     [ -f "$pc" ] || return 0
@@ -251,13 +251,13 @@ EOF
 }
 
 # b_im_shared <name> <source> <6|7>: ImageMagick with shared libraries, the build of
-# the package: its libraries against the shared libraries of az, with the run path
+# the package: its libraries against the shared libraries of azsupport, with the run path
 # $A/lib, in a subshell with an environment of its own (nothing of the static tree
 # $S), and its programs (PIE, RELRO, BIND_NOW; stripped) linking them (our ports link
 # each other's shared libraries: aZ, 10.11.2026; the compiler leaves -pie out of the
 # link of a library, as with the PIE of the ports). Installed into a stage directory
 # of its own; into the stage of the package: the programs (ImageMagick 7: magick and
-# the usual names linked to it; ImageMagick 6: the usual names, with AZ_IM6_SUFFIX at the end),
+# the usual names linked to it; ImageMagick 6: the usual names, with AZSUPPORT_IM6_SUFFIX at the end),
 # etc/ImageMagick-<6|7>/ with our policy, share/ImageMagick-<6|7>/ in /usr/local, and
 # the libraries with lib/ImageMagick-<version>/ (configure.xml) in $A/lib;
 # ImageMagick 7 also its headers, .pc files and config scripts there, for imagick
@@ -268,7 +268,7 @@ b_im_shared() {
     rm -rf "$sst"
     for pc in libpng16 libjpeg libwebp freetype2 fontconfig lcms2 libheif; do
         [ -f "$A/lib/pkgconfig/$pc.pc" ] ||
-            { echo "== shared: no $A/lib/pkgconfig/$pc.pc of the shared libraries (tools/az-build.sh)"; return 1; }
+            { echo "== shared: no $A/lib/pkgconfig/$pc.pc of the shared libraries (tools/azsupport-build.sh)"; return 1; }
     done
     echo "== shared libraries and programs: configure, gmake and gmake install-strip in $2"
     (
@@ -299,7 +299,7 @@ b_im_shared() {
         progs="$(cd "$s/bin" && ls | grep -v -e '-config$' -e '^conjure$')"
     fi
     [ -n "$progs" ] || { echo "== no programs in $s/bin"; return 1; }
-    # AZ_IM_PART bin or all: the programs
+    # AZSUPPORT_IM_PART bin or all: the programs
     if [ "$part" != lib ]; then
         keep="$(for p in $progs; do echo "bin/$p"; done)"
         echo "== into $root$I:" $keep
@@ -307,7 +307,7 @@ b_im_shared() {
         # shellcheck disable=SC2086
         (cd "$s" && tar -cf - $keep) | (cd "$root$I" && tar -xpf -) || return 1
     fi
-    # AZ_IM_PART lib or all: the rest
+    # AZSUPPORT_IM_PART lib or all: the rest
     if [ "$part" != bin ]; then
         keep="$(cd "$s" && ls -d "etc/ImageMagick-$v" "share/ImageMagick-$v" 2>/dev/null)"
         echo "== into $root$I:" $keep
@@ -354,7 +354,7 @@ b_im_shared() {
 }
 
 # b_im7_static <name> <source>: ImageMagick 7 static, only for the static imagick of
-# PHP built on a server (tools/az-menu.sh of azsupport/php-src): its static libraries,
+# PHP built on a server (tools/azsupport-menu.sh of azsupport/php-src): its static libraries,
 # headers and .pc files in the static tree $S (the configuration they read stays that
 # of /usr/local/etc/ImageMagick-7), with bin/MagickWand-config and
 # bin/MagickCore-config there printing the static link line; its programs are not
@@ -421,7 +421,7 @@ b_im() {
         rm -rf "$shsrc"
         cp -Rp "$src" "$shsrc" ||
             { echo "== cannot copy $src to $shsrc ($(df -h "$work" | awk 'NR == 2 { print $4 " free" }'))"; return 1; }
-        # the static libraries go with the shared ones (AZ_IM_PART lib or all)
+        # the static libraries go with the shared ones (AZSUPPORT_IM_PART lib or all)
         if [ "$part" != bin ]; then b_im7_static "$n" "$src" || return 1; fi
         b_im_shared "$n" "$shsrc" 7 || return 1
     else
@@ -470,7 +470,7 @@ take_args() {
         "$(stat -f %z "$work/distfiles/$tf")" > "$work/distinfo-take-$n"
     wd="$(pmake "$5" -V WRKDIR)"
     pd="$tools/../graphics/ImageMagick${n#imagemagick}/files/deps/$n-$take_ver"
-    # its own DISTDIR: the ports' one (AZ_DISTDIR) may not be writable
+    # its own DISTDIR: the ports' one (AZSUPPORT_DISTDIR) may not be writable
     printf '%s\n' "DISTDIR=$work/distfiles" "DISTFILES=$tf" "PATCHFILES=" "DISTINFO_FILE=$work/distinfo-take-$n" "WRKSRC=$wd/$4"
     if [ -d "$pd" ]; then printf '%s\n' "PATCHDIR=$pd"; fi
 }
@@ -541,7 +541,7 @@ manifest() {
     {
         echo "ImageMagick $v for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $CFLAGS"
-        echo "libraries: the shared ones of $A/lib (the package az, with that run path): libpng, mozjpeg, libwebp, FreeType, fontconfig, expat, lcms2, libheif, libde265, dav1d"
+        echo "libraries: the shared ones of $A/lib (the package azsupport, with that run path): libpng, mozjpeg, libwebp, FreeType, fontconfig, expat, lcms2, libheif, libde265, dav1d"
         echo
         while read -r n pkgname port; do
             [ "$n" = "$im" ] || continue
@@ -641,7 +641,7 @@ check_shared() {
 }
 
 # The programs: PIE, RELRO, BIND_NOW, the run path $A/lib, libraries of $A/lib (their
-# own in the stage, those of az) and of the base system only.
+# own in the stage, those of azsupport) and of the base system only.
 check_bins() {
     im="$1"; r="$(root_of "${im#imagemagick}")$I"; sl="$(root_of "${im#imagemagick}")$A/lib"
     case "$im" in imagemagick6) progs="convert$s6 identify$s6 mogrify$s6 composite$s6" ;; *) progs="magick" ;; esac
@@ -677,7 +677,7 @@ ims="${1:-$ims_all}"
 for im in $ims; do
     [ -n "$(port_of "$im")" ] || { echo "imagemagick-build: $im is not an im line of $conf" >&2; exit 2; }
 done
-# --fetch: the distfiles of the official port, by its own make fetch into AZ_DISTDIR
+# --fetch: the distfiles of the official port, by its own make fetch into AZSUPPORT_DISTDIR
 # (the post-fetch of our port), so that the build needs no network; not for one
 # with a take line (its release file is a distfile of our port)
 if [ -n "$fetch_only" ]; then
@@ -720,8 +720,8 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
 fi
 for pc in libpng16 libjpeg libwebp freetype2 fontconfig lcms2 libheif; do
     if [ ! -f "$S/lib/pkgconfig/$pc.pc" ]; then
-        printf '%-13s FAIL  no %s of the static libraries in %s/lib/pkgconfig: install the package az first (az/az)\n' libs "$pc" "$S" >> "$res/summary.txt"
-        echo "imagemagick-build: no $S/lib/pkgconfig/$pc.pc; install the package az first (the port az/az)" >&2
+        printf '%-13s FAIL  no %s of the static libraries in %s/lib/pkgconfig: install the package azsupport first (azsupport/azsupport)\n' libs "$pc" "$S" >> "$res/summary.txt"
+        echo "imagemagick-build: no $S/lib/pkgconfig/$pc.pc; install the package azsupport first (the port azsupport/azsupport)" >&2
         exit 1
     fi
 done
@@ -732,7 +732,7 @@ for im in $ims; do
     if build_one "$im"; then
         manifest "$im"
         : > "$res/shared.txt"
-        # the programs of AZ_IM_PART bin (they run with the libraries of the package
+        # the programs of AZSUPPORT_IM_PART bin (they run with the libraries of the package
         # libimagemagick<6|7> the port builds with) or all, the libraries of lib or all
         [ "$part" = lib ] || check_bins "$im"
         [ "$part" = bin ] || check_shared "${im#imagemagick}"

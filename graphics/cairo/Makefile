@@ -2,7 +2,7 @@
 # for the libvips of net-im/rocketchat8 (SVG of librsvg and the text of Pango; aZ,
 # 18.11.2026 16:02: «да конечно» — the libraries sharp needs that we do not have as
 # ports of this tree become ours, shared, with the options of sharp-libvips). As
-# sharp-libvips builds it: FreeType and fontconfig (of az), PNG (libpng of az: the
+# sharp-libvips builds it: FreeType and fontconfig (of azsupport), PNG (libpng of azsupport: the
 # image and SVG surfaces), pixman (x11/pixman), GLib (devel/glib20: cairo-gobject);
 # no zlib (so no PDF, PostScript and script surfaces), X11 (xlib, xcb), Quartz,
 # DirectWrite, tee, LZO, spectre, symbol lookup, documents, tests. LTO (aZ, 18.11.2026
@@ -19,7 +19,7 @@
 PORTNAME=	cairo
 DISTVERSION=	1.18.6
 PORTEPOCH=	3
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	graphics
 MASTER_SITES=	https://cairographics.org/releases/
 
@@ -65,12 +65,12 @@ MESON_ARGS=	-Dfontconfig=enabled \
 		-Dxlib-xcb=disabled \
 		-Dzlib=disabled
 
-AZ_LIBS=	fontconfig:libfontconfig.so \
+AZSUPPORT_LIBS=	fontconfig:libfontconfig.so \
 		freetype2:libfreetype.so \
 		png:libpng16.so
-.include "${.CURDIR:H:H}/Mk/az-libs.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-libs.mk"
 
-# no fallback of meson to subprojects/: a library of az it does not find stops the build
+# no fallback of meson to subprojects/: a library of azsupport it does not find stops the build
 # (the package of 18.11.2026 had a libpng16 of its own, which conflicted with the official
 # png: build run 44379121576)
 post-extract:

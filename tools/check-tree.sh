@@ -14,25 +14,25 @@
 #   - two ports have the same PKGNAME;
 #   - a dependency on a port of this tree by a package pattern (<name>>=<version>:
 #     <origin>, no @flavor) names another package than that of the port (its PKGBASE);
-#   - the static tree of az (aZ, 12.11.2026): a port whose dependencies name a file of
-#     it (${AZ_STATIC}/...:az/az) without AZ_STATIC_LIBS (the libraries of az whose
-#     archives it links into its package, whose content its az_hash takes, or "none":
-#     it builds against that tree and its package has no code of az), one with
-#     AZ_STATIC_LIBS that names no such file, or a name there that is no library of
-#     az/az/files/deps.conf (tools/build.sh builds every other port without the
-#     archives of az in its chroot);
+#   - the static tree of azsupport (aZ, 12.11.2026): a port whose dependencies name a file of
+#     it (${AZSUPPORT_STATIC}/...:azsupport/azsupport) without AZSUPPORT_STATIC_LIBS (the libraries of azsupport whose
+#     archives it links into its package, whose content its azsupport_hash takes, or "none":
+#     it builds against that tree and its package has no code of azsupport), one with
+#     AZSUPPORT_STATIC_LIBS that names no such file, or a name there that is no library of
+#     azsupport/azsupport/files/deps.conf (tools/build.sh builds every other port without the
+#     archives of azsupport in its chroot);
 #   - a file of the directory of another port its build reads (aZ, 12.11.2026) that
-#     is not in its az_hash: the paths of this tree that its makefiles of this tree name
+#     is not in its azsupport_hash: the paths of this tree that its makefiles of this tree name
 #     from its own directory upward (${.CURDIR:H}..., ${.CURDIR}/..): the value make
 #     gives the variable of such a line (so a line of a branch not taken does not
 #     count), the expression itself in a line of a target; outside its directory,
 #     Mk/ and tools/, and not under its MASTERDIR, FILESDIR, PATCHDIR or PKGDIR, nor
 #     its DISTINFO_FILE, EXTRA_PATCHES, a makefile it reads or a file of its
-#     AZ_HASH_FILES (tools/build.sh hashes all these): it names it in AZ_HASH_FILES,
+#     AZSUPPORT_HASH_FILES (tools/build.sh hashes all these): it names it in AZSUPPORT_HASH_FILES,
 #     which has to name files or directories of this tree; but the two files of xok
 #     (below), read for nothing that goes into a package. A path a script of tools/
 #     makes itself is not seen here (policy.xml next to the conf of
-#     imagemagick-build.sh): the port names it in AZ_HASH_FILES too.
+#     imagemagick-build.sh): the port names it in AZSUPPORT_HASH_FILES too.
 #
 # Usage: sh tools/check-tree.sh <official tree>
 #   <official tree>: a checkout of freebsd-ports at the pinned commit (Mk/ and the
@@ -63,13 +63,13 @@ if [ -n "${MAKE_CONF:-}" ]; then
 fi
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/check-tree.XXXXXX")" || { echo "check-tree: no temporary directory" >&2; exit 2; }
 # the files of the directories of other ports that a port reads for nothing of its
-# package (not in its az_hash):
-#   az/az/files/deps.conf: AZ_DEPS_CONF of az/az/Makefile.common, which the ports that
+# package (not in its azsupport_hash):
+#   azsupport/azsupport/files/deps.conf: AZSUPPORT_DEPS_CONF of azsupport/azsupport/Makefile.common, which the ports that
 #     include it read for its line "ports" only, the commit of the official tree that
-#     tools/build.sh checks out (in the base of every az_hash)
+#     tools/build.sh checks out (in the base of every azsupport_hash)
 #   databases/mariadb1011-client/pkg-plist: databases/mariadb1011-server puts its lines
 #     into its plist as @comment lines, which pkg leaves out of the package
-xok="az/az/files/deps.conf databases/mariadb1011-client/pkg-plist"
+xok="azsupport/azsupport/files/deps.conf databases/mariadb1011-client/pkg-plist"
 trap 'rm -rf "$tmp"' EXIT
 trap 'exit 1' INT TERM
 mkdir -p "$tmp/dbdir" "$tmp/wrk"
@@ -102,7 +102,7 @@ for mk in "$top"/*/*/Makefile; do
     d="${mk%/Makefile}"; o="${d#"$top"/}"
     case "$o" in Mk/* | Templates/* | Keywords/* | tools/* | .github/* | work/* | packages/* | distfiles/* | portcache/*) continue ;; esac
     if ! "$MAKE" -C "$d" "$@" -V PKGNAME -V PKGORIGIN -V BUILD_DEPENDS -V LIB_DEPENDS -V RUN_DEPENDS \
-        -V AZ_STATIC -V AZ_STATIC_LIBS -V .MAKE.MAKEFILES -V AZ_HASH_FILES -V IGNORE > "$tmp/out" 2> "$tmp/err" < /dev/null; then
+        -V AZSUPPORT_STATIC -V AZSUPPORT_STATIC_LIBS -V .MAKE.MAKEFILES -V AZSUPPORT_HASH_FILES -V IGNORE > "$tmp/out" 2> "$tmp/err" < /dev/null; then
         say "FAIL $o: make: $(grep -v '^[[:space:]]*$' "$tmp/err" | tail -n 3 | tr '\n' ' ' | sed 's/ *$//')"
         nfail=$((nfail + 1)); continue
     fi
@@ -138,18 +138,18 @@ for mk in "$top"/*/*/Makefile; do
         done
     done
     [ -n "$unknown" ] && why="$why origins neither of this tree nor of the official one:$unknown"
-    # the static tree of az: AZ_STATIC_LIBS when a dependency names a file of it, only then
+    # the static tree of azsupport: AZSUPPORT_STATIC_LIBS when a dependency names a file of it, only then
     if [ -n "$ast" ]; then
-        sfiles="$(for dep in $bd $ld $rd; do case "$dep" in "$ast"/*:az/az|"$ast"/*:az/az:*|"$ast"/*:az/az@*) echo "${dep%%:*}" ;; esac; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
+        sfiles="$(for dep in $bd $ld $rd; do case "$dep" in "$ast"/*:azsupport/azsupport|"$ast"/*:azsupport/azsupport:*|"$ast"/*:azsupport/azsupport@*) echo "${dep%%:*}" ;; esac; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
         if [ -n "$sfiles" ] && [ -z "$asl" ]; then
-            why="$why it names the static tree of az ($sfiles) without AZ_STATIC_LIBS (the libraries of az whose archives its package takes, or none);"
+            why="$why it names the static tree of azsupport ($sfiles) without AZSUPPORT_STATIC_LIBS (the libraries of azsupport whose archives its package takes, or none);"
         elif [ -z "$sfiles" ] && [ -n "$asl" ]; then
-            why="$why AZ_STATIC_LIBS ($asl) without a dependency on a file of the static tree of az ($ast);"
+            why="$why AZSUPPORT_STATIC_LIBS ($asl) without a dependency on a file of the static tree of azsupport ($ast);"
         fi
         for l in $asl; do
             [ "$l" = none ] && continue
-            awk -v n="$l" '$1 == "lib" && $2 == n { f = 1 } END { exit !f }' "$top/az/az/files/deps.conf" ||
-                why="$why AZ_STATIC_LIBS names $l, no library of az/az/files/deps.conf;"
+            awk -v n="$l" '$1 == "lib" && $2 == n { f = 1 } END { exit !f }' "$top/azsupport/azsupport/files/deps.conf" ||
+                why="$why AZSUPPORT_STATIC_LIBS names $l, no library of azsupport/azsupport/files/deps.conf;"
         done
     fi
     # the files of the directories of other ports it reads: the variables (but those
@@ -166,7 +166,7 @@ for mk in "$top"/*/*/Makefile; do
             /^[ \t]*\./ { next }
             match($0, /^[ \t]*[A-Za-z0-9_.]+[ \t]*[?:!+]?=/) {
                 v = substr($0, RSTART, RLENGTH); sub(/[ \t]*[?:!+]?=$/, "", v); gsub(/[ \t]/, "", v)
-                if (v !~ /^(MASTERDIR|FILESDIR|PATCHDIR|PKGDIR|DISTINFO_FILE|EXTRA_PATCHES|AZ_HASH_FILES)$/) print "v", v
+                if (v !~ /^(MASTERDIR|FILESDIR|PATCHDIR|PKGDIR|DISTINFO_FILE|EXTRA_PATCHES|AZSUPPORT_HASH_FILES)$/) print "v", v
                 next
             }
             { l = $0
@@ -177,10 +177,10 @@ for mk in "$top"/*/*/Makefile; do
         # shellcheck disable=SC2030
         if (set -f; while read -r _ x; do set -- "$@" -V "$x"; done < "$tmp/xv"
             exec "$MAKE" -C "$d" "$@" -V MASTERDIR -V FILESDIR -V PATCHDIR -V PKGDIR -V DISTINFO_FILE -V EXTRA_PATCHES \
-                -V AZ_HASH_FILES) > "$tmp/xout" 2> "$tmp/xerr" < /dev/null; then
+                -V AZSUPPORT_HASH_FILES) > "$tmp/xout" 2> "$tmp/xerr" < /dev/null; then
             nx="$(wc -l < "$tmp/xv" | tr -d ' ')"
             # the paths the port has in its hash: directories (MASTERDIR, FILESDIR, PATCHDIR,
-            # PKGDIR, those of AZ_HASH_FILES) and files (the rest)
+            # PKGDIR, those of AZSUPPORT_HASH_FILES) and files (the rest)
             sed -n "$((nx + 1)),$((nx + 7))p" "$tmp/xout" | tr -s ' \t' '\n\n' | sed 's/:-p[0-9]*$//' | grep . |
                 while read -r x; do realpath "$x" 2> /dev/null; done > "$tmp/xin"
             for x in $mkf; do case "$x" in /*) ;; *) x="$d/$x" ;; esac; realpath "$x" 2> /dev/null; done >> "$tmp/xin"
@@ -199,16 +199,16 @@ for mk in "$top"/*/*/Makefile; do
                 done
             done | sort -u > "$tmp/xbad"
             if [ -s "$tmp/xbad" ]; then
-                why="$why it reads files of the directory of another port that are not in its az_hash (AZ_HASH_FILES): $(tr '\n' ' ' < "$tmp/xbad" | sed 's/ $//');"
+                why="$why it reads files of the directory of another port that are not in its azsupport_hash (AZSUPPORT_HASH_FILES): $(tr '\n' ' ' < "$tmp/xbad" | sed 's/ $//');"
             fi
         else
             why="$why make -V of the paths of other ports its makefiles name failed: $(grep . "$tmp/xerr" | tail -n 1);"
         fi
     fi
-    # AZ_HASH_FILES: files or directories of this tree
+    # AZSUPPORT_HASH_FILES: files or directories of this tree
     for x in $ahf; do
-        r="$(realpath "$x" 2> /dev/null)" || { why="$why AZ_HASH_FILES names $x, which is not there;"; continue; }
-        case "$r" in "$topr"/*) ;; *) why="$why AZ_HASH_FILES names $x, not a file of this tree;" ;; esac
+        r="$(realpath "$x" 2> /dev/null)" || { why="$why AZSUPPORT_HASH_FILES names $x, which is not there;"; continue; }
+        case "$r" in "$topr"/*) ;; *) why="$why AZSUPPORT_HASH_FILES names $x, not a file of this tree;" ;; esac
     done
     # stderr of a make that worked: warnings of the framework, shown with the port
     warn="$(grep -v '^[[:space:]]*$' "$tmp/err" | head -n 2 | tr '\n' ' ' | sed 's/ *$//')"

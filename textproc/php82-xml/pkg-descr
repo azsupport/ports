@@ -1,5 +1,5 @@
 XML Parser: the event-based xml_parser functions, on libxml2 of the
-package az.
+package azsupport.
 
 The module xml of PHP 8.2 for php82 of azsupport/ports, which installs
 side by side with the other versions of PHP: lib/php/20220829/xml.so,

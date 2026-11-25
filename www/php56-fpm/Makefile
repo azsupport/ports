@@ -1,7 +1,7 @@
 # www/php56-fpm of azsupport/ports: the FPM of PHP 5.6 of azsupport/php-src, a port of its
 # own (aZ, 21.11.2026: «давай еще разделим php-cgi и php-fpm на отдельные порты и
 # соответственно phpXX-cgi phpXX-fpm и подредактируй название rc.d под новые названия
-# в php-fpm»; «тут тоже php84-»): lang/php56 with the SAPI fpm alone (AZ_PHP_SAPI), as www/mod_php56 has
+# в php-fpm»; «тут тоже php84-»): lang/php56 with the SAPI fpm alone (AZSUPPORT_PHP_SAPI), as www/mod_php56 has
 # the Apache module. sbin/php56-fpm; etc/php56/php-fpm.conf by @sample (pid
 # /var/run/php56-fpm.pid, log /var/log/php56-fpm.log), the pool www in it, on /var/run/php56-fpm.sock;
 # share/php56/fpm/status.html; the rc.d script php56_fpm (php56_fpm_enable, the
@@ -16,7 +16,7 @@ PHP_PORT=	lang/php56
 MASTERDIR=	${.CURDIR}/../../${PHP_PORT}
 PKGDIR=		${.CURDIR}
 FILESDIR=	${.CURDIR}/files
-AZ_PHP_SAPI=	fpm
+AZSUPPORT_PHP_SAPI=	fpm
 
 OPTIONS_EXCLUDE=	CGI CLI EMBED PHPDBG
 OPTIONS_SLAVE=	FPM

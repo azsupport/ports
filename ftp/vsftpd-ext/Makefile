@@ -1,11 +1,11 @@
-# ftp/vsftpd-ext of azsupport/ports: the official port (Mk/az-official.mk) with
+# ftp/vsftpd-ext of azsupport/ports: the official port (Mk/azsupport-official.mk) with
 # RC_SCRIPT (its default: the rc.d script vsftpd), without VSFTPD_SSL; the one
 # with it is ftp/vsftpd-ext-openssl, the same files (aZ, 10.11.2026); with the fixes
 # of CVE-2021-3618, CVE-2026-119567, CVE-2026-119568, CVE-2015-1419 (the rest of it)
 # and of deny_file, and that of Debian for PAM modules that start processes
 # (12.11.2026).
 
-AZ_OFFICIAL=	ftp/vsftpd-ext
+AZSUPPORT_OFFICIAL=	ftp/vsftpd-ext
 OPTIONS_SLAVE=	RC_SCRIPT
 OPTIONS_EXCLUDE=	VSFTPD_SSL
 CONFLICTS_INSTALL=	vsftpd-ext-openssl
@@ -37,4 +37,4 @@ EXTRA_PATCHES=	${.CURDIR}/files/patch-CVE-2021-3618 \
 		${.CURDIR}/files/patch-pam-exec-hang:-p1 \
 		${.CURDIR}/files/patch-no-stderr-on-control-connection
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

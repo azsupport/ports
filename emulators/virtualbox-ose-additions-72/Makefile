@@ -1,5 +1,5 @@
 # emulators/virtualbox-ose-additions-72 of azsupport/ports: the official port as it is
-# (Mk/az-official.mk), the Guest Additions of VirtualBox 7.2 for a FreeBSD guest (aZ,
+# (Mk/azsupport-official.mk), the Guest Additions of VirtualBox 7.2 for a FreeBSD guest (aZ,
 # 20.11.2026), in the flavor nox11 only (the package virtualbox-ose-additions-nox11-72):
 # the kernel modules vboxguest and vboxvfs (the shared folders, mount_vboxvfs),
 # VBoxService (the time of the guest, the guest properties, the memory balloon),
@@ -19,7 +19,7 @@ PKGBASE=	virtualbox72-additions
 .MAKEFLAGS:	PKGNAME=virtualbox72-additions-$${PKGVERSION} CONFLICTS_INSTALL=virtualbox-ose-additions*
 
 FLAVOR=		nox11
-AZ_OFFICIAL=	emulators/virtualbox-ose-additions-72
+AZSUPPORT_OFFICIAL=	emulators/virtualbox-ose-additions-72
 .MAKEFLAGS:	PATCHDIR=${PORTSDIR:U/usr/ports}/emulators/virtualbox-ose-72/files
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

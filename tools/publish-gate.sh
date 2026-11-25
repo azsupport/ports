@@ -16,7 +16,7 @@
 # data.pkg) is made anew by every run and is not compared.
 #
 # Usage: sh tools/publish-gate.sh <repository> <release tag> <origin>...
-#   (sh tools/publish-gate.sh repo az-fbsd15-amd64-v3 www/yt-dlp www/py-yt-dlp-ejs)
+#   (sh tools/publish-gate.sh repo azsupport-fbsd15-amd64-v3 www/yt-dlp www/py-yt-dlp-ejs)
 # Environment: GH_TOKEN and GITHUB_REPOSITORY (gh api); PUBLISH_GATE_ASSETS, a file
 #   of the files of the release, "<name> sha256:<hex>" a line, in the place of the
 #   API (a test).

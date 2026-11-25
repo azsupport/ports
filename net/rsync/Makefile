@@ -2,9 +2,9 @@
 # (aZ, 10.11.2026): the official port (its patches, the extra patch of the option
 # FLAGS: the flags of the files, --fileflags; ssh; zlib of the base system; the popt
 # it bundles; its rc.d script, pkg-plist, pkg-descr, pkg-message) with lz4, zstd and
-# xxhash the shared libraries of az, with the run path /usr/local/az/lib (our
+# xxhash the shared libraries of azsupport, with the run path /usr/local/azsupport/lib (our
 # ports link each other's shared libraries: aZ, 10.11.2026), so that it takes no
-# package but az (the official one takes liblz4, zstd and xxhash), and the
+# package but azsupport (the official one takes liblz4, zstd and xxhash), and the
 # OpenSSL of the base system (MD4, MD5). Without ICONV (--iconv: GNU libiconv)
 # and IDN.
 # rsync 3.5.2 (04.11.2026) ahead of the official port (3.5.1 with the fix of the
@@ -23,7 +23,7 @@
 
 PORTNAME=	rsync
 DISTVERSION=	3.5.2
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	net
 MASTER_SITES=	https://www.mirrorservice.org/sites/rsync.samba.org/src/ \
 		http://rsync.mirror.garr.it/src/ \
@@ -38,12 +38,12 @@ WWW=		https://rsync.samba.org/ \
 LICENSE=	GPLv3+
 LICENSE_FILE=	${WRKSRC}/COPYING
 
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/liblz4.so:az/az \
-		${AZ_PREFIX}/lib/libxxhash.so:az/az \
-		${AZ_PREFIX}/lib/libzstd.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/liblz4.so:az/az \
-		${AZ_PREFIX}/lib/libxxhash.so:az/az \
-		${AZ_PREFIX}/lib/libzstd.so:az/az
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libxxhash.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libxxhash.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
 
 USES=		autoreconf:build cpe python shebangfix ssl
 CPE_VENDOR=	samba
@@ -70,10 +70,10 @@ CONFIGURE_ARGS=		--disable-debug \
 			ac_cv_search_libiconv_open=no
 INSTALL_TARGET=	install-strip
 
-# the shared tree of az, with its run path (iconv is off, so its GNU iconv.h does
+# the shared tree of azsupport, with its run path (iconv is off, so its GNU iconv.h does
 # not matter); libcrypto is that of the base system
-CPPFLAGS+=	-I${AZ_PREFIX}/include
-LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+CPPFLAGS+=	-I${AZSUPPORT_PREFIX}/include
+LDFLAGS+=	-L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 SUB_LIST=	NAME=rsyncd
 EXTRA_PATCHES=	${FILESDIR}/extra-patch-file-flags.diff

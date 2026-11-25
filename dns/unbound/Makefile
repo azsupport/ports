@@ -3,9 +3,9 @@
 # свой unbound порт потому как всё равно трудно в системе его обновлять чем пакет,
 # да и он там весь обрезанный и с кривыми стартуп скриптами»; the base system of the
 # servers is built WITHOUT_UNBOUND): the official port of the pinned commit (Unbound
-# 1.26.2, the newest release) with expat and libevent the shared libraries of az,
-# with the run path /usr/local/az/lib (our ports link each other's shared libraries:
-# aZ, 10.11.2026), so that it takes no package but az (the official one takes expat2,
+# 1.26.2, the newest release) with expat and libevent the shared libraries of azsupport,
+# with the run path /usr/local/azsupport/lib (our ports link each other's shared libraries:
+# aZ, 10.11.2026), so that it takes no package but azsupport (the official one takes expat2,
 # libnghttp2, libevent and libsodium); OpenSSL of the base system. A resolver of the
 # server itself (aZ, 20.11.2026 18:20: «а нужны ли EVAPI, GOST? да и DNSCRYPT,
 # DYNLIB?»): ECDSA (the DNSSEC algorithms 13 and 14), LIBEVENT (kqueue, large
@@ -22,7 +22,7 @@
 
 PORTNAME=	unbound
 DISTVERSION=	1.26.2
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	dns
 MASTER_SITES=	https://www.nlnetlabs.nl/downloads/unbound/
 
@@ -34,10 +34,10 @@ WWW=		https://www.nlnetlabs.nl/projects/unbound \
 LICENSE=	BSD3CLAUSE
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-# expat of az (unbound-anchor): configure takes its header and library under the
+# expat of azsupport (unbound-anchor): configure takes its header and library under the
 # path of --with-libexpat
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libexpat.so:az/az
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport
 
 USES=		autoreconf cpe libtool pkgconfig ssl
 CPE_VENDOR=	nlnetlabs
@@ -45,10 +45,10 @@ USE_LDCONFIG=	yes
 USE_RC_SUBR=	${PORTNAME}
 
 GNU_CONFIGURE=	yes
-CONFIGURE_ARGS=	--with-libexpat=${AZ_PREFIX} \
+CONFIGURE_ARGS=	--with-libexpat=${AZSUPPORT_PREFIX} \
 		--without-libnghttp2 \
 		--with-ssl=${OPENSSLBASE}
-LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
+LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 TEST_TARGET=	test
 
 USERS=		${PORTNAME}
@@ -87,10 +87,10 @@ STRIP_FILES=	.libs/libunbound.so.8.1.41 unbound-checkconf unbound unbound-contro
 		.libs/unbound-host .libs/unbound-anchor
 
 DEP-RSA1024_CONFIGURE_ON=	--with-deprecate-rsa-1024
-DNSCRYPT_BUILD_DEPENDS=		${AZ_PREFIX}/lib/libsodium.so:az/az
-DNSCRYPT_RUN_DEPENDS=		${AZ_PREFIX}/lib/libsodium.so:az/az
+DNSCRYPT_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libsodium.so:azsupport/azsupport
+DNSCRYPT_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libsodium.so:azsupport/azsupport
 DNSCRYPT_CONFIGURE_ENABLE=	dnscrypt
-DNSCRYPT_CONFIGURE_ON=		--with-libsodium=${AZ_PREFIX}
+DNSCRYPT_CONFIGURE_ON=		--with-libsodium=${AZSUPPORT_PREFIX}
 DNSTAP_LIB_DEPENDS=		libfstrm.so:devel/fstrm \
 				libprotobuf-c.so:devel/protobuf-c
 DNSTAP_CONFIGURE_ENABLE=	dnstap
@@ -103,9 +103,9 @@ GOST_VARS=			DEPENDS_ARGS+=WITH_GOST=yes
 HIREDIS_LIB_DEPENDS=		libhiredis.so:databases/hiredis
 HIREDIS_CONFIGURE_ON=		--enable-cachedb \
 				--with-libhiredis
-LIBEVENT_BUILD_DEPENDS=		${AZ_PREFIX}/lib/libevent.so:az/az
-LIBEVENT_RUN_DEPENDS=		${AZ_PREFIX}/lib/libevent.so:az/az
-LIBEVENT_CONFIGURE_ON=		--with-libevent=${AZ_PREFIX}
+LIBEVENT_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
+LIBEVENT_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
+LIBEVENT_CONFIGURE_ON=		--with-libevent=${AZSUPPORT_PREFIX}
 LIBEVENT_CONFIGURE_OFF=		--without-libevent
 MUNIN_PLUGIN_SUB_FILES=		pkg-message
 PYTHON_BUILD_DEPENDS=		swig:devel/swig

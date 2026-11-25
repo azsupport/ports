@@ -3,7 +3,7 @@
 # trafshow, gitup эти добавь»): ipmitool 1.8.19, the official port of the pinned tree
 # with its patches (files/patch-*: buffer overruns of upstream #24, #368, #389 and
 # others; files/status-ipmi.sh.in, the periodic script) and its distinfo, but the
-# readline of "ipmitool shell": that of az (/usr/local/az/lib, our ports link each
+# readline of "ipmitool shell": that of azsupport (/usr/local/azsupport/lib, our ports link each
 # other's shared libraries: aZ, 10.11.2026), not the package of devel/readline the
 # official USES=readline takes. The open interface of the base system (/dev/ipmi, the
 # ipmi(4) driver), the OpenSSL of the base system; without FREEIPMI (the in-band
@@ -16,7 +16,7 @@
 
 PORTNAME=	ipmitool
 PORTVERSION=	1.8.19
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	sysutils
 MASTER_SITES=	https://codeberg.org/IPMITool/${PORTNAME}/archive/:ipmi \
 		LOCAL/zi/:iana
@@ -32,10 +32,10 @@ WWW=		https://codeberg.org/IPMITool/ipmitool \
 LICENSE=	BSD3CLAUSE
 LICENSE_FILE=	${WRKSRC}/COPYING
 
-# libreadline.so of az; configure finds it by AC_SEARCH_LIBS (readline, then edit:
-# the libedit of the base system, which the -L of ${WRKDIR}/az keeps away)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libreadline.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libreadline.so:az/az
+# libreadline.so of azsupport; configure finds it by AC_SEARCH_LIBS (readline, then edit:
+# the libedit of the base system, which the -L of ${WRKDIR}/azsupport keeps away)
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/azsupport
 
 USES=		autoreconf libtool cpe gmake ssl
 CPE_VENDOR=	sun
@@ -60,11 +60,11 @@ WRKSRC=		${WRKDIR}/${PORTNAME}
 
 CFLAGS+=	-I${OPENSSLINC}
 LDFLAGS+=	-L${OPENSSLLIB}
-# the headers and the library of readline of az alone (links in ${WRKDIR}/az), not
-# the include directory of az with its other headers (iconv.h of GNU libiconv), and
+# the headers and the library of readline of azsupport alone (links in ${WRKDIR}/azsupport), not
+# the include directory of azsupport with its other headers (iconv.h of GNU libiconv), and
 # its run path
-CPPFLAGS+=	-I${WRKDIR}/az/include
-LDFLAGS+=	-L${WRKDIR}/az/lib -Wl,-rpath,${AZ_PREFIX}/lib
+CPPFLAGS+=	-I${WRKDIR}/azsupport/include
+LDFLAGS+=	-L${WRKDIR}/azsupport/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 .if exists(/usr/include/sys/ipmi.h)
 CONFIGURE_ARGS+=	--enable-intf-open
@@ -87,9 +87,9 @@ FREEIPMI_CONFIGURE_ENABLE=	intf-free
 .include <bsd.port.options.mk>
 
 pre-configure:
-	@${MKDIR} ${WRKDIR}/az/include ${WRKDIR}/az/lib
-	${LN} -sf ${AZ_PREFIX}/include/readline ${WRKDIR}/az/include/readline
-	${LN} -sf ${AZ_PREFIX}/lib/libreadline.so ${WRKDIR}/az/lib/libreadline.so
+	@${MKDIR} ${WRKDIR}/azsupport/include ${WRKDIR}/azsupport/lib
+	${LN} -sf ${AZSUPPORT_PREFIX}/include/readline ${WRKDIR}/azsupport/include/readline
+	${LN} -sf ${AZSUPPORT_PREFIX}/lib/libreadline.so ${WRKDIR}/azsupport/lib/libreadline.so
 
 post-install:
 	@${MKDIR} ${STAGEDIR}${PREFIX}/${PERIODIC_DIR}

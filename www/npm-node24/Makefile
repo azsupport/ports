@@ -1,8 +1,8 @@
-# www/npm-node24 of azsupport/ports: the official port (Mk/az-official.mk), npm of
+# www/npm-node24 of azsupport/ports: the official port (Mk/azsupport-official.mk), npm of
 # our www/node24 (aZ, 11.11.2026). Of what it takes, gmake and Python (node-gyp) are
 # official packages.
 
-AZ_OFFICIAL=	www/npm-node24
+AZSUPPORT_OFFICIAL=	www/npm-node24
 
 # The package node24-npm (aZ, 21.11.2026: the name with the version first, as php84):
 # PKGNAMEPREFIX, and no PKGNAMESUFFIX (the -node24 of the official port) on the
@@ -11,4 +11,4 @@ AZ_OFFICIAL=	www/npm-node24
 PKGNAMEPREFIX=	node24-
 .MAKEFLAGS:	PKGNAMESUFFIX= CONFLICTS_INSTALL="npm-node[0-9][0-9] node[0-9][0-9]-npm"
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

@@ -1,10 +1,10 @@
-name: Build the packages of the repository az in the jails
+name: Build the packages of the repository azsupport in the jails
 
 # build.yml without the VM: the same tools/build.sh, checks, tests, reports and publish,
 # on a self-hosted runner (github-act-runner) in a FreeBSD jail of a build server
 # (labels self-hosted, azbuild and the name of the runner). What differs from build.yml:
 # - tools/build.sh runs in the jail itself; each port in its chroot as always, but its
-#   base system is the world of the level of the run (AZ_WORLD of tools/build.sh), built
+#   base system is the world of the level of the run (AZSUPPORT_WORLD of tools/build.sh), built
 #   in the jail from the sources of the release (/usr/src, read only) with make.conf and
 #   src.conf of that level (freebsd/<level>/ of the private azsupport/azsupport, secret
 #   RUNS_TOKEN; x86-64-v2, x86-64-v3 and x86-64-v4 alike, each world made only before a
@@ -15,8 +15,8 @@ name: Build the packages of the repository az in the jails
 # - the work directory (WRKDIRPREFIX, the chroots, the queue, the packages of the run)
 #   is /var/azbuild/work/<level> of the jail (tmpfs), and the caches are directories of
 #   the jail that stay between the runs (/var/azbuild/cache): the repository of each
-#   branch and level, the distribution files, the official ports tree (AZ_PORTSDIR at
-#   the commit of tools/build.sh), the caches of the ports (AZ_PORT_CACHE), the objects
+#   branch and level, the distribution files, the official ports tree (AZSUPPORT_PORTSDIR at
+#   the commit of tools/build.sh), the caches of the ports (AZSUPPORT_PORT_CACHE), the objects
 #   of the worlds; no actions/cache, no draft releases portcache-*;
 # - the packages built are saved in the repository of the level in the jail, not as
 #   draft releases (tools/runs-save.sh needs the VM): the packages of a job that stopped
@@ -32,7 +32,7 @@ name: Build the packages of the repository az in the jails
 # - a job has up to 23 hours (GITHUB_TOKEN lasts 24): no port starts after 18, the
 #   builds still going stop at 19; the next run goes on as in build.yml;
 # - the progress report (tools/runs-progress.sh, RUNS_LOCAL) reads the files here.
-# Started by hand: Actions, "Build the packages of the repository az in the jails".
+# Started by hand: Actions, "Build the packages of the repository azsupport in the jails".
 
 on:
   workflow_dispatch:
@@ -52,15 +52,15 @@ on:
         options: [level, any, azbuild1, azbuild2]
         default: level
       ports:
-        description: 'Ports to build (category/port, separated by spaces; with the ports of this tree they need), in groups separated by " ; " built one after another; empty: all, az first, then PHP 5.6, 7.4, 8.1, 8.3, 8.2, 8.4, then the rest'
+        description: 'Ports to build (category/port, separated by spaces; with the ports of this tree they need), in groups separated by " ; " built one after another; empty: all, azsupport first, then PHP 5.6, 7.4, 8.1, 8.3, 8.2, 8.4, then the rest'
         required: false
         default: ''
       force:
-        description: 'Build the ports also when their package with the same az_hash is in the release already'
+        description: 'Build the ports also when their package with the same azsupport_hash is in the release already'
         type: boolean
         default: false
       jobs:
-        description: 'Ports built at once (AZ_JOBS of tools/build.sh, in waves); 1: one after another'
+        description: 'Ports built at once (AZSUPPORT_JOBS of tools/build.sh, in waves); 1: one after another'
         required: false
         default: '4'
       make_jobs:
@@ -72,11 +72,11 @@ on:
         type: boolean
         default: false
       plan:
-        description: 'The plan only: az/az and the ports it needs built when they are to be, every other port decided (kept or to be built, and why: results/plan.txt), not built; no checks, never published'
+        description: 'The plan only: azsupport/azsupport and the ports it needs built when they are to be, every other port decided (kept or to be built, and why: results/plan.txt), not built; no checks, never published'
         type: boolean
         default: false
       fork_ref:
-        description: 'The branch of azsupport/php-src the curl of az (az/az/files/curl*) has to be the same as (tools/curl-sync-check.sh): master, or the branch of the fork with a change of curl not yet in master'
+        description: 'The branch of azsupport/php-src the curl of azsupport (azsupport/azsupport/files/curl*) has to be the same as (tools/curl-sync-check.sh): master, or the branch of the fork with a change of curl not yet in master'
         required: false
         default: 'master'
       publish:
@@ -127,17 +127,17 @@ jobs:
     # the group of build.yml: a run here and one there of the same release, level and
     # branch never go at once (both publish the same release)
     concurrency:
-      group: az-ports-${{ inputs.release }}-${{ matrix.cputype }}-${{ github.ref_name }}
+      group: azsupport-ports-${{ inputs.release }}-${{ matrix.cputype }}-${{ github.ref_name }}
       cancel-in-progress: false
     steps:
       # the start of the job (the time of the build is reckoned from it) and the files of
-      # this job (AZ_RUNS_STATE: in its temporary directory, which goes with the job)
+      # this job (AZSUPPORT_RUNS_STATE: in its temporary directory, which goes with the job)
       - name: The start of the job
         run: |
-          echo "AZ_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
-          st="${RUNNER_TEMP:-/tmp}/az-runs-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-${{ matrix.cputype }}"
+          echo "AZSUPPORT_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
+          st="${RUNNER_TEMP:-/tmp}/azsupport-runs-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-${{ matrix.cputype }}"
           mkdir -p "$st"
-          echo "AZ_RUNS_STATE=$st" >> "$GITHUB_ENV"
+          echo "AZSUPPORT_RUNS_STATE=$st" >> "$GITHUB_ENV"
           # a progress reporter that a job before left (stopped before its end), with the
           # sleep or the command it waits for (stopped first, so that it starts no other)
           for p in $(pgrep -f 'tools/runs-progress.sh'); do kill -STOP "$p"; pkill -P "$p"; kill -KILL "$p"; done 2> /dev/null || :
@@ -199,11 +199,11 @@ jobs:
           done
           ln -sfn "$W" work; ln -sfn "$W/packages" packages; ln -sfn "$C/distfiles" distfiles
           ln -sfn "$R" repo; ln -sfn "$C/portcache/$LEVEL" portcache
-          echo "AZ_W=$W" >> "$GITHUB_ENV"; echo "AZ_CR=$CR" >> "$GITHUB_ENV"
+          echo "AZSUPPORT_W=$W" >> "$GITHUB_ENV"; echo "AZSUPPORT_CR=$CR" >> "$GITHUB_ENV"
           echo "the work directory: $(df -h "$W" | awk 'NR == 2 { print $4 " free of " $2 }'); the repository: $(ls repo | wc -l | tr -d ' ') files"
 
       # the official tree at the commit of tools/build.sh, kept between the runs (git,
-      # depth 1); tools/build.sh takes it as it is (AZ_PORTSDIR)
+      # depth 1); tools/build.sh takes it as it is (AZSUPPORT_PORTSDIR)
       - name: The official ports tree at the commit of tools/build.sh
         run: |
           P=/var/azbuild/cache/freebsd-ports
@@ -227,7 +227,7 @@ jobs:
             git -C "$P" reflog expire --expire=now --all 2> /dev/null || :
             git -C "$P" gc -q --prune=now 2> /dev/null || :
           fi
-          echo "AZ_PORTSDIR=$P" >> "$GITHUB_ENV"
+          echo "AZSUPPORT_PORTSDIR=$P" >> "$GITHUB_ENV"
           echo "the official ports tree at $commit"
 
       # with the files of the release (tools/build.sh keeps the newer package of an origin)
@@ -238,7 +238,7 @@ jobs:
           CPUTYPE: ${{ matrix.cputype }}
         run: |
           major="${RELEASE%%.*}"
-          tag="az-fbsd$major-amd64-${CPUTYPE#x86-64-}"
+          tag="azsupport-fbsd$major-amd64-${CPUTYPE#x86-64-}"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir repo --skip-existing || echo "::warning title=repository::the files of the release $tag did not all download: the ports whose package is missing are built again"
           else
@@ -256,7 +256,7 @@ jobs:
           CPUTYPE: ${{ matrix.cputype }}
           DRAFTS: ${{ inputs.drafts }}
         run: |
-          : > "$AZ_RUNS_STATE/wip-taken"
+          : > "$AZSUPPORT_RUNS_STATE/wip-taken"
           : > drafts-packages.txt
           b="$(printf '%s' "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._-' '-')"
           pres="wip-$CPUTYPE-$b-"
@@ -271,29 +271,29 @@ jobs:
             p=1
             while [ "$p" -le 200 ]; do
               t=1
-              until gh api "${1}per_page=${4:-100}&page=$p" --jq "$2" > "$AZ_RUNS_STATE/page"; do
+              until gh api "${1}per_page=${4:-100}&page=$p" --jq "$2" > "$AZSUPPORT_RUNS_STATE/page"; do
                 [ "$t" -ge 5 ] && return 1
                 echo "page $p of ${1%%\?*}: try $t failed, again in 20 s"
                 t=$((t + 1)); sleep 20
               done
-              [ -s "$AZ_RUNS_STATE/page" ] || return 0
-              cat "$AZ_RUNS_STATE/page" >> "$3"
+              [ -s "$AZSUPPORT_RUNS_STATE/page" ] || return 0
+              cat "$AZSUPPORT_RUNS_STATE/page" >> "$3"
               p=$((p + 1))
             done
           }
-          pages "repos/$GITHUB_REPOSITORY/releases?" '.[] | "\(.draft) \(.id) \(.tag_name)"' "$AZ_RUNS_STATE/releases" 10 ||
+          pages "repos/$GITHUB_REPOSITORY/releases?" '.[] | "\(.draft) \(.id) \(.tag_name)"' "$AZSUPPORT_RUNS_STATE/releases" 10 ||
             { echo "::warning title=saved packages::no list of the releases after 5 tries: no draft taken, what they have is built again"; exit 0; }
           awk -v pres="$pres" 'BEGIN { n = split(pres, P, " ") }
             $1 == "true" { for (i = 1; i <= n; i++) if (index($3, P[i]) == 1) { print $2, $3; next } }' \
-            "$AZ_RUNS_STATE/releases" > "$AZ_RUNS_STATE/wip-drafts"
-          [ -s "$AZ_RUNS_STATE/wip-drafts" ] || { echo "no draft $(echo "$pres" | sed 's/- */-* /g'): nothing to take"; exit 0; }
-          echo "the drafts of $pres: $(wc -l < "$AZ_RUNS_STATE/wip-drafts" | tr -d ' ')"
+            "$AZSUPPORT_RUNS_STATE/releases" > "$AZSUPPORT_RUNS_STATE/wip-drafts"
+          [ -s "$AZSUPPORT_RUNS_STATE/wip-drafts" ] || { echo "no draft $(echo "$pres" | sed 's/- */-* /g'): nothing to take"; exit 0; }
+          echo "the drafts of $pres: $(wc -l < "$AZSUPPORT_RUNS_STATE/wip-drafts" | tr -d ' ')"
           while read -r id tag; do
             n=0; bad=0
-            if ! pages "repos/$GITHUB_REPOSITORY/releases/$id/assets?" '.[] | "\(.state) \(.id) \(.name)"' "$AZ_RUNS_STATE/wip-all"; then
+            if ! pages "repos/$GITHUB_REPOSITORY/releases/$id/assets?" '.[] | "\(.state) \(.id) \(.name)"' "$AZSUPPORT_RUNS_STATE/wip-all"; then
               echo "$tag: no list of its files: left for the next run"; continue
             fi
-            awk '$1 == "uploaded" { print $2, $3 }' "$AZ_RUNS_STATE/wip-all" > "$AZ_RUNS_STATE/wip-assets"
+            awk '$1 == "uploaded" { print $2, $3 }' "$AZSUPPORT_RUNS_STATE/wip-all" > "$AZSUPPORT_RUNS_STATE/wip-assets"
             while read -r aid an; do
               [ -e "repo/$an" ] && continue
               if gh api -H 'Accept: application/octet-stream' "repos/$GITHUB_REPOSITORY/releases/assets/$aid" > "repo/$an.part"; then
@@ -301,22 +301,22 @@ jobs:
               else
                 rm -f "repo/$an.part"; bad=$((bad + 1))
               fi
-            done < "$AZ_RUNS_STATE/wip-assets"
+            done < "$AZSUPPORT_RUNS_STATE/wip-assets"
             if [ "$bad" = 0 ]; then
-              echo "$tag: $n of its $(wc -l < "$AZ_RUNS_STATE/wip-assets" | tr -d ' ') packages into repo/ (the others were there)"
-              echo "$id $tag" >> "$AZ_RUNS_STATE/wip-taken"
-              awk '{ print $2 }' "$AZ_RUNS_STATE/wip-assets" >> drafts-packages.txt
+              echo "$tag: $n of its $(wc -l < "$AZSUPPORT_RUNS_STATE/wip-assets" | tr -d ' ') packages into repo/ (the others were there)"
+              echo "$id $tag" >> "$AZSUPPORT_RUNS_STATE/wip-taken"
+              awk '{ print $2 }' "$AZSUPPORT_RUNS_STATE/wip-assets" >> drafts-packages.txt
             else
               echo "::warning title=saved packages::$tag: $n packages into repo/, $bad did not download (the draft stays for the next run)"
             fi
-          done < "$AZ_RUNS_STATE/wip-drafts"
+          done < "$AZSUPPORT_RUNS_STATE/wip-drafts"
 
       # the release tarballs of azsupport/php-src the PHP ports need, fetched with retries
       # (the build fetches again what is missing: MASTER_SITES of the port)
       - name: The PHP tarballs of azsupport/php-src, fetched with retries
         run: |
           mkdir -p distfiles/php
-          sed -n 's/^SHA256 (php\/\(php-[0-9][^)]*-fbsd-[^)]*\.tar\.xz\)) = \([0-9a-f]*\)$/\1 \2/p' lang/php*/distinfo | sort -u > "$AZ_RUNS_STATE/php-tarballs"
+          sed -n 's/^SHA256 (php\/\(php-[0-9][^)]*-fbsd-[^)]*\.tar\.xz\)) = \([0-9a-f]*\)$/\1 \2/p' lang/php*/distinfo | sort -u > "$AZSUPPORT_RUNS_STATE/php-tarballs"
           while read -r f sum; do
             v="${f#php-}"; v="${v%%-fbsd-*}"; rel="${f#*-fbsd-}"; rel="${rel%.tar.xz}"
             d="distfiles/php/$f"
@@ -328,7 +328,7 @@ jobs:
             else
               rm -f "$d.part"; echo "::warning title=distfiles::$f did not download here ($u): the build tries again"
             fi
-          done < "$AZ_RUNS_STATE/php-tarballs"
+          done < "$AZSUPPORT_RUNS_STATE/php-tarballs"
 
       - name: The ports of this tree checked with make -V (bmake, a sparse official tree)
         env:
@@ -336,7 +336,7 @@ jobs:
           RELEASE: ${{ inputs.release }}
         run: sh tools/check-tree-ci.sh "$RELEASE" "$CPUTYPE"
 
-      - name: The curl of az and that of azsupport/php-src
+      - name: The curl of azsupport and that of azsupport/php-src
         env:
           FORK_REF: ${{ inputs.fork_ref || 'master' }}
         run: |
@@ -357,12 +357,12 @@ jobs:
             echo "::error title=world::no RUNS_TOKEN: no make.conf and src.conf of the world of $LEVEL (and no tests)"
             exit 1
           fi
-          t="$AZ_RUNS_STATE/az-tests.tgz"
+          t="$AZSUPPORT_RUNS_STATE/azsupport-tests.tgz"
           curl -fsSL --retry 5 --retry-all-errors -H "Authorization: Bearer $RUNS_TOKEN" -H "Accept: application/vnd.github+json" \
             -o "$t" "https://api.github.com/repos/azsupport/azsupport/tarball/main"
           tar -xzf "$t" -C tools --strip-components=3 '*/tests/ports/*'
           echo "tests in tools/: $(ls tools/test-programs.sh tools/*-test.sh 2> /dev/null | wc -l | tr -d ' ') scripts"
-          ref="$AZ_RUNS_STATE/ref"
+          ref="$AZSUPPORT_RUNS_STATE/ref"
           mkdir -p "$ref"
           (umask 077 && tar -xzf "$t" -C "$ref" --strip-components=2 "*/freebsd/$LEVEL/make.conf" "*/freebsd/$LEVEL/src.conf") || :
           (umask 077 && tar -xzf "$t" -C "$ref" --strip-components=2 "*/freebsd/world-obj") 2> /dev/null || :
@@ -370,10 +370,10 @@ jobs:
             echo "::error title=world::no make.conf and src.conf of $LEVEL in azsupport/azsupport"
             exit 1
           fi
-          echo "AZ_WORLD_REF=$ref/$LEVEL" >> "$GITHUB_ENV"
-          mkdir -p "$AZ_RUNS_STATE/az-dist"
-          tar -xzf "$t" -C "$AZ_RUNS_STATE/az-dist" --strip-components=2 '*/distfiles/*' 2> /dev/null || :
-          for f in "$AZ_RUNS_STATE"/az-dist/*; do
+          echo "AZSUPPORT_WORLD_REF=$ref/$LEVEL" >> "$GITHUB_ENV"
+          mkdir -p "$AZSUPPORT_RUNS_STATE/azsupport-dist"
+          tar -xzf "$t" -C "$AZSUPPORT_RUNS_STATE/azsupport-dist" --strip-components=2 '*/distfiles/*' 2> /dev/null || :
+          for f in "$AZSUPPORT_RUNS_STATE"/azsupport-dist/*; do
             [ -f "$f" ] || continue
             n="${f##*/}"
             case "$n" in README*) continue ;; esac
@@ -401,7 +401,7 @@ jobs:
         env:
           LEVEL: ${{ matrix.cputype }}
         run: |
-          ref="$AZ_WORLD_REF"; wd=/var/azbuild/world; wl="$wd/$LEVEL"
+          ref="$AZSUPPORT_WORLD_REF"; wd=/var/azbuild/world; wl="$wd/$LEVEL"
           [ -d "$wd" ] || { echo "::error title=world::no /var/azbuild/world in the jail"; exit 1; }
           [ -f /usr/src/sys/conf/newvers.sh ] || { echo "::error title=world::no sources of the release in /usr/src"; exit 1; }
           want="$(sha256 -q "$ref/make.conf") $(sha256 -q "$ref/src.conf") $(sha256 -q /usr/src/sys/conf/newvers.sh)"
@@ -432,7 +432,7 @@ jobs:
               echo "::warning title=world::the objects of the server are not in the jail (freebsd/world-obj and its mount): those of the cache"
             fi
             new="$wl.new"; old="$wl.old"
-            log="$AZ_RUNS_STATE/world-$LEVEL.log"
+            log="$AZSUPPORT_RUNS_STATE/world-$LEVEL.log"
             for d in "$new" "$old"; do
               [ -e "$d" ] || continue
               chflags -R 0 "$d" 2> /dev/null || :
@@ -455,17 +455,17 @@ jobs:
               exit 1
             fi
           fi
-          echo "AZ_WORLD=$wl" >> "$GITHUB_ENV"
+          echo "AZSUPPORT_WORLD=$wl" >> "$GITHUB_ENV"
 
-      # the time tools/build.sh has (AZ_TIME_SOFT, AZ_TIME_HARD), from the start of the job,
+      # the time tools/build.sh has (AZSUPPORT_TIME_SOFT, AZSUPPORT_TIME_HARD), from the start of the job,
       # whose limit is 1380 minutes: no port starts after 1080 minutes, the builds still
       # going stop at 1140; the checks, the tests and the publish have the rest
       - name: The time of the build
         run: |
-          now="$(date +%s)"; start="${AZ_JOB_START:-$now}"
+          now="$(date +%s)"; start="${AZSUPPORT_JOB_START:-$now}"
           soft=$((start + 1080 * 60 - now)); hard=$((start + 1140 * 60 - now))
           [ "$soft" -gt 600 ] || soft=600; [ "$hard" -gt "$soft" ] || hard="$soft"
-          echo "AZ_TIME_SOFT=$soft" >> "$GITHUB_ENV"; echo "AZ_TIME_HARD=$hard" >> "$GITHUB_ENV"
+          echo "AZSUPPORT_TIME_SOFT=$soft" >> "$GITHUB_ENV"; echo "AZSUPPORT_TIME_HARD=$hard" >> "$GITHUB_ENV"
           echo "tools/build.sh: no port starts after $((soft / 60)) minutes, the builds still going stop at $((hard / 60))"
 
       # the progress of the build (GitHub gives the log of a job only when it ends):
@@ -478,7 +478,7 @@ jobs:
           RUNS_LOCAL: '1'
           PART: ${{ matrix.cputype }}
         run: |
-          daemon -f -p "$AZ_RUNS_STATE/runs-progress.pid" -o "$AZ_RUNS_STATE/runs-progress.log" sh tools/runs-progress.sh "$PART" 10
+          daemon -f -p "$AZSUPPORT_RUNS_STATE/runs-progress.pid" -o "$AZSUPPORT_RUNS_STATE/runs-progress.log" sh tools/runs-progress.sh "$PART" 10
           echo "tools/runs-progress.sh: every 10 minutes"
 
       # tools/build.sh in the jail, then the checks as in the VM of build.yml, each in the
@@ -490,20 +490,20 @@ jobs:
       - name: Build and check in the jail
         id: build
         env:
-          AZ_CPUTYPE: ${{ matrix.cputype }}
-          AZ_PORTS: ${{ inputs.ports }}
-          AZ_FORCE: ${{ inputs.force && '1' || '' }}
-          AZ_JOBS: ${{ inputs.jobs || '4' }}
+          AZSUPPORT_CPUTYPE: ${{ matrix.cputype }}
+          AZSUPPORT_PORTS: ${{ inputs.ports }}
+          AZSUPPORT_FORCE: ${{ inputs.force && '1' || '' }}
+          AZSUPPORT_JOBS: ${{ inputs.jobs || '4' }}
           MAKE_JOBS_NUMBER: ${{ inputs.make_jobs || '4' }}
-          AZ_CONFIGURE_CHECK: ${{ inputs.configure_check && '1' || '' }}
-          AZ_PLAN: ${{ inputs.plan && '1' || '' }}
-          AZ_PHP_CHECKS: ${{ inputs.php_checks }}
-          AZ_TESTS_NONBLOCKING: ${{ inputs.tests_nonblocking }}
+          AZSUPPORT_CONFIGURE_CHECK: ${{ inputs.configure_check && '1' || '' }}
+          AZSUPPORT_PLAN: ${{ inputs.plan && '1' || '' }}
+          AZSUPPORT_PHP_CHECKS: ${{ inputs.php_checks }}
+          AZSUPPORT_TESTS_NONBLOCKING: ${{ inputs.tests_nonblocking }}
           PKG_SIGNING_KEY: ${{ secrets.PKG_SIGNING_KEY }}
         run: |
           set +e
-          kf="$AZ_RUNS_STATE/az-pkg-key.b64"
-          CR="$AZ_CR"
+          kf="$AZSUPPORT_RUNS_STATE/azsupport-pkg-key.b64"
+          CR="$AZSUPPORT_CR"
           ws="$(pwd -P)"
           cr_mounts() {
             mount -p | awk -v d="$CR" '$2 == d || index($2, d "/") == 1 { print length($2), $2 }' | sort -rn | cut -d ' ' -f 2-
@@ -529,8 +529,8 @@ jobs:
             cr_down || return 1
             mkdir -p "$CR" || return 1
             for d in /bin /sbin /lib /libexec /usr/bin /usr/sbin /usr/lib /usr/lib32 /usr/libexec /usr/include /usr/share /usr/libdata; do
-              [ -d "$AZ_WORLD$d" ] || continue
-              cr_mnt ro "$d" "$AZ_WORLD$d" || return 1
+              [ -d "$AZSUPPORT_WORLD$d" ] || continue
+              cr_mnt ro "$d" "$AZSUPPORT_WORLD$d" || return 1
             done
             mkdir -p "$CR/etc" "$CR/tmp" "$CR/var" "$CR/root" "$CR/home" "$CR/usr/local" "$CR/dev" && chmod 1777 "$CR/tmp" || return 1
             (cd /etc && tar -cf - --exclude ./ssh .) | (cd "$CR/etc" && tar -xpf -) || return 1
@@ -538,7 +538,7 @@ jobs:
             mount -t devfs devfs "$CR/dev" || return 1
             cr_mnt rw /var/cache/pkg /var/cache/pkg || return 1
             cr_mnt rw "$ws" "$ws" || return 1
-            cr_mnt rw "$AZ_W" "$AZ_W" || return 1
+            cr_mnt rw "$AZSUPPORT_W" "$AZSUPPORT_W" || return 1
             r="$(realpath repo)" && cr_mnt ro "$r" "$r" || return 1
             chroot "$CR" /usr/sbin/service ldconfig start > /dev/null 2>&1
             return 0
@@ -551,14 +551,14 @@ jobs:
           trap 'cr_down > /dev/null 2>&1; rm -f "$kf"' EXIT
           if [ -n "${PKG_SIGNING_KEY:-}" ]; then
             (umask 077 && printf '%s\n' "$PKG_SIGNING_KEY" | openssl base64 -A > "$kf")
-            export AZ_PKG_KEY_FILE="$kf"
+            export AZSUPPORT_PKG_KEY_FILE="$kf"
           else
             echo "::warning title=signing key::no PKG_SIGNING_KEY: the repository will not be signed (and not published)"
           fi
           unset PKG_SIGNING_KEY
-          export AZ_WORLD AZ_PORTSDIR
+          export AZSUPPORT_WORLD AZSUPPORT_PORTSDIR
           rc=0
-          sh tools/build.sh ${AZ_FORCE:+--force} --repo repo $AZ_PORTS || rc=$?
+          sh tools/build.sh ${AZSUPPORT_FORCE:+--force} --repo repo $AZSUPPORT_PORTS || rc=$?
           mkdir -p results
           echo "$rc" > results/rc
           : > results/checks.txt
@@ -582,8 +582,8 @@ jobs:
               echo "docs: OK ($nd packages of the repository: no manual pages, docs or info pages)" >> results/checks.txt
             fi
           fi
-          if [ -n "${AZ_PLAN:-}" ]; then
-            echo "plan (AZ_PLAN): no checks and no tests (results/plan.txt)" >> results/checks.txt
+          if [ -n "${AZSUPPORT_PLAN:-}" ]; then
+            echo "plan (AZSUPPORT_PLAN): no checks and no tests (results/plan.txt)" >> results/checks.txt
           elif [ -f results/time-limit ]; then
             echo "time limit: no checks and no tests, the next run goes on ($(head -n 1 results/time-limit); results/time-limit)" >> results/checks.txt
           elif ! cr_up; then
@@ -596,9 +596,9 @@ jobs:
             echo "unsigned catalog: checks only, not published (work/repo-unsigned; $(tail -n 1 results/pkg-repo.log 2> /dev/null || echo 'no pkg-repo.log'))" >> results/checks.txt
           fi
           pv="$({ awk '$1 ~ /\// && $2 == "OK" { print $3 }' results/summary.txt 2> /dev/null; cat drafts-packages.txt 2> /dev/null; } | sed -n -E 's/^(mod_)?php([0-9])([0-9])-.*/\2.\3/p')"
-          case " ${AZ_PHP_CHECKS:-} " in
+          case " ${AZSUPPORT_PHP_CHECKS:-} " in
             *" all "*) pv="$pv $(ls "$crepo" 2> /dev/null | sed -n -E 's/^php([0-9])([0-9])-[0-9][^/]*\.pkg$/\1.\2/p')" ;;
-            *) pv="$pv ${AZ_PHP_CHECKS:-}" ;;
+            *) pv="$pv ${AZSUPPORT_PHP_CHECKS:-}" ;;
           esac
           for v in $(printf '%s\n' $pv | grep -E '^[0-9]\.[0-9]$' | sort -u); do
             core="lang/php$(echo "$v" | tr -d .)"
@@ -672,10 +672,10 @@ jobs:
             tf="$(awk '/^test [^ ]+: FAIL/ { sub(/^test /, ""); sub(/: FAIL.*/, ""); print }' results/checks.txt | sort -u | tr '\n' ' ')"
             tb=""
             for t in $tf; do
-              case " $AZ_TESTS_NONBLOCKING " in *" $t "*) ;; *) tb="$tb $t" ;; esac
+              case " $AZSUPPORT_TESTS_NONBLOCKING " in *" $t "*) ;; *) tb="$tb $t" ;; esac
             done
-            if [ -n "$tf" ] && [ -z "$tb" ] && [ -n "$AZ_TESTS_NONBLOCKING" ]; then
-              echo "tests: the FAIL of ${tf% } does not keep the publish (tests_nonblocking: $AZ_TESTS_NONBLOCKING)" >> results/checks.txt
+            if [ -n "$tf" ] && [ -z "$tb" ] && [ -n "$AZSUPPORT_TESTS_NONBLOCKING" ]; then
+              echo "tests: the FAIL of ${tf% } does not keep the publish (tests_nonblocking: $AZSUPPORT_TESTS_NONBLOCKING)" >> results/checks.txt
             else
               rc=1
             fi
@@ -697,9 +697,9 @@ jobs:
           cr_down || echo "the root of the checks: not torn down (the next job does it)"
           # the log of make of the world, when this job built one: with the private
           # results of the tests (azsupport/azsupport), never in this log or the artifact
-          if ls "$AZ_RUNS_STATE"/world-*.log > /dev/null 2>&1; then
+          if ls "$AZSUPPORT_RUNS_STATE"/world-*.log > /dev/null 2>&1; then
             mkdir -p results/tests
-            cp "$AZ_RUNS_STATE"/world-*.log results/tests/
+            cp "$AZSUPPORT_RUNS_STATE"/world-*.log results/tests/
           fi
           cat results/checks.txt
           echo "$rc" > results/rc
@@ -732,20 +732,20 @@ jobs:
         run: |
           [ -d results/tests ] || { echo "no results/tests: no test ran"; exit 0; }
           a="${GITHUB_RUN_ID}-${PART}-tests.tar.xz"
-          tar -cJf "$AZ_RUNS_STATE/$a" -C results tests
-          mv results/tests "$AZ_RUNS_STATE/tests"
+          tar -cJf "$AZSUPPORT_RUNS_STATE/$a" -C results tests
+          mv results/tests "$AZSUPPORT_RUNS_STATE/tests"
           if [ -z "$RUNS_TOKEN" ]; then
             echo "::warning title=test results::no RUNS_TOKEN: the results of the tests are not kept"
             exit 0
           fi
           day="$(date -u +%Y-%m-%d)"
-          w="$AZ_RUNS_STATE/runs-tests"
+          w="$AZSUPPORT_RUNS_STATE/runs-tests"
           timeout 600 git clone -q --depth 1 --filter=blob:none --no-checkout --branch runs --single-branch \
             "https://x-access-token:${RUNS_TOKEN}@github.com/azsupport/azsupport.git" "$w"
           git -C "$w" sparse-checkout set --no-cone "/ports-build-jail/$day/"
           timeout 600 git -C "$w" checkout -q runs
           mkdir -p "$w/ports-build-jail/$day"
-          cp "$AZ_RUNS_STATE/$a" "$w/ports-build-jail/$day/$a"
+          cp "$AZSUPPORT_RUNS_STATE/$a" "$w/ports-build-jail/$day/$a"
           git -C "$w" add "ports-build-jail/$day/$a"
           git -C "$w" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit -q -m "ports-build-jail $PART: the results of the tests of run $GITHUB_RUN_ID"
@@ -792,12 +792,12 @@ jobs:
           RELEASE: ${{ inputs.release }}
           CPUTYPE: ${{ matrix.cputype }}
           PUBLISH_ONLY: ${{ inputs.publish_only }}
-          AZ_SNAPSHOTS: 31
+          AZSUPPORT_SNAPSHOTS: 31
         run: |
           summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
           major="${RELEASE%%.*}"
           level="${CPUTYPE#x86-64-}"
-          tag="az-fbsd$major-amd64-$level"
+          tag="azsupport-fbsd$major-amd64-$level"
           dir=repo
           last="$(tail -n 1 results/pkg-repo.log 2> /dev/null)"
           case "$last" in
@@ -824,7 +824,7 @@ jobs:
           url="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
           commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
           php="$(ls "$dir" | sed -n 's/^php\([0-9]\)\([0-9]\)-[0-9][^/]*\.pkg$/\1.\2/p' | sort -u | tr '\n' ' ' | sed 's/ $//; s/ /, /g')"
-          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: az (the libraries of /usr/local/az), curl (with SCP and SFTP), ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc, yt-dlp and PHP $php (phpXY with phpXY-apache and the modules phpXY-<module>, phpXY-ssh2 among them). On a server, /usr/local/etc/pkg/repos/az.conf: az: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/az.pub\", priority: 100, enabled: yes } with the key keys/az.pub of $GITHUB_REPOSITORY, then: pkg update -r az, pkg install -r az php84 php84-apache php84-gd ... (yt-dlp: pkg install yt-dlp, its Python packages are those of FreeBSD; README.md). Each publish is kept also as a release of its own that does not change, $tag-<YYYYMMDD>-<HHMM> (UTC, the newest $AZ_SNAPSHOTS): its url in az.conf takes a server back to it (README.md, A server and the repository az)."
+          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: azsupport (the libraries of /usr/local/azsupport), curl (with SCP and SFTP), ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc, yt-dlp and PHP $php (phpXY with phpXY-apache and the modules phpXY-<module>, phpXY-ssh2 among them). On a server, /usr/local/etc/pkg/repos/azsupport.conf: azsupport: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/azsupport.pub\", priority: 100, enabled: yes } with the key keys/azsupport.pub of $GITHUB_REPOSITORY, then: pkg update -r azsupport, pkg install -r azsupport php84 php84-apache php84-gd ... (yt-dlp: pkg install yt-dlp, its Python packages are those of FreeBSD; README.md). Each publish is kept also as a release of its own that does not change, $tag-<YYYYMMDD>-<HHMM> (UTC, the newest $AZSUPPORT_SNAPSHOTS): its url in azsupport.conf takes a server back to it (README.md, A server and the repository azsupport)."
           if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "$tag" --notes "$notes" --target main ||
               gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null
@@ -850,9 +850,9 @@ jobs:
           fi
           rid="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq .id)"
           gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" \
-            --jq '.[] | "\(.name) \(.digest)"' > "$AZ_RUNS_STATE/release-digests.txt"
+            --jq '.[] | "\(.name) \(.digest)"' > "$AZSUPPORT_RUNS_STATE/release-digests.txt"
           pk="$(ls "$dir" | grep -E '^[^/]+-[0-9][^/]*\.pkg$' | while read -r f; do
-            grep -qxF "$f sha256:$(sha256 -q "$dir/$f")" "$AZ_RUNS_STATE/release-digests.txt" || echo "$dir/$f"
+            grep -qxF "$f sha256:$(sha256 -q "$dir/$f")" "$AZSUPPORT_RUNS_STATE/release-digests.txt" || echo "$dir/$f"
           done)"
           echo "packages to upload: $(printf '%s\n' "$pk" | grep -c . || :) of $(ls "$dir" | grep -cE '^[^/]+-[0-9][^/]*\.pkg$' || :) (the others are in the release with the same sha256)"
           # in batches of 20 with a pause between them, each batch again up to six times:
@@ -868,9 +868,9 @@ jobs:
             return 1
           }
           if [ -n "$pk" ]; then
-            printf '%s\n' "$pk" > "$AZ_RUNS_STATE/upload.txt"
-            split -l 20 "$AZ_RUNS_STATE/upload.txt" "$AZ_RUNS_STATE/upload-part."
-            for part in "$AZ_RUNS_STATE"/upload-part.*; do
+            printf '%s\n' "$pk" > "$AZSUPPORT_RUNS_STATE/upload.txt"
+            split -l 20 "$AZSUPPORT_RUNS_STATE/upload.txt" "$AZSUPPORT_RUNS_STATE/upload-part."
+            for part in "$AZSUPPORT_RUNS_STATE"/upload-part.*; do
               # shellcheck disable=SC2046
               up_batch $(cat "$part") || { echo "::error title=publish::the packages of $part not uploaded"; exit 1; }
               sleep 15
@@ -887,8 +887,8 @@ jobs:
             printf '%s\n' "$have" | grep -qxF "$f" || { echo "not in the release $tag: $f"; exit 1; }
           done
           echo "published: $url ($(ls "$dir" | wc -l | tr -d ' ') files)"
-          echo "$tag" > "$AZ_RUNS_STATE/published"
-          sh tools/release-snapshot.sh after "$dir" "$tag" "$AZ_SNAPSHOTS" ||
+          echo "$tag" > "$AZSUPPORT_RUNS_STATE/published"
+          sh tools/release-snapshot.sh after "$dir" "$tag" "$AZSUPPORT_SNAPSHOTS" ||
             echo "::warning title=snapshot::the repository just published is not kept as a snapshot (tools/release-snapshot.sh): the next publish keeps it first"
 
       - name: The drafts of the packages saved, once the release has them
@@ -897,18 +897,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ ! -s "$AZ_RUNS_STATE/published" ]; then
+          if [ ! -s "$AZSUPPORT_RUNS_STATE/published" ]; then
             echo "nothing published: the drafts stay for the next publish"
             exit 0
           fi
-          [ -s "$AZ_RUNS_STATE/wip-taken" ] || { echo "no draft was taken"; exit 0; }
+          [ -s "$AZSUPPORT_RUNS_STATE/wip-taken" ] || { echo "no draft was taken"; exit 0; }
           while read -r id tag; do
             if sh tools/release-drop.sh "$id" "$tag"; then
               echo "deleted: $tag (its packages are in the release now)"
             else
               echo "::warning title=drafts::$tag not deleted: the next publish tries again"
             fi
-          done < "$AZ_RUNS_STATE/wip-taken"
+          done < "$AZSUPPORT_RUNS_STATE/wip-taken"
 
       - name: The log of the progress reporter
         if: always()
@@ -916,11 +916,11 @@ jobs:
         run: |
           # the reporter and the sleep or the command it waits for (stopped first, so that it
           # starts no other; 24.11.2026: its sleep 600 stayed after the reporter)
-          if [ -s "$AZ_RUNS_STATE/runs-progress.pid" ]; then
-            p="$(cat "$AZ_RUNS_STATE/runs-progress.pid")"
+          if [ -s "$AZSUPPORT_RUNS_STATE/runs-progress.pid" ]; then
+            p="$(cat "$AZSUPPORT_RUNS_STATE/runs-progress.pid")"
             kill -STOP "$p" 2> /dev/null && { pkill -P "$p" 2> /dev/null; kill -KILL "$p" 2> /dev/null; } || :
           fi
-          tail -n 20 "$AZ_RUNS_STATE/runs-progress.log" 2> /dev/null || echo "no log of tools/runs-progress.sh"
+          tail -n 20 "$AZSUPPORT_RUNS_STATE/runs-progress.log" 2> /dev/null || echo "no log of tools/runs-progress.sh"
 
       - name: Report to azsupport/azsupport
         if: always()

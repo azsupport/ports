@@ -11,15 +11,15 @@ on:
         required: false
         default: 'x86-64-v3'
       packages:
-        description: 'Package files, as globs of their names without .pkg, e.g. "az-* php74-gd-*"'
+        description: 'Package files, as globs of their names without .pkg, e.g. "azsupport-* php74-gd-*"'
         required: false
-        default: 'az-*'
+        default: 'azsupport-*'
       pattern:
         description: 'An extended regular expression of the lines to print (empty: every file)'
         required: false
         default: ''
       show:
-        description: 'Files of the packages to print whole, as globs of their paths, e.g. "*/share/doc/az/VERSIONS"'
+        description: 'Files of the packages to print whole, as globs of their paths, e.g. "*/share/doc/azsupport/VERSIONS"'
         required: false
         default: ''
 

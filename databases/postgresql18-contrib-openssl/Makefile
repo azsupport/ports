@@ -5,6 +5,6 @@
 
 COMMENT=	The contrib utilities from the PostgreSQL distribution, with OpenSSL (of azsupport/ports)
 
-AZ_PG_OPENSSL=	yes
+AZSUPPORT_PG_OPENSSL=	yes
 
 .include "${.CURDIR}/../postgresql18-contrib/Makefile"

@@ -1,4 +1,4 @@
-# net-mgmt/net-snmp of azsupport/ports: the official port (Mk/az-official.mk; aZ,
+# net-mgmt/net-snmp of azsupport/ports: the official port (Mk/azsupport-official.mk; aZ,
 # 20.11.2026: the tools of Nagios and MRTG, «максимум что я юзать буду так это в нагиосе
 # и мртг», and snmpd not run: «он же демоном у меня не будет, а только как консольная
 # утилита для мртг и нагиоса»), net-snmp 5.9.5.2 on the OpenSSL of the base system and
@@ -14,8 +14,8 @@
 #   daemons, a TCP listener on port 199 of every address) and NEWSYSLOG (the rotation of
 #   the log of snmpd; aZ 19:58: maybe later a port -newsyslog for each port with logs).
 
-AZ_OFFICIAL=	net-mgmt/net-snmp
+AZSUPPORT_OFFICIAL=	net-mgmt/net-snmp
 OPTIONS_SLAVE=	MFD_REWRITES
 OPTIONS_EXCLUDE=	DUMMY NEWSYSLOG PERL PERL_EMBEDDED SMUX
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

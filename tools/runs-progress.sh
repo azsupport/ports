@@ -89,7 +89,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
             [ -z "$tl" ] || echo "- the tests, the files of results/tests written last (UTC): $tl"
         fi
         # tools/runs-save.sh: the packages built, saved while the VM builds
-        st="${AZ_RUNS_STATE:-/tmp/az-runs}"
+        st="${AZSUPPORT_RUNS_STATE:-/tmp/azsupport-runs}"
         if [ -d "$st/runs-save/saved" ]; then
             echo "- saved as they were built (tools/runs-save.sh, the draft release $(cat "$st/runs-save.tag" 2>/dev/null)): $(ls "$st/runs-save/saved" | wc -l | tr -d ' ') packages"
         fi
@@ -113,7 +113,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
                 st="$(grep -E '^\[build [0-9:]+\] stage [0-9]+ of [0-9]+:' "$w/log" | tail -n 1 | sed 's/^\[build [0-9:]*\] //')"
                 [ -z "$st" ] || echo "- now: $st (results/stages.txt)"
                 # building now: started ("<origin>: make package (logs/...)", whatever
-                # AZ_JOBS: its chroot, its dependencies there, its build) and with no
+                # AZSUPPORT_JOBS: its chroot, its dependencies there, its build) and with no
                 # result line yet
                 grep -E '^\[build [0-9:]+\] [^ ]+: make package \(logs/' "$w/log" | awk '{ sub(":$", "", $3); print $3, substr($2, 1, 5) }' > "$w/run" || :
                 now=""; nowo=""
@@ -130,7 +130,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
                 echo
                 tail -n 15 "$w/log" | cut -c 1-300 | sed 's/^/    /'
                 # the log of each port building now, its length and last line (the
-                # key of tools/build.sh: / and @ as _): a long build (az, node24) adds
+                # key of tools/build.sh: / and @ as _): a long build (azsupport, node24) adds
                 # no line to progress.log for an hour, this shows how it goes, and
                 # the report changes with it, so it is committed every time
                 if [ -n "$nowo" ]; then

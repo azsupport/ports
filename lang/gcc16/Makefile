@@ -47,13 +47,13 @@
 # the official port those of amd64 (files/); those of aarch64, arm and powerpc, of
 # Fortran, libgccjit and the sanitizers left out.
 # The ports of this tree that build with GCC (Mk/Uses/azgcc.mk: PHP, Redis, Python;
-# az/az) take the official package of lang/gcc16 until they move to this one with the
-# next full build (aZ, 18.11.2026: «а) ... да, давай так»): AZ_TOOLS_OFFICIAL of
+# azsupport/azsupport) take the official package of lang/gcc16 until they move to this one with the
+# next full build (aZ, 18.11.2026: «а) ... да, давай так»): AZSUPPORT_TOOLS_OFFICIAL of
 # tools/build.sh.
 
 PORTNAME=	gcc
 PORTVERSION=	16.2.0
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	lang
 MASTER_SITES=	GCC \
 		GCC/infrastructure:infra
@@ -145,13 +145,13 @@ SUB_LIST+=	TARGLIB=${TARGLIB}
 # stage 1 (the base clang) through the wrappers of ccache (WITH_CCACHE_BUILD of the
 # framework), the compilers of the stages after it (xgcc and xg++, built again in each
 # run: their content in the hash, CCACHE_COMPILERCHECK) by STAGE_CC_WRAPPER of the
-# Makefile of GCC; the cache in AZ_PORT_CACHE_DIR (portcache/lang_gcc16,
+# Makefile of GCC; the cache in AZSUPPORT_PORT_CACHE_DIR (portcache/lang_gcc16,
 # tools/build.sh), ccache of the official packages
-AZ_PORT_CACHE=	ccache
+AZSUPPORT_PORT_CACHE=	ccache
 BUILD_DEPENDS+=	ccache:devel/ccache
-.  if !empty(AZ_PORT_CACHE_DIR)
+.  if !empty(AZSUPPORT_PORT_CACHE_DIR)
 WITH_CCACHE_BUILD=	yes
-CCACHE_DIR=	${AZ_PORT_CACHE_DIR}/ccache
+CCACHE_DIR=	${AZSUPPORT_PORT_CACHE_DIR}/ccache
 MAKE_ARGS+=	STAGE_CC_WRAPPER=ccache
 MAKE_ENV+=	CCACHE_COMPILERCHECK=content CCACHE_MAXSIZE=8G
 .  endif

@@ -1,13 +1,13 @@
 # www/node24 of azsupport/ports: Node.js 24 (aZ, 11.11.2026: our node24 with npm and
 # yarn, for yt-dlp and Kibana 6), the official port (its patches, Makefile.version,
-# pkg-plist, pkg-descr) on the shared libraries of az, with the run path
-# /usr/local/az/lib (our ports link each other's shared libraries: aZ,
-# 10.11.2026): brotli, c-ares, ICU, nghttp2, libuv, zstd and SQLite of az (az
+# pkg-plist, pkg-descr) on the shared libraries of azsupport, with the run path
+# /usr/local/azsupport/lib (our ports link each other's shared libraries: aZ,
+# 10.11.2026): brotli, c-ares, ICU, nghttp2, libuv, zstd and SQLite of azsupport (azsupport
 # builds SQLite with the session extension that node:sqlite needs), instead of
 # archivers/brotli, dns/c-ares, devel/icu, www/libnghttp2, devel/libuv,
 # archivers/zstd and databases/sqlite3; ada, llhttp, nbytes, nghttp3, ngtcp2,
 # simdjson, uvwasi and hdr_histogram, which Node.js bundles, of the ports of this
-# tree (aZ, 11.11.2026: the official ones as they are, uvwasi on the libuv of az);
+# tree (aZ, 11.11.2026: the official ones as they are, uvwasi on the libuv of azsupport);
 # OpenSSL (with the CA store of the base system) and zlib of the base system.
 # GoogleTest stays bundled, so the package takes no devel/googletest (a LIB_DEPENDS
 # of the official port): node uses its header gtest_prod.h only, and its library
@@ -25,13 +25,13 @@
 # distinfo.yml run 43239019280 (the tarball of nodejs.org against its
 # SHASUMS256.txt). The patches of the official port apply to it as to 24.22.2 (the
 # files they touch are the same); the libraries stay: its SQLite 3.54.1 and brotli
-# 1.2.1 are those of az, and its llhttp 9.4.4 fixes the SIMD code of arm64 and
+# 1.2.1 are those of azsupport, and its llhttp 9.4.4 fixes the SIMD code of arm64 and
 # WebAssembly only, so www/llhttp 9.4.3 parses as it does on amd64 (see
 # www/node18/Makefile).
 
 PORTNAME=	node
 PORTVERSION=	${NODEJS_PORTVERSION}
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 DISTVERSIONPREFIX=	v
 CATEGORIES=	www
 MASTER_SITES=	https://nodejs.org/dist/v${PORTVERSION}/
@@ -50,10 +50,10 @@ BROKEN_SSL=	libressl libressl-devel
 BROKEN_SSL_REASON=	Node.js ${PORTVERSION:R:R}.x requires OpenSSL or the BUNDLED_SSL option enabled
 ONLY_FOR_ARCHS=	aarch64 amd64 armv6 armv7 i386 powerpc64 powerpc64le
 
-# the libraries of az that node links, with their run path
-AZ_NODE_LIBS=	libbrotlidec.so libcares.so libicui18n.so libnghttp2.so libsqlite3.so \
+# the libraries of azsupport that node links, with their run path
+AZSUPPORT_NODE_LIBS=	libbrotlidec.so libcares.so libicui18n.so libnghttp2.so libsqlite3.so \
 		libuv.so libzstd.so
-BUILD_DEPENDS=	${AZ_NODE_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
+BUILD_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
 LIB_DEPENDS=	libada.so:devel/libada \
 		libhdr_histogram.so:graphics/hdr_histogram \
 		libllhttp.so:www/llhttp \
@@ -62,7 +62,7 @@ LIB_DEPENDS=	libada.so:devel/libada \
 		libngtcp2.so:net/libngtcp2 \
 		libsimdjson.so:devel/simdjson \
 		libuvwasi.so:devel/uvwasi
-RUN_DEPENDS=	${AZ_NODE_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@} \
+RUN_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@} \
 		node24-corepack>=0:www/corepack-node24
 
 USES=		compiler:c++20-lang gmake localbase pkgconfig python:build shebangfix tar:xz
@@ -92,13 +92,13 @@ CONFIGURE_ARGS=	--prefix=${PREFIX:S|^${DESTDIR}||} \
 		--without-corepack \
 		--without-npm
 # The configure of node takes the include directories and the -L of the shared
-# libraries from pkg-config: those of az first (brotli, c-ares, ICU, nghttp2,
+# libraries from pkg-config: those of azsupport first (brotli, c-ares, ICU, nghttp2,
 # libuv, zstd, sqlite3), then those of the ports of this tree, then libssl and
-# zlib of the base system. The -L of az goes before the -L${LOCALBASE}/lib of
+# zlib of the base system. The -L of azsupport goes before the -L${LOCALBASE}/lib of
 # USES=localbase, so that a library of the same name in ${LOCALBASE}/lib (an
 # official package of the build machine) is not taken instead.
-CONFIGURE_ENV=	PKG_CONFIG_LIBDIR=${AZ_PREFIX}/lib/pkgconfig:${LOCALBASE}/libdata/pkgconfig:/usr/libdata/pkgconfig
-LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+CONFIGURE_ENV=	PKG_CONFIG_LIBDIR=${AZSUPPORT_PREFIX}/lib/pkgconfig:${LOCALBASE}/libdata/pkgconfig:/usr/libdata/pkgconfig
+LDFLAGS+=	-L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 HAS_CONFIGURE=	yes
 MAKE_ENV=	CC.host="${CCACHE_BIN} ${CC}" \
 		CFLAGS.host="${CFLAGS}" \
@@ -128,13 +128,13 @@ JIT_CONFIGURE_OFF=	--v8-lite-mode
 # ccache between the runs of build.yml (aZ, 24.11.2026 09:48: a build stopped at the
 # time of a run goes on in the next one; 24.11.2026 V8 alone took more than a run):
 # the compilers through the wrappers of ccache (WITH_CCACHE_BUILD of the framework,
-# CC.host and CXX.host above), the cache in AZ_PORT_CACHE_DIR (portcache/www_node24,
+# CC.host and CXX.host above), the cache in AZSUPPORT_PORT_CACHE_DIR (portcache/www_node24,
 # tools/build.sh), ccache of the official packages
-AZ_PORT_CACHE=	ccache
+AZSUPPORT_PORT_CACHE=	ccache
 BUILD_DEPENDS+=	ccache:devel/ccache
-.if !empty(AZ_PORT_CACHE_DIR)
+.if !empty(AZSUPPORT_PORT_CACHE_DIR)
 WITH_CCACHE_BUILD=	yes
-CCACHE_DIR=	${AZ_PORT_CACHE_DIR}/ccache
+CCACHE_DIR=	${AZSUPPORT_PORT_CACHE_DIR}/ccache
 MAKE_ENV+=	CCACHE_MAXSIZE=8G
 .endif
 
@@ -174,9 +174,9 @@ post-configure:
 	# USES+=localbase above will ensure that we pick up includes for real
 	# external dependencies.
 	@${FIND} ${WRKSRC}/out -type f -print0 | ${XARGS} -0 ${REINPLACE_CMD} -e 's|-I${LOCALBASE}/include||g'
-# the include directory of az, as pkg-config gave it
-	@${GREP} -q -- '${AZ_PREFIX}/include' ${WRKSRC}/config.gypi || \
-		{ ${ECHO_MSG} "config.gypi: no include directory ${AZ_PREFIX}/include (pkg-config of az)"; ${FALSE}; }
+# the include directory of azsupport, as pkg-config gave it
+	@${GREP} -q -- '${AZSUPPORT_PREFIX}/include' ${WRKSRC}/config.gypi || \
+		{ ${ECHO_MSG} "config.gypi: no include directory ${AZSUPPORT_PREFIX}/include (pkg-config of azsupport)"; ${FALSE}; }
 
 post-install:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/node
@@ -185,11 +185,11 @@ post-install:
 # to the wrong one and CJS export lexing SIGBUSes). Importing a CommonJS
 # module from ESM runs that lexer; stdin avoids a temp file.
 	${ECHO_CMD} 'exports.ok = 1' | ${STAGEDIR}${PREFIX}/bin/node --input-type=module -e 'import "/dev/stdin"'
-# bin/node: the libraries of az by its run path, those of our ports, the base
+# bin/node: the libraries of azsupport by its run path, those of our ports, the base
 # system's OpenSSL and zlib (nghttp3 and ngtcp2 are for QUIC, which this build
 # has not: not asked for)
-	@${READELF} -d ${STAGEDIR}${PREFIX}/bin/node | ${GREP} -E -q '(RUNPATH|RPATH).*${AZ_PREFIX}/lib' || \
-		{ ${ECHO_MSG} "bin/node has no run path ${AZ_PREFIX}/lib"; ${FALSE}; }
+	@${READELF} -d ${STAGEDIR}${PREFIX}/bin/node | ${GREP} -E -q '(RUNPATH|RPATH).*${AZSUPPORT_PREFIX}/lib' || \
+		{ ${ECHO_MSG} "bin/node has no run path ${AZSUPPORT_PREFIX}/lib"; ${FALSE}; }
 .for l in libbrotlidec libcares libicui18n libnghttp2 libsqlite3 libuv libzstd libada libllhttp \
 	libnbytes libsimdjson libuvwasi libhdr_histogram libssl libcrypto libz
 	@${READELF} -d ${STAGEDIR}${PREFIX}/bin/node | ${GREP} -q 'Shared library: \[${l}\.so' || \

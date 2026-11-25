@@ -1,4 +1,4 @@
-# www/aria2-ssh2: www/aria2 with SSH2 (SFTP, the libssh2 of az), the package
+# www/aria2-ssh2: www/aria2 with SSH2 (SFTP, the libssh2 of azsupport), the package
 # aria2-ssh2 (aZ, 19.11.2026: «ssh2 вынести в aria2-ssh2 отдельный порт»); the
 # same files and options otherwise. One of the two on a server.
 

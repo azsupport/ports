@@ -48,11 +48,11 @@ if [ -s "$top/check-tree.txt" ] && grep -q 'FAIL' "$top/check-tree.txt"; then
         printf '::error title=check-tree::%s\n' "$(printf '%s\n' "$l" | escape)"
     done
 fi
-# the curl of az against that of azsupport/php-src (curl-sync-check.txt of the
+# the curl of azsupport against that of azsupport/php-src (curl-sync-check.txt of the
 # workflow): all of it when something differs
 if [ -s "$top/curl-sync-check.txt" ] && grep -q 'FAIL' "$top/curl-sync-check.txt"; then
     {
-        echo "### $title: the curl of az and that of azsupport/php-src (tools/curl-sync-check.sh)"
+        echo "### $title: the curl of azsupport and that of azsupport/php-src (tools/curl-sync-check.sh)"
         echo
         echo '```'
         cut -c1-240 "$top/curl-sync-check.txt"
@@ -86,24 +86,24 @@ trap 'rm -rf "$tmp"' EXIT
         echo "..."
         tail -n 15 "$l" | cut -c1-240
     done
-    # the libraries of az/az, a line each (tools/az-build.sh), when it was built, with
-    # their interfaces (az-results/az_az/interface.txt)
-    if [ -s "$res/az-results/az_az/summary.txt" ]; then
+    # the libraries of azsupport/azsupport, a line each (tools/azsupport-build.sh), when it was built, with
+    # their interfaces (azsupport-results/azsupport_az/interface.txt)
+    if [ -s "$res/azsupport-results/azsupport_az/summary.txt" ]; then
         echo
-        echo "== az/az: the libraries (az-results/az_az/summary.txt)"
-        cut -c1-200 "$res/az-results/az_az/summary.txt"
+        echo "== azsupport/azsupport: the libraries (azsupport-results/azsupport_az/summary.txt)"
+        cut -c1-200 "$res/azsupport-results/azsupport_az/summary.txt"
     fi
-    if [ -s "$res/az-results/az_az/interface.txt" ]; then
+    if [ -s "$res/azsupport-results/azsupport_az/interface.txt" ]; then
         echo
-        echo "== az/az: the interfaces of its libraries (az-results/az_az/interface.txt)"
-        cut -c1-240 "$res/az-results/az_az/interface.txt"
+        echo "== azsupport/azsupport: the interfaces of its libraries (azsupport-results/azsupport_az/interface.txt)"
+        cut -c1-240 "$res/azsupport-results/azsupport_az/interface.txt"
     fi
-    # the interfaces of az in this run: what changed, the ABI check, the ports kept by
-    # interface (tools/build.sh, results/az-interface.txt)
-    if [ -s "$res/az-interface.txt" ]; then
+    # the interfaces of azsupport in this run: what changed, the ABI check, the ports kept by
+    # interface (tools/build.sh, results/azsupport-interface.txt)
+    if [ -s "$res/azsupport-interface.txt" ]; then
         echo
-        echo "== az: the interfaces of its libraries in the hashes of the ports (results/az-interface.txt)"
-        cut -c1-400 "$res/az-interface.txt"
+        echo "== azsupport: the interfaces of its libraries in the hashes of the ports (results/azsupport-interface.txt)"
+        cut -c1-400 "$res/azsupport-interface.txt"
     fi
 } > "$tmp/build.txt"
 echo "==================== build"
@@ -112,15 +112,15 @@ cat "$tmp/build.txt"
 result() { grep '^result:' "$1" 2>/dev/null | tail -n 1 | sed 's/^result: *//'; }
 r="$(result "$res/summary.txt")"
 case "$r" in OK) level=notice ;; *) level=error; rc=1 ;; esac
-# the plan of the run (AZ_PLAN of tools/build.sh, results/plan.txt): first, a section
+# the plan of the run (AZSUPPORT_PLAN of tools/build.sh, results/plan.txt): first, a section
 # and an annotation of its own
 if [ -s "$res/plan.txt" ]; then
     echo "==================== the plan"
     cat "$res/plan.txt"
     head -n 60 "$res/plan.txt" | cut -c1-300 > "$tmp/plan.txt"
-    annot notice "$title: the plan ($(head -n 1 "$res/plan.txt" | sed 's/^The plan of the run (AZ_PLAN): //' | cut -c1-120))" "$tmp/plan.txt"
+    annot notice "$title: the plan ($(head -n 1 "$res/plan.txt" | sed 's/^The plan of the run (AZSUPPORT_PLAN): //' | cut -c1-120))" "$tmp/plan.txt"
     {
-        echo "### $title: the plan (AZ_PLAN: what the run would build)"
+        echo "### $title: the plan (AZSUPPORT_PLAN: what the run would build)"
         echo
         echo '```'
         cat "$res/plan.txt"
@@ -142,7 +142,7 @@ done
     echo
 } >> "$summary"
 
-# the configure check (AZ_CONFIGURE_CHECK of tools/build.sh): results/configure-check.txt
+# the configure check (AZSUPPORT_CONFIGURE_CHECK of tools/build.sh): results/configure-check.txt
 # in the summary (its first 5000 lines), and an annotation of its head (a warning
 # when a PHP port has differences); it does not fail the run
 if [ -s "$res/configure-check.txt" ]; then

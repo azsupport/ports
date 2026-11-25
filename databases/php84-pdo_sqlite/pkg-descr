@@ -1,4 +1,4 @@
-PDO_SQLITE: the SQLite 3 driver of PDO, with SQLite of the package az.
+PDO_SQLITE: the SQLite 3 driver of PDO, with SQLite of the package azsupport.
 
 The module pdo_sqlite of PHP 8.4 for php84 of azsupport/ports, which
 installs side by side with the other versions of PHP:

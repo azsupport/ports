@@ -30,12 +30,12 @@
 #   php%%PHP_VER%%-profile --list
 #       the profiles
 #
-# A profile name and a module name are [a-z0-9_]+. AZ_PHP_PREFIX takes the
+# A profile name and a module name are [a-z0-9_]+. AZSUPPORT_PHP_PREFIX takes the
 # place of %%PREFIX%% (for tests only).
 
 set -u
 v=%%PHP_VER%%
-prefix="${AZ_PHP_PREFIX:-%%PREFIX%%}"
+prefix="${AZSUPPORT_PHP_PREFIX:-%%PREFIX%%}"
 etc="$prefix/etc"
 def="$etc/php$v"
 me="php$v-profile"

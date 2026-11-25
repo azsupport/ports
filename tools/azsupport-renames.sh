@@ -1,20 +1,20 @@
 #!/bin/sh
-# az-renames.sh - move a server to the names of the packages of az of 21.11.2026: the
+# azsupport-renames.sh - move a server to the names of the packages of azsupport of 21.11.2026: the
 # version first, as php84 and php84-gd (phpXY-fpm, phpXY-cgi, node24-npm, ruby34 ...),
 # the modules of Apache with the Apache first (apache24-phpXY, before mod_phpXY;
 # apache24-mod_fastcgi ...), and the FPM and the CGI of PHP packages of their own
 # (phpXY-fpm with the rc.d script phpXY_fpm, phpXY-cgi), out of the core phpXY.
 #
-# Usage (as root, FreeBSD, the repository az configured):
-#   sh az-renames.sh            what it would do; nothing is changed
-#   sh az-renames.sh --apply    do it
+# Usage (as root, FreeBSD, the repository azsupport configured):
+#   sh azsupport-renames.sh            what it would do; nothing is changed
+#   sh azsupport-renames.sh --apply    do it
 #
 # What it does, in this order:
-#   1. pkg update -r az, in both modes (it changes no package);
-#   2. the packages of the repository az installed under an old name: the new name
+#   1. pkg update -r azsupport, in both modes (it changes no package);
+#   2. the packages of the repository azsupport installed under an old name: the new name
 #      for each (a package of another repository under an old name is left alone:
 #      the official ruby is not ours);
-#   3. PHP XY of az with the FPM or the CGI in its core (sbin/php-fpmXY, bin/php-cgiXY,
+#   3. PHP XY of azsupport with the FPM or the CGI in its core (sbin/php-fpmXY, bin/php-cgiXY,
 #      etc/rc.d/php_fpmXY): phpXY-fpm when rc.conf enables php_fpmXY (or profiles of it),
 #      it runs or a file names sbin/php-fpmXY; phpXY-cgi when php-cgiXY runs or a file
 #      names it: a file of /etc or /usr/local/etc (spawn-fcgi, the FastCGI of Apache), a
@@ -22,8 +22,8 @@
 #      suexec), a small file at most 4 levels under /var/www, /home or /usr/local/www;
 #      the php-fpm of the old rc.d script php_fpmXY stopped when it runs (with its
 #      profiles), started again as phpXY_fpm;
-#   4. pkg upgrade -r az (the core of PHP without its FPM and CGI), then pkg install -r
-#      az of the new names (pkg takes the packages of the old names away: the same
+#   4. pkg upgrade -r azsupport (the core of PHP without its FPM and CGI), then pkg install -r
+#      azsupport of the new names (pkg takes the packages of the old names away: the same
 #      files); pkg asks before each;
 #   5. in the files of 3, php-cgiXY becomes phpXY-cgi and sbin/php-fpmXY sbin/phpXY-fpm
 #      (sed, each file said);
@@ -73,7 +73,7 @@ refs_of() {
     esac
 }
 tab="$(printf '\t')"
-edits="$(mktemp "${TMPDIR:-/tmp}/az-renames.XXXXXXXX")" || { echo "$0: mktemp failed" >&2; exit 1; }
+edits="$(mktemp "${TMPDIR:-/tmp}/azsupport-renames.XXXXXXXX")" || { echo "$0: mktemp failed" >&2; exit 1; }
 trap 'rm -f "$edits"' EXIT
 
 # the old name and the new one
@@ -90,18 +90,18 @@ rubygem-rake:ruby34-rake rubygem-bundler:ruby34-bundler
 rubygem-passenger-nginx:ruby34-passenger-nginx virtualbox-ose-nox11-72:virtualbox72
 virtualbox-ose-kmod-72:virtualbox72-kmod virtualbox-ose-additions-nox11-72:virtualbox72-additions"
 
-say "== 1. the catalog of the repository az (pkg update changes no package)"
-pkg update -q -r az || { say "pkg update -r az failed: is the repository az configured?"; exit 1; }
+say "== 1. the catalog of the repository azsupport (pkg update changes no package)"
+pkg update -q -r azsupport || { say "pkg update -r azsupport failed: is the repository azsupport configured?"; exit 1; }
 
-say "== 2. the packages of az under an old name"
+say "== 2. the packages of azsupport under an old name"
 want=""
 apache=0; nginx=0
 for m in $map; do
     o="${m%%:*}"; n="${m#*:}"
     pkg info -e "$o" || continue
     r="$(repo_of "$o")"
-    if [ "$r" != az ]; then
-        say "$o: from the repository ${r:-unknown (pkg add of a file)}, not az: left alone"
+    if [ "$r" != azsupport ]; then
+        say "$o: from the repository ${r:-unknown (pkg add of a file)}, not azsupport: left alone"
         continue
     fi
     say "$o -> $n"
@@ -115,7 +115,7 @@ fpm_new=""
 for v in 56 74 81 82 83 84; do
     pkg info -e "php$v" || continue
     r="$(repo_of "php$v")"
-    [ "$r" = az ] || { say "php$v: from the repository ${r:-unknown}, not az: left alone"; continue; }
+    [ "$r" = azsupport ] || { say "php$v: from the repository ${r:-unknown}, not azsupport: left alone"; continue; }
     # the FPM: phpXY-fpm when rc.conf enables php_fpmXY (or a profile of it), it runs or
     # a file names sbin/php-fpmXY
     # (rc.conf alone: a run cut short after pkg upgrade, the core without its FPM)
@@ -139,7 +139,7 @@ for v in 56 74 81 82 83 84; do
                 printf '%s\t%s\t%s\n' "sbin/php-fpm$v" "sbin/php$v-fpm" "$f" >> "$edits"
             done
         else
-            say "php$v: its FPM is neither enabled nor running, no file names it: no php$v-fpm (pkg install -r az php$v-fpm when it is needed)"
+            say "php$v: its FPM is neither enabled nor running, no file names it: no php$v-fpm (pkg install -r azsupport php$v-fpm when it is needed)"
         fi
     fi
     # the CGI: phpXY-cgi when php-cgiXY runs or a file names it (bin/phpXY-cgi then)
@@ -156,23 +156,23 @@ for v in 56 74 81 82 83 84; do
             done
             [ -n "$refs" ] || say "  no file found that names php-cgi$v: change by hand what runs it to $P/bin/php$v-cgi"
         else
-            say "php$v: php-cgi$v does not run, no file names it (/etc, $P/etc, /var/cron/tabs, the #! lines of small files 4 levels under /var/www, /home, $P/www): no php$v-cgi (pkg install -r az php$v-cgi when it is needed: $P/bin/php$v-cgi)"
+            say "php$v: php-cgi$v does not run, no file names it (/etc, $P/etc, /var/cron/tabs, the #! lines of small files 4 levels under /var/www, /home, $P/www): no php$v-cgi (pkg install -r azsupport php$v-cgi when it is needed: $P/bin/php$v-cgi)"
         fi
     fi
     for f in "/etc/rc.conf.d/php_fpm$v" "$P/etc/rc.conf.d/php_fpm$v"; do
         [ -e "$f" ] && say "$f: there, not changed: its variables php_fpm${v}_* to php${v}_fpm_* by hand, as /etc/rc.conf below"
     done
 done
-[ -n "$want" ] || { say "nothing to move: no package of az under an old name, no FPM or CGI in a core of PHP"; exit 0; }
+[ -n "$want" ] || { say "nothing to move: no package of azsupport under an old name, no FPM or CGI in a core of PHP"; exit 0; }
 
-# every new package in the catalog of az before anything is changed: a catalog of before
+# every new package in the catalog of azsupport before anything is changed: a catalog of before
 # the new names (one level of x86-64 published before the other) stops it here
 miss=""
 for p in $want; do
-    [ -n "$(pkg rquery -r az '%n' "$p" 2> /dev/null)" ] || miss="$miss $p"
+    [ -n "$(pkg rquery -r azsupport '%n' "$p" 2> /dev/null)" ] || miss="$miss $p"
 done
 if [ -n "$miss" ]; then
-    say "not in the catalog of the repository az:$miss (its new names are not published for this server yet): nothing changed"
+    say "not in the catalog of the repository azsupport:$miss (its new names are not published for this server yet): nothing changed"
     exit 1
 fi
 
@@ -181,29 +181,29 @@ for v in $fpm_was; do
     run service "php_fpm$v" stop || { say "service php_fpm$v stop failed"; exit 1; }
 done
 
-say "== 4. pkg upgrade -r az, then the new names"
+say "== 4. pkg upgrade -r azsupport, then the new names"
 if [ "$apply" = 1 ]; then
-    if ! pkg upgrade -r az; then
-        say "pkg upgrade -r az failed or was refused: nothing more done"
+    if ! pkg upgrade -r azsupport; then
+        say "pkg upgrade -r azsupport failed or was refused: nothing more done"
         for v in $fpm_was; do
             [ -e "$P/etc/rc.d/php_fpm$v" ] && { service "php_fpm$v" start || say "service php_fpm$v start failed"; }
         done
         exit 1
     fi
     # shellcheck disable=SC2086
-    if ! pkg install -r az $want; then
-        say "pkg install -r az$want failed or was refused: nothing more done"
+    if ! pkg install -r azsupport $want; then
+        say "pkg install -r azsupport$want failed or was refused: nothing more done"
         [ -n "$fpm_was" ] && say "the FPM stopped:$fpm_was: sh $0 --apply again (it finds them in rc.conf)"
         exit 1
     fi
 else
-    say "# pkg upgrade -r az"
-    say "# pkg install -r az$want"
+    say "# pkg upgrade -r azsupport"
+    say "# pkg install -r azsupport$want"
 fi
 left=""
 for m in $map; do
     o="${m%%:*}"
-    [ "$apply" = 1 ] && pkg info -e "$o" && [ "$(repo_of "$o")" = az ] && left="$left $o"
+    [ "$apply" = 1 ] && pkg info -e "$o" && [ "$(repo_of "$o")" = azsupport ] && left="$left $o"
 done
 [ -n "$left" ] && say "still installed under an old name:$left (pkg delete them once their new packages are there)"
 

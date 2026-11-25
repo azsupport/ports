@@ -1,13 +1,13 @@
-# tools/az-hash-legacy.txt: the packages of the repository whose az_hash was made as
+# tools/azsupport-hash-legacy.txt: the packages of the repository whose azsupport_hash was made as
 # it was before 24.11.2026 (the commit of the official tree in the base of every hash,
 # no files of the official tree in the hash of a port, a dependency only to run by its
 # whole hash), kept as they are (tools/build.sh, hash_same): a line each,
-#   <level> <origin> <the az_hash of its package> <the az_hash of its port then>
-# A line counts while the az_hash of its port is the one it says: once the port
-# changes, its package is built again with the new az_hash and the line counts no
+#   <level> <origin> <the azsupport_hash of its package> <the azsupport_hash of its port then>
+# A line counts while the azsupport_hash of its port is the one it says: once the port
+# changes, its package is built again with the new azsupport_hash and the line counts no
 # more. Without these lines a new pin would build those packages again (their old
 # hash takes the commit of the official tree). From the plan run 45421497510 of
-# x86-64-v3 (24.11.2026): 646 packages; x86-64-v2 is built again with the new az_hash.
+# x86-64-v3 (24.11.2026): 646 packages; x86-64-v2 is built again with the new azsupport_hash.
 x86-64-v3 archivers/php56-bz2 430c28140301792da46867e1610a10647f70c06acc8a7bb1cb9751dd8321fe18 aeee8f439deca48178292db5ec759fe192136939410da182e8b9b592d88a28b6
 x86-64-v3 archivers/php56-phar 99ccadc4e9bba8bc061c3f259abbcb19effe790a68a019fa7cd588d77b4080e9 8c2d3a137ea943e1c71502626da1471df5b5267572f65550e6ed50cd454237a2
 x86-64-v3 archivers/php56-zip eeb88a4915d0c888b42bb8fc28f54280f1cadc24ff90c6058c85102cbd1217c3 fe2e195b91f5d6cceea692724c583cc111ced56f3955be744e01dfd4e9e5a76c
@@ -34,7 +34,7 @@ x86-64-v3 archivers/php84-zip e053500e1d159c86f7e855e855e1dbe827d1d6bbc221ffd657
 x86-64-v3 archivers/php84-zlib 6abbaa3338f577cac571698b562403ba2bed584c7431cfa03c1cb618fd202d1e fcc2bbea119b1018de4e64d2dd5c200646b05ee890ec845548c56fdec175c575
 x86-64-v3 archivers/unzip 54e91a0882803372209a45e67f95f35b11a701e7d87a08d4bcdc2e3e010cfcda d808e7f365faa91eee2ce9379164f9416b77bf1b0eb3cfbb319be176c937decf
 x86-64-v3 archivers/zip f47da14392ec2a49186704fa36772b9df1bbf16e7f931ef6086220ad00a40a93 e324760a41bacef23699573c461b4d4be7157a75a5c000681c5e086bfa1e168e
-x86-64-v3 az/az a5c182a5a03829cf96bb0c1217d6b5fdf9b01733bdf7156e55efa52d8ee4fffc 49388f9b27514b051fa1afbabeae1ad4b9364bade46be7b93ba61b45432342cc
+x86-64-v3 azsupport/azsupport a5c182a5a03829cf96bb0c1217d6b5fdf9b01733bdf7156e55efa52d8ee4fffc 49388f9b27514b051fa1afbabeae1ad4b9364bade46be7b93ba61b45432342cc
 x86-64-v3 converters/fribidi a5d82bf3f0f895f68cec897212ec86b36e1d1b82d0e06fcc7252fbcee225c90e b105d785d54729056a09532f5e1be2d83880c846ad0f436d5d4a92c0d76694b1
 x86-64-v3 converters/lua51-base64 131e1366c9c41fb7419023d726c6a64dd82763511c953db0afb643096cf8080e 2595a3d0f26cc78978439f140c1b81117c0eb391685789adb2811679dbcb7c7d
 x86-64-v3 converters/php56-iconv a21173b22e63ea0d587d84765ff3b90db559248b9eaec8eb9cf0719bffe8e6f2 58c1e109f5c90ec1d275058ca19c339d541c5463451f4be466ac59bb9c25b1f4

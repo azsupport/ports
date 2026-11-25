@@ -28,15 +28,15 @@
 #     on, a line each: Normalizer::normalize (the NFC of a decomposed letter),
 #     NumberFormatter, IntlDateFormatter (a fixed time, a pattern and UTC) and
 #     Collator (a German list) of de_DE, each against the exact string of ICU
-#     76 (the ICU of az); the time zone data: the version of
-#     IntlTimeZone::getTZDataVersion() that of the ICU patch of az
-#     (az/az/files/deps/icu-*.patch, its TZVersion) and America/Asuncion on
+#     76 (the ICU of azsupport); the time zone data: the version of
+#     IntlTimeZone::getTZDataVersion() that of the ICU patch of azsupport
+#     (azsupport/azsupport/files/deps/icu-*.patch, its TZVersion) and America/Asuncion on
 #     -03:00 in July 2026 (tz 2025a and later); locale_filter_matches() of a tag
 #     whose extensions ICU 70 and later canonicalize to keywords (5.6:
 #     devel/php56-intl/files/patch-icu70); MessageFormatter with 12 arguments
 #     (bug #74484);
 #   - ssh2 (phpXY-ssh2): ssh2_connect() to the sshd of this machine, the key
-#     exchange (libssh2 of az); SFTP against an sshd of the check (/usr/sbin/sshd
+#     exchange (libssh2 of azsupport); SFTP against an sshd of the check (/usr/sbin/sshd
 #     on 127.0.0.1, a port, keys and a config of its own in the temporary
 #     directory: root by its key only; stopped at the end): a file written and
 #     one read through ssh2.sftp:// with the SFTP resource in the URL (5.6, ssh2
@@ -44,14 +44,14 @@
 #     freebsd/pecl/ssh2-0.13.patch of the fork parses; 7.4 and later the number,
 #     intval($sftp)) and ssh2_sftp_stat(); curl (phpXY-curl): SCP and SFTP among
 #     the protocols of curl_version() (libcurl.so.4 of the package curl, with
-#     libssh2 of az);
-#   - gd (phpXY-gd): the libgd of az, imageantialias(), no XPM, a PNG; imagerotate()
+#     libssh2 of azsupport);
+#   - gd (phpXY-gd): the libgd of azsupport, imageantialias(), no XPM, a PNG; imagerotate()
 #     of a palette image by 0, 180 and, with IMG_NEAREST_NEIGHBOUR, 45 degrees
-#     (libgd #810 and #929, az/az/files/deps/gd-2.3.3.patch): truecolor images
+#     (libgd #810 and #929, azsupport/azsupport/files/deps/gd-2.3.3.patch): truecolor images
 #     of the right sizes and pixels, the image of the caller still there;
 #   - xsl (phpXY-xsl): a stylesheet with result tree fragments in variables,
 #     exsl:node-set() of them, a fragment per call of a template and key() on a
-#     fragment, 50 transformations in a row (libxslt of az, whose fragments are
+#     fragment, 50 transformations in a row (libxslt of azsupport, whose fragments are
 #     in lists of their own since CVE-2025-10911);
 #   - openssl (phpXY-openssl): https:// from a server of the same php on
 #     127.0.0.1 that answers and closes without close_notify (a TCP shutdown):
@@ -65,19 +65,19 @@
 #     among the plugins of phpinfo(), swoole and openswoole by SWOOLE_SSL;
 #   - readelf -d of every module of lib/php/<API> and of php, php-cgi, php-fpm and
 #     libphp of apache24-phpXY: the libraries they name (NEEDED) in /lib, /usr/lib or
-#     /usr/local/az/lib, the run path (RUNPATH) none or /usr/local/az/lib, which it
+#     /usr/local/azsupport/lib, the run path (RUNPATH) none or /usr/local/azsupport/lib, which it
 #     needs when it links a library there (no ldconfig hints); /usr/local/lib only
 #     for a library of a package the package of the file depends on (libpcre2-8 of
 #     devel/pcre2 for the core and apache24-phpXY, libcurl.so.4 of ftp/curl for curl);
-#   - the compiler of the same files (Mk/Uses/azgcc.mk), by the annotation az_cc
+#   - the compiler of the same files (Mk/Uses/azgcc.mk), by the annotation azsupport_cc
 #     of the package of each, its section .comment (the compilers of its objects)
-#     and its NEEDED: php, php-cgi, php-fpm and libphp of apache24-phpXY GCC <N> (az_cc
-#     gcc<N>; N is AZ_GCC of Mk/Uses/azgcc.mk), a module that of its az_cc; GCC:
+#     and its NEEDED: php, php-cgi, php-fpm and libphp of apache24-phpXY GCC <N> (azsupport_cc
+#     gcc<N>; N is AZSUPPORT_GCC of Mk/Uses/azgcc.mk), a module that of its azsupport_cc; GCC:
 #     "GCC: (...) <N>." in .comment and no libgcc_s.so.1 (-static-libgcc); clang
 #     (intl, swoole, openswoole, imagick, gmagick): no GCC in .comment (which the
 #     strip of the base system removes) and no libstdc++ of GCC (C++ with the
 #     libc++ of the base system); ioncube_loader.so of phpXY-ioncube is the binary
-#     of ionCube, built on FreeBSD 11 (no az_cc): the compiler its .comment names
+#     of ionCube, built on FreeBSD 11 (no azsupport_cc): the compiler its .comment names
 #     in an OK line, no check;
 #   - php-fpm -t with the configs of the package (php-fpm.conf, php-fpm.d/www.conf);
 #   - Apache with apache24-phpXY: apachectl -t with its sample as
@@ -93,8 +93,8 @@
 # the same lines go to results/check-php-<version>.txt (RESULTS=<dir> for another
 # directory; CHECK_TAG=<tag>: check-php-<version>-<tag>.txt and no time of
 # Zend/bench.php, as for the variants with OpenSSL that tools/install-php.sh
-# --openssl installs: CHECK_TAG=openssl). PREFIX (/usr/local), AZ_PREFIX
-# (/usr/local/az), AZ_GCC (the version of GCC, else that of Mk/Uses/azgcc.mk) and
+# --openssl installs: CHECK_TAG=openssl). PREFIX (/usr/local), AZSUPPORT_PREFIX
+# (/usr/local/azsupport), AZSUPPORT_GCC (the version of GCC, else that of Mk/Uses/azgcc.mk) and
 # DISTDIR (distfiles/ of this tree) can be set.
 # Exit status: 0 no check failed, 1 a check failed, 2 usage.
 
@@ -106,7 +106,7 @@ ver="$1"
 case "$ver" in [0-9].[0-9]) ;; *) usage ;; esac
 short="$(echo "$ver" | tr -d .)"
 P="${PREFIX:-/usr/local}"
-AZ="${AZ_PREFIX:-/usr/local/az}"
+AZ="${AZSUPPORT_PREFIX:-/usr/local/azsupport}"
 etc="$P/etc/php$short"
 php="$P/bin/php$short"
 fpm="$P/sbin/php$short-fpm"
@@ -114,10 +114,10 @@ modso="$P/libexec/apache24/libphp$short.so"
 modsample="$P/etc/apache24/modules.d/280_mod_php$short.conf.sample"
 case "$ver" in 5.*) apmod=php5_module ;; 7.*) apmod=php7_module ;; *) apmod=php_module ;; esac
 libdirs="/lib /usr/lib $AZ/lib"
-# this tree: the version of GCC of the PHP ports (AZ_GCC of Mk/Uses/azgcc.mk), the
+# this tree: the version of GCC of the PHP ports (AZSUPPORT_GCC of Mk/Uses/azgcc.mk), the
 # release tarballs of PHP (distfiles/php, as tools/build.sh fetches them)
 top="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)"
-gccv="${AZ_GCC:-$(sed -n 's/^AZ_GCC?=[[:space:]]*\([0-9][0-9]*\).*$/\1/p' "$top/Mk/Uses/azgcc.mk" 2>/dev/null | head -n 1)}"
+gccv="${AZSUPPORT_GCC:-$(sed -n 's/^AZSUPPORT_GCC?=[[:space:]]*\([0-9][0-9]*\).*$/\1/p' "$top/Mk/Uses/azgcc.mk" 2>/dev/null | head -n 1)}"
 distphp="${DISTDIR:-$top/distfiles}/php"
 
 res="${RESULTS:-results}"
@@ -193,8 +193,8 @@ elf_libs() {
         _libs="$_libs $_l"
         [ "$_w" = "$AZ/lib" ] && _inaz=1
     done
-    # each directory once: a module of phpize gets -rpath of az from LDFLAGS and again
-    # from its libtool (curl.so: /usr/local/az/lib:/usr/local/az/lib), the same path
+    # each directory once: a module of phpize gets -rpath of azsupport from LDFLAGS and again
+    # from its libtool (curl.so: /usr/local/azsupport/lib:/usr/local/azsupport/lib), the same path
     _rp="$(printf '%s\n' "$_d" | sed -n 's/.*[Ll]ibrary r[a-z]*path: \[\(.*\)\].*/\1/p' | tr ':' '\n' |
         awk 'NF && !s[$0]++ { printf "%s%s", (n++ ? ":" : ""), $0 }')"
     if [ -n "$_rp" ] && [ "$_rp" != "$AZ/lib" ]; then
@@ -210,9 +210,9 @@ elf_libs() {
     fi
 }
 
-# cc_check <file> [gcc]: the compiler of a file against the annotation az_cc of
+# cc_check <file> [gcc]: the compiler of a file against the annotation azsupport_cc of
 # its package (Mk/Uses/azgcc.mk: gcc<N> or clang; "gcc": the file must be of GCC).
-# gcc<N> (N: $gccv, AZ_GCC of Mk/Uses/azgcc.mk): the strings "GCC: (...) <N>.<...>"
+# gcc<N> (N: $gccv, AZSUPPORT_GCC of Mk/Uses/azgcc.mk): the strings "GCC: (...) <N>.<...>"
 # in its section .comment (each object leaves its compiler there; the start files
 # of the base system name clang too) and no NEEDED libgcc_s.so.1 (-static-libgcc);
 # clang: no GCC in .comment (which the strip of the base system removes) and no
@@ -222,27 +222,27 @@ cc_check() {
     [ -f "$_f" ] || { fail "$_n" "no $_f"; return; }
     _p="$(pkg which -q "$_f" 2>/dev/null)"
     [ -n "$_p" ] || { fail "$_n" "no package has $_f"; return; }
-    _a="$(pkg query '%At %Av' "$_p" 2>/dev/null | awk '$1 == "az_cc" { print $2; exit }')"
+    _a="$(pkg query '%At %Av' "$_p" 2>/dev/null | awk '$1 == "azsupport_cc" { print $2; exit }')"
     _c="$(readelf -p .comment "$_f" 2>/dev/null | sed -n 's/^ *\[ *[0-9a-fA-F]*\] *//p' | sort -u)"
     _d="$(readelf -d "$_f" 2>/dev/null | sed -n 's/.*[Ss]hared library: \[\(.*\)\].*/\1/p')"
     _g="$(printf '%s\n' "$_c" | sed -n 's/^GCC: (.*) \([0-9][0-9.]*\).*$/\1/p' | sort -u | tr '\n' ' ' | sed 's/ *$//')"
     _l="$(printf '%s\n' "$_c" | sed -n 's/^.*clang version \([0-9][0-9.]*\).*$/\1/p' | sort -u | tr '\n' ' ' | sed 's/ *$//')"
     _why=""
-    # what the file must be: the az_cc of its package, GCC of Mk/Uses/azgcc.mk for "gcc"
+    # what the file must be: the azsupport_cc of its package, GCC of Mk/Uses/azgcc.mk for "gcc"
     _w="$_a"
     case "$_a" in
         gcc[0-9]*|clang) ;;
-        '') _why=" $_p has no annotation az_cc (Mk/Uses/azgcc.mk);" ;;
-        *) _why=" $_p has az_cc $_a, neither gcc<N> nor clang;" ;;
+        '') _why=" $_p has no annotation azsupport_cc (Mk/Uses/azgcc.mk);" ;;
+        *) _why=" $_p has azsupport_cc $_a, neither gcc<N> nor clang;" ;;
     esac
     case "${2:-}:$_a" in
         gcc:gcc[0-9]*) ;;
-        gcc:*) _w="gcc$gccv"; [ -n "$_a" ] && _why="$_why $_p has az_cc $_a, not GCC;" ;;
+        gcc:*) _w="gcc$gccv"; [ -n "$_a" ] && _why="$_why $_p has azsupport_cc $_a, not GCC;" ;;
     esac
     case "$_w" in
         gcc*)
             if [ -n "$gccv" ] && [ "$_w" != "gcc$gccv" ]; then
-                _why="$_why $_p has az_cc $_w, not gcc$gccv (Mk/Uses/azgcc.mk);"
+                _why="$_why $_p has azsupport_cc $_w, not gcc$gccv (Mk/Uses/azgcc.mk);"
             fi
             if [ -z "$_c" ]; then
                 _why="$_why no section .comment (a strip that removes it: not the strip of the binutils of the ports, STRIPBIN);"
@@ -267,7 +267,7 @@ cc_check() {
     if [ -n "$_why" ]; then
         fail "$_n" "$(printf '%s' "${_why# }" | sed 's/;$//')"
     else
-        ok "$_n" "$_got ($_p: az_cc $_a)"
+        ok "$_n" "$_got ($_p: azsupport_cc $_a)"
     fi
 }
 
@@ -341,11 +341,11 @@ intl_checks() {
         $s = implode(" ", $a);
         $w = "Apfel \xC3\x84pfel Bar B\xC3\xA4r Ofen \xC3\x96sterreich Zebra";
         echo $s === $w ? "OK $s" : "FAIL $s, not $w";' "$@"
-    # the time zone data: that of the ICU patch of az (its TZVersion), and an offset
+    # the time zone data: that of the ICU patch of azsupport (its TZVersion), and an offset
     # that changed after the data of ICU 76.1 (tz 2024b): Paraguay on -03 all year
-    _tzv="$(sed -n 's/^+ *TZVersion { "\([0-9a-z]*\)" }.*$/\1/p' "$top"/az/az/files/deps/icu-*.patch 2> /dev/null | head -n 1)"
+    _tzv="$(sed -n 's/^+ *TZVersion { "\([0-9a-z]*\)" }.*$/\1/p' "$top"/azsupport/azsupport/files/deps/icu-*.patch 2> /dev/null | head -n 1)"
     if [ -z "$_tzv" ]; then
-        skip "intl: the time zone data" "no TZVersion in $top/az/az/files/deps/icu-*.patch"
+        skip "intl: the time zone data" "no TZVersion in $top/azsupport/azsupport/files/deps/icu-*.patch"
     else
         intl_check "intl: the time zone data" '
             $v = IntlTimeZone::getTZDataVersion();
@@ -353,8 +353,8 @@ intl_checks() {
                 "America/Asuncion", IntlDateFormatter::GREGORIAN, "xxx");
             $o = $f->format(1782907200);
             echo ($v === "'"$_tzv"'" && $o === "-03:00")
-                ? "OK tz $v (the ICU patch of az), America/Asuncion on 01.07.2026: $o"
-                : "FAIL tz $v (the ICU patch of az: '"$_tzv"'), America/Asuncion on 01.07.2026: "
+                ? "OK tz $v (the ICU patch of azsupport), America/Asuncion on 01.07.2026: $o"
+                : "FAIL tz $v (the ICU patch of azsupport: '"$_tzv"'), America/Asuncion on 01.07.2026: "
                     . var_export($o, true) . " (-03:00 since tz 2025a)";' "$@"
     fi
     # ICU 70 and later canonicalize the extensions of a tag to keywords
@@ -497,10 +497,10 @@ tls_check() {
     tls_pid=""
 }
 
-# the packages: the core, not the static PHP of az-menu.sh in its place
+# the packages: the core, not the static PHP of azsupport-menu.sh in its place
 pkg info -e "php$short" || fail "package php$short" "not installed"
 if pkg info -e "php$short-static"; then
-    fail "package php$short-static" "installed (the static PHP of az-menu.sh has the files of php$short)"
+    fail "package php$short-static" "installed (the static PHP of azsupport-menu.sh has the files of php$short)"
 fi
 if ! runs "php$short -v" "$php" -v; then
     say "result: $nok ok, $nfail failed, $nskip skipped ($sum)"
@@ -646,7 +646,7 @@ while read -r p; do
         intl_checks "$@"; intl_done=1
     fi
     # ssh2: the key exchange with the sshd of this machine (the VM has one): libssh2
-    # of az with the OpenSSL of the base system; curl: SCP and SFTP among its
+    # of azsupport with the OpenSSL of the base system; curl: SCP and SFTP among its
     # protocols (libcurl.so.4 of the package curl, with libssh2); the same way as intl
     if [ "$mod" = ssh2 ]; then
         if nc -z -w 5 127.0.0.1 22 2>/dev/null; then
@@ -660,11 +660,11 @@ while read -r p; do
         fi
         sftp_check "$@"
     fi
-    # gd: the libgd of az in every version (5.6 too, aZ 11.11.2026: not the bundled
+    # gd: the libgd of azsupport in every version (5.6 too, aZ 11.11.2026: not the bundled
     # one), imageantialias() with it (5.6: compat-gd-external.patch of the fork): a
     # line with pixels between black and white; no XPM (aZ 11.11.2026); a PNG
     if [ "$mod" = gd ]; then
-        intl_check "gd: the libgd of az, imageantialias(), no XPM, PNG" '
+        intl_check "gd: the libgd of azsupport, imageantialias(), no XPM, PNG" '
             $i = gd_info();
             $im = imagecreatetruecolor(32, 32);
             $aa = function_exists("imageantialias") && imageantialias($im, true);
@@ -706,7 +706,7 @@ while read -r p; do
                 : "FAIL " . implode("; ", $t) . " (wanted 0: truecolor 30x20; 180: 30x20, 29,19 255/0; 45 NN: truecolor 36x36; the source 0,0: 255/0)";' "$@"
     fi
     # xsl: fragments of results in variables, exsl:node-set() of them, a local fragment
-    # per call of a template, key() on a fragment, 50 times (libxslt of az: its
+    # per call of a template, key() on a fragment, 50 times (libxslt of azsupport: its
     # fragments in lists of their own since CVE-2025-10911)
     if [ "$mod" = xsl ]; then
         intl_check "xsl: result tree fragments, exsl:node-set(), key()" '
@@ -775,7 +775,7 @@ for f in "$php" "$P/bin/php$short-cgi" "$fpm"; do
     [ -f "$f" ] && elf_libs "$f"
 done
 
-# The compiler of the programs (GCC) and of the modules (that of the az_cc of
+# The compiler of the programs (GCC) and of the modules (that of the azsupport_cc of
 # their packages)
 for f in "$php" "$P/bin/php$short-cgi" "$fpm"; do
     [ -f "$f" ] && cc_check "$f" gcc
@@ -785,7 +785,7 @@ for so in "$extdir"/*.so; do
     case "${so##*/}" in
         ioncube_loader.so)
             # the binary of ionCube (devel/phpXY-ioncube), built on FreeBSD 11, not
-            # here: no annotation az_cc to hold it against
+            # here: no annotation azsupport_cc to hold it against
             ok "compiler of ${so#"$P"/}" "the binary of ionCube: $(readelf -p .comment "$so" 2>/dev/null | sed -n 's/^ *\[ *[0-9a-fA-F]*\] *//p' | grep -v '^\$FreeBSD' | sort -u | tr '\n' ' ' | sed 's/ *$//'), $(readelf -p .comment "$so" 2>/dev/null | sed -n 's#.*\$FreeBSD: \([a-z]*/[0-9.]*\)/.*#\1#p' | head -n 1)" ;;
         *) cc_check "$so" ;;
     esac
@@ -852,11 +852,11 @@ if [ -x "$cmp" ]; then
     if [ -z "$cw" ]; then fail "composer$short" "no DISTVERSION in devel/$cport/Makefile of this tree ($(first "$o"))"
     else case "$o" in *"Composer version $cw "*) ok "composer$short" "$(first "$o")" ;; *) fail "composer$short" "not $cw: $(last3 "$o")" ;; esac; fi
     mkdir -p "$tmp/composer-t/src"
-    printf '{"name": "az/t", "autoload": {"psr-4": {"Az\\\\T\\\\": "src/"}}}\n' > "$tmp/composer-t/composer.json"
-    printf '<?php\nnamespace Az\\T;\nclass A { const V = "composer of az"; }\n' > "$tmp/composer-t/src/A.php"
+    printf '{"name": "azsupport/t", "autoload": {"psr-4": {"Az\\\\T\\\\": "src/"}}}\n' > "$tmp/composer-t/composer.json"
+    printf '<?php\nnamespace Az\\T;\nclass A { const V = "composer of azsupport"; }\n' > "$tmp/composer-t/src/A.php"
     o="$(cd "$tmp/composer-t" && COMPOSER_HOME="$tmp/composer-home" COMPOSER_ALLOW_SUPERUSER=1 "$cmp" --no-ansi --no-interaction dump-autoload 2>&1 < /dev/null)"
     r="$("$php" -r 'require $argv[1]; echo \Az\T\A::V;' "$tmp/composer-t/vendor/autoload.php" 2>&1 < /dev/null)"
-    if [ "$r" = "composer of az" ]; then ok "composer$short dump-autoload" "a class of PSR-4 loaded by its autoloader"
+    if [ "$r" = "composer of azsupport" ]; then ok "composer$short dump-autoload" "a class of PSR-4 loaded by its autoloader"
     else fail "composer$short dump-autoload" "$(last3 "$o $r")"; fi
 else
     skip "composer$short" "no $cmp"

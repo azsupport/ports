@@ -1,4 +1,4 @@
-# devel/gh of azsupport/ports: the official port (Mk/az-official.mk), the command line
+# devel/gh of azsupport/ports: the official port (Mk/azsupport-official.mk), the command line
 # tool of GitHub (aZ, 20.11.2026: the steps of the builds on the runner in a jail of
 # FreeBSD, devel/github-act-runner, call gh api), on the git of our devel/git, with its
 # telemetry off unless the user turns it on (aZ, 21.11.2026: «ну конечно!»): gh sends
@@ -11,8 +11,8 @@
 #   opt-in, so without this one gh would still send it where nobody chose it.
 # Turning it on: gh config set telemetry enabled, or GH_TELEMETRY=1.
 
-AZ_OFFICIAL=	devel/gh
+AZSUPPORT_OFFICIAL=	devel/gh
 EXTRA_PATCHES=	${.CURDIR}/files/extra-patch-telemetry-opt-in:-p1 \
 		${.CURDIR}/files/extra-patch-telemetry-config-default:-p1
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

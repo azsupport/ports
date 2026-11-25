@@ -1,8 +1,8 @@
 #!/bin/sh
-# release-snapshot.sh - the repository of pkg of a release of build.yml (az-fbsd15-amd64-v3,
-# az-fbsd15-amd64-v2) kept also as a release of its own for each publish, one that never
+# release-snapshot.sh - the repository of pkg of a release of build.yml (azsupport-fbsd15-amd64-v3,
+# azsupport-fbsd15-amd64-v2) kept also as a release of its own for each publish, one that never
 # changes: <tag>-<YYYYMMDD>-<HHMM> (UTC) with the catalog and every package of that
-# repository, so that a server goes back to it by the url of its repository az, as a
+# repository, so that a server goes back to it by the url of its repository azsupport, as a
 # publish takes from the release the packages its repository has no more (aZ, 18.11.2026:
 # «может 31 последних версий будем хранить?», «чуть что я бы переключал индекс
 # репозитория на старее версию»). The old packages cannot stay in the release itself:
@@ -27,7 +27,7 @@
 # A snapshot is made at the head of main, as the release (build.yml: the token of a run
 # may not make a ref whose files of .github/workflows differ from those of main), and it
 # is never the latest release of the repository. A server goes back to one with its url
-# in /usr/local/etc/pkg/repos/az.conf (README.md, "A server and the repository az").
+# in /usr/local/etc/pkg/repos/azsupport.conf (README.md, "A server and the repository azsupport").
 # Exit status: 0 done, or nothing to do; 1 failed (before: then nothing is to be
 # published, the release as it is would be lost); 2 a wrong call.
 
@@ -146,7 +146,7 @@ put() {
 
 # the rest of the notes of a snapshot: how a server takes it
 howto() {
-    echo "A server goes back to it with url \"${GITHUB_SERVER_URL:-https://github.com}/$repo/releases/download/$1\" in /usr/local/etc/pkg/repos/az.conf, then pkg update -f -r az and pkg upgrade -f -r az (the packages of az as they were in it); back to the release with its url again, pkg update -f -r az, pkg upgrade -r az (README.md, A server and the repository az)."
+    echo "A server goes back to it with url \"${GITHUB_SERVER_URL:-https://github.com}/$repo/releases/download/$1\" in /usr/local/etc/pkg/repos/azsupport.conf, then pkg update -f -r azsupport and pkg upgrade -f -r azsupport (the packages of azsupport as they were in it); back to the release with its url again, pkg update -f -r azsupport, pkg upgrade -r azsupport (README.md, A server and the repository azsupport)."
 }
 
 before() {

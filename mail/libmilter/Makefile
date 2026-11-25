@@ -1,6 +1,6 @@
-# mail/libmilter of azsupport/ports: the official port as it is (Mk/az-official.mk),
+# mail/libmilter of azsupport/ports: the official port as it is (Mk/azsupport-official.mk),
 # the Sendmail milter library of py-pymilter (aZ, 19.11.2026).
 
-AZ_OFFICIAL=	mail/libmilter
+AZSUPPORT_OFFICIAL=	mail/libmilter
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

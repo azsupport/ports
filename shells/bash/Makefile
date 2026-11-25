@@ -1,8 +1,8 @@
-# shells/bash of azsupport/ports: the official port (Mk/az-official.mk) without
+# shells/bash of azsupport/ports: the official port (Mk/azsupport-official.mk) without
 # NLS (translations: gettext); with four fixes the official port lacks (12.11.2026;
 # each file of files/ says what and where from).
 
-AZ_OFFICIAL=	shells/bash
+AZSUPPORT_OFFICIAL=	shells/bash
 OPTIONS_EXCLUDE=	NLS
 # the saved status of an ended background job kept when a foreground child gets its
 # pid, and the exported environment made once for a command substitution (both from
@@ -15,5 +15,5 @@ EXTRA_PATCHES=	${.CURDIR}/files/patch-jobs.c-bgp_delete \
 		${.CURDIR}/files/patch-lib_readline_display.c-single-byte-prompt \
 		${.CURDIR}/files/patch-general.h-unsigned-char
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"
 

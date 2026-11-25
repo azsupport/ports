@@ -1,5 +1,5 @@
 DOM: XML documents through the Document Object Model API, with libxml2
-of the package az.
+of the package azsupport.
 
 The module dom of PHP 7.4 for php74 of azsupport/ports, which installs
 side by side with the other versions of PHP: lib/php/20190902/dom.so,

@@ -1,4 +1,4 @@
-AVIF written at 8 or 10 bits. SVT-AV1, the only AV1 encoder of the libheif of az,
+AVIF written at 8 or 10 bits. SVT-AV1, the only AV1 encoder of the libheif of azsupport,
 writes 8 and 10 bits ("Svt[error]: Encoder Bit Depth shall be only 8 or 10"), and
 ImageMagick gave it 12 for an image deeper than 10 bits: a canvas of xc: at the
 quantum depth (16) with 8-bit pixels composited on it, as the video sites make

@@ -1,6 +1,6 @@
 #!/bin/sh
 # tools/docs-check.sh <package>...: the packages with manual pages, documentation or info
-# pages (aZ, 20.11.2026: «и доки и маны мы не юзаем»; Mk/bsd.overlay.mk, az-no-docs,
+# pages (aZ, 20.11.2026: «и доки и маны мы не юзаем»; Mk/bsd.overlay.mk, azsupport-no-docs,
 # takes them out of every package).
 #
 # A line per package on the output:

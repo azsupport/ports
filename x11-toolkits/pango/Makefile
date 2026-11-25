@@ -3,14 +3,14 @@
 # vips_text; aZ, 18.11.2026 16:02: «да конечно» — the libraries sharp needs that we do
 # not have as ports of this tree become ours, shared, with the options of
 # sharp-libvips). As sharp-libvips builds it: Cairo (graphics/cairo), FreeType and
-# fontconfig (of az), HarfBuzz (print/harfbuzz), FriBidi (converters/fribidi), GLib
+# fontconfig (of azsupport), HarfBuzz (print/harfbuzz), FriBidi (converters/fribidi), GLib
 # (devel/glib20); no Xft, libthai, sysprof, utilities and tools (pango-view,
 # pango-list, pango-segmentation), documents, manual pages, examples, introspection,
 # tests. LTO (aZ, 18.11.2026 12:29).
 
 PORTNAME=	pango
 DISTVERSION=	1.58.2
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	x11-toolkits
 MASTER_SITES=	GNOME
 DIST_SUBDIR=	gnome
@@ -45,13 +45,13 @@ MESON_ARGS=	-Dcairo=enabled \
 		-Dsysprof=disabled \
 		-Dxft=disabled
 
-# gettext: the libintl.h of az for glib/gi18n-lib.h; png: the .pc Cairo requires
-# (Mk/az-libs.mk)
-AZ_LIBS=	fontconfig:libfontconfig.so \
+# gettext: the libintl.h of azsupport for glib/gi18n-lib.h; png: the .pc Cairo requires
+# (Mk/azsupport-libs.mk)
+AZSUPPORT_LIBS=	fontconfig:libfontconfig.so \
 		freetype2:libfreetype.so \
 		gettext:libintl.so \
 		png:libpng16.so
-.include "${.CURDIR:H:H}/Mk/az-libs.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-libs.mk"
 
 # without its utilities and tools (sharp-libvips)
 post-patch:

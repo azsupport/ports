@@ -1,4 +1,4 @@
-@comment The defaults of az for PHP 8.1, appended to the php.ini-production of
+@comment The defaults of azsupport for PHP 8.1, appended to the php.ini-production of
 @comment the tarball to make etc/php81/php.ini.sample (@sample: pkg copies it
 @comment to php.ini and keeps a changed php.ini), as for 7.4 (the head of
 @comment lang/php74/files/php.ini-az-74.in). The block of 8.3
@@ -9,7 +9,7 @@
 @comment buffer of 0, which keeps it off), and OPcache on for the CLI too
 @comment (opcache.enable_cli = 1, as for 7.4). The buffer is in the shared
 @comment memory of OPcache, next to opcache.memory_consumption. None of the
-@comment modules of az turns the JIT off (an extension that overrides
+@comment modules of azsupport turns the JIT off (an extension that overrides
 @comment zend_execute_ex or sets user opcode handlers does, with a warning at
 @comment each start; swoole 6.1 and openswoole set them only for EXIT and the
 @comment silence operator, which the JIT of 8.1 leaves out of that check, and
@@ -21,7 +21,7 @@
 @comment deprecation (only On does). Lines that begin with @comment are not in
 @comment the file (SUB_FILES drops them).
 
-; --- az: defaults of PHP 8.1, on top of php.ini-production above ---
+; --- azsupport: defaults of PHP 8.1, on top of php.ini-production above ---
 [PHP]
 expose_php = Off
 short_open_tag = On

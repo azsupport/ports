@@ -2,7 +2,7 @@
 # tools/strip-elf.sh <dir>...: strips the ELF programs and shared libraries under the
 # directories that are not stripped (aZ, 17.11.2026: no debug in our packages;
 # tools/debug-check.sh checks them), for the ports whose install copies the files as
-# they were linked: az/az (its tree), java/openjdk21 (the image of the JDK), devel/git,
+# they were linked: azsupport/azsupport (its tree), java/openjdk21 (the image of the JDK), devel/git,
 # www/mod_maxminddb (apxs), and the official ports graphics/libimagequant (cargo
 # cinstall), security/sudo (libsudo_util.so) and devel/t1lib (libt1.so).
 #

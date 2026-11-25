@@ -1,4 +1,4 @@
-ICU 70 and later (ICU 76 of the package az), as ext/intl of PHP 7.4.33 has
+ICU 70 and later (ICU 76 of the package azsupport), as ext/intl of PHP 7.4.33 has
 it (php-src 81b3f95622 and 52cda6fc43, Ben Ramsey, PHP 7.4.26; Gentoo carried
 both for its PHP 7.3 as php-icu-70.patch until 05.04.2022):
 - BreakIterator::operator== returns bool, so the override of PHP 5.6 (UBool)

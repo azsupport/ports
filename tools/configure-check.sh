@@ -1,5 +1,5 @@
 #!/bin/sh
-# configure-check.sh - the configure check of tools/build.sh (AZ_CONFIGURE_CHECK=1):
+# configure-check.sh - the configure check of tools/build.sh (AZSUPPORT_CONFIGURE_CHECK=1):
 # a PHP port configured by the build (strict: the flags of the port) is configured
 # once more with the same compiler and with the errors of C that GCC 14 and later
 # and clang 16 and later make of old code turned back into warnings (permissive),

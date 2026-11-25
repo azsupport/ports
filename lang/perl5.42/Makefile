@@ -1,4 +1,4 @@
-# lang/perl5.42 of azsupport/ports: the official port (Mk/az-official.mk), Perl 5.42
+# lang/perl5.42 of azsupport/ports: the official port (Mk/azsupport-official.mk), Perl 5.42
 # under the name of FreeBSD's (aZ, 11.11.2026: our Perl and Python under the package
 # names of FreeBSD, so that the p5-* packages of the FreeBSD repository work with
 # them). 5.42 is PERL5_DEFAULT of the pinned tree, so the package is perl5 with
@@ -21,7 +21,7 @@
 # framework refuses PERL5_DEFAULT set by a port (bsd.default-versions.mk, build.yml
 # 43022784709).
 
-AZ_OFFICIAL=	lang/perl5.42
+AZSUPPORT_OFFICIAL=	lang/perl5.42
 # the fix of CVE-2026-15534 (the superlinear cache of regexec.c), which 5.42.3 lacks:
 # two upstream commits of blead, as Ubuntu carries them
 EXTRA_PATCHES=	${.CURDIR}/files/patch-CVE-2026-15534
@@ -31,4 +31,4 @@ _AZ_PERL5_DEFAULT!=	sed -n 's/^PERL5_DEFAULT?=[[:space:]]*//p' ${PORTSDIR:U/usr/
 DEFAULT_VERSIONS+=	perl5=${_AZ_PERL5_DEFAULT}
 .endif
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

@@ -20,7 +20,7 @@
 # x-pack-ml (its native programs are for Linux, macOS and Windows). JNA of
 # devel/jna, as the official port: lib/jna.jar a link to its jna.jar, the bundled
 # jna-5.5.0.jar out (aZ linked lib/jna.jar to it by hand after every install of
-# the old package); devel/jna is ours (no X11 and JAWT, the libffi of az), and
+# the old package); devel/jna is ours (no X11 and JAWT, the libffi of azsupport), and
 # JNA loads its native library from the file of that package,
 # lib/jna/libjnidispatch.so (aZ, 12.11.2026; -Djna.boot.library.path and
 # -Djna.nounpack of jvm.options in place of -Djna.nosys): nothing unpacked or listed
@@ -56,7 +56,7 @@
 
 PORTNAME=	elasticsearch
 PORTVERSION=	6.8.23
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	textproc java devel
 MASTER_SITES=	https://artifacts.elastic.co/downloads/${PORTNAME}/
 PKGNAMESUFFIX=	6

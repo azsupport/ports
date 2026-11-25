@@ -10,8 +10,8 @@
 #
 # On the runner of build.yml, in the background (nohup), with GH_TOKEN (contents: write),
 # GITHUB_REPOSITORY, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT, GITHUB_REF_NAME and
-# GITHUB_WORKSPACE as GitHub Actions sets them; its files in AZ_RUNS_STATE (default
-# /tmp/az-runs), outside /home/runner/work: vmactions copies that whole tree into the
+# GITHUB_WORKSPACE as GitHub Actions sets them; its files in AZSUPPORT_RUNS_STATE (default
+# /tmp/azsupport-runs), outside /home/runner/work: vmactions copies that whole tree into the
 # VM at its start and back at its end, which put the files of the start back in
 # place of those written meanwhile (17.11.2026, run 44149788389: an empty log and no
 # id of the draft, which then stayed). Every <minutes> (5; the first time after
@@ -20,12 +20,12 @@
 # here with scp, its SHA-256 compared with that of the file in the VM, and uploaded to
 # the draft release wip-<part>-<branch>-<run>-<attempt> of this repository (a draft is
 # seen only by those who may push). The VM: the first host of ~/.ssh/config that answers
-# ssh, as for tools/runs-progress.sh. $AZ_RUNS_STATE/runs-save.id has the id of the
-# release, $AZ_RUNS_STATE/runs-save.tag its tag, $AZ_RUNS_STATE/runs-save/saved/ a file
+# ssh, as for tools/runs-progress.sh. $AZSUPPORT_RUNS_STATE/runs-save.id has the id of the
+# release, $AZSUPPORT_RUNS_STATE/runs-save.tag its tag, $AZSUPPORT_RUNS_STATE/runs-save/saved/ a file
 # per package saved. The next run of the branch takes the files of such drafts into repo/
 # before the VM starts (build.yml, "The packages saved by runs that did not end"), where
 # tools/build.sh keeps the newest package of each origin and builds no port whose
-# package has its az_hash; build.yml deletes the drafts of main once a publish has their
+# package has its azsupport_hash; build.yml deletes the drafts of main once a publish has their
 # packages (the release), delete-branches.yml those of a branch with it: a cache of the
 # repository alone is not enough, GitHub pushes caches out past 10 GB (17.11.2026: that
 # of main went while a branch saved its own, and 179 packages built and not published
@@ -41,7 +41,7 @@ every="${2:-5}"
 ws="${GITHUB_WORKSPACE:-$(pwd)}"
 cd "$ws" || exit 0
 repo="${GITHUB_REPOSITORY:?}"
-t="${AZ_RUNS_STATE:-/tmp/az-runs}"
+t="${AZSUPPORT_RUNS_STATE:-/tmp/azsupport-runs}"
 w="$t/runs-save"
 mkdir -p "$w/pkgs" "$w/saved" || exit 0
 branch="$(printf '%s' "${GITHUB_REF_NAME:-main}" | tr -c 'A-Za-z0-9._-' '-')"

@@ -1,7 +1,7 @@
 # www/apache24: the Apache of azsupport/ports in the place of the official
-# www/apache24 (aZ, 10.11.2026): the official port with APR and APR-util of az
+# www/apache24 (aZ, 10.11.2026): the official port with APR and APR-util of azsupport
 # (shared: httpd and the modules it loads, mod_php and mod_maxminddb, use them;
-# APR-util with the expat of az and SDBM, without database, LDAP and crypto
+# APR-util with the expat of azsupport and SDBM, without database, LDAP and crypto
 # drivers) and PCRE2 the shared library of devel/pcre2 of this tree (one PCRE2
 # for PHP, Apache, nginx), so that it takes no package but that one and perl (apxs
 # and the other scripts; the official one takes apr1, expat and pcre2), and only
@@ -11,7 +11,7 @@
 
 PORTNAME=	apache24
 PORTVERSION=	2.4.71
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	www
 MASTER_SITES=	APACHE_HTTPD
 DISTNAME=	httpd-${PORTVERSION}
@@ -25,13 +25,13 @@ WWW=		https://httpd.apache.org/ \
 LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-# the shared APR and APR-util of az (their run path: LDFLAGS below; not
-# LIB_DEPENDS: no ldconfig hints for ${AZ_PREFIX}/lib), PCRE2 of devel/pcre2 (its
+# the shared APR and APR-util of azsupport (their run path: LDFLAGS below; not
+# LIB_DEPENDS: no ldconfig hints for ${AZSUPPORT_PREFIX}/lib), PCRE2 of devel/pcre2 (its
 # pcre2-config: --with-pcre, as the official port)
-BUILD_DEPENDS=	${AZ_PREFIX}/lib/libapr-1.so:az/az \
-		${AZ_PREFIX}/lib/libaprutil-1.so:az/az
-RUN_DEPENDS=	${AZ_PREFIX}/lib/libapr-1.so:az/az \
-		${AZ_PREFIX}/lib/libaprutil-1.so:az/az
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libapr-1.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libaprutil-1.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libapr-1.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libaprutil-1.so:azsupport/azsupport
 LIB_DEPENDS=	libpcre2-8.so:devel/pcre2
 
 USES=		apache:server,2.4 autoreconf compiler:c11 cpe iconv libtool perl5 tar:bzip2
@@ -127,8 +127,8 @@ XML2ENC_USES=			gnome
 
 ETC_SUBDIRS=		Includes envvars.d extra modules.d
 
-APR_CONFIG?=		${AZ_PREFIX}/bin/apr-1-config
-APU_CONFIG?=		${AZ_PREFIX}/bin/apu-1-config
+APR_CONFIG?=		${AZSUPPORT_PREFIX}/bin/apr-1-config
+APU_CONFIG?=		${AZSUPPORT_PREFIX}/bin/apu-1-config
 APU_GDBM?=		${LOCALBASE}/lib/apr-util-1/apr_dbm_gdbm.so
 APU_LDAP?=		${LOCALBASE}/lib/apr-util-1/apr_ldap.so
 APU_CRYPTO_OPENSSL?=	${LOCALBASE}/lib/apr-util-1/apr_crypto_openssl.so
@@ -147,8 +147,8 @@ CONFIGURE_ARGS+=--prefix=${PREFIX_RELDEST} \
 
 CONFIGURE_ENV+=	LOCALBASE="${LOCALBASE}" \
 		CONFIG_SHELL="${SH}"
-# the run path of the APR of az for httpd and the support programs
-LDFLAGS+=	-Wl,-rpath,${AZ_PREFIX}/lib
+# the run path of the APR of azsupport for httpd and the support programs
+LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 MAKE_ENV+=	EXPR_COMPAT=yes \
 		INSTALL_MAN="${INSTALL_MAN}" \

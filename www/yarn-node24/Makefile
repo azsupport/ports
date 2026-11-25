@@ -1,7 +1,7 @@
-# www/yarn-node24 of azsupport/ports: the official port (Mk/az-official.mk), Yarn 1
+# www/yarn-node24 of azsupport/ports: the official port (Mk/azsupport-official.mk), Yarn 1
 # of our www/node24 (aZ, 11.11.2026), with bin/yarn (HADOOPCOMPAT off).
 
-AZ_OFFICIAL=	www/yarn-node24
+AZSUPPORT_OFFICIAL=	www/yarn-node24
 
 # The package node24-yarn (aZ, 21.11.2026: the name with the version first, as php84):
 # PKGNAMEPREFIX, and no PKGNAMESUFFIX (the -node24 of the official port) on the
@@ -10,4 +10,4 @@ AZ_OFFICIAL=	www/yarn-node24
 PKGNAMEPREFIX=	node24-
 .MAKEFLAGS:	PKGNAMESUFFIX= CONFLICTS_INSTALL="yarn-node[0-9][0-9] node[0-9][0-9]-yarn"
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

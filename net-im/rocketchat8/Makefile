@@ -29,9 +29,9 @@
 #   graphics/vips, static in its module, with the formats of sharp-libvips 1.3.4: JPEG,
 #   PNG, WebP, GIF, AVIF and HEIF, TIFF, SVG (librsvg), text (Pango, fontconfig), ICC,
 #   EXIF, Ultra HDR, the C++ API (aZ, 18.11.2026 15:26: «давай так»); its libraries the
-#   shared ones of az and of the ports of this tree (16:02: «да конечно»): expat, lcms2,
-#   libheif, mozjpeg, libpng, WebP, fontconfig, FreeType, libxml2, libintl of az (each
-#   with its own headers: Mk/az-libs.mk); GLib, cgif, libexif, Highway, libimagequant,
+#   shared ones of azsupport and of the ports of this tree (16:02: «да конечно»): expat, lcms2,
+#   libheif, mozjpeg, libpng, WebP, fontconfig, FreeType, libxml2, libintl of azsupport (each
+#   with its own headers: Mk/azsupport-libs.mk); GLib, cgif, libexif, Highway, libimagequant,
 #   libtiff, Cairo, Pango, HarfBuzz, FriBidi, librsvg, libultrahdr of this tree;
 #   libarchive and zlib of the base system; graphics/vips of nginx as it is;
 # - LTO wherever there is one: ThinLTO for the native modules and libsodium (sharp has
@@ -44,7 +44,7 @@
 
 PORTNAME=	rocketchat
 DISTVERSION=	8.9.1
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	net-im www
 MASTER_SITES=	https://cdn-download.rocket.chat/build/:bundle \
 		https://github.com/jedisct1/libsodium/releases/download/${RC_SODIUM}-RELEASE/:sodium \
@@ -71,7 +71,7 @@ BUILD_DEPENDS=	go:lang/go \
 		meson:devel/meson \
 		ninja:devel/ninja \
 		npm:www/npm-node24
-# the libraries of this tree sharp links (its libvips: below); those of az: AZ_LIBS
+# the libraries of this tree sharp links (its libvips: below); those of azsupport: AZSUPPORT_LIBS
 LIB_DEPENDS=	libcairo.so:graphics/cairo \
 		libcgif.so:graphics/cgif \
 		libexif.so:graphics/libexif \
@@ -183,7 +183,7 @@ RC_VIPS_PATCHES=	${.CURDIR:H:H}/graphics/vips/files/patch-gifload-height \
 		${.CURDIR:H:H}/graphics/vips/files/patch-libnsgif-lzw \
 		${.CURDIR:H:H}/graphics/vips/files/patch-pngload-cmf \
 		${.CURDIR:H:H}/graphics/vips/files/patch-webpload-height
-AZ_HASH_FILES=	${RC_VIPS_PATCHES}
+AZSUPPORT_HASH_FILES=	${RC_VIPS_PATCHES}
 # its options: those of sharp-libvips 1.3.4 (build/posix.sh), every feature not named
 # here on (auto_features), the static libraries with the C++ API
 RC_VIPS_MESON=	--prefix=${RC_VIPS_PREFIX} --libdir=lib --default-library=static \
@@ -203,20 +203,20 @@ RC_VIPS_ENV=	CC="${CC}" \
 		AR=llvm-ar \
 		RANLIB=llvm-ranlib \
 		NM=llvm-nm \
-		PKG_CONFIG_LIBDIR=${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR}
+		PKG_CONFIG_LIBDIR=${WRKDIR}/base-pc:${AZSUPPORT_LIBS_PKG_CONFIG_LIBDIR}
 RC_SERVER=	${WRKSRC}/programs/server
 RC_NM=		${RC_SERVER}/npm/node_modules
 RC_NODE=	${LOCALBASE}/bin/node
 RC_NODE_GYP=	${LOCALBASE}/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js
 # the C and C++ of the native modules and of libsodium: the flags of the build with
-# ThinLTO (clang and its lld); the headers of the libuv of az last (uv.h: node24 is on
-# the shared libuv of az, and node-gyp gives only include/node of the nodedir: build
+# ThinLTO (clang and its lld); the headers of the libuv of azsupport last (uv.h: node24 is on
+# the shared libuv of azsupport, and node-gyp gives only include/node of the nodedir: build
 # run 44313885867, "'uv.h' file not found")
 RC_ENV=		HOME=${WRKDIR} \
 		CC="${CC}" \
 		CXX="${CXX}" \
-		CFLAGS="${CFLAGS} -flto=thin -idirafter ${AZ_PREFIX}/include" \
-		CXXFLAGS="${CXXFLAGS} -flto=thin -idirafter ${AZ_PREFIX}/include" \
+		CFLAGS="${CFLAGS} -flto=thin -idirafter ${AZSUPPORT_PREFIX}/include" \
+		CXXFLAGS="${CXXFLAGS} -flto=thin -idirafter ${AZSUPPORT_PREFIX}/include" \
 		LDFLAGS="${LDFLAGS} -flto=thin" \
 		AR=llvm-ar \
 		RANLIB=llvm-ranlib \
@@ -248,9 +248,9 @@ RC_GO_ENV=	HOME=${WRKDIR} \
 		CGO_ENABLED=0 \
 		${RC_GOAMD64:S/^/GOAMD64=/}
 
-# the libraries of az of the libvips of sharp, each with its own headers (gettext: the
+# the libraries of azsupport of the libvips of sharp, each with its own headers (gettext: the
 # libintl.h of glib/gi18n.h; libxml2: the .pc librsvg requires)
-AZ_LIBS=	expat:libexpat.so \
+AZSUPPORT_LIBS=	expat:libexpat.so \
 		fontconfig:libfontconfig.so \
 		freetype2:libfreetype.so \
 		gettext:libintl.so \
@@ -260,7 +260,7 @@ AZ_LIBS=	expat:libexpat.so \
 		mozjpeg:libjpeg.so \
 		png:libpng16.so \
 		webp:libwebp.so
-.include "${.CURDIR:H:H}/Mk/az-libs.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-libs.mk"
 
 .include "${.CURDIR}/Makefile.npm"
 
@@ -407,20 +407,20 @@ do-build:
 	cd ${RC_VIPS_SRC} && ${SETENV} ${RC_VIPS_ENV} meson install -C _build --no-rebuild --tags devel
 # the .pc of it sharp reads (its binding.gyp: pkg-config --libs vips-cpp): libvips and
 # libvips-cpp static, the libraries they need shared (pkgconf --static: those of
-# Libs.private), the run path of az; the symbols of the archives not exported, the
+# Libs.private), the run path of azsupport; the symbols of the archives not exported, the
 # module kept loaded (the types of GLib cannot be unloaded)
 	@${MKDIR} ${WRKDIR}/vips-sharp-pc
-	@l="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/libdata/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --static --libs vips-cpp)" && \
-	c="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/libdata/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} pkgconf --cflags vips-cpp)" && \
+	@l="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/libdata/pkgconfig:${WRKDIR}/base-pc:${AZSUPPORT_LIBS_PKG_CONFIG_LIBDIR} pkgconf --static --libs vips-cpp)" && \
+	c="$$(${SETENV} PKG_CONFIG_LIBDIR=${RC_VIPS_PREFIX}/libdata/pkgconfig:${WRKDIR}/base-pc:${AZSUPPORT_LIBS_PKG_CONFIG_LIBDIR} pkgconf --cflags vips-cpp)" && \
 	${PRINTF} '%s\n' 'Name: vips-cpp' 'Description: libvips of net-im/rocketchat8, static' \
 		'Version: ${RC_VIPS}' \
-		"Libs: -L${LOCALBASE}/lib $$l -Wl,-rpath,${AZ_PREFIX}/lib -Wl,-z,nodelete -Wl,--exclude-libs=ALL" \
+		"Libs: -L${LOCALBASE}/lib $$l -Wl,-rpath,${AZSUPPORT_PREFIX}/lib -Wl,-z,nodelete -Wl,--exclude-libs=ALL" \
 		"Cflags: $$c" > ${WRKDIR}/vips-sharp-pc/vips-cpp.pc && \
 	${CAT} ${WRKDIR}/vips-sharp-pc/vips-cpp.pc
 	@${ECHO_MSG} "===>  sharp: node-gyp, on that libvips (pkg-config vips-cpp)"
 	cd ${RC_NM}/sharp/src && ${SETENV} ${RC_ENV} \
 		PKG_CONFIG_PATH=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/libdata/pkgconfig \
-		PKG_CONFIG_LIBDIR=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/libdata/pkgconfig:${WRKDIR}/base-pc:${AZ_LIBS_PKG_CONFIG_LIBDIR} \
+		PKG_CONFIG_LIBDIR=${WRKDIR}/vips-sharp-pc:${RC_VIPS_PREFIX}/libdata/pkgconfig:${WRKDIR}/base-pc:${AZSUPPORT_LIBS_PKG_CONFIG_LIBDIR} \
 		SHARP_FORCE_GLOBAL_LIBVIPS=1 ${RC_GYP}
 	@m="$$(${FIND} ${RC_NM}/sharp/src/build/Release -maxdepth 1 -name 'sharp-*.node')" && \
 	n="$$(/usr/bin/readelf -d $$m | ${GREP} NEEDED)" && \

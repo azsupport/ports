@@ -1,12 +1,12 @@
 # Patches of a port, brought up to the release of its take line
 
-`az/az/files/deps.conf` can build a library of `/usr/local/az` from a new upstream
+`azsupport/azsupport/files/deps.conf` can build a library of `/usr/local/azsupport` from a new upstream
 release before its FreeBSD port has it (a `take` line). The ports framework applies
 the patches of the port to it; when one of them no longer applies,
-`az/az/files/deps/<name>-<version>/` holds all the patches of that port, the failing ones
+`azsupport/azsupport/files/deps/<name>-<version>/` holds all the patches of that port, the failing ones
 brought up to the release, and the framework takes them from here instead
 (`PATCHDIR`). [`tools/deps-take-check.sh`](../../../../tools/deps-take-check.sh) (workflow
-[`deps-take-check.yml`](../../../../.github/workflows/deps-take-check.yml), "az take check")
+[`deps-take-check.yml`](../../../../.github/workflows/deps-take-check.yml), "azsupport take check")
 shows which patches apply; [`take-sources.yml`](../../../../.github/workflows/take-sources.yml)
 whether the release file of a take line is the same from every source.
 
@@ -22,8 +22,8 @@ have that fixes a vulnerability): ready for a security release of libiconv 1.19.
 
 ## Fixes the port lacks
 
-`az/az/files/deps/<name>-<version>.patch` (`-p0`, as the patches of `files/curl`, with
-`Description:` and `Origin:` on top) is applied by `tools/az-build.sh` after the patches
+`azsupport/azsupport/files/deps/<name>-<version>.patch` (`-p0`, as the patches of `files/curl`, with
+`Description:` and `Origin:` on top) is applied by `tools/azsupport-build.sh` after the patches
 of the port (or of the take line) when `<version>` is the version built (`DISTVERSION`
 of the port, or that of the take line); a file for another version stops the build, so
 that it gets reviewed when the port moves on. Only for a vulnerability that touches us,
@@ -34,7 +34,7 @@ line brings a release with it (`freetype2-2.14.3.patch`: FreeType 2.15.0, 22.11.
 |---|---|---|
 | `gd-2.3.3.patch` | `IMG_BICUBIC` (`GD_BICUBIC`, `GD_BICUBIC_FIXED`) in `gdImageSetInterpolationMethod()`: `imagesetinterpolation()` and `imagescale()` with it failed in PHP; CVE-2026-9672, the LZW decoder of GIF (`imagecreatefromgif()`): a row of its table and its state uninitialised, the data after the end code read on; `imagerotate()` of a palette image (GIF, PNG8): by 180 degrees libgd destroyed the image of the caller instead of its truecolor copy and rotated it then (#810: a use-after-free, and a double free when PHP frees it), by another angle with `IMG_NEAREST_NEIGHBOUR` it rotated the palette image itself (#929: a crash) | libgd [`39abd72`](https://github.com/libgd/libgd/commit/39abd7238cea2ba8baa4bcac1d6fc01c6cb8afab) (no release after 2.3.3), as Gentoo carries it; CVE-2026-9672 as [openSUSE](https://github.com/bmwiedemann/openSUSE/blob/master/packages/g/gd/gd-CVE-2026-9672.patch) carries it (bsc#1273101): the code of the libgd bundled in PHP; #810 and #929: libgd [`6cc1e39`](https://github.com/libgd/libgd/commit/6cc1e39e9fddd15ae74adb1a09fcd5740f44923e) and [`a656f5c`](https://github.com/libgd/libgd/commit/a656f5cc5592757996e9e96b0821a0966bfaa3b3), as Debian carries them (libgd2 2.3.3-16) |
 | `libxslt-1.1.45.patch` | CVE-2026-125350, use-after-free in the cache of direct pattern matches; CVE-2026-9947, a double free of the whitespace-only text of an `xsl:attribute` under `xml:space="preserve"`; CVE-2025-10911, a use-after-free through the cached result tree fragments, which XPath could reach on the `prev` and `next` of their documents (a list of their own now: fields of `xsltInternals.h` renamed, of the same size; unused by `ext/xsl`); CVE-2026-11196, a DTD in a template taken for elements (a type confusion); CVE-2026-87636, `document('')` with a base URI that does not resolve gave the stylesheet itself to the transformation (a stylesheet loaded from a string that reads itself so gets an empty node-set now: load it from a file, or set `DOMDocument::$documentURI`) | Chromium (06.11.2026), as Gentoo carries it (bug 986081); CVE-2026-9947 Chromium (20.04.2026), as [Alpine](https://github.com/alpinelinux/aports/blob/master/main/libxslt/CVE-2026-9947.patch) carries it; CVE-2025-10911 the fix of libxslt #144 (merge request 77), as Red Hat (RHEL 10) and Chromium [`abf266b`](https://chromium.googlesource.com/chromium/src/+/abf266b28588e4533242ca562ecb4be778d3e246) carry it (the same code on 1.1.45); CVE-2026-11196 Chromium [`f022d55`](https://chromium.googlesource.com/chromium/src/+/f022d55a424e6b5727681af0002b9e185b3b808b); CVE-2026-87636 Chromium [`8005fbd`](https://chromium.googlesource.com/chromium/src/+/8005fbd4ba5355dc88df069fd99bf76e3fd2b525), as [Alpine](https://github.com/alpinelinux/aports/blob/77c6bbe29ea4a9352138b3c974c3926f0ff3635e/main/libxslt/CVE-2026-87636.patch) and [Wolfi](https://github.com/wolfi-dev/os/tree/b05894c521b790b03b8f2dfe1bc573f7e31acb44/libxslt) carry them |
-| `libmcrypt-2.5.8.patch` | undefined behaviour of the rotations (shifts by 32 and more: CAST-256, and CAST-128 on a rotation by 0) and an uninitialised read in Twofish; the ciphertexts of every algorithm as before on amd64 (`tools/az-test.sh`) | [Gentoo](https://github.com/gentoo/gentoo/tree/master/dev-libs/libmcrypt/files) `rotate-mask` and `uninitialized` (Debian since 2.5.8-3), the mask extended to the other shift and to ROL of `cast-128.c` |
+| `libmcrypt-2.5.8.patch` | undefined behaviour of the rotations (shifts by 32 and more: CAST-256, and CAST-128 on a rotation by 0) and an uninitialised read in Twofish; the ciphertexts of every algorithm as before on amd64 (`tools/azsupport-test.sh`) | [Gentoo](https://github.com/gentoo/gentoo/tree/master/dev-libs/libmcrypt/files) `rotate-mask` and `uninitialized` (Debian since 2.5.8-3), the mask extended to the other shift and to ROL of `cast-128.c` |
 | `readline-8.3.6.patch` | the prompt with escape sequences in a single-byte locale after a recalled line that wrapped (readline83-004) | Kerin Millar, as [Gentoo](https://github.com/gentoo/gentoo/blob/master/sys-libs/readline/files/readline-8.3_p6-single-byte-prompt-reprint.patch) carries it (bug 984299); `shells/bash` carries it on its own readline |
 | `libde265-1.1.3.patch` | GHSA-gcwv-rhgp-4mpm: the conformance window of the SPS checked with a sum that could wrap, so the window libheif crops HEIC with reached beyond the picture; and the offsets of the window applied as bytes instead of samples to pictures of more than 8 bits | libde265 [`956cd8c`](https://github.com/strukturag/libde265/commit/956cd8c09ba9b368d711d23448588d04df7fb0ba) and [`4fb298e`](https://github.com/strukturag/libde265/commit/4fb298ec1af0686211dc2def73f4f41c2ce19ce5) (30.09.2026, after 1.1.3) |
 | `tidy-5.8.0.patch` | the attribute `type` of `<ol>` taken for one HTML5 does not allow: warned about by `tidy_parse_string()` and `tidy_repair_string()`, and dropped with `drop-proprietary-attributes` (tidy-html5 #1012) | tidy-html5 [`e411ad0`](https://github.com/htacg/tidy-html5/commit/e411ad0d2582471fe0961900b2789ee8b5b9cc4c) (no release after 5.8.0), as Gentoo carries it (bug 916074) |

@@ -1,10 +1,10 @@
 #!/bin/sh
-# tools/ubuntu/deb.sh - the Debian packages az-ffmpeg and az-imagemagick7 for Ubuntu
+# tools/ubuntu/deb.sh - the Debian packages azsupport-ffmpeg and azsupport-imagemagick7 for Ubuntu
 # 24.04 or 22.04 (amd64) from the stage of tools/ubuntu/build.sh, with the same files as its
 # archive (aZ, 25.11.2026: «насчет ффмпег и имеджмегик для убунту сделай и деб»):
 #
-#   az-ffmpeg        /usr/local/bin/ffmpeg, ffprobe, /usr/local/share/licenses/ffmpeg/
-#   az-imagemagick7  /usr/local/bin/magick and the names linked to it,
+#   azsupport-ffmpeg        /usr/local/bin/ffmpeg, ffprobe, /usr/local/share/licenses/ffmpeg/
+#   azsupport-imagemagick7  /usr/local/bin/magick and the names linked to it,
 #                    /usr/local/etc/ImageMagick-7 (our policy.xml),
 #                    /usr/local/share/ImageMagick-7, /usr/local/lib/ImageMagick-<version>,
 #                    /usr/local/share/licenses/ImageMagick7/
@@ -23,7 +23,7 @@
 # with ~ubuntu<release> (9.1-2511251200~ubuntu22.04): which build dpkg -s shows.
 #
 # Usage: sh tools/ubuntu/deb.sh <stage> <x86-64-v3|x86-64-v2> <out> <results> <24.04|22.04>
-# Files: <out>/az-ffmpeg-ubuntu<24|22>-amd64-<v3|v2>.deb, az-imagemagick7-ubuntu<24|22>-amd64-<v3|v2>.deb
+# Files: <out>/azsupport-ffmpeg-ubuntu<24|22>-amd64-<v3|v2>.deb, azsupport-imagemagick7-ubuntu<24|22>-amd64-<v3|v2>.deb
 # and a .sha256 of each; <results>/debs.txt (dpkg-deb --info of each).
 # Exit status: 0 built, 1 a package failed, 2 usage.
 
@@ -43,8 +43,8 @@ rel="ubuntu${ubuntu%%.*}"
 F=/usr/local
 L="$stage$F"
 [ -x "$L/bin/ffmpeg" ] && [ -x "$L/bin/magick" ] || { echo "ubuntu/deb: no $L/bin/ffmpeg or $L/bin/magick (tools/ubuntu/build.sh first)" >&2; exit 2; }
-work="$(mktemp -d "${TMPDIR:-/tmp}/az-deb.XXXXXX")" || exit 1
-rev="${AZ_DEB_REVISION:-$(date -u +%y%m%d%H%M)}"
+work="$(mktemp -d "${TMPDIR:-/tmp}/azsupport-deb.XXXXXX")" || exit 1
+rev="${AZSUPPORT_DEB_REVISION:-$(date -u +%y%m%d%H%M)}"
 src_ver() { awk -v n="$1" '$1 == n { print $2 }' "$sources"; }
 ffver="$(src_ver ffmpeg)"
 imver="$(src_ver imagemagick7 | tr '-' '.')"
@@ -64,7 +64,7 @@ if [ "$level" = v3 ]; then need="$v3flags"; else need="$v2flags"; fi
 shdeps() {
     d="$work/shlibdeps"
     rm -rf "$d" && mkdir -p "$d/debian" &&
-        printf 'Source: az\n\nPackage: az\nArchitecture: amd64\n' > "$d/debian/control" &&
+        printf 'Source: azsupport\n\nPackage: azsupport\nArchitecture: amd64\n' > "$d/debian/control" &&
         (cd "$d" && LD_LIBRARY_PATH=/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu dpkg-shlibdeps -O "$@" 2>> "$res/shlibdeps.log") |
         sed -n 's/^shlibs:Depends=//p'
 }
@@ -77,10 +77,10 @@ pkg() {
     rm -rf "$r" && mkdir -p "$r/DEBIAN" "$r$F/share/doc/$n/licenses" || return 1
     # the files, with their links, as in the stage
     (cd "$stage" && tar -cf - "$@") | (cd "$r" && tar -xpf -) || { echo "== $n: the files of the stage"; return 1; }
-    cp "$L/share/doc/az-$rel/VERSIONS" "$r$F/share/doc/$n/VERSIONS" || return 1
+    cp "$L/share/doc/azsupport-$rel/VERSIONS" "$r$F/share/doc/$n/VERSIONS" || return 1
     for l in $libs; do
-        [ -d "$L/share/licenses/az-$rel/$l" ] || { echo "== $n: no licence of $l in the stage"; return 1; }
-        cp -R "$L/share/licenses/az-$rel/$l" "$r$F/share/doc/$n/licenses/$l" || return 1
+        [ -d "$L/share/licenses/azsupport-$rel/$l" ] || { echo "== $n: no licence of $l in the stage"; return 1; }
+        cp -R "$L/share/licenses/azsupport-$rel/$l" "$r$F/share/doc/$n/licenses/$l" || return 1
     done
     {
         echo "$sum, of azsupport/ports (tools/ubuntu/build.sh, https://github.com/azsupport/ports)"
@@ -171,11 +171,11 @@ EOF
 rc=0
 ffbins="usr/local/bin/ffmpeg usr/local/bin/ffprobe"
 imbins="$(cd "$stage" && for b in usr/local/bin/*; do case "${b##*/}" in ffmpeg|ffprobe) ;; *) echo "$b" ;; esac; done)"
-pkg az-ffmpeg "$ffver" video "" "" "x264 dav1d svtav1 webp fdkaac nvcodec" \
+pkg azsupport-ffmpeg "$ffver" video "" "" "x264 dav1d svtav1 webp fdkaac nvcodec" \
     "FFmpeg $ffver for the video sites, with NVIDIA" "$work/ffmpeg.desc" \
     $ffbins usr/local/share/licenses/ffmpeg || rc=1
 # shellcheck disable=SC2086
-pkg az-imagemagick7 "$imver" graphics "fontconfig-config, fonts-dejavu-core" "" \
+pkg azsupport-imagemagick7 "$imver" graphics "fontconfig-config, fonts-dejavu-core" "" \
     "png mozjpeg webp freetype2 expat fontconfig lcms2 libde265 dav1d svtav1 libheif" \
     "ImageMagick $(src_ver imagemagick7) for the video sites" "$work/imagemagick7.desc" \
     $imbins usr/local/etc/ImageMagick-7 usr/local/share/ImageMagick-7 "usr/local/lib/$imdir" \

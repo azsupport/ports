@@ -1,4 +1,4 @@
-@comment The defaults of az for PHP 8.4, appended to the php.ini-production of
+@comment The defaults of azsupport for PHP 8.4, appended to the php.ini-production of
 @comment the tarball to make etc/php84/php.ini.sample (@sample: pkg copies it
 @comment to php.ini and keeps a changed php.ini), as for 7.4 (the head of
 @comment lang/php74/files/php.ini-az-74.in). The block of 8.3
@@ -10,7 +10,7 @@
 @comment 64M, so the JIT is off; 8.0-8.3 came with tracing and a buffer of 0),
 @comment and OPcache on for the CLI too (opcache.enable_cli = 1, as for every
 @comment version). The buffer is in the shared memory of OPcache, next to
-@comment opcache.memory_consumption. None of the modules of az turns the JIT
+@comment opcache.memory_consumption. None of the modules of azsupport turns the JIT
 @comment off (an extension that overrides zend_execute_ex or sets user opcode
 @comment handlers does, with a warning at each start; the JIT of 8.4 leaves
 @comment only the silence operator out of that check, exit being a function
@@ -30,7 +30,7 @@
 @comment allow_url_include = Off raises no deprecation (only On does). Lines
 @comment that begin with @comment are not in the file (SUB_FILES drops them).
 
-; --- az: defaults of PHP 8.4, on top of php.ini-production above ---
+; --- azsupport: defaults of PHP 8.4, on top of php.ini-production above ---
 [PHP]
 expose_php = Off
 short_open_tag = On

@@ -1,7 +1,7 @@
 # www/php82-fpm of azsupport/ports: the FPM of PHP 8.2 of azsupport/php-src, a port of its
 # own (aZ, 21.11.2026: «давай еще разделим php-cgi и php-fpm на отдельные порты и
 # соответственно phpXX-cgi phpXX-fpm и подредактируй название rc.d под новые названия
-# в php-fpm»; «тут тоже php84-»): lang/php82 with the SAPI fpm alone (AZ_PHP_SAPI), as www/mod_php82 has
+# в php-fpm»; «тут тоже php84-»): lang/php82 with the SAPI fpm alone (AZSUPPORT_PHP_SAPI), as www/mod_php82 has
 # the Apache module. sbin/php82-fpm; etc/php82/php-fpm.conf by @sample (pid
 # /var/run/php82-fpm.pid, log /var/log/php82-fpm.log), its pools in etc/php82/php-fpm.d (the pool www on /var/run/php82-fpm.sock);
 # share/php82/fpm/status.html; the rc.d script php82_fpm (php82_fpm_enable, the
@@ -16,7 +16,7 @@ PHP_PORT=	lang/php82
 MASTERDIR=	${.CURDIR}/../../${PHP_PORT}
 PKGDIR=		${.CURDIR}
 FILESDIR=	${.CURDIR}/files
-AZ_PHP_SAPI=	fpm
+AZSUPPORT_PHP_SAPI=	fpm
 
 OPTIONS_EXCLUDE=	CGI CLI EMBED PHPDBG
 OPTIONS_SLAVE=	FPM

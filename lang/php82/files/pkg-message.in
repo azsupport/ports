@@ -1,7 +1,7 @@
 [
 { type: install
   message: <<EOM
-php.ini: %%PREFIX%%/etc/php%%PHP_VER%%/php.ini is php.ini-production with the defaults of az at its end (the block "az: defaults"); errors go to /var/log/php%%PHP_VER%%_error.log (made at install for www, mode 666, when missing).
+php.ini: %%PREFIX%%/etc/php%%PHP_VER%%/php.ini is php.ini-production with the defaults of azsupport at its end (the block "azsupport: defaults"); errors go to /var/log/php%%PHP_VER%%_error.log (made at install for www, mode 666, when missing).
 Profiles, other configurations of php%%PHP_VER%%: php%%PHP_VER%%-profile --create <name> makes %%PREFIX%%/etc/php%%PHP_VER%%-<name> from etc/php%%PHP_VER%%, and php%%PHP_VER%%-profile <name> script.php runs PHP with it (more at the head of %%PREFIX%%/bin/php%%PHP_VER%%-profile).
 A crontab line: */10 * * * * %%PREFIX%%/bin/php%%PHP_VER%%-profile <name> /path/to/job.php
 EOM

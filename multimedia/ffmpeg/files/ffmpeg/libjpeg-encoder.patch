@@ -1,5 +1,5 @@
 The encoder libjpeg: JPEG pictures by the libjpeg API, with the library ffmpeg is
-linked with (mozjpeg of az here; libjpeg-turbo and jpegli have the same API), for
+linked with (mozjpeg of azsupport here; libjpeg-turbo and jpegli have the same API), for
 the formats of the screenshots of the video sites by ffmpeg alone, without
 ImageMagick (aZ, 25.11.2026 17:39: «пиши обёртку»).
 

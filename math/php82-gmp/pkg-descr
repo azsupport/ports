@@ -1,5 +1,5 @@
 GMP: arbitrary length integers with the GNU MP library of the package
-az.
+azsupport.
 
 The module gmp of PHP 8.2 for php82 of azsupport/ports, which installs
 side by side with the other versions of PHP: lib/php/20220829/gmp.so,

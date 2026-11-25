@@ -1,4 +1,4 @@
-@comment The defaults of az for PHP 7.4 (aZ, 08.11.2026): appended to the
+@comment The defaults of azsupport for PHP 7.4 (aZ, 08.11.2026): appended to the
 @comment php.ini-production of the tarball to make etc/php74/php.ini.sample
 @comment (@sample: pkg copies it to php.ini and keeps a changed php.ini);
 @comment php.ini-production and php.ini-development stay as they are. The
@@ -14,7 +14,7 @@
 @comment error_reporting = E_ALL & ~E_DEPRECATED and no session.sid_length and
 @comment session.sid_bits_per_character.
 
-; --- az: defaults of PHP 7.4, on top of php.ini-production above ---
+; --- azsupport: defaults of PHP 7.4, on top of php.ini-production above ---
 [PHP]
 expose_php = Off
 short_open_tag = On

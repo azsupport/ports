@@ -3,9 +3,9 @@
 # port went on 2025-09-03): the official port of its last state (freebsd-ports
 # d0f03d433e19, the parent of its removal f9d9e0a5dd66, the same as 2025Q3) with its
 # patches, Makefile.version, distinfo and pkg-descr, made as our www/node24: on the
-# shared libraries of az, with the run path /usr/local/az/lib (our ports link each
+# shared libraries of azsupport, with the run path /usr/local/azsupport/lib (our ports link each
 # other's shared libraries: aZ, 10.11.2026): brotli, c-ares, ICU, nghttp2 and libuv
-# of az instead of archivers/brotli, dns/c-ares, devel/icu, www/libnghttp2 and
+# of azsupport instead of archivers/brotli, dns/c-ares, devel/icu, www/libnghttp2 and
 # devel/libuv (Node 18 takes them newer than it bundles: the official port built
 # with those of the ports, ICU 76 with its patch-icu); llhttp of www/llhttp (9.4.3,
 # the llhttp the patches of SUSE below put into Node 18: llhttp 9 fills its
@@ -14,7 +14,7 @@
 # store of the base system, as node24: no security/ca_root_nss) and zlib of the base
 # system. Bundled, as Node 18 has no option for a shared one: ada 2.8.0 (no
 # --shared-ada; our devel/libada is ada 3), uvwasi 0.0.19 (no --shared-uvwasi; it
-# builds on the uv.h of az), HdrHistogram, simdutf and base64; GoogleTest goes into
+# builds on the uv.h of azsupport), HdrHistogram, simdutf and base64; GoogleTest goes into
 # the test program cctest only, which is not installed; ngtcp2 and nghttp3 are not
 # built (QUIC: Node 18 has it only with the QUIC API of an OpenSSL fork). Node 18
 # has no SQLite and no zstd. npm, Yarn and corepack: www/npm-node18,
@@ -31,7 +31,7 @@
 # nodejs18 18.20.8 of SUSE Linux Enterprise 15 SP4 LTSS (Adam Majer, 15.09.2026;
 # https://api.opensuse.org/public/source/SUSE:SLE-15-SP4:Update/nodejs18.46615), in
 # files/suse: CVE-2026-21637.patch, CVE-2025-59465.patch and cves.patch (without the
-# parts the libraries of az and www/llhttp take the place of: its header says
+# parts the libraries of azsupport and www/llhttp take the place of: its header says
 # which), applied in the order of SUSE (EXTRA_PATCHES, before the patches of the
 # official port, which touch other files): CVE-2025-23166, CVE-2025-23167 (llhttp
 # 9), CVE-2025-55131, CVE-2025-59465, CVE-2025-59466, CVE-2026-21637,
@@ -82,14 +82,14 @@
 # 20 and later); CVE-2026-105483 (code of Node 24 and later), CVE-2026-106070
 # (zlib.ZipFile of Node 26). The others of 2025 and 2026 are of the Permission
 # Model, node:sqlite, Windows or code of Node 20 and later; CVE-2026-111497 is in
-# the brotli of 18.20.8, not in the brotli 1.2.1 of az. llhttp 9.4.4 (22.23.5,
+# the brotli of 18.20.8, not in the brotli 1.2.1 of azsupport. llhttp 9.4.4 (22.23.5,
 # nodejs/node 554fff40f0) fixes the check of header values in its SIMD code of
 # arm64 (NEON) and WebAssembly; the C and SSE4.2 code of amd64 parses as 9.4.3
 # does, the llhttp of www/llhttp (a differential fuzzing of the two, 12.11.2026).
 
 PORTNAME=	node
 PORTVERSION=	${NODEJS_PORTVERSION}
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 DISTVERSIONPREFIX=	v
 CATEGORIES=	www
 MASTER_SITES=	https://nodejs.org/dist/v${PORTVERSION}/ \
@@ -112,11 +112,11 @@ BROKEN_SSL=	libressl libressl-devel
 BROKEN_SSL_REASON=	Node.js ${PORTVERSION:R:R}.x requires OpenSSL or the BUNDLED_SSL option enabled
 ONLY_FOR_ARCHS=	aarch64 amd64 armv6 armv7 i386 powerpc64 powerpc64le
 
-# the libraries of az that node links, with their run path
-AZ_NODE_LIBS=	libbrotlidec.so libcares.so libicui18n.so libnghttp2.so libuv.so
-BUILD_DEPENDS=	${AZ_NODE_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
+# the libraries of azsupport that node links, with their run path
+AZSUPPORT_NODE_LIBS=	libbrotlidec.so libcares.so libicui18n.so libnghttp2.so libuv.so
+BUILD_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
 LIB_DEPENDS=	libllhttp.so:www/llhttp
-RUN_DEPENDS=	${AZ_NODE_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@} \
+RUN_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@} \
 		node18-corepack>=0:www/corepack-node18
 
 # python: the configure of Node 18 takes Python 3.6 to 3.13
@@ -158,7 +158,7 @@ UNDICI_NODE=	22.23.4
 # llhttp: Node 18 links -lhttp_parser without --shared-http-parser-libname and has
 # no pkg-config name for it, so no -L either: the -L${LOCALBASE}/lib of
 # USES=localbase is in LIBS, which the makefiles of gyp set for each target
-# ("unable to find library -lllhttp": run 43053513194); it comes after the -L of az
+# ("unable to find library -lllhttp": run 43053513194); it comes after the -L of azsupport
 # of LDFLAGS on the command line of the linker. llhttp.h comes from
 # ${LOCALBASE}/include (USES=localbase).
 CONFIGURE_ARGS=	--prefix=${PREFIX:S|^${DESTDIR}||} \
@@ -174,12 +174,12 @@ CONFIGURE_ARGS=	--prefix=${PREFIX:S|^${DESTDIR}||} \
 		--without-corepack \
 		--without-npm
 # The configure of node takes the include directories and the -L of the shared
-# libraries from pkg-config: those of az first (brotli, c-ares, ICU, nghttp2,
-# libuv), then libssl and zlib of the base system. The -L of az goes before the
+# libraries from pkg-config: those of azsupport first (brotli, c-ares, ICU, nghttp2,
+# libuv), then libssl and zlib of the base system. The -L of azsupport goes before the
 # -L${LOCALBASE}/lib of USES=localbase, so that a library of the same name in
 # ${LOCALBASE}/lib (an official package of the build machine) is not taken instead.
-CONFIGURE_ENV=	PKG_CONFIG_LIBDIR=${AZ_PREFIX}/lib/pkgconfig:${LOCALBASE}/libdata/pkgconfig:/usr/libdata/pkgconfig
-LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+CONFIGURE_ENV=	PKG_CONFIG_LIBDIR=${AZSUPPORT_PREFIX}/lib/pkgconfig:${LOCALBASE}/libdata/pkgconfig:/usr/libdata/pkgconfig
+LDFLAGS+=	-L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 HAS_CONFIGURE=	yes
 MAKE_ENV=	CC.host="${CCACHE_BIN} ${CC}" \
 		CFLAGS.host="${CFLAGS}" \
@@ -241,16 +241,16 @@ post-configure:
 	# USES+=localbase # above will ensure that we pick up includes for real
 	# external dependencies.
 	@${FIND} ${WRKSRC}/out -type f -print0 | ${XARGS} -0 ${REINPLACE_CMD} -e "s|-I${LOCALBASE}/include||g"
-# the include directory of az, as pkg-config gave it
-	@${GREP} -q -- '${AZ_PREFIX}/include' ${WRKSRC}/config.gypi || \
-		{ ${ECHO_MSG} "config.gypi: no include directory ${AZ_PREFIX}/include (pkg-config of az)"; ${FALSE}; }
+# the include directory of azsupport, as pkg-config gave it
+	@${GREP} -q -- '${AZSUPPORT_PREFIX}/include' ${WRKSRC}/config.gypi || \
+		{ ${ECHO_MSG} "config.gypi: no include directory ${AZSUPPORT_PREFIX}/include (pkg-config of azsupport)"; ${FALSE}; }
 
 post-install:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/node
-# bin/node: the libraries of az by its run path, llhttp of www/llhttp, the base
+# bin/node: the libraries of azsupport by its run path, llhttp of www/llhttp, the base
 # system's OpenSSL and zlib
-	@${READELF} -d ${STAGEDIR}${PREFIX}/bin/node | ${GREP} -E -q '(RUNPATH|RPATH).*${AZ_PREFIX}/lib' || \
-		{ ${ECHO_MSG} "bin/node has no run path ${AZ_PREFIX}/lib"; ${FALSE}; }
+	@${READELF} -d ${STAGEDIR}${PREFIX}/bin/node | ${GREP} -E -q '(RUNPATH|RPATH).*${AZSUPPORT_PREFIX}/lib' || \
+		{ ${ECHO_MSG} "bin/node has no run path ${AZSUPPORT_PREFIX}/lib"; ${FALSE}; }
 .for l in libbrotlidec libcares libicui18n libnghttp2 libuv libllhttp libssl libcrypto libz
 	@${READELF} -d ${STAGEDIR}${PREFIX}/bin/node | ${GREP} -q 'Shared library: \[${l}\.so' || \
 		{ ${ECHO_MSG} "bin/node does not link ${l}"; ${FALSE}; }

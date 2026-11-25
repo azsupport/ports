@@ -11,7 +11,7 @@
 PORTNAME=	luajit
 DISTVERSIONPREFIX=	v
 DISTVERSION=	2.1-20261107
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	lang
 PKGNAMESUFFIX=	-openresty
 
@@ -36,7 +36,7 @@ USE_LDCONFIG=	yes
 # CCDEBUG empty: the src/Makefile of OpenResty sets CCDEBUG= -g (that of LuaJIT leaves it
 # empty), and the strip of post-install does not reach the static library: its
 # lib/libluajit-5.1.a went out with debug information (tools/debug-check.sh on the
-# release az-fbsd15-amd64-v3, 18.11.2026); with it empty its install strips as LuaJIT's
+# release azsupport-fbsd15-amd64-v3, 18.11.2026); with it empty its install strips as LuaJIT's
 # does (TARGET_STRIP)
 MAKE_ARGS=	CC=${CC} Q= CCDEBUG=
 

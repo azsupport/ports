@@ -1,7 +1,7 @@
 # www/php74-fpm of azsupport/ports: the FPM of PHP 7.4 of azsupport/php-src, a port of its
 # own (aZ, 21.11.2026: «давай еще разделим php-cgi и php-fpm на отдельные порты и
 # соответственно phpXX-cgi phpXX-fpm и подредактируй название rc.d под новые названия
-# в php-fpm»; «тут тоже php84-»): lang/php74 with the SAPI fpm alone (AZ_PHP_SAPI), as www/mod_php74 has
+# в php-fpm»; «тут тоже php84-»): lang/php74 with the SAPI fpm alone (AZSUPPORT_PHP_SAPI), as www/mod_php74 has
 # the Apache module. sbin/php74-fpm; etc/php74/php-fpm.conf by @sample (pid
 # /var/run/php74-fpm.pid, log /var/log/php74-fpm.log), its pools in etc/php74/php-fpm.d (the pool www on /var/run/php74-fpm.sock);
 # share/php74/fpm/status.html; the rc.d script php74_fpm (php74_fpm_enable, the
@@ -20,7 +20,7 @@ MASTERDIR=	${.CURDIR}/../../${PHP_PORT}
 PHP_VER=	74
 PKGDIR=		${.CURDIR}
 FILESDIR=	${.CURDIR}/files
-AZ_PHP_SAPI=	fpm
+AZSUPPORT_PHP_SAPI=	fpm
 
 OPTIONS_EXCLUDE=	CGI CLI EMBED PHPDBG
 OPTIONS_SLAVE=	FPM

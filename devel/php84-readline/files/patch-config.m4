@@ -1,4 +1,4 @@
-GNU readline of az, as php74-readline. phpize makes every option of config.m4
+GNU readline of azsupport, as php74-readline. phpize makes every option of config.m4
 yes (PHP_ALWAYS_SHARED of scripts/phpize.m4: no becomes yes), so --with-libedit
 won and --with-readline was never asked for (configure: Package requirements
 (libedit) were not met; build.yml 42526293332): --with-readline is asked for

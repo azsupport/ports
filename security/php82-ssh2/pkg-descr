@@ -5,4 +5,4 @@ secure cryptographic transport.
 PECL ssh2 for php82 of azsupport/ports, built from ext/ssh2 of the
 release tarball of azsupport/php-src, which bundles it:
 lib/php/20220829/ssh2.so, loaded by its ini in etc/php82/conf.d, with the
-libssh2 of the package az (/usr/local/az/lib).
+libssh2 of the package azsupport (/usr/local/azsupport/lib).

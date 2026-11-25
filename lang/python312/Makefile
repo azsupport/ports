@@ -11,20 +11,20 @@
 #   tools/make.conf.in; the official package has it): the locale module without
 #   bindtextdomain and gettext (the gettext module of Python reads .mo files
 #   itself); no DTrace either way (CPython only with --with-dtrace);
-# - libffi (_ctypes), expat (pyexpat) and readline (readline) of az, and libintl
-#   (the locale module of libpython) with NLS, with the run path /usr/local/az/lib, instead
+# - libffi (_ctypes), expat (pyexpat) and readline (readline) of azsupport, and libintl
+#   (the locale module of libpython) with NLS, with the run path /usr/local/azsupport/lib, instead
 #   of devel/libffi, textproc/expat2, devel/readline and devel/gettext-runtime:
-#   the package takes no package but az and mpdecimal; OpenSSL (_ssl, _hashlib),
+#   the package takes no package but azsupport and mpdecimal; OpenSSL (_ssl, _hashlib),
 #   ncurses, zlib, bzip2 and liblzma of the base system, as the official one;
-# - the build sees of /usr/local only az (its include directory, libraries and .pc
+# - the build sees of /usr/local only azsupport (its include directory, libraries and .pc
 #   files) and libmpdec (mpdecimal.h and libmpdec.so alone in a directory of the
 #   work), not ${LOCALBASE}/include and ${LOCALBASE}/lib of USES=readline and NLS:
 #   no other package of the build machine gets into a module;
-# - after the install: libpython and the modules link the libraries of az by their
+# - after the install: libpython and the modules link the libraries of azsupport by their
 #   run path, _decimal libmpdec, _ssl and _hashlib the OpenSSL of the base system;
 # - the C compiled by GCC 16 of the ports instead of the base clang (USES=azgcc,
 #   Mk/Uses/azgcc.mk; a build dependency only), aZ 17.11.2026 («а) Python, Redis и
-#   xxhash в az»): tools/prog-bench.sh measured Python 3.12.16 built with GCC 16
+#   xxhash в azsupport»): tools/prog-bench.sh measured Python 3.12.16 built with GCC 16
 #   against the base clang 19 (pyperformance --fast, 25 benchmarks, prog-bench run
 #   44043639827): faster in all of them, by 1.3% to 22.3%, the median 14.9%. After the
 #   install sysconfig names the compilers of the base system (cc, c++ and cpp in its
@@ -32,16 +32,16 @@
 #   with this Python (pip, setuptools) takes the base clang, not GCC, which a server
 #   has not.
 # As in the official port: no _gdbm, _tkinter and _sqlite3 (aZ: gdbm and tkinter
-# not needed; py312-sqlite3 is our databases/py-sqlite3, on the SQLite of az). The
+# not needed; py312-sqlite3 is our databases/py-sqlite3, on the SQLite of azsupport). The
 # flags of the build go into sysconfig as there: an extension built with this
-# Python (pip) links with the -L and the run path of az too.
+# Python (pip) links with the -L and the run path of azsupport too.
 # The version is that of the official port: Mk/Uses/python.mk reads its
 # Makefile.version after the one here, which (with distinfo and pkg-plist) is of
 # that version; the port says IGNORE when the official tree is at another one.
 
 PORTNAME=	python
 DISTVERSION=	${PYTHON_DISTVERSION}
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	lang python
 MASTER_SITES=	PYTHON/ftp/python/${DISTVERSION:C/[a-z].*//}
 PKGNAMESUFFIX=	${PYTHON_SUFFIX}
@@ -68,11 +68,11 @@ WWW=		https://www.python.org/ \
 
 LICENSE=	PSFL
 
-# the libraries of az, to build and to run (no ldconfig hints for /usr/local/az/lib:
+# the libraries of azsupport, to build and to run (no ldconfig hints for /usr/local/azsupport/lib:
 # by a file); libintl with NLS
-AZ_PYTHON_LIBS=	libexpat.so libffi.so libreadline.so
-BUILD_DEPENDS=	${AZ_PYTHON_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
-RUN_DEPENDS=	${AZ_PYTHON_LIBS:@l@${AZ_PREFIX}/lib/${l}:az/az@}
+AZSUPPORT_PYTHON_LIBS=	libexpat.so libffi.so libreadline.so
+BUILD_DEPENDS=	${AZSUPPORT_PYTHON_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
+RUN_DEPENDS=	${AZSUPPORT_PYTHON_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
 
 USES=		compiler:c11 cpe ncurses pathfix pkgconfig \
 		python:${PYTHON_DISTVERSION:R},env shebangfix ssl tar:xz
@@ -95,12 +95,12 @@ CONFIGURE_ENV+=		OPT="" # Null out OPT to respect user CFLAGS and remove optimiz
 # compile too: libpython3.12.a came with debug information (debug-check, build run
 # 44059209484); no debug in our builds (aZ, 17.11.2026)
 CONFIGURE_ENV+=		ac_cv_prog_cc_g=no
-# az and the base system: the include directory and the libraries of az (expat.h
+# azsupport and the base system: the include directory and the libraries of azsupport (expat.h
 # and -lexpat of --with-system-expat, libintl), with their run path; pkg-config
-# (libffi, readline) sees the .pc files of az and of the base system only
-CONFIGURE_ENV+=		PKG_CONFIG_LIBDIR=${AZ_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig
-CPPFLAGS+=		-I${AZ_PREFIX}/include
-LDFLAGS+=		-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+# (libffi, readline) sees the .pc files of azsupport and of the base system only
+CONFIGURE_ENV+=		PKG_CONFIG_LIBDIR=${AZSUPPORT_PREFIX}/lib/pkgconfig:/usr/libdata/pkgconfig
+CPPFLAGS+=		-I${AZSUPPORT_PREFIX}/include
+LDFLAGS+=		-L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 INSTALL_TARGET=		altinstall					# Don't want cloberring of unprefixed files
 
@@ -157,9 +157,9 @@ LTO_CONFIGURE_ON=	--with-lto
 # Use CPPFLAGS over CFLAGS due to -I ordering, causing elementtree and pyexpat
 # to break in Python 2.7, or preprocessor complaints in Python >= 3.3
 # Upstream Issue: https://bugs.python.org/issue6299
-# libintl of az (its include directory and -L: CPPFLAGS and LDFLAGS above)
-NLS_BUILD_DEPENDS=	${AZ_PREFIX}/lib/libintl.so:az/az
-NLS_RUN_DEPENDS=	${AZ_PREFIX}/lib/libintl.so:az/az
+# libintl of azsupport (its include directory and -L: CPPFLAGS and LDFLAGS above)
+NLS_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport
+NLS_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport
 NLS_LIBS=		-lintl
 NLS_CONFIGURE_ENV_OFF=	ac_cv_lib_intl_textdomain=no ac_cv_header_libintl_h=no
 
@@ -196,9 +196,9 @@ CONFIGURE_ENV+=	ac_cv_working_openssl_hashlib=yes
 
 # the version of Makefile.version here (PYTHON_DISTVERSION is that of the official
 # port by now) and of the official port
-AZ_PYTHON_DISTVERSION!=	${SED} -n 's/^PYTHON_DISTVERSION=[[:space:]]*//p' ${.CURDIR}/Makefile.version
-.if ${AZ_PYTHON_DISTVERSION} != ${PYTHON_DISTVERSION}
-IGNORE=		is Python ${AZ_PYTHON_DISTVERSION} (Makefile.version, distinfo, pkg-plist), the official port ${PYTHON_DISTVERSION}: bring it to that version
+AZSUPPORT_PYTHON_DISTVERSION!=	${SED} -n 's/^PYTHON_DISTVERSION=[[:space:]]*//p' ${.CURDIR}/Makefile.version
+.if ${AZSUPPORT_PYTHON_DISTVERSION} != ${PYTHON_DISTVERSION}
+IGNORE=		is Python ${AZSUPPORT_PYTHON_DISTVERSION} (Makefile.version, distinfo, pkg-plist), the official port ${PYTHON_DISTVERSION}: bring it to that version
 .endif
 
 # llvm17 with -flto=thin makes Programs/_freeze_module crash on armv7; workaround
@@ -251,11 +251,11 @@ post-install:
 # the compilers of the build in sysconfig (GCC of USES=azgcc, its CC with -static-libgcc):
 # those of the base system instead, which an extension built on a server takes (pip,
 # setuptools); the bytecode of _sysconfigdata again
-.if ${AZ_GCC} != no
-	@${SED} -i '' -e 's|gcc${AZ_GCC} -static-libgcc|cc|g' -e 's|g++${AZ_GCC}|c++|g' -e 's|cpp${AZ_GCC}|cpp|g' \
+.if ${AZSUPPORT_GCC} != no
+	@${SED} -i '' -e 's|gcc${AZSUPPORT_GCC} -static-libgcc|cc|g' -e 's|g++${AZSUPPORT_GCC}|c++|g' -e 's|cpp${AZSUPPORT_GCC}|cpp|g' \
 		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/_sysconfigdata_${ABIFLAGS}_freebsd${OSREL:R}_.py \
 		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/config-${PYTHON_VER}${ABIFLAGS}/Makefile
-	@if ${GREP} -E -n 'gcc${AZ_GCC}|g\+\+${AZ_GCC}|cpp${AZ_GCC}' \
+	@if ${GREP} -E -n 'gcc${AZSUPPORT_GCC}|g\+\+${AZSUPPORT_GCC}|cpp${AZSUPPORT_GCC}' \
 		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/_sysconfigdata_${ABIFLAGS}_freebsd${OSREL:R}_.py \
 		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/config-${PYTHON_VER}${ABIFLAGS}/Makefile; then \
 		${ECHO_MSG} "sysconfig still names GCC (above)"; ${FALSE}; fi
@@ -265,7 +265,7 @@ post-install:
 .endif
 	for i in ${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/lib-dynload/*.so; do \
 		${STRIP_CMD} $$i; done								# Strip shared extensions
-.if ${AZ_GCC} != no
+.if ${AZSUPPORT_GCC} != no
 # GCC 16 in the section .comment of libpython and python3.12, as python-test.sh of
 # azsupport/azsupport checks it: the strip of the base system removes the section,
 # that of the binutils of the ports keeps it (17.11.2026: the package of run
@@ -282,11 +282,11 @@ post-install:
 .endif
 	${INSTALL_DATA} ${WRKSRC}/Tools/gdb/libpython.py \
 		${STAGEDIR}${PREFIX}/lib/libpython${PYTHON_VER}${ABIFLAGS}.so.1.0-gdb.py
-# the libraries of az by the run path of libpython and of the modules, libmpdec of
+# the libraries of azsupport by the run path of libpython and of the modules, libmpdec of
 # math/mpdecimal, the OpenSSL of the base system
 	@${READELF} -d ${STAGEDIR}${PREFIX}/lib/libpython${PYTHON_VER}${ABIFLAGS}.so.1.0 | \
-		${GREP} -E -q '(RUNPATH|RPATH).*${AZ_PREFIX}/lib' || \
-		{ ${ECHO_MSG} "libpython${PYTHON_VER}${ABIFLAGS}.so.1.0 has no run path ${AZ_PREFIX}/lib"; ${FALSE}; }
+		${GREP} -E -q '(RUNPATH|RPATH).*${AZSUPPORT_PREFIX}/lib' || \
+		{ ${ECHO_MSG} "libpython${PYTHON_VER}${ABIFLAGS}.so.1.0 has no run path ${AZSUPPORT_PREFIX}/lib"; ${FALSE}; }
 .for m l in _ctypes libffi pyexpat libexpat readline libreadline _ssl libssl _hashlib libcrypto
 	@f="$$(${LS} ${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/lib-dynload/${m}.cpython-*.so)" && \
 		${READELF} -d "$$f" | ${GREP} -q 'Shared library: \[${l}\.so' || \
@@ -294,8 +294,8 @@ post-install:
 .endfor
 .for m in _ctypes pyexpat readline
 	@${READELF} -d ${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/lib-dynload/${m}.cpython-*.so | \
-		${GREP} -E -q '(RUNPATH|RPATH).*${AZ_PREFIX}/lib' || \
-		{ ${ECHO_MSG} "lib-dynload/${m}: no run path ${AZ_PREFIX}/lib"; ${FALSE}; }
+		${GREP} -E -q '(RUNPATH|RPATH).*${AZSUPPORT_PREFIX}/lib' || \
+		{ ${ECHO_MSG} "lib-dynload/${m}: no run path ${AZSUPPORT_PREFIX}/lib"; ${FALSE}; }
 .endfor
 
 post-install-LIBMPDEC-on:

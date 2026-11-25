@@ -2,13 +2,13 @@
 # for the libvips of net-im/rocketchat8 (sharp; aZ, 18.11.2026 16:02: «да конечно» —
 # the libraries sharp needs that we do not have as ports of this tree become ours,
 # shared, with the options of sharp-libvips). The library alone, as sharp-libvips
-# builds it: JPEG (mozjpeg of az), Deflate (zlib of the base system) and WebP (of az);
+# builds it: JPEG (mozjpeg of azsupport), Deflate (zlib of the base system) and WebP (of azsupport);
 # no JBIG, LERC, libdeflate, LZMA, ZSTD, old JPEG, PixarLog, OpenGL, C++ library,
 # tools, contrib, documents, tests, MDI. LTO (aZ, 18.11.2026 12:29).
 
 PORTNAME=	tiff
 DISTVERSION=	4.7.2
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	graphics
 MASTER_SITES=	https://download.osgeo.org/libtiff/
 
@@ -45,22 +45,22 @@ CMAKE_OFF=	jbig \
 		tiff-tests \
 		tiff-tools \
 		zstd
-# the headers of mozjpeg and WebP of az alone (Mk/az-libs.mk), their libraries in az
+# the headers of mozjpeg and WebP of azsupport alone (Mk/azsupport-libs.mk), their libraries in azsupport
 CMAKE_ARGS=	-DCMath_HAVE_LIBC_POW=1 \
-		-DCMAKE_PREFIX_PATH=${WRKDIR}/az-libs \
-		-DCMAKE_LIBRARY_PATH=${AZ_PREFIX}/lib
+		-DCMAKE_PREFIX_PATH=${WRKDIR}/azsupport-libs \
+		-DCMAKE_LIBRARY_PATH=${AZSUPPORT_PREFIX}/lib
 
-AZ_LIBS=	mozjpeg:libjpeg.so \
+AZSUPPORT_LIBS=	mozjpeg:libjpeg.so \
 		webp:libwebp.so
-.include "${.CURDIR:H:H}/Mk/az-libs.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-libs.mk"
 
-# the codecs CMake found, not ones it left out without a word: JPEG and WebP of az, zlib
+# the codecs CMake found, not ones it left out without a word: JPEG and WebP of azsupport, zlib
 post-install:
 	@n="$$(/usr/bin/readelf -d ${STAGEDIR}${PREFIX}/lib/libtiff.so.6 | ${GREP} NEEDED)"; \
 	for l in libjpeg libwebp libz; do \
 		echo "$$n" | ${GREP} -q "\[$$l\." || { ${ECHO_MSG} "libtiff: no $$l ($$n)"; exit 1; }; \
 	done
-	@/usr/bin/readelf -d ${STAGEDIR}${PREFIX}/lib/libtiff.so.6 | ${GREP} -Eq '(RPATH|RUNPATH).*${AZ_PREFIX}/lib' || \
-		{ ${ECHO_MSG} "libtiff: no run path ${AZ_PREFIX}/lib"; exit 1; }
+	@/usr/bin/readelf -d ${STAGEDIR}${PREFIX}/lib/libtiff.so.6 | ${GREP} -Eq '(RPATH|RUNPATH).*${AZSUPPORT_PREFIX}/lib' || \
+		{ ${ECHO_MSG} "libtiff: no run path ${AZSUPPORT_PREFIX}/lib"; exit 1; }
 
 .include <bsd.port.mk>

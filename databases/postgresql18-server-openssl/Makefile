@@ -4,7 +4,7 @@
 
 COMMENT=	PostgreSQL database server, with OpenSSL (of azsupport/ports)
 
-AZ_PG_OPENSSL=	yes
+AZSUPPORT_PG_OPENSSL=	yes
 MASTERDIR=	${.CURDIR}/../postgresql18-server
 
 .include "${MASTERDIR}/Makefile"

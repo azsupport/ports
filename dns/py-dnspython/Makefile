@@ -1,6 +1,6 @@
-# dns/py-dnspython of azsupport/ports: the official port as it is (Mk/az-official.mk),
+# dns/py-dnspython of azsupport/ports: the official port as it is (Mk/azsupport-official.mk),
 # the DNS of py-pyspf, on our lang/python312 (aZ, 19.11.2026).
 
-AZ_OFFICIAL=	dns/py-dnspython
+AZSUPPORT_OFFICIAL=	dns/py-dnspython
 
-.include "${.CURDIR:H:H}/Mk/az-official.mk"
+.include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

@@ -60,7 +60,7 @@
 
 PORTNAME=	kibana
 PORTVERSION=	6.8.23
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 DISTVERSIONSUFFIX=	-darwin-x86_64
 CATEGORIES=	textproc www
 MASTER_SITES=	https://artifacts.elastic.co/downloads/kibana/ \
@@ -105,10 +105,10 @@ LICENSE_NAME_ELASTIC10=	Elastic License 1.0 (the default distribution: X-Pack)
 LICENSE_FILE_ELASTIC10=	${WRKSRC}/LICENSE.txt
 LICENSE_PERMS_ELASTIC10=	none
 
-# uv.h, which nan includes: of the libuv of az, which our node24 links (the
+# uv.h, which nan includes: of the libuv of azsupport, which our node24 links (the
 # official kibana8 has devel/libuv for it)
 BUILD_DEPENDS=	node24-npm>0:www/npm-node24 \
-		${AZ_PREFIX}/include/uv.h:az/az
+		${AZSUPPORT_PREFIX}/include/uv.h:azsupport/azsupport
 
 USES=		compiler:c++20-lang cpe dos2unix gmake nodejs:24,build,run python:build
 CPE_VENDOR=	elastic
@@ -136,9 +136,9 @@ RE2_VENDOR_ABSEIL=	20260817.0
 RE2_WRKSRC=	${WRKDIR}/re2
 NODE_GYP=	${LOCALBASE}/bin/node ${LOCALBASE}/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js
 
-# node-gyp: the headers of node in ${LOCALBASE}/include/node, uv.h of az; abseil
+# node-gyp: the headers of node in ${LOCALBASE}/include/node, uv.h of azsupport; abseil
 # takes backtrace() of libexecinfo on FreeBSD
-CPPFLAGS+=	-I${AZ_PREFIX}/include
+CPPFLAGS+=	-I${AZSUPPORT_PREFIX}/include
 LDFLAGS+=	-lexecinfo
 
 # the two files of hapi the patches change (CRLF in the tarball)

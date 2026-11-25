@@ -20,13 +20,13 @@
 #   timers left, a division by zero of gearman; one of them adds a file to the
 #   build of the server (libgearman/uuid.cc), so autoreconf, with the version in
 #   version.m4 (it would take it from git describe);
-# - the persistent queue of aZ: SQLite (libsqlite3 of az), on in the rc.d script;
+# - the persistent queue of aZ: SQLite (libsqlite3 of azsupport), on in the rc.d script;
 #   no MySQL, PostgreSQL, Redis, memcached, Tokyo Cabinet and Drizzle;
-# - libevent and SQLite the shared libraries of az, with the run path
-#   /usr/local/az/lib; Boost.Program_options (gearmand, gearadmin) and libuuid
+# - libevent and SQLite the shared libraries of azsupport, with the run path
+#   /usr/local/azsupport/lib; Boost.Program_options (gearmand, gearadmin) and libuuid
 #   (libgearman, gearmand) the archives of the official devel/boost-libs and
 #   misc/libuuid, linked at build time (alone in a directory of the work; their
-#   symbols not exported), so that the packages take no package but az and ours;
+#   symbols not exported), so that the packages take no package but azsupport and ours;
 #   no -fPIE -pie (the archive of boost-libs is not built for it), as the other
 #   ports;
 # - backtrace(3) of the libexecinfo of the base system; alloca(3) of stdlib.h (no
@@ -36,7 +36,7 @@
 
 PORTNAME?=	gearmand
 DISTVERSION=	2.2.0
-PORTREVISION=	${AZ_STAMP:U0}
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	devel
 MASTER_SITES=	https://github.com/gearman/gearmand/releases/download/${DISTVERSION}/
 DISTNAME=	gearmand-${DISTVERSION}
@@ -54,8 +54,8 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 BUILD_DEPENDS=	${LOCALBASE}/lib/libboost_program_options.a:devel/boost-libs \
 		${LOCALBASE}/lib/libuuid.a:misc/libuuid \
 		gperf:devel/gperf \
-		${AZ_PREFIX}/lib/libevent.so:az/az \
-		${AZ_PREFIX}/lib/libsqlite3.so:az/az
+		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport \
+		${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/azsupport
 
 USES=		autoreconf compiler:c++14-lang gmake libtool pathfix pkgconfig ssl
 
@@ -73,7 +73,7 @@ CONFIGURE_ARGS=	--disable-dtrace \
 		--with-boost=${WRKDIR}/deps \
 		--with-mysql=no \
 		--with-postgresql=no \
-		--with-sqlite3=${AZ_PREFIX}
+		--with-sqlite3=${AZSUPPORT_PREFIX}
 # no -fPIE -pie (the checks of AX_HARDEN_COMPILER_FLAGS, one flag a test)
 CONFIGURE_ENV=	ax_cv_check_cflags__Werror__fPIE=no \
 		ax_cv_check_cflags__Werror__pie=no \
@@ -82,10 +82,10 @@ CONFIGURE_ENV=	ax_cv_check_cflags__Werror__fPIE=no \
 
 # the work directory deps: the headers of Boost and of libuuid, libboost_program_options.a
 # and libuuid.a, nothing else of /usr/local (their symbols not exported by libgearman
-# and gearmand: --exclude-libs); libevent and SQLite of az (-levent of AX_LIBEVENT
+# and gearmand: --exclude-libs); libevent and SQLite of azsupport (-levent of AX_LIBEVENT
 # through CPPFLAGS and LDFLAGS)
-CPPFLAGS+=	-I${WRKDIR}/deps/include -I${AZ_PREFIX}/include
-LDFLAGS+=	-L${WRKDIR}/deps/lib -L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib \
+CPPFLAGS+=	-I${WRKDIR}/deps/include -I${AZSUPPORT_PREFIX}/include
+LDFLAGS+=	-L${WRKDIR}/deps/lib -L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib \
 		-Wl,--exclude-libs,libboost_program_options.a:libuuid.a
 LIBS+=		-lexecinfo
 
@@ -109,8 +109,8 @@ CONFLICTS_INSTALL=	gearmand
 .  else
 CONFLICTS_INSTALL=	gearmand-openssl
 .  endif
-RUN_DEPENDS=		${AZ_PREFIX}/lib/libevent.so:az/az \
-			${AZ_PREFIX}/lib/libsqlite3.so:az/az \
+RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport \
+			${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/azsupport \
 			${LOCALBASE}/bin/gearadmin:devel/libgearman
 USE_RC_SUBR=		gearmand
 USERS=			gearmand

@@ -1,7 +1,7 @@
 The libraries of ImageMagick 7 of azsupport/ports (JPEG, PNG, WebP, GIF, HEIC
-and AVIF only): libMagickCore-7 and libMagickWand-7 in /usr/local/az/lib with
-their headers, .pc files and MagickWand-config (/usr/local/az/bin), their
-static build in /usr/local/az/static (the static imagick of az-menu.sh), and
+and AVIF only): libMagickCore-7 and libMagickWand-7 in /usr/local/azsupport/lib with
+their headers, .pc files and MagickWand-config (/usr/local/azsupport/bin), their
+static build in /usr/local/azsupport/static (the static imagick of azsupport-menu.sh), and
 etc/ImageMagick-7 with the policy of graphics/ImageMagick7/files/policy.xml,
 which the libraries read. The programs are ImageMagick7 or ImageMagick67;
 imagick7 of PHP links these libraries. Versions and options:

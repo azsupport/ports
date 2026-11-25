@@ -1,4 +1,4 @@
-SOAP: SOAP clients and servers, with libxml2 of the package az.
+SOAP: SOAP clients and servers, with libxml2 of the package azsupport.
 
 The module soap of PHP 8.3 for php83 of azsupport/ports, which installs
 side by side with the other versions of PHP: lib/php/20230831/soap.so,

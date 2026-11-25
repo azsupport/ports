@@ -1,4 +1,4 @@
-SOAP: SOAP clients and servers, with libxml2 of the package az and the
+SOAP: SOAP clients and servers, with libxml2 of the package azsupport and the
 session persistence of SoapServer (php84-session).
 
 The module soap of PHP 8.4 for php84 of azsupport/ports, which installs

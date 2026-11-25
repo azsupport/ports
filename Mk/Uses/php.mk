@@ -20,7 +20,7 @@
 # - The modules of USE_PHP and their origins: Mk/php-modules.mk of the
 #   overlay, <module>_DEPENDS=<origin> and <module>_PRIO=<NN> (the priority of
 #   its ini file, the default of PHP_MOD_PRIO), for every module.
-# - A module links the shared tree of the package az (${AZ_PREFIX} of
+# - A module links the shared tree of the package azsupport (${AZSUPPORT_PREFIX} of
 #   Mk/bsd.overlay.mk) with its run path (no ldconfig hints) and finds it with
 #   its pkg-config (set in the post part, after USES=pkgconfig set pkgconf).
 # - phpize reads config.m4 only: a config0.m4 or config9.m4 (so that php-src
@@ -322,9 +322,9 @@ BUILD_DEPENDS+=	${PHPBASE}/bin/phpize${PHP_VER}:${PHP_PORT} \
 		autoconf>0:devel/autoconf
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS+=--with-php-config=${PHPBASE}/bin/php-config${PHP_VER}
-# the shared tree of the package az: its libraries with their run path (no
-# ldconfig hints for ${AZ_PREFIX}/lib); its pkg-config below (post part)
-LDFLAGS+=	-L${AZ_PREFIX}/lib -Wl,-rpath,${AZ_PREFIX}/lib
+# the shared tree of the package azsupport: its libraries with their run path (no
+# ldconfig hints for ${AZSUPPORT_PREFIX}/lib); its pkg-config below (post part)
+LDFLAGS+=	-L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 # every source file of the module sees its config.h first (mysqlnd's do not
 # include it)
 MAKE_ARGS+=	EXTRA_CFLAGS="-include ${WRKSRC}/config.h"
@@ -359,11 +359,11 @@ _INCLUDE_USES_PHP_POST_MK=yes
 # <module>_PRIO (the priority of its ini file)
 .include "${.PARSEDIR}/../php-modules.mk"
 
-# the pkg-config of the package az (it runs pkgconf with the .pc files of
-# ${AZ_PREFIX} first), here in the post part: USES=pkgconfig adds
+# the pkg-config of the package azsupport (it runs pkgconf with the .pc files of
+# ${AZSUPPORT_PREFIX} first), here in the post part: USES=pkgconfig adds
 # PKG_CONFIG=pkgconf to CONFIGURE_ENV, and the last one is the one configure gets
 .  if ${php_ARGS:Mphpize} || ${php_ARGS:Mext} || ${php_ARGS:Mzend}
-CONFIGURE_ENV+=	PKG_CONFIG=${AZ_PREFIX}/bin/pkg-config
+CONFIGURE_ENV+=	PKG_CONFIG=${AZSUPPORT_PREFIX}/bin/pkg-config
 .  endif
 
 .  if ${php_ARGS:Mext} || ${php_ARGS:Mzend}
@@ -452,21 +452,21 @@ check-makevars::
 .  endif
 
 # The service of the modules of PHP NN is the rc.d script of phpNN-fpm, php<NN>_fpm
-# (21.11.2026). Mk/az-services.awk, in the hash of every port, still names it
-# php_fpm<NN>: here its directory in share/az/services takes the new name, until the
+# (21.11.2026). Mk/azsupport-services.awk, in the hash of every port, still names it
+# php_fpm<NN>: here its directory in share/azsupport/services takes the new name, until the
 # awk does at the next build of all the ports.
-.  if !target(az-services-php)
-POST_PLIST+=	az-services-php
-az-services-php: az-services
-	@cd ${STAGEDIR}${PREFIX}/share/az/services 2>/dev/null || exit 0; \
+.  if !target(azsupport-services-php)
+POST_PLIST+=	azsupport-services-php
+azsupport-services-php: azsupport-services
+	@cd ${STAGEDIR}${PREFIX}/share/azsupport/services 2>/dev/null || exit 0; \
 	for d in php_fpm[0-9][0-9]; do \
 		[ -d "$$d" ] || continue; \
 		n="php$${d#php_fpm}_fpm"; \
 		${RMDIR} "$$d"; \
-		${SED} -i '' -e '/^@dir share\/az\/services\/'"$$d"'$$/d' ${TMPPLIST}; \
+		${SED} -i '' -e '/^@dir share\/azsupport\/services\/'"$$d"'$$/d' ${TMPPLIST}; \
 		if [ ! -d "$$n" ]; then \
 			${MKDIR} "$$n"; \
-			${ECHO_CMD} "@dir share/az/services/$$n" >> ${TMPPLIST}; \
+			${ECHO_CMD} "@dir share/azsupport/services/$$n" >> ${TMPPLIST}; \
 		fi; \
 	done
 .  endif
