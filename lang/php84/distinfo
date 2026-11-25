@@ -1,3 +1,3 @@
-TIMESTAMP = 1795550150
-SHA256 (php/php-8.4.28-fbsd-20261124-6c4c8ecd.tar.xz) = d34aaeda00835bb532e3f12ca4d0d4d34fcbcb8a28674ea873e7e0e50938725c
-SIZE (php/php-8.4.28-fbsd-20261124-6c4c8ecd.tar.xz) = 26372384
+TIMESTAMP = 1795629365
+SHA256 (php/php-8.4.28-fbsd-20261125-6c4c8ecd.tar.xz) = 94897328c186b56ad16269dce3ca940a732f90aac74cc0ac15206db1adbeecc4
+SIZE (php/php-8.4.28-fbsd-20261125-6c4c8ecd.tar.xz) = 26394660
