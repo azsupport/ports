@@ -840,13 +840,17 @@ else
 fi
 
 # Composer (devel/phpXY-composer, 15.11.2026): bin/composerXY runs its phar with
-# bin/phpXY; its version, and an autoloader made offline for a project of its own,
-# loaded by phpXY
+# bin/phpXY; its version, that of the port (DISTVERSION of devel/php84-composer, whose
+# slaves are those of 7.4 to 8.3, and of devel/php56-composer: not written here, which
+# failed every PHP when the ports went to 2.11.3 and 2.2.33, build-jail.yml
+# 45579971348), and an autoloader made offline for a project of its own, loaded by phpXY
 cmp="$P/bin/composer$short"
 if [ -x "$cmp" ]; then
-    cw=2.11.2; [ "$short" = 56 ] && cw=2.2.32
+    cport=php84-composer; [ "$short" = 56 ] && cport=php56-composer
+    cw="$(sed -n 's/^DISTVERSION?*=[[:space:]]*//p' "$(dirname "$0")/../devel/$cport/Makefile" 2>/dev/null | head -n 1)"
     o="$(COMPOSER_HOME="$tmp/composer-home" COMPOSER_ALLOW_SUPERUSER=1 "$cmp" --no-ansi --version 2>&1 < /dev/null)"
-    case "$o" in *"Composer version $cw "*) ok "composer$short" "$(first "$o")" ;; *) fail "composer$short" "$(last3 "$o")" ;; esac
+    if [ -z "$cw" ]; then fail "composer$short" "no DISTVERSION in devel/$cport/Makefile of this tree ($(first "$o"))"
+    else case "$o" in *"Composer version $cw "*) ok "composer$short" "$(first "$o")" ;; *) fail "composer$short" "not $cw: $(last3 "$o")" ;; esac; fi
     mkdir -p "$tmp/composer-t/src"
     printf '{"name": "az/t", "autoload": {"psr-4": {"Az\\\\T\\\\": "src/"}}}\n' > "$tmp/composer-t/composer.json"
     printf '<?php\nnamespace Az\\T;\nclass A { const V = "composer of az"; }\n' > "$tmp/composer-t/src/A.php"
