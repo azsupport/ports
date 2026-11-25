@@ -4,6 +4,10 @@
 # has no FreeBSD build): a static binary (CGO_ENABLED=0 of the official port).
 
 AZSUPPORT_OFFICIAL=	devel/github-act-runner
+# with WITH_PIE of tools/make.conf.in USES=go builds with -buildmode=pie, which needs cgo
+# (run 45682330516: "-buildmode=pie requires external (cgo) linking, but cgo is not
+# enabled"), and the port builds with CGO_ENABLED=0
+PIE_UNSAFE=	-buildmode=pie needs cgo, and the port builds with CGO_ENABLED=0
 # A job cancelled on GitHub stops on the runner (aZ, 24.11.2026 21:28: «надо бы
 # пофиксить чтобы через гитхаб работало»; run 45475520418 of build-jail.yml, cancelled
 # and force-cancelled, went on with its steps until make was killed on the server):
