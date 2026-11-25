@@ -926,7 +926,11 @@ What it does, with the logic of poudriere:
   it is at another commit), this tree as `OVERLAYS` over it;
 - `work/make.conf` from [`tools/make.conf.in`](tools/make.conf.in), the make.conf of
   aZ's servers in the style of style.Makefile(5) (`CPUTYPE` of the level,
-  `CFLAGS=-O3 -pipe -fno-strict-aliasing`, the framework adds `-fstack-protector-strong`;
+  `CFLAGS=-O3 -pipe -fno-strict-aliasing`; the protections of the framework, as the base
+  system of FreeBSD 15.1 has them and more (aZ, 25.11.2026): `SSP_CFLAGS=-fstack-protector-strong
+  -fstack-clash-protection`, `WITH_PIE`, `WITH_RELRO`, `WITH_BIND_NOW`, `WITH_FORTIFY`
+  (`-D_FORTIFY_SOURCE=2`), and the same flags in `tools/*-build.sh`; no `-fcf-protection`:
+  FreeBSD has no CET for programs;
   `COPTFLAGS=-O3 -pipe` and `KERNCONF=az.st` for the kernel of the servers;
   `JPEG_PORT=graphics/mozjpeg`; `DEFAULT_VERSIONS+=mysql=10.11m perl5=5.42 php=8.3
   python=3.12 ruby=3.4 ssl=base`: the client of `mariadb1011-client` for the ports with

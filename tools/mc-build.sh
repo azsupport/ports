@@ -36,7 +36,8 @@
 # summary is printed at the end.
 #
 # Compiler flags as for the other programs: CPUTYPE and CFLAGS of /etc/make.conf with
-# -fstack-protector-strong and -fno-strict-aliasing; AZSUPPORT_CPUTYPE and AZSUPPORT_CFLAGS win over
+# the protections of tools/make.conf.in (-fstack-protector-strong, -fstack-clash-protection,
+# -D_FORTIFY_SOURCE=2) and -fno-strict-aliasing; AZSUPPORT_CPUTYPE and AZSUPPORT_CFLAGS win over
 # make.conf (MAKE_CONF, default /etc/make.conf); without either: x86-64-v3 and -O3
 # -pipe. mc: PIE, RELRO and BIND_NOW. AZSUPPORT_MC_VERSION (the port misc/mc gives its
 # DISTVERSION): the version the official port has to have, so that the package has
@@ -88,7 +89,7 @@ cputype="${cputype:-x86-64-v3}"
 opt="${AZSUPPORT_CFLAGS:-$(mkconf_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
-cflags="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing"
+cflags="$opt -march=$cputype -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -fno-strict-aliasing"
 export CC=cc CXX=c++
 # The build sees W (GLib of devel/glib20: glib_dir below) and the shared tree of azsupport,
 # nothing else of /usr/local (the base compiler does not search it; pkg-config only

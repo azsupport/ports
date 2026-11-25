@@ -55,7 +55,8 @@
 # tools/graphicsmagick-test.sh tests it, once installed.
 #
 # Compiler flags as for the libraries and ImageMagick: CPUTYPE and CFLAGS of
-# /etc/make.conf with -fstack-protector-strong, -fno-strict-aliasing and -fPIC;
+# /etc/make.conf with the protections of tools/make.conf.in (-fstack-protector-strong,
+# -fstack-clash-protection, -D_FORTIFY_SOURCE=2), -fno-strict-aliasing and -fPIC;
 # AZSUPPORT_CPUTYPE and AZSUPPORT_CFLAGS win over make.conf (MAKE_CONF, default
 # /etc/make.conf); without either: x86-64-v3 and -O3 -pipe.
 #
@@ -117,7 +118,7 @@ opt="${AZSUPPORT_CFLAGS:-$(mc_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 export CC=cc CXX=c++
-export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing -fPIC"
+export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -fno-strict-aliasing -fPIC"
 export CXXFLAGS="$CFLAGS"
 export CPPFLAGS="-I$S/include"
 export LDFLAGS="-L$S/lib"

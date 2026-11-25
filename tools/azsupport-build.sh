@@ -65,7 +65,8 @@
 # is printed at the end.
 #
 # Compiler flags as on the servers: CPUTYPE and CFLAGS of /etc/make.conf (such as
-# CPUTYPE?=x86-64-v3 and CFLAGS=-O3 -pipe) with -fstack-protector-strong and
+# CPUTYPE?=x86-64-v3 and CFLAGS=-O3 -pipe) with the protections of tools/make.conf.in
+# (-fstack-protector-strong, -fstack-clash-protection, -D_FORTIFY_SOURCE=2) and
 # -fno-strict-aliasing, and -fPIC. AZSUPPORT_CPUTYPE and AZSUPPORT_CFLAGS win over make.conf
 # (MAKE_CONF, default /etc/make.conf);
 # without either: x86-64-v3 and -O3 -pipe. The build runs what it compiles
@@ -141,7 +142,7 @@ opt="${AZSUPPORT_CFLAGS:-$(mc_get CFLAGS)}"
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 level="${cputype#x86-64-}"
 export CC=cc CXX=c++
-export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing -fPIC"
+export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -fno-strict-aliasing -fPIC"
 export CXXFLAGS="$CFLAGS"
 export CPPFLAGS="-I$P/include"
 export LDFLAGS="-L$P/lib"

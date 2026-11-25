@@ -12,11 +12,24 @@
 
 # the x86-64 level of the run (x86-64-v3 or x86-64-v2): bsd.cpu.mk makes -march of it
 CPUTYPE?= @CPUTYPE@
-# the framework adds -fstack-protector-strong (bsd.ssp.mk)
+# the framework adds the protections below (Mk/Features)
 CFLAGS=	-O3 -pipe -fno-strict-aliasing
 # the kernel of the servers (make buildkernel, sys/conf/kern.pre.mk); the ports and the
 # kernel modules of the ports do not read it (sys/conf/kmod.mk)
 COPTFLAGS= -O3 -pipe
+# The protections of the ports (Mk/Features/*.mk; a port that breaks with one has
+# <FEATURE>_UNSAFE and goes without it), as tools/*-build.sh have them: those of the base
+# system of FreeBSD 15.1 (share/mk/bsd.sys.mk and bsd.opts.mk: -fstack-protector-strong
+# -fstack-clash-protection, PIE, RELRO), and as Ubuntu builds its packages BIND_NOW (the
+# GOT read-only once a program has started) and _FORTIFY_SOURCE=2 (memcpy, strcpy,
+# sprintf... of libc checked where the compiler knows the size; 2 is the most libc has, the
+# base system has 0 yet) (aZ, 25.11.2026 20:03: «да»). Not -fcf-protection: FreeBSD has no
+# CET for programs. Before: SSP alone, the default of the framework.
+SSP_CFLAGS= -fstack-protector-strong -fstack-clash-protection
+WITH_BIND_NOW= yes
+WITH_FORTIFY= yes
+WITH_PIE= yes
+WITH_RELRO= yes
 
 # the ports with USES=jpeg (gd, ImageMagick) take mozjpeg, as on the servers
 JPEG_PORT= graphics/mozjpeg

@@ -857,7 +857,10 @@ env AZSUPPORT_CONFIGURE_CHECK=1 sh tools/build.sh --force
   с предупреждением, если оно на другом коммите), это дерево — `OVERLAYS` поверх него;
 - `work/make.conf` из [`tools/make.conf.in`](tools/make.conf.in) — make.conf серверов
   aZ в стиле style.Makefile(5) (`CPUTYPE` уровня, `CFLAGS=-O3 -pipe -fno-strict-aliasing`,
-  фреймворк добавляет `-fstack-protector-strong`; `COPTFLAGS=-O3 -pipe` и `KERNCONF=az.st`
+  защиты фреймворка — как в базе FreeBSD 15.1 и больше (aZ, 25.11.2026):
+  `SSP_CFLAGS=-fstack-protector-strong -fstack-clash-protection`, `WITH_PIE`, `WITH_RELRO`,
+  `WITH_BIND_NOW`, `WITH_FORTIFY` (`-D_FORTIFY_SOURCE=2`), те же флаги в `tools/*-build.sh`; без
+  `-fcf-protection`: у FreeBSD нет CET для программ; `COPTFLAGS=-O3 -pipe` и `KERNCONF=az.st`
   — для ядра серверов; `JPEG_PORT=graphics/mozjpeg`; `DEFAULT_VERSIONS+=mysql=10.11m
   perl5=5.42 php=8.3 python=3.12 ruby=3.4 ssl=base` — клиент `mariadb1011-client` для
   портов с `USES=mysql`, а порт не меняют ни умолчания закреплённого дерева, ни то, что

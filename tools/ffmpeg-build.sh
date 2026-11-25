@@ -33,7 +33,8 @@
 # the end. tools/ffmpeg-test.sh tests it, once installed.
 #
 # Compiler flags as for PHP and the libraries: CPUTYPE and CFLAGS of
-# /etc/make.conf with -fstack-protector-strong and -fno-strict-aliasing;
+# /etc/make.conf with the protections of tools/make.conf.in (-fstack-protector-strong,
+# -fstack-clash-protection, -D_FORTIFY_SOURCE=2) and -fno-strict-aliasing;
 # AZSUPPORT_CPUTYPE and AZSUPPORT_CFLAGS win over make.conf
 # (MAKE_CONF, default /etc/make.conf); without either: x86-64-v3 and -O3 -pipe.
 # FFmpeg: LTO, PIE, RELRO and BIND_NOW (configure lines of ffmpeg.conf); its own
@@ -113,7 +114,7 @@ opt="${AZSUPPORT_CFLAGS:-$(mc_get CFLAGS)}"
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 level="${cputype#x86-64-}"
 # FFmpeg adds -fPIC itself (--enable-pic).
-ffcflags="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing"
+ffcflags="$opt -march=$cputype -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -fno-strict-aliasing"
 export CC=cc CXX=c++
 export CFLAGS="$ffcflags -fPIC"
 export CXXFLAGS="$CFLAGS"

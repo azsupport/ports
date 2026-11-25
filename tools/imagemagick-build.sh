@@ -68,7 +68,8 @@
 # tools/imagemagick-test.sh tests them, once installed.
 #
 # Compiler flags as for PHP, the libraries and FFmpeg: CPUTYPE and CFLAGS of
-# /etc/make.conf with -fstack-protector-strong and -fno-strict-aliasing (and
+# /etc/make.conf with the protections of tools/make.conf.in (-fstack-protector-strong,
+# -fstack-clash-protection, -D_FORTIFY_SOURCE=2) and -fno-strict-aliasing (and
 # -fPIC: the libraries of ImageMagick 7 go into libphp.so and imagick.so); AZSUPPORT_CPUTYPE and
 # AZSUPPORT_CFLAGS (the inputs of the workflow azsupport.yml) win over make.conf (MAKE_CONF,
 # default /etc/make.conf); without either: x86-64-v3 and -O3 -pipe. The
@@ -149,7 +150,7 @@ opt="${AZSUPPORT_CFLAGS:-$(mc_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 export CC=cc CXX=c++
-export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing -fPIC"
+export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -fno-strict-aliasing -fPIC"
 export CXXFLAGS="$CFLAGS"
 export CPPFLAGS="-I$S/include"
 export LDFLAGS="-L$S/lib"

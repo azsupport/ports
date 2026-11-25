@@ -27,7 +27,8 @@
 #                                     azsupport/azsupport, extracted, with files/curl/curl-<version>.patch
 #
 # Compiler flags as for the libraries: CPUTYPE and CFLAGS of /etc/make.conf with
-# -fstack-protector-strong, -fno-strict-aliasing and -fPIC; AZSUPPORT_CPUTYPE and
+# the protections of tools/make.conf.in (-fstack-protector-strong,
+# -fstack-clash-protection, -D_FORTIFY_SOURCE=2), -fno-strict-aliasing and -fPIC; AZSUPPORT_CPUTYPE and
 # AZSUPPORT_CFLAGS win over make.conf (MAKE_CONF, default /etc/make.conf); without
 # either: x86-64-v3 and -O3 -pipe. Results go to AZSUPPORT_RESULTS (default
 # curl-results/ of the current directory: summary.txt, curl-program.log,
@@ -74,7 +75,7 @@ opt="${AZSUPPORT_CFLAGS:-$(mc_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 export CC=cc CXX=c++
-export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing -fPIC"
+export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -fno-strict-aliasing -fPIC"
 export CXXFLAGS="$CFLAGS"
 export CPPFLAGS="-I$A/include"
 export LDFLAGS="-L$A/lib -Wl,-rpath,$A/lib -Wl,--as-needed -Wl,-z,relro,-z,now"

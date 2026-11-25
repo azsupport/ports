@@ -31,8 +31,8 @@
 #     only for the CUDA kernels of the filters (cuda-llvm)
 #   - RELRO and BIND_NOW of the programs (check_bins) asked of the linker here
 #     (-Wl,-z,relro,-z,now): the GCC of Ubuntu passes them by itself, that of Debian does
-#     not. The other defaults of the GCC of Ubuntu (_FORTIFY_SOURCE, -fstack-clash-protection,
-#     -fcf-protection) are not added on Debian: the flags are those of the FreeBSD builds
+#     not. So on Debian the other defaults of the GCC of Ubuntu 24.04 too:
+#     -D_FORTIFY_SOURCE=3, -fstack-clash-protection, -fcf-protection
 #   - of the FreeBSD ports what makes the same library here: the APNG patch of libpng
 #     (its PATCHFILES: the patch lines of sources.conf), LONG_PCF_NAMES of FreeType,
 #     the version of x264 in its meson.build (b_x264); not their patches for FreeBSD
@@ -147,6 +147,12 @@ opt="$(printf '%s\n' $opt | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | s
 ffcflags="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing"
 # RELRO and BIND_NOW of ffmpeg, ffprobe and magick (the GCC of Debian does not pass them)
 ldhard="-Wl,-z,relro,-z,now"
+# on Debian also the other defaults of the GCC of Ubuntu 24.04, which that of Debian does
+# not have (aZ, 25.11.2026 20:03: «да»): _FORTIFY_SOURCE=3, -fstack-clash-protection,
+# -fcf-protection
+if [ "$os_id" = debian ]; then
+    ffcflags="$ffcflags -D_FORTIFY_SOURCE=3 -fstack-clash-protection -fcf-protection"
+fi
 export CC=gcc CXX=g++
 export CFLAGS="$ffcflags -fPIC"
 export CXXFLAGS="$CFLAGS"
