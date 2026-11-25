@@ -84,9 +84,9 @@ AZSUPPORT_GCC?=	16
 PKG_NOTES+=	azsupport_cc
 .  if ${AZSUPPORT_GCC} != no
 USE_GCC=	${AZSUPPORT_GCC}:build
-PKG_NOTE_az_cc=	gcc${AZSUPPORT_GCC}
+PKG_NOTE_azsupport_cc=	gcc${AZSUPPORT_GCC}
 .  else
-PKG_NOTE_az_cc=	clang
+PKG_NOTE_azsupport_cc=	clang
 .  endif
 
 _USES_POST+=	azgcc

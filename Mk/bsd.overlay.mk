@@ -29,7 +29,7 @@ AZSUPPORT_STAMP?=	0
 # although bsd.port.mk includes this file twice.
 .if defined(AZSUPPORT_HASH) && !empty(AZSUPPORT_HASH) && empty(PKG_NOTES:Mazsupport_hash)
 PKG_NOTES+=	azsupport_hash
-PKG_NOTE_az_hash=	${AZSUPPORT_HASH}
+PKG_NOTE_azsupport_hash=	${AZSUPPORT_HASH}
 .endif
 
 # The libraries of ${AZSUPPORT_PREFIX}/lib (azsupport, and the shared ones of ImageMagick7 and
