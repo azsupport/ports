@@ -27,9 +27,9 @@ on:
         required: false
         default: 'auto'
       x264_lto:
-        description: 'The LTO of x264: true or false (AZ_X264_LTO)'
+        description: 'The LTO of x264: false or true (AZ_X264_LTO; tools/ubuntu/build.sh, b_x264: why not)'
         required: false
-        default: 'true'
+        default: 'false'
       debug:
         description: 'After a failed test of ffmpeg: backtraces (gdb) of a few of its commands'
         type: boolean

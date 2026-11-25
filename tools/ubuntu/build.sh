@@ -18,8 +18,8 @@
 #     so it is linked with glibc dynamically; without the driver and a GPU it works as
 #     without them)
 #   - GCC of Ubuntu (13) instead of the clang of the FreeBSD base, with its gcc-ar for
-#     the LTO of FFmpeg (-flto=auto: the GCC way of --enable-lto) and of x264; clang
-#     only for the CUDA kernels of the filters (cuda-llvm)
+#     the LTO of FFmpeg (-flto=auto: the GCC way of --enable-lto); x264 without LTO
+#     (b_x264: why); clang only for the CUDA kernels of the filters (cuda-llvm)
 #   - of the FreeBSD ports what makes the same library here: the APNG patch of libpng
 #     (its PATCHFILES: the patch lines of sources.conf), LONG_PCF_NAMES of FreeType,
 #     the version of x264 in its meson.build (b_x264); not their patches for FreeBSD
@@ -52,7 +52,7 @@
 #                configure lines of FFmpeg, for tests/ports/ffmpeg-test.sh)
 #   AZ_OUT       where the archive goes (default: the current directory)
 #   AZ_FFMPEG_LTO  the LTO of FFmpeg: auto (default, -flto=auto) or no (without --enable-lto)
-#   AZ_X264_LTO    the LTO of x264 (b_lto of meson): true (default, as the port) or false
+#   AZ_X264_LTO    the LTO of x264 (b_lto of meson): false (default; b_x264: why) or true
 #
 # Exit status: 0 built, 1 a part failed or a check of the programs, 2 usage.
 
@@ -83,7 +83,7 @@ ncpu="$(nproc 2>/dev/null || echo 2)"
 fflto="${AZ_FFMPEG_LTO:-auto}"
 # no: --enable-lto of ffmpeg.conf left out (FFmpeg has no --disable-lto)
 case "$fflto" in auto) fflto_opt=--enable-lto=auto ;; no) fflto_opt="" ;; *) echo "ubuntu/build: AZ_FFMPEG_LTO is auto or no, not $fflto" >&2; exit 2 ;; esac
-x264lto="${AZ_X264_LTO:-true}"
+x264lto="${AZ_X264_LTO:-false}"
 case "$x264lto" in true|false) ;; *) echo "ubuntu/build: AZ_X264_LTO is true or false, not $x264lto" >&2; exit 2 ;; esac
 
 if [ "${1:-}" = "--tools" ]; then
@@ -295,10 +295,17 @@ b_fontconfig() {
         { echo "== fontconfig: not with expat: $(grep '^Requires' "$P/lib/pkgconfig/fontconfig.pc")"; return 1; }
 }
 b_lcms2() { at "$1" --with-fastfloat --with-threaded --without-jpeg --without-tiff; }
-# x264 as the port (options ASM, LTO and OPTIMIZED_CFLAGS on: -O3 of CFLAGS), the
-# library only. Its version and commit into meson.build, as the port does
+# x264 as the port (options ASM and OPTIMIZED_CFLAGS on: -O3 of CFLAGS), the library
+# only. Its version and commit into meson.build, as the port does
 # (files/patch-meson.build and the post-patch of multimedia/x264): version.py of the
-# release file finds no git; without optimization=2 in its default options
+# release file finds no git; without optimization=2 in its default options. Without
+# the LTO of the port here (AZ_X264_LTO): its meson.build compiles it with
+# -mpreferred-stack-boundary=6 (a stack of 64 bytes for its assembly), which went
+# with its LTO objects into the LTO of FFmpeg, so that FFmpeg's own code took its
+# stack for 64-byte aligned: x86-64-v3 stored AVX registers with vmovdqa where the
+# threads of glibc have 16 bytes (SIGSEGV in frame_pool_video_init and
+# h264_field_start, run 45561254382; 76 of 172 checks of the test). On FreeBSD x264
+# is a shared library, its LTO stays inside it.
 b_x264() {
     c="$(src_urls x264 | sed -n 's|.*/-/archive/\([0-9a-f]\{40\}\)\.tar\.gz.*|\1|p')"
     [ -n "$c" ] || { echo "== x264: no commit in its address in sources.conf"; return 1; }
