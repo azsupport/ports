@@ -1,0 +1,351 @@
+The encoder libjpeg: JPEG pictures by the libjpeg API, with the library ffmpeg is
+linked with (mozjpeg of az here; libjpeg-turbo and jpegli have the same API), for
+the formats of the screenshots of the video sites by ffmpeg alone, without
+ImageMagick (aZ, 25.11.2026 17:39: «пиши обёртку»).
+
+A site makes a screenshot with ffmpeg (mjpeg) and then each format of it
+(320x180, 640x360...) with ImageMagick: two lossy steps, two programs that read
+what users upload. The encoder mjpeg of FFmpeg takes only a whole -q:v (1, 2, 3...:
+15-30% of bytes a step) and has neither trellis quantisation nor optimised scans.
+libjpeg writes a JPEG as ImageMagick does, from RGB: the library converts it to
+YCbCr (JFIF: BT.601, full range) and subsamples the chroma itself, and -quality
+means what it means to ImageMagick and cjpeg. The conversion of a video to RGB is
+done by libswscale before it, with the colour matrix of the video, so a BT.709 video
+keeps its colours (the screenshot of the sites puts BT.709 YCbCr into the JPEG as it
+is, read everywhere as BT.601).
+
+Options: -quality 0-100 (else -q:v, else 75); -sampling 420|422|444 (default 420);
+-dct islow|ifast|float (default islow, the accurate DCT); -progressive -1|0|1 (as
+the library: mozjpeg progressive with optimised scans); -optimize 0|1 (Huffman
+tables, default 1); -comment (a COM marker). The aspect ratio of a pixel goes into
+the JFIF header, as the mjpeg encoder writes it. Errors of the library go to the log
+(setjmp/longjmp), the frame fails with AVERROR_EXTERNAL; 1x1, odd sizes, grey and
+65500 pixels a side work, larger is refused.
+
+Checked against ImageMagick 7.1.2-36 and cjpeg of mozjpeg 4.1.5 built with the
+same flags, from the same RGB picture: the same bytes at -quality 50 to 100 as
+magick -strip -define jpeg:dct-method=islow -sampling-factor 2x2 -quality Q and as
+cjpeg -sample 2x2 -quality Q, and as magick -strip -quality Q (which takes the fast
+DCT up to quality 90 and 4:4:4 from 90 when it does not read a JPEG) with -dct ifast
+up to 90 and -sampling 444 from 90. A mozjpeg built with other compiler flags can
+round one 8x8 block differently (its trellis is floating point).
+
+diff --git a/configure b/configure
+index f5e1fbb71..dff73859c 100755
+--- a/configure
++++ b/configure
+@@ -244,6 +244,7 @@ External library support:
+   --enable-libiec61883     enable iec61883 via libiec61883 [no]
+   --enable-libilbc         enable iLBC de/encoding via libilbc [no]
+   --enable-libjack         enable JACK audio sound server [no]
++  --enable-libjpeg         enable JPEG encoding via libjpeg (libjpeg-turbo, mozjpeg, jpegli) [no]
+   --enable-libjxl          enable JPEG XL de/encoding via libjxl [no]
+   --enable-libklvanc       enable Kernel Labs VANC processing [no]
+   --enable-libkvazaar      enable HEVC encoding via libkvazaar [no]
+@@ -2072,6 +2073,7 @@ EXTERNAL_LIBRARY_LIST="
+     libiec61883
+     libilbc
+     libjack
++    libjpeg
+     libjxl
+     libklvanc
+     libkvazaar
+@@ -3816,6 +3818,7 @@ libjxl_anim_decoder_deps="libjxl libjxl_threads"
+ libjxl_anim_encoder_deps="libjxl libjxl_threads"
+ libjxl_decoder_deps="libjxl libjxl_threads"
+ libjxl_encoder_deps="libjxl libjxl_threads"
++libjpeg_encoder_deps="libjpeg"
+ libkvazaar_encoder_deps="libkvazaar"
+ liblc3_decoder_deps="liblc3"
+ liblc3_encoder_deps="liblc3"
+@@ -7262,6 +7265,7 @@ enabled libgsm            && { for gsm_hdr in "gsm.h" "gsm/gsm.h"; do
+                                    check_lib libgsm "${gsm_hdr}" gsm_create -lgsm && break;
+                                done || die "ERROR: libgsm not found"; }
+ enabled libilbc           && require libilbc ilbc.h WebRtcIlbcfix_InitDecode -lilbc $pthreads_extralibs
++enabled libjpeg           && require libjpeg "stdio.h jpeglib.h" jpeg_CreateCompress -ljpeg
+ enabled libjxl            && require_pkg_config libjxl "libjxl >= 0.7.0" jxl/decode.h JxlDecoderVersion &&
+                              require_pkg_config libjxl_threads "libjxl_threads >= 0.7.0" jxl/thread_parallel_runner.h JxlThreadParallelRunner
+ enabled libklvanc         && require libklvanc libklvanc/vanc.h klvanc_context_create -lklvanc
+diff --git a/libavcodec/Makefile b/libavcodec/Makefile
+index 2ea4f9417..fc90f39d6 100644
+--- a/libavcodec/Makefile
++++ b/libavcodec/Makefile
+@@ -1202,6 +1202,7 @@ OBJS-$(CONFIG_LIBGSM_MS_DECODER)          += libgsmdec.o
+ OBJS-$(CONFIG_LIBGSM_MS_ENCODER)          += libgsmenc.o
+ OBJS-$(CONFIG_LIBILBC_DECODER)            += libilbc.o
+ OBJS-$(CONFIG_LIBILBC_ENCODER)            += libilbc.o
++OBJS-$(CONFIG_LIBJPEG_ENCODER)            += libjpegenc.o
+ OBJS-$(CONFIG_LIBJXL_DECODER)             += libjxldec.o libjxl.o
+ OBJS-$(CONFIG_LIBJXL_ENCODER)             += libjxlenc.o libjxl.o
+ OBJS-$(CONFIG_LIBKVAZAAR_ENCODER)         += libkvazaar.o
+diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
+index b12dcc405..8f76a3eda 100644
+--- a/libavcodec/allcodecs.c
++++ b/libavcodec/allcodecs.c
+@@ -793,6 +793,7 @@ extern const FFCodec ff_libgsm_ms_encoder;
+ extern const FFCodec ff_libgsm_ms_decoder;
+ extern const FFCodec ff_libilbc_encoder;
+ extern const FFCodec ff_libilbc_decoder;
++extern const FFCodec ff_libjpeg_encoder;
+ extern const FFCodec ff_libjxl_anim_decoder;
+ extern const FFCodec ff_libjxl_anim_encoder;
+ extern const FFCodec ff_libjxl_decoder;
+diff --git a/libavcodec/libjpegenc.c b/libavcodec/libjpegenc.c
+new file mode 100644
+index 000000000..ce295548d
+--- /dev/null
++++ b/libavcodec/libjpegenc.c
+@@ -0,0 +1,253 @@
++/*
++ * JPEG encoder using libjpeg (libjpeg-turbo, mozjpeg, jpegli: any library with its API)
++ *
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++/**
++ * @file
++ * JPEG encoder using the libjpeg API.
++ *
++ * The frame goes to the library as RGB (or grey) and the library converts it to
++ * YCbCr by the JFIF rules (BT.601, full range) and subsamples the chroma itself,
++ * as ImageMagick and cjpeg do: the quality, the quantisation tables and the
++ * progressive scans are those of the library (with mozjpeg: trellis quantisation
++ * and optimised scans), and -quality means what it means to ImageMagick and cjpeg.
++ * The conversion of a video to RGB is done by libswscale before the encoder, with
++ * the colour matrix of the video, so a BT.709 video comes out with its colours.
++ *
++ * The defaults are those of cjpeg: 4:2:0, the accurate integer DCT, optimised
++ * Huffman tables. ImageMagick 7 differs in two: the fast integer DCT up to quality
++ * 90 (-dct ifast) and 4:4:4 from quality 90 when the picture it reads is not a JPEG
++ * (from a JPEG it keeps the subsampling of that JPEG).
++ */
++
++#include <setjmp.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#include <jpeglib.h>
++
++#include "libavutil/common.h"
++#include "libavutil/mathematics.h"
++#include "libavutil/mem.h"
++#include "libavutil/opt.h"
++#include "libavutil/rational.h"
++
++#include "avcodec.h"
++#include "codec_internal.h"
++#include "encode.h"
++
++enum LibJPEGSampling {
++    SAMPLING_420,
++    SAMPLING_422,
++    SAMPLING_444,
++};
++
++typedef struct LibJPEGContext {
++    const AVClass *class;
++    int quality;
++    int sampling;
++    int dct;
++    int progressive;
++    int optimize;
++    char *comment;
++    /* the output of jpeg_mem_dest(): in the context, so that it survives a longjmp() */
++    unsigned char *buf;
++    unsigned long buf_size;
++    JSAMPROW *rows;
++} LibJPEGContext;
++
++typedef struct LibJPEGError {
++    struct jpeg_error_mgr pub;
++    jmp_buf jmp;
++    AVCodecContext *avctx;
++} LibJPEGError;
++
++static void libjpeg_error_exit(j_common_ptr cinfo)
++{
++    LibJPEGError *err = (LibJPEGError *)cinfo->err;
++    char msg[JMSG_LENGTH_MAX];
++
++    cinfo->err->format_message(cinfo, msg);
++    av_log(err->avctx, AV_LOG_ERROR, "libjpeg: %s\n", msg);
++    longjmp(err->jmp, 1);
++}
++
++static void libjpeg_output_message(j_common_ptr cinfo)
++{
++    LibJPEGError *err = (LibJPEGError *)cinfo->err;
++    char msg[JMSG_LENGTH_MAX];
++
++    cinfo->err->format_message(cinfo, msg);
++    av_log(err->avctx, AV_LOG_WARNING, "libjpeg: %s\n", msg);
++}
++
++static av_cold int libjpeg_encode_init(AVCodecContext *avctx)
++{
++    LibJPEGContext *s = avctx->priv_data;
++
++    if (s->quality < 0) {
++        /* -q:v as the quality of libjpeg (0-100, higher is better), as libjxl takes it */
++        if (avctx->flags & AV_CODEC_FLAG_QSCALE)
++            s->quality = av_clip((avctx->global_quality + FF_QP2LAMBDA / 2) / FF_QP2LAMBDA, 0, 100);
++        else
++            s->quality = 75;
++    }
++    if (avctx->width > JPEG_MAX_DIMENSION || avctx->height > JPEG_MAX_DIMENSION) {
++        av_log(avctx, AV_LOG_ERROR, "%dx%d is larger than JPEG takes (%d)\n",
++               avctx->width, avctx->height, (int)JPEG_MAX_DIMENSION);
++        return AVERROR(EINVAL);
++    }
++    s->rows = av_malloc_array(avctx->height, sizeof(*s->rows));
++    if (!s->rows)
++        return AVERROR(ENOMEM);
++    return 0;
++}
++
++static int libjpeg_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
++                                const AVFrame *frame, int *got_packet)
++{
++    LibJPEGContext *s = avctx->priv_data;
++    struct jpeg_compress_struct cinfo;
++    LibJPEGError jerr;
++    int ret;
++
++    memset(&cinfo, 0, sizeof(cinfo));
++    cinfo.err = jpeg_std_error(&jerr.pub);
++    jerr.pub.error_exit     = libjpeg_error_exit;
++    jerr.pub.output_message = libjpeg_output_message;
++    jerr.avctx              = avctx;
++    s->buf      = NULL;
++    s->buf_size = 0;
++    if (setjmp(jerr.jmp)) {
++        jpeg_destroy_compress(&cinfo);
++        free(s->buf);
++        s->buf = NULL;
++        return AVERROR_EXTERNAL;
++    }
++
++    jpeg_create_compress(&cinfo);
++    jpeg_mem_dest(&cinfo, &s->buf, &s->buf_size);
++    cinfo.image_width  = avctx->width;
++    cinfo.image_height = avctx->height;
++    if (avctx->pix_fmt == AV_PIX_FMT_GRAY8) {
++        cinfo.input_components = 1;
++        cinfo.in_color_space   = JCS_GRAYSCALE;
++    } else {
++        cinfo.input_components = 3;
++        cinfo.in_color_space   = JCS_RGB;
++    }
++    jpeg_set_defaults(&cinfo);
++    jpeg_set_quality(&cinfo, s->quality, TRUE);
++    cinfo.dct_method = s->dct;
++    if (avctx->sample_aspect_ratio.num > 0 && avctx->sample_aspect_ratio.den > 0) {
++        /* the aspect ratio of a pixel, as the JFIF header of the mjpeg encoder has it */
++        int num, den;
++
++        av_reduce(&num, &den, avctx->sample_aspect_ratio.num,
++                  avctx->sample_aspect_ratio.den, 65535);
++        cinfo.density_unit = 0;
++        cinfo.X_density    = num;
++        cinfo.Y_density    = den;
++    }
++    if (cinfo.num_components == 3) {
++        cinfo.comp_info[0].h_samp_factor = s->sampling == SAMPLING_444 ? 1 : 2;
++        cinfo.comp_info[0].v_samp_factor = s->sampling == SAMPLING_420 ? 2 : 1;
++        cinfo.comp_info[1].h_samp_factor = cinfo.comp_info[1].v_samp_factor = 1;
++        cinfo.comp_info[2].h_samp_factor = cinfo.comp_info[2].v_samp_factor = 1;
++    }
++    cinfo.optimize_coding = s->optimize ? TRUE : FALSE;
++    if (s->progressive == 1) {
++        jpeg_simple_progression(&cinfo);
++    } else if (s->progressive == 0) {
++        cinfo.scan_info = NULL;
++        cinfo.num_scans = 0;
++    }
++
++    jpeg_start_compress(&cinfo, TRUE);
++    if (s->comment && *s->comment)
++        jpeg_write_marker(&cinfo, JPEG_COM, (const JOCTET *)s->comment,
++                          FFMIN(strlen(s->comment), 65533));
++    for (int y = 0; y < avctx->height; y++)
++        s->rows[y] = (JSAMPROW)(frame->data[0] + (ptrdiff_t)y * frame->linesize[0]);
++    while (cinfo.next_scanline < cinfo.image_height)
++        jpeg_write_scanlines(&cinfo, s->rows + cinfo.next_scanline,
++                             cinfo.image_height - cinfo.next_scanline);
++    jpeg_finish_compress(&cinfo);
++    jpeg_destroy_compress(&cinfo);
++
++    ret = ff_get_encode_buffer(avctx, pkt, s->buf_size, 0);
++    if (ret >= 0) {
++        memcpy(pkt->data, s->buf, s->buf_size);
++        *got_packet = 1;
++    }
++    free(s->buf);
++    s->buf = NULL;
++    return ret;
++}
++
++static av_cold int libjpeg_encode_close(AVCodecContext *avctx)
++{
++    LibJPEGContext *s = avctx->priv_data;
++
++    av_freep(&s->rows);
++    return 0;
++}
++
++#define OFFSET(x) offsetof(LibJPEGContext, x)
++#define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
++static const AVOption options[] = {
++    { "quality",     "quality of libjpeg, 0-100 (-1: -q:v, else 75)", OFFSET(quality),     AV_OPT_TYPE_INT,    { .i64 = -1 }, -1, 100, VE },
++    { "sampling",    "chroma subsampling",                            OFFSET(sampling),    AV_OPT_TYPE_INT,    { .i64 = SAMPLING_420 }, SAMPLING_420, SAMPLING_444, VE, .unit = "sampling" },
++    { "420",         "4:2:0",                                         0, AV_OPT_TYPE_CONST, { .i64 = SAMPLING_420 }, 0, 0, VE, .unit = "sampling" },
++    { "422",         "4:2:2",                                         0, AV_OPT_TYPE_CONST, { .i64 = SAMPLING_422 }, 0, 0, VE, .unit = "sampling" },
++    { "444",         "4:4:4",                                         0, AV_OPT_TYPE_CONST, { .i64 = SAMPLING_444 }, 0, 0, VE, .unit = "sampling" },
++    { "dct",         "the forward DCT",                               OFFSET(dct),         AV_OPT_TYPE_INT,    { .i64 = JDCT_ISLOW }, 0, 2, VE, .unit = "dct" },
++    { "islow",       "accurate integer",                              0, AV_OPT_TYPE_CONST, { .i64 = JDCT_ISLOW }, 0, 0, VE, .unit = "dct" },
++    { "ifast",       "fast integer (ImageMagick up to quality 90)",   0, AV_OPT_TYPE_CONST, { .i64 = JDCT_IFAST }, 0, 0, VE, .unit = "dct" },
++    { "float",       "floating point",                                0, AV_OPT_TYPE_CONST, { .i64 = JDCT_FLOAT }, 0, 0, VE, .unit = "dct" },
++    { "progressive", "progressive scans (-1: as the library does)",   OFFSET(progressive), AV_OPT_TYPE_INT,    { .i64 = -1 }, -1, 1, VE },
++    { "optimize",    "optimised Huffman tables",                      OFFSET(optimize),    AV_OPT_TYPE_INT,    { .i64 = 1 }, 0, 1, VE },
++    { "comment",     "a comment (COM marker)",                         OFFSET(comment),     AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, VE },
++    { NULL },
++};
++
++static const AVClass libjpeg_class = {
++    .class_name = "libjpeg",
++    .item_name  = av_default_item_name,
++    .option     = options,
++    .version    = LIBAVUTIL_VERSION_INT,
++};
++
++const FFCodec ff_libjpeg_encoder = {
++    .p.name         = "libjpeg",
++    CODEC_LONG_NAME("libjpeg JPEG (libjpeg-turbo, mozjpeg, jpegli)"),
++    .p.type         = AVMEDIA_TYPE_VIDEO,
++    .p.id           = AV_CODEC_ID_MJPEG,
++    .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_ENCODER_REORDERED_OPAQUE,
++    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
++    CODEC_PIXFMTS(AV_PIX_FMT_RGB24, AV_PIX_FMT_GRAY8),
++    .color_ranges   = AVCOL_RANGE_JPEG,
++    .p.priv_class   = &libjpeg_class,
++    .p.wrapper_name = "libjpeg",
++    .priv_data_size = sizeof(LibJPEGContext),
++    .init           = libjpeg_encode_init,
++    FF_CODEC_ENCODE_CB(libjpeg_encode_frame),
++    .close          = libjpeg_encode_close,
++};
