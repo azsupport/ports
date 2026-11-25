@@ -635,10 +635,11 @@ if [ "$rc" = 0 ]; then
             tar -C "$stage" --owner=0 --group=0 --numeric-owner -cJf "$out/$name.tar.xz" usr &&
             (cd "$out" && sha256sum "$name.tar.xz" > "$name.tar.xz.sha256") || rc=1
         [ "$rc" = 0 ] && echo "archive: $name.tar.xz, $(du -k "$out/$name.tar.xz" | cut -f 1) KB, sha256 $(cut -d ' ' -f 1 "$out/$name.tar.xz.sha256")" >> "$res/summary.txt"
-        # the Debian packages azsupport-ffmpeg and azsupport-imagemagick7 of the same files (tools/ubuntu/deb.sh)
+        # the Debian packages azsupport-ffmpeg and azsupport-imagemagick7 of the same files
+        # (tools/ubuntu/deb.sh), their files and Depends into the summary
         if [ "$rc" = 0 ]; then
             if sh "$here/deb.sh" "$stage" "$cputype" "$out" "$res" "$sys" > "$res/deb.log" 2>&1; then
-                sed -n 's/^== /deb: /p' "$res/debs.txt" >> "$res/summary.txt"
+                sed -n -e 's/^== /deb: /p' -e 's/^ Depends: /     Depends: /p' "$res/debs.txt" >> "$res/summary.txt"
             else
                 rc=1
                 echo "deb      FAIL  tools/ubuntu/deb.sh (deb.log)" >> "$res/summary.txt"

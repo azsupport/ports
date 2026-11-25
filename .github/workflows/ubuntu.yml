@@ -171,7 +171,8 @@ jobs:
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ffmpeg imagemagick \
             fontconfig fonts-dejavu-core $heif \
             > results/tests/apt.log 2>&1 || { echo "::error title=tests::apt-get install of the references failed"; exit 1; }
-          # convert of the ImageMagick of the system (6; magick where it is 7 without it)
+          # convert of the ImageMagick of the system: 6 on Ubuntu and Debian 12, 7 on Debian 13
+          # (magick where there is no convert)
           IM_REF=/usr/bin/convert
           [ -x "$IM_REF" ] || IM_REF=/usr/bin/magick
           export FFMPEG_REF=/usr/bin/ffmpeg IM_REF IM_ONLY=imagemagick7
