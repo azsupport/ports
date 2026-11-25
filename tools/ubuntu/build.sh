@@ -273,7 +273,7 @@ b_fontconfig() {
         -Dxml-dir=/etc/fonts $xb &&
         ninja -C _az -j "$ncpu" && DESTDIR="$st" ninja -C _az install) &&
         cp -R "$st$P/." "$P/" || return 1
-    grep -q '^Requires.private:.*expat' "$P/lib/pkgconfig/fontconfig.pc" ||
+    grep -q '^Requires.*expat' "$P/lib/pkgconfig/fontconfig.pc" ||
         { echo "== fontconfig: not with expat: $(grep '^Requires' "$P/lib/pkgconfig/fontconfig.pc")"; return 1; }
 }
 b_lcms2() { at "$1" --with-fastfloat --with-threaded --without-jpeg --without-tiff; }

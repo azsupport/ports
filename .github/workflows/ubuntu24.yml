@@ -131,8 +131,8 @@ jobs:
             echo "build: ${{ steps.build.outcome }}, tests: ${{ steps.tests.outcome }}"
             echo
             echo '```'
-            cat ubuntu-results/summary.txt ubuntu-results/bins.txt 2> /dev/null
-            cat results/checks.txt 2> /dev/null
+            cat ubuntu-results/summary.txt ubuntu-results/bins.txt 2> /dev/null || :
+            cat results/checks.txt 2> /dev/null || :
             for f in ubuntu-results/*.tail ubuntu-results/bins-bad.txt; do
               [ -s "$f" ] || continue
               echo "== ${f#ubuntu-results/}"
