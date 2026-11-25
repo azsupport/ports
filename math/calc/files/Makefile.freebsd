@@ -9,6 +9,10 @@ CFLAGS:=	%%CFLAGS%% ${ICFLAGS} ${CCOPT}
 INCDIR:=	${LOCALBASE}/include
 LCC:=		%%CC%%
 LIBDIR:=	${PREFIX}/lib
+# calc.usage, the page formatted by man(1) for the cat page (calc.cat1), which is not
+# installed (CATDIR empty): without man, which the world of the build has not
+# (WITHOUT_MAN of its src.conf; "man: not found", build-jail.yml 45541471348)
+MAN:=		true
 MANDIR:=	${PREFIX}/share/man/man1
 SCRIPTDIR:=	${PREFIX}/libexec/cscript
 T:=		${DESTDIR}
