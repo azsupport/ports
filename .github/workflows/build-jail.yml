@@ -83,6 +83,10 @@ on:
         description: 'Publish the repository (the release the servers read) when everything built and every check passed'
         type: boolean
         default: false
+      tests_nonblocking:
+        description: 'Tests (their names: node node18 ...) whose FAIL does not keep the run from being published, for a publish of a few ports while the packages of those programs are the ones of the release (stale against this tree until a run builds them); empty: every FAIL keeps it'
+        required: false
+        default: ''
       publish_only:
         description: 'With publish: publish only when the repository differs from the release by packages of these ports alone (category/port, separated by spaces), else nothing; empty: whatever differs'
         required: false
@@ -491,6 +495,7 @@ jobs:
           AZ_CONFIGURE_CHECK: ${{ inputs.configure_check && '1' || '' }}
           AZ_PLAN: ${{ inputs.plan && '1' || '' }}
           AZ_PHP_CHECKS: ${{ inputs.php_checks }}
+          AZ_TESTS_NONBLOCKING: ${{ inputs.tests_nonblocking }}
           PKG_SIGNING_KEY: ${{ secrets.PKG_SIGNING_KEY }}
         run: |
           set +e
@@ -658,7 +663,20 @@ jobs:
           else
             echo "programs: SKIP (no tools/test-programs.sh: the tests of azsupport/azsupport were not fetched)" >> results/checks.txt
           fi
-          if [ "$r" = 1 ]; then rc=1; fi
+          if [ "$r" = 1 ]; then
+            # the FAIL of tests of tests_nonblocking alone does not keep the publish (it
+            # stays FAIL in the checks)
+            tf="$(awk '/^test [^ ]+: FAIL/ { sub(/^test /, ""); sub(/: FAIL.*/, ""); print }' results/checks.txt | sort -u | tr '\n' ' ')"
+            tb=""
+            for t in $tf; do
+              case " $AZ_TESTS_NONBLOCKING " in *" $t "*) ;; *) tb="$tb $t" ;; esac
+            done
+            if [ -n "$tf" ] && [ -z "$tb" ] && [ -n "$AZ_TESTS_NONBLOCKING" ]; then
+              echo "tests: the FAIL of ${tf% } does not keep the publish (tests_nonblocking: $AZ_TESTS_NONBLOCKING)" >> results/checks.txt
+            else
+              rc=1
+            fi
+          fi
           # what the checks and the tests left running in their root (the children of a
           # server they started and did not stop): listed with the private results of the
           # tests, killed by cr_down below
