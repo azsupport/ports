@@ -522,7 +522,8 @@ check_bins() {
         > "$res/ffmpeg-cuda.txt" 2>&1
     c=$?
     echo "ffmpeg -init_hw_device cuda: exit $c, $(grep -i -m 1 -e 'libcuda' -e 'cuda' "$res/ffmpeg-cuda.txt" | cut -c 1-160)" >> "$res/bins.txt"
-    [ "$c" -lt 128 ] || echo "ffmpeg -init_hw_device cuda: exit $c (a signal)" >> "$res/bins-bad.txt"
+    # 255: the error of ffmpeg; 129 to 192: a signal (128 and its number)
+    if [ "$c" -gt 128 ] && [ "$c" -le 192 ]; then echo "ffmpeg -init_hw_device cuda: exit $c (signal $((c - 128)))" >> "$res/bins-bad.txt"; fi
     MAGICK_CONFIGURE_PATH="$stage$F/etc/ImageMagick-7" "$stage$F/bin/magick" -version > "$res/magick-version.txt" 2>&1 ||
         echo "magick -version failed" >> "$res/bins-bad.txt"
 }
