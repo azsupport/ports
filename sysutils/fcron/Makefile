@@ -27,7 +27,12 @@ USE_PERL5=	build
 USE_RC_SUBR=	fcron
 
 GNU_CONFIGURE=	yes
+# the default editor of fcrontab -e (without VISUAL and EDITOR): ee of the base system,
+# not vi, which neither the world of the build nor the servers have (WITHOUT_VI of their
+# src.conf; configure looks for vi, "Cannot determine path to vi": build-jail.yml
+# 45541471348)
 CONFIGURE_ARGS=	--localstatedir=/var \
+		--with-editor=/usr/bin/ee \
 		--with-cflags="${CFLAGS}" \
 		--with-rootname=root --with-rootgroup=wheel \
 		--with-docdir=${DOCSDIR} \
