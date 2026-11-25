@@ -1,0 +1,53 @@
+h264_nvenc takes 8-bit 4:2:0 in the limited range only (yuv420p, nv12, and the
+frames of a CUDA device as they are), as libx264 does with
+multimedia/ffmpeg/files/ffmpeg/libx264-8bit-420.patch: what browsers play.
+Without it, an upload in 10 bit (HEVC of a phone) made ffmpeg choose p010 for
+h264_nvenc, which NVENC does not encode in H.264 ("10 bit encode not supported"),
+and one in 4:2:2 or 4:4:4 (MJPEG of a camera, a screen recording) H.264 High 4:4:4
+Predictive, which Safari, iPhones and most browsers do not play, when the command
+has no -pix_fmt yuv420p. With this list ffmpeg converts such input into 8-bit 4:2:0
+itself; a full range input is converted into the limited range, as for libx264
+(-color_range pc still gives the full range). Frames decoded on the GPU
+(-hwaccel cuda -hwaccel_output_format cuda) keep their format: 10-bit ones need
+scale_cuda=format=nv12. hevc_nvenc and av1_nvenc keep every format (10 bit too).
+Only in the Ubuntu build (tools/ubuntu/build.sh): FreeBSD has no NVENC.
+
+--- a/libavcodec/nvenc_h264.c
++++ b/libavcodec/nvenc_h264.c
+@@ -207,6 +207,23 @@
+     { NULL },
+ };
+ 
++/* What browsers play: 8-bit 4:2:0, as libx264 takes it (libx264-8bit-420.patch of
++ * multimedia/ffmpeg/files/ffmpeg). With only these formats in software ffmpeg converts
++ * any other input (10 bit, 4:2:2, 4:4:4, RGB) into 8-bit 4:2:0 itself, without
++ * -pix_fmt yuv420p in the command; frames of a CUDA device keep the format they have. */
++static const enum AVPixelFormat pix_fmts_8bit_420[] = {
++    AV_PIX_FMT_YUV420P,
++    AV_PIX_FMT_NV12,
++    AV_PIX_FMT_CUDA,
++#ifdef NVENC_HAVE_CUDA_ARRAY_INPUT_SUPPORT
++    AV_PIX_FMT_CUARRAY,
++#endif
++#if CONFIG_D3D11VA
++    AV_PIX_FMT_D3D11,
++#endif
++    AV_PIX_FMT_NONE
++};
++
+ static const AVClass h264_nvenc_class = {
+     .class_name = "h264_nvenc",
+     .item_name = av_default_item_name,
+@@ -231,8 +248,10 @@
+                       AV_CODEC_CAP_ENCODER_REORDERED_OPAQUE,
+     .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
+                       FF_CODEC_CAP_INIT_CLEANUP,
+-    CODEC_PIXFMTS_ARRAY(ff_nvenc_pix_fmts),
+-    .color_ranges   = AVCOL_RANGE_MPEG | AVCOL_RANGE_JPEG,
++    CODEC_PIXFMTS_ARRAY(pix_fmts_8bit_420),
++    /* The limited range only, as libx264: a full range upload (MJPEG of a camera, a
++     * phone video) is converted; -color_range pc still gives the full range. */
++    .color_ranges   = AVCOL_RANGE_MPEG,
+     .p.wrapper_name = "nvenc",
+     .hw_configs     = ff_nvenc_hw_configs,
+ };

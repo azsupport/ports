@@ -1,0 +1,209 @@
+name: ubuntu24
+
+# Our FFmpeg and ImageMagick 7 for Ubuntu 24.04 (amd64): tools/ubuntu/build.sh, an
+# archive per level (x86-64-v3, x86-64-v2) with ffmpeg, ffprobe (NVIDIA codecs and CUDA
+# filters too: tools/ubuntu/ffmpeg-nvidia.conf) and magick, tested as the FreeBSD
+# packages are, with tests/ports/ffmpeg-test.sh and imagemagick-test.sh of the private
+# azsupport/azsupport (secret RUNS_TOKEN; their output only into its branch runs, here
+# only "test <name>: OK|FAIL"; the samples made with the ffmpeg and the ImageMagick 6 of
+# Ubuntu), and published (input publish, on main) as the release
+# az-ubuntu24-amd64-<v3|v2> of this repository:
+#   https://github.com/azsupport/ports/releases/download/az-ubuntu24-amd64-v3/az-ubuntu24-amd64-v3.tar.xz
+# On a runner of GitHub (ubuntu-24.04): our runners are FreeBSD jails.
+
+on:
+  workflow_dispatch:
+    inputs:
+      cputype:
+        description: 'The levels: both, x86-64-v3 or x86-64-v2'
+        required: false
+        default: 'both'
+      publish:
+        description: 'Publish the archives (releases az-ubuntu24-amd64-<level>) when built and tested (main only)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ubuntu24-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        cputype: ${{ fromJSON(inputs.cputype == 'both' && '["x86-64-v3","x86-64-v2"]' || format('["{0}"]', inputs.cputype)) }}
+    env:
+      AZ_CPUTYPE: ${{ matrix.cputype }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: The build tools
+        run: sudo sh tools/ubuntu/build.sh --tools
+
+      - name: Build
+        id: build
+        run: sh tools/ubuntu/build.sh
+
+      # the tests of the FreeBSD packages from the private azsupport/azsupport, into
+      # tools/ (they are in .gitignore here); the samples made with the ffmpeg and the
+      # ImageMagick 6 of Ubuntu (FFMPEG_REF, IM_REF), before our archive is installed;
+      # their output into results/tests/ only, here "test <name>: OK|FAIL"
+      - name: Tests
+        id: tests
+        if: steps.build.outcome == 'success'
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+        run: |
+          mkdir -p results/tests
+          if [ -z "$RUNS_TOKEN" ]; then
+            echo "::error title=tests::no RUNS_TOKEN: no tests"
+            exit 1
+          fi
+          t="$RUNNER_TEMP/az-tests.tgz"
+          curl -fsSL --retry 5 --retry-all-errors -H "Authorization: Bearer $RUNS_TOKEN" -H "Accept: application/vnd.github+json" \
+            -o "$t" "https://api.github.com/repos/azsupport/azsupport/tarball/main"
+          tar -xzf "$t" -C tools --wildcards --strip-components=3 '*/tests/ports/ffmpeg-test.sh' '*/tests/ports/imagemagick-test.sh'
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ffmpeg imagemagick \
+            fontconfig fonts-dejavu-core libheif-plugin-x265 libheif-plugin-aomenc libheif-plugin-dav1d libheif-plugin-libde265 \
+            > results/tests/apt.log 2>&1 || { echo "::error title=tests::apt-get install of the references failed"; exit 1; }
+          export FFMPEG_REF=/usr/bin/ffmpeg IM_REF=/usr/bin/convert IM_ONLY=imagemagick7
+          export AZ_FFMPEG_CONF="$PWD/ubuntu-results/ffmpeg.conf"
+          AZ_RESULTS=results/tests/ffmpeg sh tools/ffmpeg-test.sh --samples > results/tests/ffmpeg-samples.log 2>&1
+          AZ_RESULTS=results/tests/imagemagick sh tools/imagemagick-test.sh --samples > results/tests/imagemagick-samples.log 2>&1
+          sudo tar -xJf "az-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}.tar.xz" -C /
+          rc=0
+          : > results/checks.txt
+          for n in ffmpeg imagemagick; do
+            if AZ_RESULTS="results/tests/$n" sh "tools/$n-test.sh" > "results/tests/$n.log" 2>&1; then s=OK; else s=FAIL; rc=1; fi
+            echo "test $n: $s" | tee -a results/checks.txt
+          done
+          exit $rc
+
+      - name: The results of the tests, to azsupport/azsupport
+        if: always()
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          PART: ${{ matrix.cputype }}
+        run: |
+          [ -d results/tests ] || { echo "no results/tests: no test ran"; exit 0; }
+          a="${GITHUB_RUN_ID}-${PART}-tests.tar.xz"
+          tar -cJf "$RUNNER_TEMP/$a" -C results tests
+          rm -rf results/tests
+          if [ -z "$RUNS_TOKEN" ]; then
+            echo "::warning title=test results::no RUNS_TOKEN: the results of the tests are not kept"
+            exit 0
+          fi
+          day="$(date -u +%Y-%m-%d)"
+          w="$RUNNER_TEMP/runs-tests"
+          timeout 600 git clone -q --depth 1 --filter=blob:none --no-checkout --branch runs --single-branch \
+            "https://x-access-token:${RUNS_TOKEN}@github.com/azsupport/azsupport.git" "$w"
+          git -C "$w" sparse-checkout set --no-cone "/ports-ubuntu24/$day/"
+          timeout 600 git -C "$w" checkout -q runs
+          mkdir -p "$w/ports-ubuntu24/$day"
+          cp "$RUNNER_TEMP/$a" "$w/ports-ubuntu24/$day/$a"
+          git -C "$w" add "ports-ubuntu24/$day/$a"
+          git -C "$w" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "ports-ubuntu24 $PART: the results of the tests of run $GITHUB_RUN_ID"
+          i=0
+          until timeout 300 git -C "$w" push -q origin HEAD:runs; do
+            i=$((i + 1)); [ $i -lt 10 ] || { echo "::warning title=test results::push to azsupport/azsupport failed"; exit 0; }
+            sleep $((i * 3))
+            timeout 600 git -C "$w" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              pull -q --rebase origin runs || :
+          done
+          echo "the results of the tests: azsupport/azsupport, branch runs, ports-ubuntu24/$day/$a"
+
+      - name: Report
+        id: report
+        if: always()
+        run: |
+          a="az-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}.tar.xz"
+          {
+            echo "## ubuntu24 $AZ_CPUTYPE"
+            echo
+            echo "build: ${{ steps.build.outcome }}, tests: ${{ steps.tests.outcome }}"
+            echo
+            echo '```'
+            cat ubuntu-results/summary.txt ubuntu-results/bins.txt 2> /dev/null
+            cat results/checks.txt 2> /dev/null
+            for f in ubuntu-results/*.tail ubuntu-results/bins-bad.txt; do
+              [ -s "$f" ] || continue
+              echo "== ${f#ubuntu-results/}"
+              tail -n 40 "$f"
+            done
+            echo '```'
+            if [ -s ubuntu-results/VERSIONS ]; then
+              echo
+              echo '<details><summary>VERSIONS</summary>'
+              echo
+              echo '```'
+              cat ubuntu-results/VERSIONS
+              echo '```'
+              echo '</details>'
+            fi
+          } > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Results
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu24-${{ matrix.cputype }}
+          retention-days: 14
+          path: |
+            ubuntu-results/
+            az-ubuntu24-amd64-*.tar.xz
+            az-ubuntu24-amd64-*.tar.xz.sha256
+
+      # the release az-ubuntu24-amd64-<level>: its tag moved to this commit, the archive
+      # and its .sha256 in the place of those before (the same address), VERSIONS as its
+      # notes; never the latest release of the repository
+      - name: Publish
+        id: publish
+        if: ${{ inputs.publish && github.ref == 'refs/heads/main' && steps.tests.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="az-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}"
+          a="$tag.tar.xz"
+          {
+            echo "FFmpeg and ImageMagick 7 of this repository for Ubuntu 24.04 (amd64, $AZ_CPUTYPE): tools/ubuntu/build.sh,"
+            echo "run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID, commit $GITHUB_SHA."
+            echo
+            echo '```'
+            echo "curl -fLO $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag/$a"
+            echo "curl -fLO $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag/$a.sha256"
+            echo "sha256sum -c $a.sha256"
+            echo "sudo tar -xJf $a -C /"
+            echo '```'
+            echo
+            echo '```'
+            cat ubuntu-results/VERSIONS
+            echo '```'
+          } > notes.md
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag" -f sha="$GITHUB_SHA" -F force=true > /dev/null
+            gh release upload "$tag" "$a" "$a.sha256" --clobber
+            gh release edit "$tag" --notes-file notes.md --latest=false
+          else
+            gh release create "$tag" "$a" "$a.sha256" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md --latest=false
+          fi
+          echo "published: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag/$a" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Report to azsupport/azsupport
+        if: always()
+        continue-on-error: true
+        env:
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: cputype=${{ matrix.cputype }} publish=${{ inputs.publish }}
+          RUNS_STEPS: build=${{ steps.build.outcome }} tests=${{ steps.tests.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
+          PART: ${{ matrix.cputype }}
+        run: sh tools/runs-report.sh report.md "$PART"
