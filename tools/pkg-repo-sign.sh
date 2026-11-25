@@ -27,6 +27,10 @@ usage="usage: sh tools/pkg-repo-sign.sh <directory> <log>"
 dir="${1:?$usage}"
 log="${2:?$usage}"
 [ -d "$dir" ] || { echo "pkg repo failed: no directory $dir"; exit 1; }
+# the directory itself, not a link to it: pkg repo does not follow a link given as the
+# directory ("No package files have been found"; repo/ of build-jail.yml is a link to
+# the repository of the branch and level in the jail, 25.11.2026)
+dir="$(realpath "$dir")" || { echo "pkg repo failed: no real path of $1"; exit 1; }
 : > "$log" || { echo "pkg repo failed: cannot write $log"; exit 1; }
 line() { printf '%s\n' "$*"; printf '%s\n' "$*" >> "$log"; }
 fail() { _t="$(tail -n 2 "$log" | tr '\n' ' ')"; line "pkg repo failed: $* ${_t:+($_t)}"; exit 1; }
