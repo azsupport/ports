@@ -51,6 +51,8 @@
 #                summary.txt, a log per part, VERSIONS, bins.txt, ffmpeg.conf (the
 #                configure lines of FFmpeg, for tests/ports/ffmpeg-test.sh)
 #   AZ_OUT       where the archive goes (default: the current directory)
+#   AZ_FFMPEG_LTO  the LTO of FFmpeg: auto (default, -flto=auto) or no (--disable-lto)
+#   AZ_X264_LTO    the LTO of x264 (b_lto of meson): true (default, as the port) or false
 #
 # Exit status: 0 built, 1 a part failed or a check of the programs, 2 usage.
 
@@ -78,6 +80,10 @@ F=/usr/local
 dist="$work/distfiles"
 src="$work/src"
 ncpu="$(nproc 2>/dev/null || echo 2)"
+fflto="${AZ_FFMPEG_LTO:-auto}"
+case "$fflto" in auto) fflto_opt=--enable-lto=auto ;; no) fflto_opt=--disable-lto ;; *) echo "ubuntu/build: AZ_FFMPEG_LTO is auto or no, not $fflto" >&2; exit 2 ;; esac
+x264lto="${AZ_X264_LTO:-true}"
+case "$x264lto" in true|false) ;; *) echo "ubuntu/build: AZ_X264_LTO is true or false, not $x264lto" >&2; exit 2 ;; esac
 
 if [ "${1:-}" = "--tools" ]; then
     # build-essential (gcc, g++, make), clang (the CUDA kernels of FFmpeg), nasm (the
@@ -302,7 +308,7 @@ b_x264() {
         grep -q "version: '$(src_ver x264)'," "$1/meson.build" && grep -q "^x264_commit = '$c'" "$1/meson.build" &&
         grep -q "default_options: \['c_std=c11'\]," "$1/meson.build" ||
         { echo "== x264: meson.build is not as the patch of the port expects"; return 1; }
-    ms "$1" -Dcli=false -Dasm=enabled -Db_lto=true
+    ms "$1" -Dcli=false -Dasm=enabled -Db_lto="$x264lto"
 }
 b_dav1d() { ms "$1" -Denable_tools=false -Denable_tests=false -Denable_examples=false; }
 b_libde265() {
@@ -361,7 +367,7 @@ b_ffmpeg() {
         ./configure --prefix="$F" --cc=gcc --cxx=g++ --ar=gcc-ar --ranlib=gcc-ranlib --nm="gcc-nm -g" \
             --pkg-config=pkgconf --pkg-config-flags=--static \
             --extra-cflags="$ffcflags -I$P/include" --extra-cxxflags="$ffcflags -I$P/include" \
-            --extra-ldflags="-L$P/lib" $(conf_opts "$res/ffmpeg.conf") --enable-lto=auto &&
+            --extra-ldflags="-L$P/lib" $(conf_opts "$res/ffmpeg.conf") "$fflto_opt" &&
             make -j"$ncpu" && make install-progs DESTDIR="$stage"
     ) || { cp "$1/ffbuild/config.log" "$res/ffmpeg-config.log" 2>/dev/null; return 1; }
     cp "$1/ffbuild/config.log" "$res/ffmpeg-config.log" 2>/dev/null
@@ -533,7 +539,7 @@ manifest() {
         echo "FFmpeg and ImageMagick 7 of azsupport/ports for Ubuntu 24.04 (amd64, $cputype), built $(date -u '+%Y-%m-%d %H:%M UTC')"
         echo "on $(. /etc/os-release && echo "$PRETTY_NAME"), $(gcc --version | head -n 1); clang for CUDA: $(clang --version 2>/dev/null | head -n 1)"
         echo "commit: $(git -C "$tree" rev-parse HEAD 2>/dev/null || echo '?') of https://github.com/azsupport/ports (tools/ubuntu/build.sh)"
-        echo "CFLAGS: $CFLAGS (FFmpeg: $ffcflags, -flto=auto)"
+        echo "CFLAGS: $CFLAGS (FFmpeg: $ffcflags, $fflto_opt; x264: b_lto=$x264lto)"
         echo "The libraries are in the programs (static); they need the libraries of Ubuntu: $ok_libs"
         echo
         echo "Sources (tools/ubuntu/sources.conf; the versions of az/az/files/deps.conf, ffmpeg.conf and imagemagick.conf):"
@@ -554,7 +560,7 @@ manifest() {
         echo
         echo "FFmpeg configure (after --prefix=$F, the compilers and the flags):"
         conf_opts "$res/ffmpeg.conf" | sed 's/^/    /'
-        echo "    --enable-lto=auto"
+        echo "    $fflto_opt"
         echo
         echo "ImageMagick 7 configure (after --prefix=$F):"
         awk '$1 == "configure" || $1 == "configure7" { for (i = 2; i <= NF; i++) print "    " $i }' "$imconf"

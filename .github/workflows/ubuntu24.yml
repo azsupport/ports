@@ -22,12 +22,25 @@ on:
         description: 'Publish the archives (releases az-ubuntu24-amd64-<level>) when built and tested (main only)'
         type: boolean
         default: false
+      ffmpeg_lto:
+        description: 'The LTO of FFmpeg: auto or no (AZ_FFMPEG_LTO)'
+        required: false
+        default: 'auto'
+      x264_lto:
+        description: 'The LTO of x264: true or false (AZ_X264_LTO)'
+        required: false
+        default: 'true'
+      debug:
+        description: 'After a failed test of ffmpeg: backtraces (gdb) of a few of its commands'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
+# the runs that publish one after another (per branch); the others side by side
 concurrency:
-  group: ubuntu24-${{ github.ref }}
+  group: ubuntu24-${{ inputs.publish && github.ref || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -40,6 +53,8 @@ jobs:
         cputype: ${{ fromJSON(inputs.cputype == 'both' && '["x86-64-v3","x86-64-v2"]' || format('["{0}"]', inputs.cputype)) }}
     env:
       AZ_CPUTYPE: ${{ matrix.cputype }}
+      AZ_FFMPEG_LTO: ${{ inputs.ffmpeg_lto }}
+      AZ_X264_LTO: ${{ inputs.x264_lto }}
     steps:
       - uses: actions/checkout@v5
 
@@ -84,6 +99,26 @@ jobs:
             echo "test $n: $s" | tee -a results/checks.txt
           done
           exit $rc
+
+      # the unstripped ffmpeg of the build (ffmpeg_g) under gdb, on the samples of the
+      # test: the command, the signal and the backtrace of the thread that got it
+      - name: Backtraces of ffmpeg
+        if: ${{ always() && inputs.debug && steps.tests.outcome == 'failure' }}
+        continue-on-error: true
+        run: |
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends gdb > /dev/null 2>&1
+          g="/tmp/az-ubuntu-${AZ_CPUTYPE#x86-64-}/src/ffmpeg/ffmpeg_g"
+          T=/var/tmp/ffmpeg-test
+          ls -la "$g" "$T"/h264_aac.mp4 "$T"/vp9_opus.webm "$T"/av1_aac.mp4 2>&1 | sed 's/^/    /'
+          bt() {
+            echo "=== ffmpeg $*"
+            timeout 300 gdb -q -batch -ex 'set pagination off' -ex run -ex 'info signal' -ex 'bt 25' -ex 'info registers rip rsp' \
+              -ex 'x/6i $pc-12' --args "$g" -hide_banner -nostdin -y "$@" 2>&1 | grep -v -e '^\[New Thread' -e '^\[Thread .* exited' | tail -n 60
+          }
+          bt -ss 1 -i "$T/vp9_opus.webm" -frames:v 1 /tmp/shot-vp9.jpg
+          bt -i "$T/h264_aac.mp4" -vcodec libx264 -an -f mp4 /tmp/kvs-h264.mp4
+          bt -i "$T/av1_aac.mp4" -vn -acodec aac -f mp4 /tmp/aac.mp4
+          bt -f lavfi -i testsrc2=size=320x240:rate=25:duration=1 -frames:v 1 /tmp/lavfi.png
 
       - name: The results of the tests, to azsupport/azsupport
         if: always()
@@ -203,7 +238,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: cputype=${{ matrix.cputype }} publish=${{ inputs.publish }}
+          RUNS_INPUTS: cputype=${{ matrix.cputype }} publish=${{ inputs.publish }} ffmpeg_lto=${{ inputs.ffmpeg_lto }} x264_lto=${{ inputs.x264_lto }} debug=${{ inputs.debug }}
           RUNS_STEPS: build=${{ steps.build.outcome }} tests=${{ steps.tests.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
           PART: ${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"
