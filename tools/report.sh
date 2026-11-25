@@ -179,7 +179,16 @@ if [ -s "$res/checks.txt" ]; then
     } > "$tmp/php.txt"
     echo "==================== the checks"
     cat "$tmp/php.txt"
-    if grep -q ': FAIL' "$res/checks.txt"; then level=error; rc=1; else level=notice; fi
+    # the FAIL of the tests of tests_nonblocking (build-jail.yml: the line "tests: the FAIL
+    # of <names> does not keep the publish") stays in the checks, as a warning
+    nb="$(sed -n 's/^tests: the FAIL of \(.*\) does not keep the publish .*/\1/p' "$res/checks.txt" | head -n 1)"
+    fl="$(grep ': FAIL' "$res/checks.txt")"
+    for t in $nb; do
+        fl="$(printf '%s\n' "$fl" | grep -v -F "test $t: FAIL")"
+    done
+    if [ -n "$fl" ]; then level=error; rc=1
+    elif grep -q ': FAIL' "$res/checks.txt"; then level=warning
+    else level=notice; fi
     annot "$level" "$title: the checks of PHP and the tests of the programs" "$tmp/php.txt"
     {
         echo "### $title: the packages installed and checked (PHP, the programs)"
