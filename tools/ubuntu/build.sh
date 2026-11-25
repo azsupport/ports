@@ -1,5 +1,5 @@
 #!/bin/sh
-# tools/ubuntu/build.sh - our FFmpeg and ImageMagick 7 for Ubuntu 24.04 (amd64): the
+# tools/ubuntu/build.sh - our FFmpeg and ImageMagick 7 for Ubuntu 24.04 and 22.04 (amd64): the
 # versions, patches and configure lines of multimedia/ffmpeg (files/ffmpeg.conf,
 # files/ffmpeg-nonfree.conf, files/ffmpeg/*.patch; tools/ffmpeg-build.sh) and of
 # graphics/ImageMagick7 (files/imagemagick.conf, files/policy.xml,
@@ -7,7 +7,10 @@
 # libraries of the package az they link built with the options of tools/az-build.sh
 # (and files/deps/<name>-<version>.patch of az/az), from the release files of
 # tools/ubuntu/sources.conf, their SHA-256 checked. FFmpeg also with the NVIDIA codecs
-# and the CUDA filters (tools/ubuntu/ffmpeg-nvidia.conf; aZ, 25.11.2026).
+# and the CUDA filters (tools/ubuntu/ffmpeg-nvidia.conf; aZ, 25.11.2026). Built on the
+# release it is for (the glibc and libstdc++ of 24.04 are newer than those of 22.04):
+# the archive and the packages are named by it, az-ubuntu24 and az-ubuntu22 (aZ,
+# 25.11.2026: «надо ешё для ubuntu 22, дополни к 24»).
 #
 # What is not as on FreeBSD, and why:
 #   - the libraries are static archives of the work directory, inside the programs:
@@ -17,9 +20,9 @@
 #     system), and FFmpeg loads the NVIDIA driver when it opens a CUDA device (dlopen:
 #     so it is linked with glibc dynamically; without the driver and a GPU it works as
 #     without them)
-#   - GCC of Ubuntu (13) instead of the clang of the FreeBSD base, with its gcc-ar for
+#   - GCC of Ubuntu (13 on 24.04, 11 on 22.04) instead of the clang of the FreeBSD base, with its gcc-ar for
 #     the LTO of FFmpeg (-flto=auto: the GCC way of --enable-lto); x264 without LTO
-#     (b_x264: why); clang only for the CUDA kernels of the filters (cuda-llvm)
+#     (b_x264: why); clang (18 on 24.04, 14 on 22.04) only for the CUDA kernels of the filters (cuda-llvm)
 #   - of the FreeBSD ports what makes the same library here: the APNG patch of libpng
 #     (its PATCHFILES: the patch lines of sources.conf), LONG_PCF_NAMES of FreeType,
 #     the version of x264 in its meson.build (b_x264); not their patches for FreeBSD
@@ -31,19 +34,19 @@
 #     /usr/share/fonts, /var/cache/fontconfig): the packages fontconfig-config and
 #     fonts-dejavu-core, as the port takes those of FreeBSD
 #
-# Usage (Ubuntu 24.04, amd64; the workflow .github/workflows/ubuntu24.yml):
+# Usage (Ubuntu 24.04 or 22.04, amd64; the workflow .github/workflows/ubuntu.yml):
 #   sh tools/ubuntu/build.sh --tools    install the build tools (apt-get; as root)
-#   sh tools/ubuntu/build.sh            build; the archive az-ubuntu24-amd64-<v3|v2>.tar.xz and
+#   sh tools/ubuntu/build.sh            build; the archive az-ubuntu<24|22>-amd64-<v3|v2>.tar.xz and
 #                                       the packages az-ffmpeg and az-imagemagick7 of the
 #                                       same files (tools/ubuntu/deb.sh)
 #
-# The archive (tar -xJf az-ubuntu24-amd64-v3.tar.xz -C /): /usr/local/bin/ffmpeg,
+# The archive (tar -xJf az-ubuntu24-amd64-v3.tar.xz -C /; az-ubuntu22 on 22.04): /usr/local/bin/ffmpeg,
 # ffprobe, magick and the names linked to it (convert, identify, mogrify, composite,
 # montage, compare, stream, animate, display, import, magick-script; not conjure, which
 # runs MSL scripts), /usr/local/etc/ImageMagick-7 (with our policy.xml),
 # /usr/local/share/ImageMagick-7, /usr/local/lib/ImageMagick-7.1.2 (configure.xml),
 # /usr/local/share/licenses/ (FFmpeg, ImageMagick and each library), and
-# /usr/local/share/doc/az-ubuntu24/VERSIONS (what was built from what).
+# /usr/local/share/doc/az-ubuntu24/VERSIONS (az-ubuntu22 on 22.04: what was built from what).
 #
 # Environment:
 #   AZ_CPUTYPE   x86-64-v3 (default) or x86-64-v2: -march and the name of the archive
@@ -74,7 +77,6 @@ level="${cputype#x86-64-}"
 work="${AZ_WORK:-/tmp/az-ubuntu-$level}"
 res="${AZ_RESULTS:-$(pwd)/ubuntu-results}"
 out="${AZ_OUT:-$(pwd)}"
-name="az-ubuntu24-amd64-$level"
 # the static libraries, their headers and .pc files; the files of the archive
 P="$work/prefix"
 stage="$work/stage"
@@ -87,6 +89,15 @@ fflto="${AZ_FFMPEG_LTO:-auto}"
 case "$fflto" in auto) fflto_opt=--enable-lto=auto ;; no) fflto_opt="" ;; *) echo "ubuntu/build: AZ_FFMPEG_LTO is auto or no, not $fflto" >&2; exit 2 ;; esac
 x264lto="${AZ_X264_LTO:-false}"
 case "$x264lto" in true|false) ;; *) echo "ubuntu/build: AZ_X264_LTO is true or false, not $x264lto" >&2; exit 2 ;; esac
+# the release of Ubuntu this runs on, 24.04 or 22.04: rel names the archive, the
+# packages and the directories of VERSIONS and of the licences (az-ubuntu24, az-ubuntu22)
+ubuntu="$(. /etc/os-release 2>/dev/null && [ "${ID:-}" = ubuntu ] && echo "${VERSION_ID:-}")"
+case "$ubuntu" in
+    24.04|22.04) ;;
+    *) echo "ubuntu/build: Ubuntu 24.04 or 22.04 (amd64), not $(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-}")" >&2; exit 2 ;;
+esac
+rel="ubuntu${ubuntu%%.*}"
+name="az-$rel-amd64-$level"
 
 if [ "${1:-}" = "--tools" ]; then
     # build-essential (gcc, g++, make), clang (the CUDA kernels of FFmpeg), nasm (the
@@ -444,7 +455,7 @@ lic_files() {
     esac
 }
 lic() {
-    d="$stage$F/share/licenses/az-ubuntu24/$1"
+    d="$stage$F/share/licenses/az-$rel/$1"
     for f in $(lic_files "$1"); do
         [ -f "$2/$f" ] || continue
         mkdir -p "$d" && cp "$2/$f" "$d/${f##*/}"
@@ -546,7 +557,7 @@ check_bins() {
 
 manifest() {
     {
-        echo "FFmpeg and ImageMagick 7 of azsupport/ports for Ubuntu 24.04 (amd64, $cputype), built $(date -u '+%Y-%m-%d %H:%M UTC')"
+        echo "FFmpeg and ImageMagick 7 of azsupport/ports for Ubuntu $ubuntu (amd64, $cputype), built $(date -u '+%Y-%m-%d %H:%M UTC')"
         echo "on $(. /etc/os-release && echo "$PRETTY_NAME"), $(gcc --version | head -n 1); clang for CUDA: $(clang --version 2>/dev/null | head -n 1)"
         echo "commit: $(git -C "$tree" rev-parse HEAD 2>/dev/null || echo '?') of https://github.com/azsupport/ports (tools/ubuntu/build.sh)"
         echo "CFLAGS: $CFLAGS (FFmpeg: $ffcflags, ${fflto_opt:-no LTO}; x264: b_lto=$x264lto)"
@@ -579,7 +590,7 @@ manifest() {
         echo "x264 under the GPL and libfdk_aac under the licence of the Fraunhofer FDK AAC library),"
         echo "published by aZ on his responsibility, as the package ffmpeg of FreeBSD; ImageMagick under"
         echo "the ImageMagick License; the licences are in share/licenses/ (ffmpeg, ImageMagick7, and"
-        echo "az-ubuntu24/<library>)."
+        echo "az-$rel/<library>)."
     } > "$res/VERSIONS"
 }
 
@@ -592,7 +603,7 @@ for n in $names; do
 done
 if [ "$rc" = 0 ]; then
     manifest
-    mkdir -p "$stage$F/share/doc/az-ubuntu24" && cp "$res/VERSIONS" "$stage$F/share/doc/az-ubuntu24/VERSIONS" ||
+    mkdir -p "$stage$F/share/doc/az-$rel" && cp "$res/VERSIONS" "$stage$F/share/doc/az-$rel/VERSIONS" ||
         echo "VERSIONS not into the stage" >> "$res/bins-bad.txt"
     check_bins
     if [ -s "$res/bins-bad.txt" ]; then
@@ -604,7 +615,7 @@ if [ "$rc" = 0 ]; then
         [ "$rc" = 0 ] && echo "archive: $name.tar.xz, $(du -k "$out/$name.tar.xz" | cut -f 1) KB, sha256 $(cut -d ' ' -f 1 "$out/$name.tar.xz.sha256")" >> "$res/summary.txt"
         # the Debian packages az-ffmpeg and az-imagemagick7 of the same files (tools/ubuntu/deb.sh)
         if [ "$rc" = 0 ]; then
-            if sh "$here/deb.sh" "$stage" "$cputype" "$out" "$res" > "$res/deb.log" 2>&1; then
+            if sh "$here/deb.sh" "$stage" "$cputype" "$out" "$res" "$ubuntu" > "$res/deb.log" 2>&1; then
                 sed -n 's/^== /deb: /p' "$res/debs.txt" >> "$res/summary.txt"
             else
                 rc=1

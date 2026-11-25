@@ -1,6 +1,8 @@
-name: ubuntu24
+name: ubuntu
 
-# Our FFmpeg and ImageMagick 7 for Ubuntu 24.04 (amd64): tools/ubuntu/build.sh, an
+# Our FFmpeg and ImageMagick 7 for Ubuntu 24.04 and 22.04 (amd64; aZ, 25.11.2026: «надо
+# ешё для ubuntu 22, дополни к 24»): tools/ubuntu/build.sh on each release (the glibc and
+# libstdc++ of 24.04 are newer than those of 22.04), an
 # archive per level (x86-64-v3, x86-64-v2) with ffmpeg, ffprobe (NVIDIA codecs and CUDA
 # filters too: tools/ubuntu/ffmpeg-nvidia.conf) and magick, and the Debian packages
 # az-ffmpeg and az-imagemagick7 of the same files (tools/ubuntu/deb.sh), installed by
@@ -8,20 +10,24 @@ name: ubuntu24
 # packages are, with tests/ports/ffmpeg-test.sh and imagemagick-test.sh of the private
 # azsupport/azsupport (secret RUNS_TOKEN; their output only into its branch runs, here
 # only "test <name>: OK|FAIL"; the samples made with the ffmpeg and the ImageMagick 6 of
-# Ubuntu), and published (input publish, on main) as the release
-# az-ubuntu24-amd64-<v3|v2> of this repository:
+# Ubuntu), and published (input publish, on main) as the releases
+# az-ubuntu24-amd64-<v3|v2> and az-ubuntu22-amd64-<v3|v2> of this repository:
 #   https://github.com/azsupport/ports/releases/download/az-ubuntu24-amd64-v3/az-ubuntu24-amd64-v3.tar.xz
-# On a runner of GitHub (ubuntu-24.04): our runners are FreeBSD jails.
+# On the runners of GitHub (ubuntu-24.04, ubuntu-22.04): our runners are FreeBSD jails.
 
 on:
   workflow_dispatch:
     inputs:
+      ubuntu:
+        description: 'The releases of Ubuntu: both, 24.04 or 22.04'
+        required: false
+        default: 'both'
       cputype:
         description: 'The levels: both, x86-64-v3 or x86-64-v2'
         required: false
         default: 'both'
       publish:
-        description: 'Publish the archives (releases az-ubuntu24-amd64-<level>) when built and tested (main only)'
+        description: 'Publish the archives and packages (releases az-ubuntu<24|22>-amd64-<level>) when built and tested (main only)'
         type: boolean
         default: false
       ffmpeg_lto:
@@ -42,18 +48,20 @@ permissions:
 
 # the runs that publish one after another (per branch); the others side by side
 concurrency:
-  group: ubuntu24-${{ inputs.publish && github.ref || github.run_id }}
+  group: ubuntu-${{ inputs.publish && github.ref || github.run_id }}
   cancel-in-progress: false
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-${{ matrix.ubuntu }}
     timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
+        ubuntu: ${{ fromJSON(inputs.ubuntu == 'both' && '["24.04","22.04"]' || format('["{0}"]', inputs.ubuntu)) }}
         cputype: ${{ fromJSON(inputs.cputype == 'both' && '["x86-64-v3","x86-64-v2"]' || format('["{0}"]', inputs.cputype)) }}
     env:
+      AZ_UBUNTU: ${{ matrix.ubuntu }}
       AZ_CPUTYPE: ${{ matrix.cputype }}
       AZ_FFMPEG_LTO: ${{ inputs.ffmpeg_lto }}
       AZ_X264_LTO: ${{ inputs.x264_lto }}
@@ -86,8 +94,11 @@ jobs:
           curl -fsSL --retry 5 --retry-all-errors -H "Authorization: Bearer $RUNS_TOKEN" -H "Accept: application/vnd.github+json" \
             -o "$t" "https://api.github.com/repos/azsupport/azsupport/tarball/main"
           tar -xzf "$t" -C tools --wildcards --strip-components=3 '*/tests/ports/ffmpeg-test.sh' '*/tests/ports/imagemagick-test.sh'
+          # the codecs of libheif: plugins on 24.04, inside libheif1 on 22.04
+          heif=""
+          [ "$AZ_UBUNTU" = 22.04 ] || heif="libheif-plugin-x265 libheif-plugin-aomenc libheif-plugin-dav1d libheif-plugin-libde265"
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ffmpeg imagemagick \
-            fontconfig fonts-dejavu-core libheif-plugin-x265 libheif-plugin-aomenc libheif-plugin-dav1d libheif-plugin-libde265 \
+            fontconfig fonts-dejavu-core $heif \
             > results/tests/apt.log 2>&1 || { echo "::error title=tests::apt-get install of the references failed"; exit 1; }
           export FFMPEG_REF=/usr/bin/ffmpeg IM_REF=/usr/bin/convert IM_ONLY=imagemagick7
           export AZ_FFMPEG_CONF="$PWD/ubuntu-results/ffmpeg.conf"
@@ -95,8 +106,9 @@ jobs:
           AZ_RESULTS=results/tests/imagemagick sh tools/imagemagick-test.sh --samples > results/tests/imagemagick-samples.log 2>&1
           # our packages, with apt (their Depends and preinst), in the place of the archive
           l="${AZ_CPUTYPE#x86-64-}"
-          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q "./az-ffmpeg-ubuntu24-amd64-$l.deb" \
-            "./az-imagemagick7-ubuntu24-amd64-$l.deb" > results/tests/apt-az.log 2>&1 ||
+          r="ubuntu${AZ_UBUNTU%%.*}"
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q "./az-ffmpeg-$r-amd64-$l.deb" \
+            "./az-imagemagick7-$r-amd64-$l.deb" > results/tests/apt-az.log 2>&1 ||
             { echo "::error title=tests::apt-get install of az-ffmpeg and az-imagemagick7 failed"; tail -n 5 results/tests/apt-az.log; exit 1; }
           dpkg -s az-ffmpeg az-imagemagick7 | grep -E '^(Package|Status|Version):'
           rc=0
@@ -132,7 +144,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          PART: ${{ matrix.cputype }}
+          PART: ubuntu${{ matrix.ubuntu }}-${{ matrix.cputype }}
         run: |
           [ -d results/tests ] || { echo "no results/tests: no test ran"; exit 0; }
           a="${GITHUB_RUN_ID}-${PART}-tests.tar.xz"
@@ -146,13 +158,13 @@ jobs:
           w="$RUNNER_TEMP/runs-tests"
           timeout 600 git clone -q --depth 1 --filter=blob:none --no-checkout --branch runs --single-branch \
             "https://x-access-token:${RUNS_TOKEN}@github.com/azsupport/azsupport.git" "$w"
-          git -C "$w" sparse-checkout set --no-cone "/ports-ubuntu24/$day/"
+          git -C "$w" sparse-checkout set --no-cone "/ports-ubuntu/$day/"
           timeout 600 git -C "$w" checkout -q runs
-          mkdir -p "$w/ports-ubuntu24/$day"
-          cp "$RUNNER_TEMP/$a" "$w/ports-ubuntu24/$day/$a"
-          git -C "$w" add "ports-ubuntu24/$day/$a"
+          mkdir -p "$w/ports-ubuntu/$day"
+          cp "$RUNNER_TEMP/$a" "$w/ports-ubuntu/$day/$a"
+          git -C "$w" add "ports-ubuntu/$day/$a"
           git -C "$w" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit -q -m "ports-ubuntu24 $PART: the results of the tests of run $GITHUB_RUN_ID"
+            commit -q -m "ports-ubuntu $PART: the results of the tests of run $GITHUB_RUN_ID"
           i=0
           until timeout 300 git -C "$w" push -q origin HEAD:runs; do
             i=$((i + 1)); [ $i -lt 10 ] || { echo "::warning title=test results::push to azsupport/azsupport failed"; exit 0; }
@@ -160,15 +172,14 @@ jobs:
             timeout 600 git -C "$w" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
               pull -q --rebase origin runs || :
           done
-          echo "the results of the tests: azsupport/azsupport, branch runs, ports-ubuntu24/$day/$a"
+          echo "the results of the tests: azsupport/azsupport, branch runs, ports-ubuntu/$day/$a"
 
       - name: Report
         id: report
         if: always()
         run: |
-          a="az-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}.tar.xz"
           {
-            echo "## ubuntu24 $AZ_CPUTYPE"
+            echo "## ubuntu $AZ_UBUNTU $AZ_CPUTYPE"
             echo
             echo "build: ${{ steps.build.outcome }}, tests: ${{ steps.tests.outcome }}"
             echo
@@ -198,30 +209,31 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: ubuntu24-${{ matrix.cputype }}
+          name: ubuntu${{ matrix.ubuntu }}-${{ matrix.cputype }}
           retention-days: 14
           path: |
             ubuntu-results/
-            az-ubuntu24-amd64-*.tar.xz
-            az-ubuntu24-amd64-*.tar.xz.sha256
-            az-*-ubuntu24-amd64-*.deb
-            az-*-ubuntu24-amd64-*.deb.sha256
+            az-ubuntu*-amd64-*.tar.xz
+            az-ubuntu*-amd64-*.tar.xz.sha256
+            az-*-ubuntu*-amd64-*.deb
+            az-*-ubuntu*-amd64-*.deb.sha256
 
-      # the release az-ubuntu24-amd64-<level>: its tag moved to this commit, the archive
-      # and its .sha256 in the place of those before (the same address), VERSIONS as its
-      # notes; never the latest release of the repository
+      # the release az-ubuntu<24|22>-amd64-<level>: its tag moved to this commit, the archive,
+      # the packages and their .sha256 in the place of those before (the same addresses),
+      # VERSIONS as its notes; never the latest release of the repository
       - name: Publish
         id: publish
         if: ${{ inputs.publish && github.ref == 'refs/heads/main' && steps.tests.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="az-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}"
+          r="ubuntu${AZ_UBUNTU%%.*}"
+          tag="az-$r-amd64-${AZ_CPUTYPE#x86-64-}"
           a="$tag.tar.xz"
-          dff="az-ffmpeg-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}.deb"
-          dim="az-imagemagick7-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}.deb"
+          dff="az-ffmpeg-$r-amd64-${AZ_CPUTYPE#x86-64-}.deb"
+          dim="az-imagemagick7-$r-amd64-${AZ_CPUTYPE#x86-64-}.deb"
           {
-            echo "FFmpeg and ImageMagick 7 of this repository for Ubuntu 24.04 (amd64, $AZ_CPUTYPE): tools/ubuntu/build.sh,"
+            echo "FFmpeg and ImageMagick 7 of this repository for Ubuntu $AZ_UBUNTU (amd64, $AZ_CPUTYPE): tools/ubuntu/build.sh,"
             echo "run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID, commit $GITHUB_SHA."
             echo
             echo "The packages (apt installs their dependencies):"
@@ -263,7 +275,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: cputype=${{ matrix.cputype }} publish=${{ inputs.publish }} ffmpeg_lto=${{ inputs.ffmpeg_lto }} x264_lto=${{ inputs.x264_lto }} debug=${{ inputs.debug }}
+          RUNS_INPUTS: ubuntu=${{ matrix.ubuntu }} cputype=${{ matrix.cputype }} publish=${{ inputs.publish }} ffmpeg_lto=${{ inputs.ffmpeg_lto }} x264_lto=${{ inputs.x264_lto }} debug=${{ inputs.debug }}
           RUNS_STEPS: build=${{ steps.build.outcome }} tests=${{ steps.tests.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
-          PART: ${{ matrix.cputype }}
+          PART: ubuntu${{ matrix.ubuntu }}-${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"

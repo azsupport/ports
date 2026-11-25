@@ -1,6 +1,6 @@
 #!/bin/sh
 # tools/ubuntu/deb.sh - the Debian packages az-ffmpeg and az-imagemagick7 for Ubuntu
-# 24.04 (amd64) from the stage of tools/ubuntu/build.sh, with the same files as its
+# 24.04 or 22.04 (amd64) from the stage of tools/ubuntu/build.sh, with the same files as its
 # archive (aZ, 25.11.2026: «насчет ффмпег и имеджмегик для убунту сделай и деб»):
 #
 #   az-ffmpeg        /usr/local/bin/ffmpeg, ffprobe, /usr/local/share/licenses/ffmpeg/
@@ -19,22 +19,27 @@
 # Depends, not Recommends, which apt --no-install-recommends leaves out). preinst refuses a CPU that cannot
 # run the level (x86-64-v3: AVX2 and the rest; the package of x86-64-v2 for others).
 # Version: that of the program (ImageMagick 7.1.2-36 as 7.1.2.36, as its FreeBSD
-# package) and the UTC time of the build, yymmddHHMM, as revision (newer builds upgrade).
+# package) and the UTC time of the build, yymmddHHMM, as revision (newer builds upgrade),
+# with ~ubuntu<release> (9.1-2511251200~ubuntu22.04): which build dpkg -s shows.
 #
-# Usage: sh tools/ubuntu/deb.sh <stage> <x86-64-v3|x86-64-v2> <out> <results>
-# Files: <out>/az-ffmpeg-ubuntu24-amd64-<v3|v2>.deb, az-imagemagick7-ubuntu24-amd64-<v3|v2>.deb
+# Usage: sh tools/ubuntu/deb.sh <stage> <x86-64-v3|x86-64-v2> <out> <results> <24.04|22.04>
+# Files: <out>/az-ffmpeg-ubuntu<24|22>-amd64-<v3|v2>.deb, az-imagemagick7-ubuntu<24|22>-amd64-<v3|v2>.deb
 # and a .sha256 of each; <results>/debs.txt (dpkg-deb --info of each).
 # Exit status: 0 built, 1 a package failed, 2 usage.
 
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 sources="$here/sources.conf"
-stage="${1:?usage: sh tools/ubuntu/deb.sh <stage> <level> <out> <results>}"
-cputype="${2:?usage: sh tools/ubuntu/deb.sh <stage> <level> <out> <results>}"
-out="${3:?usage: sh tools/ubuntu/deb.sh <stage> <level> <out> <results>}"
-res="${4:?usage: sh tools/ubuntu/deb.sh <stage> <level> <out> <results>}"
+u="usage: sh tools/ubuntu/deb.sh <stage> <level> <out> <results> <24.04|22.04>"
+stage="${1:?$u}"
+cputype="${2:?$u}"
+out="${3:?$u}"
+res="${4:?$u}"
+ubuntu="${5:?$u}"
 case "$cputype" in x86-64-v2|x86-64-v3) ;; *) echo "ubuntu/deb: the level is x86-64-v3 or x86-64-v2, not $cputype" >&2; exit 2 ;; esac
 level="${cputype#x86-64-}"
+case "$ubuntu" in 24.04|22.04) ;; *) echo "ubuntu/deb: the release is 24.04 or 22.04, not $ubuntu" >&2; exit 2 ;; esac
+rel="ubuntu${ubuntu%%.*}"
 F=/usr/local
 L="$stage$F"
 [ -x "$L/bin/ffmpeg" ] && [ -x "$L/bin/magick" ] || { echo "ubuntu/deb: no $L/bin/ffmpeg or $L/bin/magick (tools/ubuntu/build.sh first)" >&2; exit 2; }
@@ -72,10 +77,10 @@ pkg() {
     rm -rf "$r" && mkdir -p "$r/DEBIAN" "$r$F/share/doc/$n/licenses" || return 1
     # the files, with their links, as in the stage
     (cd "$stage" && tar -cf - "$@") | (cd "$r" && tar -xpf -) || { echo "== $n: the files of the stage"; return 1; }
-    cp "$L/share/doc/az-ubuntu24/VERSIONS" "$r$F/share/doc/$n/VERSIONS" || return 1
+    cp "$L/share/doc/az-$rel/VERSIONS" "$r$F/share/doc/$n/VERSIONS" || return 1
     for l in $libs; do
-        [ -d "$L/share/licenses/az-ubuntu24/$l" ] || { echo "== $n: no licence of $l in the stage"; return 1; }
-        cp -R "$L/share/licenses/az-ubuntu24/$l" "$r$F/share/doc/$n/licenses/$l" || return 1
+        [ -d "$L/share/licenses/az-$rel/$l" ] || { echo "== $n: no licence of $l in the stage"; return 1; }
+        cp -R "$L/share/licenses/az-$rel/$l" "$r$F/share/doc/$n/licenses/$l" || return 1
     done
     {
         echo "$sum, of azsupport/ports (tools/ubuntu/build.sh, https://github.com/azsupport/ports)"
@@ -90,12 +95,12 @@ pkg() {
     [ -n "$dep" ] || { echo "== $n: dpkg-shlibdeps gave no Depends ($(tail -n 3 "$res/shlibdeps.log" | tr '\n' ' '))"; return 1; }
     [ -z "$dadd" ] || dep="$dep, $dadd"
     {
-        printf '%s\n' "Package: $n" "Version: $v-$rev" "Architecture: amd64" \
+        printf '%s\n' "Package: $n" "Version: $v-$rev~$rel.${ubuntu#*.}" "Architecture: amd64" \
             "Maintainer: aZ <github@azsupport.com>" "Installed-Size: $(du -sk "$r/usr" | cut -f 1)" \
             "Depends: $dep"
         [ -z "$rec" ] || echo "Recommends: $rec"
         printf '%s\n' "Section: $sec" "Priority: optional" "Homepage: https://github.com/azsupport/ports" \
-            "Description: $sum ($cputype)"
+            "Description: $sum ($cputype, Ubuntu $ubuntu)"
         sed -e 's/^$/./' -e 's/^/ /' "$desc"
     } > "$r/DEBIAN/control"
     cat > "$r/DEBIAN/preinst" <<EOF
@@ -119,7 +124,7 @@ exit 0
 EOF
     chmod 755 "$r/DEBIAN/preinst"
     (cd "$r" && find usr -type f -exec md5sum {} + | LC_ALL=C sort -k 2) > "$r/DEBIAN/md5sums" || return 1
-    f="$n-ubuntu24-amd64-$level.deb"
+    f="$n-$rel-amd64-$level.deb"
     dpkg-deb --root-owner-group -Zxz --build "$r" "$out/$f" > /dev/null || { echo "== $n: dpkg-deb --build failed"; return 1; }
     (cd "$out" && sha256sum "$f" > "$f.sha256") || return 1
     {
