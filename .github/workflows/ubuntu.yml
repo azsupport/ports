@@ -218,9 +218,13 @@ jobs:
             az-*-ubuntu*-amd64-*.deb
             az-*-ubuntu*-amd64-*.deb.sha256
 
-      # the release az-ubuntu<24|22>-amd64-<level>: its tag moved to this commit, the archive,
-      # the packages and their .sha256 in the place of those before (the same addresses),
-      # VERSIONS as its notes; never the latest release of the repository
+      # the release az-ubuntu<24|22>-amd64-<level>: the archive, the packages and their
+      # .sha256 in the place of those before (the same addresses), VERSIONS (with the
+      # commit of the build) as its notes; never the latest release of the repository. Its
+      # tag is not moved: the token of the workflow may not set a tag to a commit whose
+      # workflows differ from those of main (HTTP 403 "Resource not accessible by
+      # integration", run 45592038224: the tags of 24.04 moved to db39298 after a968722
+      # added ubuntu-apt.yml); a new release has its tag on the head of main
       - name: Publish
         id: publish
         if: ${{ inputs.publish && github.ref == 'refs/heads/main' && steps.tests.outcome == 'success' }}
@@ -262,11 +266,11 @@ jobs:
             echo '```'
           } > notes.md
           if gh release view "$tag" > /dev/null 2>&1; then
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag" -f sha="$GITHUB_SHA" -F force=true > /dev/null
             gh release upload "$tag" "$a" "$a.sha256" "$dff" "$dff.sha256" "$dim" "$dim.sha256" --clobber
             gh release edit "$tag" --notes-file notes.md --latest=false
           else
-            gh release create "$tag" "$a" "$a.sha256" "$dff" "$dff.sha256" "$dim" "$dim.sha256" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md --latest=false
+            head="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+            gh release create "$tag" "$a" "$a.sha256" "$dff" "$dff.sha256" "$dim" "$dim.sha256" --target "$head" --title "$tag" --notes-file notes.md --latest=false
           fi
           echo "published: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag/$a" | tee -a "$GITHUB_STEP_SUMMARY"
 
