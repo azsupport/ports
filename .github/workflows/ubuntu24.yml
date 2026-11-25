@@ -2,7 +2,9 @@ name: ubuntu24
 
 # Our FFmpeg and ImageMagick 7 for Ubuntu 24.04 (amd64): tools/ubuntu/build.sh, an
 # archive per level (x86-64-v3, x86-64-v2) with ffmpeg, ffprobe (NVIDIA codecs and CUDA
-# filters too: tools/ubuntu/ffmpeg-nvidia.conf) and magick, tested as the FreeBSD
+# filters too: tools/ubuntu/ffmpeg-nvidia.conf) and magick, and the Debian packages
+# az-ffmpeg and az-imagemagick7 of the same files (tools/ubuntu/deb.sh), installed by
+# apt here for the tests and tested as the FreeBSD
 # packages are, with tests/ports/ffmpeg-test.sh and imagemagick-test.sh of the private
 # azsupport/azsupport (secret RUNS_TOKEN; their output only into its branch runs, here
 # only "test <name>: OK|FAIL"; the samples made with the ffmpeg and the ImageMagick 6 of
@@ -91,7 +93,12 @@ jobs:
           export AZ_FFMPEG_CONF="$PWD/ubuntu-results/ffmpeg.conf"
           AZ_RESULTS=results/tests/ffmpeg sh tools/ffmpeg-test.sh --samples > results/tests/ffmpeg-samples.log 2>&1
           AZ_RESULTS=results/tests/imagemagick sh tools/imagemagick-test.sh --samples > results/tests/imagemagick-samples.log 2>&1
-          sudo tar -xJf "az-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}.tar.xz" -C /
+          # our packages, with apt (their Depends and preinst), in the place of the archive
+          l="${AZ_CPUTYPE#x86-64-}"
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q "./az-ffmpeg-ubuntu24-amd64-$l.deb" \
+            "./az-imagemagick7-ubuntu24-amd64-$l.deb" > results/tests/apt-az.log 2>&1 ||
+            { echo "::error title=tests::apt-get install of az-ffmpeg and az-imagemagick7 failed"; tail -n 5 results/tests/apt-az.log; exit 1; }
+          dpkg -s az-ffmpeg az-imagemagick7 | grep -E '^(Package|Status|Version):'
           rc=0
           : > results/checks.txt
           for n in ffmpeg imagemagick; do
@@ -197,6 +204,8 @@ jobs:
             ubuntu-results/
             az-ubuntu24-amd64-*.tar.xz
             az-ubuntu24-amd64-*.tar.xz.sha256
+            az-*-ubuntu24-amd64-*.deb
+            az-*-ubuntu24-amd64-*.deb.sha256
 
       # the release az-ubuntu24-amd64-<level>: its tag moved to this commit, the archive
       # and its .sha256 in the place of those before (the same address), VERSIONS as its
@@ -209,14 +218,30 @@ jobs:
         run: |
           tag="az-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}"
           a="$tag.tar.xz"
+          dff="az-ffmpeg-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}.deb"
+          dim="az-imagemagick7-ubuntu24-amd64-${AZ_CPUTYPE#x86-64-}.deb"
           {
             echo "FFmpeg and ImageMagick 7 of this repository for Ubuntu 24.04 (amd64, $AZ_CPUTYPE): tools/ubuntu/build.sh,"
             echo "run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID, commit $GITHUB_SHA."
+            echo
+            echo "The packages (apt installs their dependencies):"
+            echo
+            echo '```'
+            for f in "$dff" "$dim"; do
+              echo "curl -fLO $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag/$f"
+              echo "curl -fLO $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag/$f.sha256"
+            done
+            echo "sha256sum -c $dff.sha256 $dim.sha256"
+            echo "sudo apt-get install -y ./$dff ./$dim"
+            echo '```'
+            echo
+            echo "Or the archive of the same files:"
             echo
             echo '```'
             echo "curl -fLO $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag/$a"
             echo "curl -fLO $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag/$a.sha256"
             echo "sha256sum -c $a.sha256"
+            echo "sudo apt-get install -y fontconfig-config fonts-dejavu-core"
             echo "sudo tar -xJf $a -C /"
             echo '```'
             echo
@@ -226,10 +251,10 @@ jobs:
           } > notes.md
           if gh release view "$tag" > /dev/null 2>&1; then
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag" -f sha="$GITHUB_SHA" -F force=true > /dev/null
-            gh release upload "$tag" "$a" "$a.sha256" --clobber
+            gh release upload "$tag" "$a" "$a.sha256" "$dff" "$dff.sha256" "$dim" "$dim.sha256" --clobber
             gh release edit "$tag" --notes-file notes.md --latest=false
           else
-            gh release create "$tag" "$a" "$a.sha256" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md --latest=false
+            gh release create "$tag" "$a" "$a.sha256" "$dff" "$dff.sha256" "$dim" "$dim.sha256" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md --latest=false
           fi
           echo "published: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag/$a" | tee -a "$GITHUB_STEP_SUMMARY"
 

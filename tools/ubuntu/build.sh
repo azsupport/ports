@@ -33,7 +33,9 @@
 #
 # Usage (Ubuntu 24.04, amd64; the workflow .github/workflows/ubuntu24.yml):
 #   sh tools/ubuntu/build.sh --tools    install the build tools (apt-get; as root)
-#   sh tools/ubuntu/build.sh            build; the archive az-ubuntu24-amd64-<v3|v2>.tar.xz
+#   sh tools/ubuntu/build.sh            build; the archive az-ubuntu24-amd64-<v3|v2>.tar.xz and
+#                                       the packages az-ffmpeg and az-imagemagick7 of the
+#                                       same files (tools/ubuntu/deb.sh)
 #
 # The archive (tar -xJf az-ubuntu24-amd64-v3.tar.xz -C /): /usr/local/bin/ffmpeg,
 # ffprobe, magick and the names linked to it (convert, identify, mogrify, composite,
@@ -91,7 +93,7 @@ if [ "${1:-}" = "--tools" ]; then
     # assembly of x264, dav1d, SVT-AV1, mozjpeg, FFmpeg), cmake and ninja, python3 (meson
     # of sources.conf), pkgconf, gperf (fontconfig), zlib and bzip2 (the -dev packages:
     # headers and libz.so, libbz2.so); xz-utils, bzip2 and curl for the release files
-    pkgs="build-essential clang nasm cmake ninja-build python3 pkgconf gperf zlib1g-dev libbz2-dev xz-utils bzip2 curl patch file"
+    pkgs="build-essential dpkg-dev clang nasm cmake ninja-build python3 pkgconf gperf zlib1g-dev libbz2-dev xz-utils bzip2 curl patch file"
     export DEBIAN_FRONTEND=noninteractive
     # shellcheck disable=SC2086
     apt-get update -q && apt-get install -y -q --no-install-recommends $pkgs
@@ -600,6 +602,16 @@ if [ "$rc" = 0 ]; then
             tar -C "$stage" --owner=0 --group=0 --numeric-owner -cJf "$out/$name.tar.xz" usr &&
             (cd "$out" && sha256sum "$name.tar.xz" > "$name.tar.xz.sha256") || rc=1
         [ "$rc" = 0 ] && echo "archive: $name.tar.xz, $(du -k "$out/$name.tar.xz" | cut -f 1) KB, sha256 $(cut -d ' ' -f 1 "$out/$name.tar.xz.sha256")" >> "$res/summary.txt"
+        # the Debian packages az-ffmpeg and az-imagemagick7 of the same files (tools/ubuntu/deb.sh)
+        if [ "$rc" = 0 ]; then
+            if sh "$here/deb.sh" "$stage" "$cputype" "$out" "$res" > "$res/deb.log" 2>&1; then
+                sed -n 's/^== /deb: /p' "$res/debs.txt" >> "$res/summary.txt"
+            else
+                rc=1
+                echo "deb      FAIL  tools/ubuntu/deb.sh (deb.log)" >> "$res/summary.txt"
+                tail -n 40 "$res/deb.log" > "$res/deb.tail"
+            fi
+        fi
     fi
 fi
 echo "== $res/summary.txt"
