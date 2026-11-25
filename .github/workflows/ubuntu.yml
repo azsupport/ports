@@ -1,25 +1,33 @@
 name: ubuntu
 
-# Our FFmpeg and ImageMagick 7 for Ubuntu 24.04 and 22.04 (amd64; aZ, 25.11.2026: «надо
-# ешё для ubuntu 22, дополни к 24»): tools/ubuntu/build.sh on each release (the glibc and
-# libstdc++ of 24.04 are newer than those of 22.04), an
+# Our FFmpeg and ImageMagick 7 for Ubuntu 24.04 and 22.04 and for Debian 13 and 12 (amd64;
+# aZ, 25.11.2026: «надо ешё для ubuntu 22, дополни к 24»; «на deb можно ещё варианты для
+# дебияна положить вместе с вариантами для убунты?»): tools/ubuntu/build.sh on each release
+# (the glibc and libstdc++ of 24.04 are newer than those of 22.04, those of Debian 13 than
+# those of Debian 12), an
 # archive per level (x86-64-v3, x86-64-v2) with ffmpeg, ffprobe (NVIDIA codecs and CUDA
 # filters too: tools/ubuntu/ffmpeg-nvidia.conf) and magick, and the Debian packages
 # azsupport-ffmpeg and azsupport-imagemagick7 of the same files (tools/ubuntu/deb.sh), installed by
 # apt here for the tests and tested as the FreeBSD
 # packages are, with tests/ports/ffmpeg-test.sh and imagemagick-test.sh of the private
 # azsupport/azsupport (secret RUNS_TOKEN; their output only into its branch runs, here
-# only "test <name>: OK|FAIL"; the samples made with the ffmpeg and the ImageMagick 6 of
-# Ubuntu), and published (input publish, on main) as the releases
-# azsupport-ubuntu24-amd64-<v3|v2> and azsupport-ubuntu22-amd64-<v3|v2> of this repository:
+# only "test <name>: OK|FAIL"; the samples made with the ffmpeg and the ImageMagick of
+# the system), and published (input publish, on main) as the releases
+# azsupport-<ubuntu24|ubuntu22|debian13|debian12>-amd64-<v3|v2> of this repository:
 #   https://github.com/azsupport/ports/releases/download/azsupport-ubuntu24-amd64-v3/azsupport-ubuntu24-amd64-v3.tar.xz
-# On the runners of GitHub (ubuntu-24.04, ubuntu-22.04): our runners are FreeBSD jails.
+# On the runners of GitHub (our runners are FreeBSD jails): Ubuntu on the runner of its
+# release (ubuntu-24.04, ubuntu-22.04), Debian in a container of its release (debian:13,
+# debian:12) on ubuntu-24.04.
 
 on:
   workflow_dispatch:
     inputs:
       ubuntu:
-        description: 'The releases of Ubuntu: both, 24.04 or 22.04'
+        description: 'The releases of Ubuntu: both, 24.04, 22.04 or none'
+        required: false
+        default: 'both'
+      debian:
+        description: 'The releases of Debian: both, 13, 12 or none'
         required: false
         default: 'both'
       cputype:
@@ -27,7 +35,7 @@ on:
         required: false
         default: 'both'
       publish:
-        description: 'Publish the archives and packages (releases azsupport-ubuntu<24|22>-amd64-<level>) when built and tested (main only)'
+        description: 'Publish the archives and packages (releases azsupport-<ubuntu24|ubuntu22|debian13|debian12>-amd64-<level>) when built and tested (main only)'
         type: boolean
         default: false
       ffmpeg_lto:
@@ -52,20 +60,79 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # the systems of the inputs ubuntu and debian, each with the runner of GitHub it is built
+  # on and its container (none for Ubuntu): name (the suffix of the versions of the
+  # packages, ~ubuntu24.04, ~debian12), rel (in the names of the files: azsupport-ubuntu24,
+  # azsupport-debian12), label
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      systems: ${{ steps.plan.outputs.systems }}
+    steps:
+      - name: The systems
+        id: plan
+        env:
+          UBUNTU: ${{ inputs.ubuntu }}
+          DEBIAN: ${{ inputs.debian }}
+        run: |
+          case "$UBUNTU" in both) u="24.04 22.04" ;; 24.04|22.04) u="$UBUNTU" ;; none) u="" ;;
+            *) echo "::error title=inputs::ubuntu is both, 24.04, 22.04 or none, not $UBUNTU"; exit 1 ;; esac
+          case "$DEBIAN" in both) d="13 12" ;; 13|12) d="$DEBIAN" ;; none) d="" ;;
+            *) echo "::error title=inputs::debian is both, 13, 12 or none, not $DEBIAN"; exit 1 ;; esac
+          s=""
+          for v in $u; do
+            s="$s,{\"name\":\"ubuntu$v\",\"rel\":\"ubuntu${v%%.*}\",\"label\":\"Ubuntu $v\",\"runner\":\"ubuntu-$v\",\"image\":\"\"}"
+          done
+          for v in $d; do
+            s="$s,{\"name\":\"debian$v\",\"rel\":\"debian$v\",\"label\":\"Debian $v\",\"runner\":\"ubuntu-24.04\",\"image\":\"debian:$v\"}"
+          done
+          [ -n "$s" ] || { echo "::error title=inputs::no system: ubuntu and debian are both none"; exit 1; }
+          echo "systems=[${s#,}]" | tee -a "$GITHUB_OUTPUT"
+
   build:
-    runs-on: ubuntu-${{ matrix.ubuntu }}
+    needs: plan
+    name: build (${{ matrix.system.name }}, ${{ matrix.cputype }})
+    runs-on: ${{ matrix.system.runner }}
+    # Debian: its container; Ubuntu: none (an empty container runs on the runner itself)
+    container: ${{ matrix.system.image }}
     timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
-        ubuntu: ${{ fromJSON(inputs.ubuntu == 'both' && '["24.04","22.04"]' || format('["{0}"]', inputs.ubuntu)) }}
+        system: ${{ fromJSON(needs.plan.outputs.systems) }}
         cputype: ${{ fromJSON(inputs.cputype == 'both' && '["x86-64-v3","x86-64-v2"]' || format('["{0}"]', inputs.cputype)) }}
     env:
-      AZSUPPORT_UBUNTU: ${{ matrix.ubuntu }}
+      AZSUPPORT_SYSTEM: ${{ matrix.system.name }}
+      AZSUPPORT_REL: ${{ matrix.system.rel }}
+      AZSUPPORT_LABEL: ${{ matrix.system.label }}
       AZSUPPORT_CPUTYPE: ${{ matrix.cputype }}
       AZSUPPORT_FFMPEG_LTO: ${{ inputs.ffmpeg_lto }}
       AZSUPPORT_X264_LTO: ${{ inputs.x264_lto }}
     steps:
+      # the container of Debian has neither git (actions/checkout would take the files
+      # without .git: no commit in VERSIONS, no clone of the branch runs for the results),
+      # sudo (the steps are those of the runners of Ubuntu; root here), the certificates nor
+      # curl; git takes the checkout (of the user of the runner) as safe. gh (Publish; the
+      # runners of Ubuntu have it) from the apt repository of GitHub CLI, only for a run
+      # that publishes (on another branch than main too: it is installed, nothing published)
+      - name: The container
+        if: matrix.system.image != ''
+        env:
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -q
+          apt-get install -y -q --no-install-recommends ca-certificates curl git sudo xz-utils
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if [ "$PUBLISH" = true ]; then
+            curl -fsSL -o /usr/share/keyrings/githubcli-archive-keyring.gpg https://cli.github.com/packages/githubcli-archive-keyring.gpg
+            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+            apt-get update -q
+            apt-get install -y -q --no-install-recommends gh
+            gh --version | head -n 1
+          fi
+
       - uses: actions/checkout@v5
 
       - name: The build tools
@@ -77,7 +144,7 @@ jobs:
 
       # the tests of the FreeBSD packages from the private azsupport/azsupport, into
       # tools/ (they are in .gitignore here); the samples made with the ffmpeg and the
-      # ImageMagick 6 of Ubuntu (FFMPEG_REF, IM_REF), before our archive is installed;
+      # ImageMagick of the system (FFMPEG_REF, IM_REF), before our archive is installed;
       # their output into results/tests/ only, here "test <name>: OK|FAIL"
       - name: Tests
         id: tests
@@ -94,19 +161,26 @@ jobs:
           curl -fsSL --retry 5 --retry-all-errors -H "Authorization: Bearer $RUNS_TOKEN" -H "Accept: application/vnd.github+json" \
             -o "$t" "https://api.github.com/repos/azsupport/azsupport/tarball/main"
           tar -xzf "$t" -C tools --wildcards --strip-components=3 '*/tests/ports/ffmpeg-test.sh' '*/tests/ports/imagemagick-test.sh'
-          # the codecs of libheif: plugins on 24.04, inside libheif1 on 22.04
+          # the codecs of libheif: the plugins where the system has them as packages
+          # (Ubuntu 24.04, Debian 13), else inside libheif1 (Ubuntu 22.04, Debian 12)
           heif=""
-          [ "$AZSUPPORT_UBUNTU" = 22.04 ] || heif="libheif-plugin-x265 libheif-plugin-aomenc libheif-plugin-dav1d libheif-plugin-libde265"
+          for p in libheif-plugin-x265 libheif-plugin-aomenc libheif-plugin-dav1d libheif-plugin-libde265; do
+            apt-cache show "$p" > /dev/null 2>&1 && heif="$heif $p"
+          done
+          echo "the plugins of libheif:${heif:- none (inside libheif1)}"
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ffmpeg imagemagick \
             fontconfig fonts-dejavu-core $heif \
             > results/tests/apt.log 2>&1 || { echo "::error title=tests::apt-get install of the references failed"; exit 1; }
-          export FFMPEG_REF=/usr/bin/ffmpeg IM_REF=/usr/bin/convert IM_ONLY=imagemagick7
+          # convert of the ImageMagick of the system (6; magick where it is 7 without it)
+          IM_REF=/usr/bin/convert
+          [ -x "$IM_REF" ] || IM_REF=/usr/bin/magick
+          export FFMPEG_REF=/usr/bin/ffmpeg IM_REF IM_ONLY=imagemagick7
           export AZSUPPORT_FFMPEG_CONF="$PWD/ubuntu-results/ffmpeg.conf"
           AZSUPPORT_RESULTS=results/tests/ffmpeg sh tools/ffmpeg-test.sh --samples > results/tests/ffmpeg-samples.log 2>&1
           AZSUPPORT_RESULTS=results/tests/imagemagick sh tools/imagemagick-test.sh --samples > results/tests/imagemagick-samples.log 2>&1
           # our packages, with apt (their Depends and preinst), in the place of the archive
           l="${AZSUPPORT_CPUTYPE#x86-64-}"
-          r="ubuntu${AZSUPPORT_UBUNTU%%.*}"
+          r="$AZSUPPORT_REL"
           sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q "./azsupport-ffmpeg-$r-amd64-$l.deb" \
             "./azsupport-imagemagick7-$r-amd64-$l.deb" > results/tests/apt-az.log 2>&1 ||
             { echo "::error title=tests::apt-get install of azsupport-ffmpeg and azsupport-imagemagick7 failed"; tail -n 5 results/tests/apt-az.log; exit 1; }
@@ -144,7 +218,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          PART: ubuntu${{ matrix.ubuntu }}-${{ matrix.cputype }}
+          PART: ${{ matrix.system.name }}-${{ matrix.cputype }}
         run: |
           [ -d results/tests ] || { echo "no results/tests: no test ran"; exit 0; }
           a="${GITHUB_RUN_ID}-${PART}-tests.tar.xz"
@@ -179,7 +253,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "## ubuntu $AZSUPPORT_UBUNTU $AZSUPPORT_CPUTYPE"
+            echo "## $AZSUPPORT_LABEL $AZSUPPORT_CPUTYPE"
             echo
             echo "build: ${{ steps.build.outcome }}, tests: ${{ steps.tests.outcome }}"
             echo
@@ -209,16 +283,16 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: ubuntu${{ matrix.ubuntu }}-${{ matrix.cputype }}
+          name: ${{ matrix.system.name }}-${{ matrix.cputype }}
           retention-days: 14
           path: |
             ubuntu-results/
-            azsupport-ubuntu*-amd64-*.tar.xz
-            azsupport-ubuntu*-amd64-*.tar.xz.sha256
-            azsupport-*-ubuntu*-amd64-*.deb
-            azsupport-*-ubuntu*-amd64-*.deb.sha256
+            azsupport-${{ matrix.system.rel }}-amd64-*.tar.xz
+            azsupport-${{ matrix.system.rel }}-amd64-*.tar.xz.sha256
+            azsupport-*-${{ matrix.system.rel }}-amd64-*.deb
+            azsupport-*-${{ matrix.system.rel }}-amd64-*.deb.sha256
 
-      # the release azsupport-ubuntu<24|22>-amd64-<level>: the archive, the packages and their
+      # the release azsupport-<ubuntu24|ubuntu22|debian13|debian12>-amd64-<level>: the archive, the packages and their
       # .sha256 in the place of those before (the same addresses), VERSIONS (with the
       # commit of the build) as its notes; never the latest release of the repository. Its
       # tag is not moved: the token of the workflow may not set a tag to a commit whose
@@ -230,14 +304,15 @@ jobs:
         if: ${{ inputs.publish && github.ref == 'refs/heads/main' && steps.tests.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          r="ubuntu${AZSUPPORT_UBUNTU%%.*}"
+          r="$AZSUPPORT_REL"
           tag="azsupport-$r-amd64-${AZSUPPORT_CPUTYPE#x86-64-}"
           a="$tag.tar.xz"
           dff="azsupport-ffmpeg-$r-amd64-${AZSUPPORT_CPUTYPE#x86-64-}.deb"
           dim="azsupport-imagemagick7-$r-amd64-${AZSUPPORT_CPUTYPE#x86-64-}.deb"
           {
-            echo "FFmpeg and ImageMagick 7 of this repository for Ubuntu $AZSUPPORT_UBUNTU (amd64, $AZSUPPORT_CPUTYPE): tools/ubuntu/build.sh,"
+            echo "FFmpeg and ImageMagick 7 of this repository for $AZSUPPORT_LABEL (amd64, $AZSUPPORT_CPUTYPE): tools/ubuntu/build.sh,"
             echo "run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID, commit $GITHUB_SHA."
             echo
             echo "The packages (apt installs their dependencies):"
@@ -280,7 +355,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: ubuntu=${{ matrix.ubuntu }} cputype=${{ matrix.cputype }} publish=${{ inputs.publish }} ffmpeg_lto=${{ inputs.ffmpeg_lto }} x264_lto=${{ inputs.x264_lto }} debug=${{ inputs.debug }}
+          RUNS_INPUTS: system=${{ matrix.system.name }} cputype=${{ matrix.cputype }} publish=${{ inputs.publish }} ffmpeg_lto=${{ inputs.ffmpeg_lto }} x264_lto=${{ inputs.x264_lto }} debug=${{ inputs.debug }}
           RUNS_STEPS: build=${{ steps.build.outcome }} tests=${{ steps.tests.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
-          PART: ubuntu${{ matrix.ubuntu }}-${{ matrix.cputype }}
+          PART: ${{ matrix.system.name }}-${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"

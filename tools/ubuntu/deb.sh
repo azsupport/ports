@@ -1,7 +1,7 @@
 #!/bin/sh
 # tools/ubuntu/deb.sh - the Debian packages azsupport-ffmpeg and azsupport-imagemagick7 for Ubuntu
-# 24.04 or 22.04 (amd64) from the stage of tools/ubuntu/build.sh, with the same files as its
-# archive (aZ, 25.11.2026: «насчет ффмпег и имеджмегик для убунту сделай и деб»):
+# 24.04 or 22.04 or Debian 13 or 12 (amd64) from the stage of tools/ubuntu/build.sh, with the
+# same files as its archive (aZ, 25.11.2026: «насчет ффмпег и имеджмегик для убунту сделай и деб»):
 #
 #   azsupport-ffmpeg        /usr/local/bin/ffmpeg, ffprobe, /usr/local/share/licenses/ffmpeg/
 #   azsupport-imagemagick7  /usr/local/bin/magick and the names linked to it,
@@ -10,36 +10,43 @@
 #                    /usr/local/share/licenses/ImageMagick7/
 #
 # each with /usr/local/share/doc/<package>/ (VERSIONS of the build, copyright, and the
-# licences of the libraries inside its programs). The names are not those of Ubuntu
-# (ffmpeg has the epoch 7 there: apt would take its 7:6.1.1 for newer than our 9.1 and
-# replace ours), the files are in /usr/local as in the archive, so the packages ffmpeg
-# and imagemagick of Ubuntu can stay. Depends: what dpkg-shlibdeps finds the programs
+# licences of the libraries inside its programs). The names are not those of the system
+# (ffmpeg has the epoch 7 in Ubuntu and Debian: apt would take its 7:6.1.1 for newer than
+# our 9.1 and replace ours), the files are in /usr/local as in the archive, so the packages
+# ffmpeg and imagemagick of the system can stay. Depends: what dpkg-shlibdeps finds the programs
 # link (glibc, zlib; libstdc++, libgcc_s and bzip2 for magick), fontconfig-config and
 # fonts-dejavu-core for the text of magick (aZ, 25.11.2026: «ну давай раз рекомендуется»:
 # Depends, not Recommends, which apt --no-install-recommends leaves out). preinst refuses a CPU that cannot
 # run the level (x86-64-v3: AVX2 and the rest; the package of x86-64-v2 for others).
 # Version: that of the program (ImageMagick 7.1.2-36 as 7.1.2.36, as its FreeBSD
 # package) and the UTC time of the build, yymmddHHMM, as revision (newer builds upgrade),
-# with ~ubuntu<release> (9.1-2511251200~ubuntu22.04): which build dpkg -s shows.
+# with ~<system> (9.1-2511251200~ubuntu22.04, 9.1-2511251200~debian12): which build dpkg -s
+# shows.
 #
-# Usage: sh tools/ubuntu/deb.sh <stage> <x86-64-v3|x86-64-v2> <out> <results> <24.04|22.04>
-# Files: <out>/azsupport-ffmpeg-ubuntu<24|22>-amd64-<v3|v2>.deb, azsupport-imagemagick7-ubuntu<24|22>-amd64-<v3|v2>.deb
-# and a .sha256 of each; <results>/debs.txt (dpkg-deb --info of each).
+# Usage: sh tools/ubuntu/deb.sh <stage> <x86-64-v3|x86-64-v2> <out> <results> <system>
+#   <system>: ubuntu24.04, ubuntu22.04, debian13 or debian12 (ID and VERSION_ID of os-release)
+# Files: <out>/azsupport-ffmpeg-<rel>-amd64-<v3|v2>.deb, azsupport-imagemagick7-<rel>-amd64-<v3|v2>.deb
+# (rel: ubuntu24, ubuntu22, debian13, debian12) and a .sha256 of each; <results>/debs.txt
+# (dpkg-deb --info of each).
 # Exit status: 0 built, 1 a package failed, 2 usage.
 
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 sources="$here/sources.conf"
-u="usage: sh tools/ubuntu/deb.sh <stage> <level> <out> <results> <24.04|22.04>"
+u="usage: sh tools/ubuntu/deb.sh <stage> <level> <out> <results> <ubuntu24.04|ubuntu22.04|debian13|debian12>"
 stage="${1:?$u}"
 cputype="${2:?$u}"
 out="${3:?$u}"
 res="${4:?$u}"
-ubuntu="${5:?$u}"
+sys="${5:?$u}"
 case "$cputype" in x86-64-v2|x86-64-v3) ;; *) echo "ubuntu/deb: the level is x86-64-v3 or x86-64-v2, not $cputype" >&2; exit 2 ;; esac
 level="${cputype#x86-64-}"
-case "$ubuntu" in 24.04|22.04) ;; *) echo "ubuntu/deb: the release is 24.04 or 22.04, not $ubuntu" >&2; exit 2 ;; esac
-rel="ubuntu${ubuntu%%.*}"
+case "$sys" in
+    ubuntu24.04|ubuntu22.04) os_name="Ubuntu ${sys#ubuntu}" ;;
+    debian13|debian12) os_name="Debian ${sys#debian}" ;;
+    *) echo "ubuntu/deb: the system is ubuntu24.04, ubuntu22.04, debian13 or debian12, not $sys" >&2; exit 2 ;;
+esac
+rel="${sys%%.*}"
 F=/usr/local
 L="$stage$F"
 [ -x "$L/bin/ffmpeg" ] && [ -x "$L/bin/magick" ] || { echo "ubuntu/deb: no $L/bin/ffmpeg or $L/bin/magick (tools/ubuntu/build.sh first)" >&2; exit 2; }
@@ -58,7 +65,7 @@ v3flags="$v2flags avx avx2 bmi1 bmi2 f16c fma abm movbe xsave"
 if [ "$level" = v3 ]; then need="$v3flags"; else need="$v2flags"; fi
 
 # shdeps <file>...: the Depends of what the programs link, by dpkg-shlibdeps (it reads
-# debian/control: a directory of its own), with the libraries of the packages of Ubuntu
+# debian/control: a directory of its own), with the libraries of the packages of the system
 # first (LD_LIBRARY_PATH): ld.so.conf has /usr/local/lib before them, where a library
 # of no package (a libz.so.1 of its own) leaves dpkg-shlibdeps without its package
 shdeps() {
@@ -95,12 +102,12 @@ pkg() {
     [ -n "$dep" ] || { echo "== $n: dpkg-shlibdeps gave no Depends ($(tail -n 3 "$res/shlibdeps.log" | tr '\n' ' '))"; return 1; }
     [ -z "$dadd" ] || dep="$dep, $dadd"
     {
-        printf '%s\n' "Package: $n" "Version: $v-$rev~$rel.${ubuntu#*.}" "Architecture: amd64" \
+        printf '%s\n' "Package: $n" "Version: $v-$rev~$sys" "Architecture: amd64" \
             "Maintainer: aZ <github@azsupport.com>" "Installed-Size: $(du -sk "$r/usr" | cut -f 1)" \
             "Depends: $dep"
         [ -z "$rec" ] || echo "Recommends: $rec"
         printf '%s\n' "Section: $sec" "Priority: optional" "Homepage: https://github.com/azsupport/ports" \
-            "Description: $sum ($cputype, Ubuntu $ubuntu)"
+            "Description: $sum ($cputype, $os_name)"
         sed -e 's/^$/./' -e 's/^/ /' "$desc"
     } > "$r/DEBIAN/control"
     cat > "$r/DEBIAN/preinst" <<EOF

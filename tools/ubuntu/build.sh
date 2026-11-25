@@ -1,5 +1,6 @@
 #!/bin/sh
-# tools/ubuntu/build.sh - our FFmpeg and ImageMagick 7 for Ubuntu 24.04 and 22.04 (amd64): the
+# tools/ubuntu/build.sh - our FFmpeg and ImageMagick 7 for Ubuntu 24.04 and 22.04 and for
+# Debian 13 and 12 (amd64): the
 # versions, patches and configure lines of multimedia/ffmpeg (files/ffmpeg.conf,
 # files/ffmpeg-nonfree.conf, files/ffmpeg/*.patch; tools/ffmpeg-build.sh) and of
 # graphics/ImageMagick7 (files/imagemagick.conf, files/policy.xml,
@@ -8,21 +9,30 @@
 # (and files/deps/<name>-<version>.patch of azsupport/azsupport), from the release files of
 # tools/ubuntu/sources.conf, their SHA-256 checked. FFmpeg also with the NVIDIA codecs
 # and the CUDA filters (tools/ubuntu/ffmpeg-nvidia.conf; aZ, 25.11.2026). Built on the
-# release it is for (the glibc and libstdc++ of 24.04 are newer than those of 22.04):
-# the archive and the packages are named by it, azsupport-ubuntu24 and azsupport-ubuntu22 (aZ,
-# 25.11.2026: «надо ешё для ubuntu 22, дополни к 24»).
+# release it is for (the glibc and libstdc++ of 24.04 are newer than those of 22.04, those
+# of Debian 13 than those of Debian 12): the archive and the packages are named by it,
+# azsupport-ubuntu24, azsupport-ubuntu22, azsupport-debian13 and azsupport-debian12 (aZ,
+# 25.11.2026: «надо ешё для ubuntu 22, дополни к 24»; «на deb можно ещё варианты для дебияна
+# положить вместе с вариантами для убунты?»). The same sources, patches and options on
+# each; only the compilers and the libraries of the system differ.
 #
 # What is not as on FreeBSD, and why:
 #   - the libraries are static archives of the work directory, inside the programs:
 #     there is no /usr/local/azsupport here; ffmpeg, ffprobe and magick need only the
-#     libraries of Ubuntu itself: glibc, libstdc++ and libgcc_s (libheif, libde265 and
+#     libraries of the system itself: glibc, libstdc++ and libgcc_s (libheif, libde265 and
 #     fdk-aac are C++), zlib and bzip2 (as the FreeBSD builds take those of the base
 #     system), and FFmpeg loads the NVIDIA driver when it opens a CUDA device (dlopen:
 #     so it is linked with glibc dynamically; without the driver and a GPU it works as
 #     without them)
-#   - GCC of Ubuntu (13 on 24.04, 11 on 22.04) instead of the clang of the FreeBSD base, with its gcc-ar for
+#   - GCC of the system (13 on Ubuntu 24.04, 11 on 22.04, 14 on Debian 13, 12 on Debian 12)
+#     instead of the clang of the FreeBSD base, with its gcc-ar for
 #     the LTO of FFmpeg (-flto=auto: the GCC way of --enable-lto); x264 without LTO
-#     (b_x264: why); clang (18 on 24.04, 14 on 22.04) only for the CUDA kernels of the filters (cuda-llvm)
+#     (b_x264: why); clang (18 on Ubuntu 24.04, 14 on 22.04, 19 on Debian 13, 14 on Debian 12)
+#     only for the CUDA kernels of the filters (cuda-llvm)
+#   - RELRO and BIND_NOW of the programs (check_bins) asked of the linker here
+#     (-Wl,-z,relro,-z,now): the GCC of Ubuntu passes them by itself, that of Debian does
+#     not. The other defaults of the GCC of Ubuntu (_FORTIFY_SOURCE, -fstack-clash-protection,
+#     -fcf-protection) are not added on Debian: the flags are those of the FreeBSD builds
 #   - of the FreeBSD ports what makes the same library here: the APNG patch of libpng
 #     (its PATCHFILES: the patch lines of sources.conf), LONG_PCF_NAMES of FreeType,
 #     the version of x264 in its meson.build (b_x264); not their patches for FreeBSD
@@ -30,23 +40,26 @@
 #     of x264, cmake 3.5 for mozjpeg: CMAKE_POLICY_VERSION_MINIMUM here, vwebp, the
 #     place of fonts.dtd, av_stream_get_first_dts of Chromium); ours (files/ffmpeg/,
 #     files/deps/, the imagemagick7-*.patch), and tools/ubuntu/ffmpeg/*.patch for NVENC
-#   - fontconfig takes the configuration, fonts and cache of Ubuntu (/etc/fonts,
-#     /usr/share/fonts, /var/cache/fontconfig): the packages fontconfig-config and
-#     fonts-dejavu-core, as the port takes those of FreeBSD
+#   - fontconfig takes the configuration, fonts and cache of the system (/etc/fonts,
+#     /usr/share/fonts, /var/cache/fontconfig: the same on Ubuntu and Debian): the packages
+#     fontconfig-config and fonts-dejavu-core, as the port takes those of FreeBSD
 #
-# Usage (Ubuntu 24.04 or 22.04, amd64; the workflow .github/workflows/ubuntu.yml):
+# Usage (Ubuntu 24.04 or 22.04, Debian 13 or 12, amd64; the workflow .github/workflows/ubuntu.yml):
 #   sh tools/ubuntu/build.sh --tools    install the build tools (apt-get; as root)
-#   sh tools/ubuntu/build.sh            build; the archive azsupport-ubuntu<24|22>-amd64-<v3|v2>.tar.xz and
+#   sh tools/ubuntu/build.sh            build; the archive azsupport-<system>-amd64-<v3|v2>.tar.xz
+#                                       (ubuntu24, ubuntu22, debian13, debian12) and
 #                                       the packages azsupport-ffmpeg and azsupport-imagemagick7 of the
 #                                       same files (tools/ubuntu/deb.sh)
 #
-# The archive (tar -xJf azsupport-ubuntu24-amd64-v3.tar.xz -C /; azsupport-ubuntu22 on 22.04): /usr/local/bin/ffmpeg,
+# The archive (tar -xJf azsupport-ubuntu24-amd64-v3.tar.xz -C /; azsupport-ubuntu22 on 22.04,
+# azsupport-debian13 and azsupport-debian12 on Debian): /usr/local/bin/ffmpeg,
 # ffprobe, magick and the names linked to it (convert, identify, mogrify, composite,
 # montage, compare, stream, animate, display, import, magick-script; not conjure, which
 # runs MSL scripts), /usr/local/etc/ImageMagick-7 (with our policy.xml),
 # /usr/local/share/ImageMagick-7, /usr/local/lib/ImageMagick-7.1.2 (configure.xml),
 # /usr/local/share/licenses/ (FFmpeg, ImageMagick and each library), and
-# /usr/local/share/doc/azsupport-ubuntu24/VERSIONS (azsupport-ubuntu22 on 22.04: what was built from what).
+# /usr/local/share/doc/azsupport-ubuntu24/VERSIONS (azsupport-ubuntu22 on 22.04, azsupport-debian13,
+# azsupport-debian12: what was built from what).
 #
 # Environment:
 #   AZSUPPORT_CPUTYPE   x86-64-v3 (default) or x86-64-v2: -march and the name of the archive
@@ -89,22 +102,29 @@ fflto="${AZSUPPORT_FFMPEG_LTO:-auto}"
 case "$fflto" in auto) fflto_opt=--enable-lto=auto ;; no) fflto_opt="" ;; *) echo "ubuntu/build: AZSUPPORT_FFMPEG_LTO is auto or no, not $fflto" >&2; exit 2 ;; esac
 x264lto="${AZSUPPORT_X264_LTO:-false}"
 case "$x264lto" in true|false) ;; *) echo "ubuntu/build: AZSUPPORT_X264_LTO is true or false, not $x264lto" >&2; exit 2 ;; esac
-# the release of Ubuntu this runs on, 24.04 or 22.04: rel names the archive, the
-# packages and the directories of VERSIONS and of the licences (azsupport-ubuntu24, azsupport-ubuntu22)
-ubuntu="$(. /etc/os-release 2>/dev/null && [ "${ID:-}" = ubuntu ] && echo "${VERSION_ID:-}")"
-case "$ubuntu" in
-    24.04|22.04) ;;
-    *) echo "ubuntu/build: Ubuntu 24.04 or 22.04 (amd64), not $(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-}")" >&2; exit 2 ;;
+# the system this runs on (/etc/os-release): Ubuntu 24.04 or 22.04, Debian 13 or 12. sys
+# (ubuntu24.04, debian12: ID and VERSION_ID) ends the versions of the packages
+# (~ubuntu24.04, ~debian12); rel names the archive, the packages and the directories of
+# VERSIONS and of the licences (azsupport-ubuntu24, azsupport-ubuntu22, azsupport-debian13,
+# azsupport-debian12)
+os_id="$(. /etc/os-release 2>/dev/null && echo "${ID:-}")"
+os_ver="$(. /etc/os-release 2>/dev/null && echo "${VERSION_ID:-}")"
+case "$os_id $os_ver" in
+    "ubuntu 24.04"|"ubuntu 22.04") os_name="Ubuntu $os_ver" ;;
+    "debian 13"|"debian 12") os_name="Debian $os_ver" ;;
+    *) echo "ubuntu/build: Ubuntu 24.04 or 22.04, Debian 13 or 12 (amd64), not $(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-}")" >&2; exit 2 ;;
 esac
-rel="ubuntu${ubuntu%%.*}"
+sys="$os_id$os_ver"
+rel="$os_id${os_ver%%.*}"
 name="azsupport-$rel-amd64-$level"
 
 if [ "${1:-}" = "--tools" ]; then
     # build-essential (gcc, g++, make), clang (the CUDA kernels of FFmpeg), nasm (the
     # assembly of x264, dav1d, SVT-AV1, mozjpeg, FFmpeg), cmake and ninja, python3 (meson
     # of sources.conf), pkgconf, gperf (fontconfig), zlib and bzip2 (the -dev packages:
-    # headers and libz.so, libbz2.so); xz-utils, bzip2 and curl for the release files
-    pkgs="build-essential dpkg-dev clang nasm cmake ninja-build python3 pkgconf gperf zlib1g-dev libbz2-dev xz-utils bzip2 curl patch file"
+    # headers and libz.so, libbz2.so); xz-utils, bzip2, curl and ca-certificates for the
+    # release files (a container of Debian has none of them)
+    pkgs="build-essential dpkg-dev clang nasm cmake ninja-build python3 pkgconf gperf zlib1g-dev libbz2-dev xz-utils bzip2 curl ca-certificates patch file"
     export DEBIAN_FRONTEND=noninteractive
     # shellcheck disable=SC2086
     apt-get update -q && apt-get install -y -q --no-install-recommends $pkgs
@@ -125,13 +145,15 @@ opt="$(printf '%s\n' $opt | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | s
 # as tools/azsupport-build.sh and tools/ffmpeg-build.sh: the level, the two protections, and
 # position independent code (FFmpeg adds -fPIC itself: --enable-pic)
 ffcflags="$opt -march=$cputype -fstack-protector-strong -fno-strict-aliasing"
+# RELRO and BIND_NOW of ffmpeg, ffprobe and magick (the GCC of Debian does not pass them)
+ldhard="-Wl,-z,relro,-z,now"
 export CC=gcc CXX=g++
 export CFLAGS="$ffcflags -fPIC"
 export CXXFLAGS="$CFLAGS"
 export CPPFLAGS="-I$P/include"
 export LDFLAGS="-L$P/lib"
 # pkg-config with --static (there are only static libraries here): ours first, then
-# those of Ubuntu (zlib)
+# those of the system (zlib)
 mkdir -p "$work/bin" "$res" "$dist" "$src" || exit 1
 printf '%s\n' '#!/bin/sh' 'exec pkgconf --static "$@"' > "$work/bin/pkg-config-static"
 chmod +x "$work/bin/pkg-config-static"
@@ -286,7 +308,7 @@ b_freetype2() {
         -DFT_DISABLE_BROTLI=ON
 }
 b_expat() { at "$1" --without-docbook --without-examples --without-tests --without-xmlwf; }
-# fontconfig with the paths of Ubuntu (as the port with those of FreeBSD), so that it
+# fontconfig with the paths of Ubuntu and Debian (as the port with those of FreeBSD), so that it
 # reads the configuration, fonts and cache of the system; expat as its XML parser (the
 # libxml2 of a -dev package of the system would be linked else); installed through a
 # stage directory (nothing into /etc here)
@@ -388,7 +410,7 @@ b_ffmpeg() {
         ./configure --prefix="$F" --cc=gcc --cxx=g++ --ar=gcc-ar --ranlib=gcc-ranlib --nm="gcc-nm -g" \
             --pkg-config=pkgconf --pkg-config-flags=--static \
             --extra-cflags="$ffcflags -I$P/include" --extra-cxxflags="$ffcflags -I$P/include" \
-            --extra-ldflags="-L$P/lib" $(conf_opts "$res/ffmpeg.conf" | if [ -z "$fflto_opt" ]; then grep -v -x -e --enable-lto; else cat; fi) $fflto_opt &&
+            --extra-ldflags="-L$P/lib $ldhard" $(conf_opts "$res/ffmpeg.conf" | if [ -z "$fflto_opt" ]; then grep -v -x -e --enable-lto; else cat; fi) $fflto_opt &&
             make -j"$ncpu" && make install-progs DESTDIR="$stage"
     ) || { cp "$1/ffbuild/config.log" "$res/ffmpeg-config.log" 2>/dev/null; return 1; }
     cp "$1/ffbuild/config.log" "$res/ffmpeg-config.log" 2>/dev/null
@@ -412,7 +434,7 @@ b_imagemagick7() {
     rm -rf "$st"
     (
         cd "$1" || exit 1
-        LDFLAGS="-L$P/lib -pie -Wl,-z,relro,-z,now"
+        LDFLAGS="-L$P/lib -pie $ldhard"
         export LDFLAGS
         # shellcheck disable=SC2046
         ./configure --prefix="$F" LIBS="-lstdc++ -lpthread -lm" PTHREAD_LIBS=-lpthread \
@@ -505,7 +527,7 @@ build_one() {
 }
 
 # The programs: PIE, RELRO, BIND_NOW, no run path, and nothing linked but the
-# libraries of Ubuntu named above.
+# libraries of the system named above (the same on Ubuntu and Debian).
 ok_libs="linux-vdso.so.1 ld-linux-x86-64.so.2 libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1 libstdc++.so.6 libgcc_s.so.1 libz.so.1 libbz2.so.1.0"
 check_bins() {
     : > "$res/bins.txt"
@@ -520,7 +542,7 @@ check_bins() {
         printf '%s: %s KB, ELF type %s, RELRO %s, BIND_NOW %s, run path %s; NEEDED: %s\n' "$b" \
             "$(du -k "$f" | cut -f 1)" "$type" "$relro" "$now" "${rp:-none}" "$need" >> "$res/bins.txt"
         for l in $need; do
-            case " $ok_libs " in *" $l "*) ;; *) echo "$b: NEEDED $l, not a library of Ubuntu named in build.sh" >> "$res/bins-bad.txt" ;; esac
+            case " $ok_libs " in *" $l "*) ;; *) echo "$b: NEEDED $l, not a library of the system named in build.sh" >> "$res/bins-bad.txt" ;; esac
         done
         [ "$type" = DYN ] || echo "$b: not a PIE (ELF type $type)" >> "$res/bins-bad.txt"
         [ "$relro" -gt 0 ] || echo "$b: no RELRO" >> "$res/bins-bad.txt"
@@ -557,11 +579,11 @@ check_bins() {
 
 manifest() {
     {
-        echo "FFmpeg and ImageMagick 7 of azsupport/ports for Ubuntu $ubuntu (amd64, $cputype), built $(date -u '+%Y-%m-%d %H:%M UTC')"
+        echo "FFmpeg and ImageMagick 7 of azsupport/ports for $os_name (amd64, $cputype), built $(date -u '+%Y-%m-%d %H:%M UTC')"
         echo "on $(. /etc/os-release && echo "$PRETTY_NAME"), $(gcc --version | head -n 1); clang for CUDA: $(clang --version 2>/dev/null | head -n 1)"
         echo "commit: $(git -C "$tree" rev-parse HEAD 2>/dev/null || echo '?') of https://github.com/azsupport/ports (tools/ubuntu/build.sh)"
-        echo "CFLAGS: $CFLAGS (FFmpeg: $ffcflags, ${fflto_opt:-no LTO}; x264: b_lto=$x264lto)"
-        echo "The libraries are in the programs (static); they need the libraries of Ubuntu: $ok_libs"
+        echo "CFLAGS: $CFLAGS (FFmpeg: $ffcflags, ${fflto_opt:-no LTO}; x264: b_lto=$x264lto); the programs linked with $ldhard"
+        echo "The libraries are in the programs (static); they need the libraries of $os_name: $ok_libs"
         echo
         echo "Sources (tools/ubuntu/sources.conf; the versions of azsupport/azsupport/files/deps.conf, ffmpeg.conf and imagemagick.conf):"
         for n in $names; do
@@ -615,7 +637,7 @@ if [ "$rc" = 0 ]; then
         [ "$rc" = 0 ] && echo "archive: $name.tar.xz, $(du -k "$out/$name.tar.xz" | cut -f 1) KB, sha256 $(cut -d ' ' -f 1 "$out/$name.tar.xz.sha256")" >> "$res/summary.txt"
         # the Debian packages azsupport-ffmpeg and azsupport-imagemagick7 of the same files (tools/ubuntu/deb.sh)
         if [ "$rc" = 0 ]; then
-            if sh "$here/deb.sh" "$stage" "$cputype" "$out" "$res" "$ubuntu" > "$res/deb.log" 2>&1; then
+            if sh "$here/deb.sh" "$stage" "$cputype" "$out" "$res" "$sys" > "$res/deb.log" 2>&1; then
                 sed -n 's/^== /deb: /p' "$res/debs.txt" >> "$res/summary.txt"
             else
                 rc=1
