@@ -1,0 +1,47 @@
+AVIF written at 8 or 10 bits. SVT-AV1, the only AV1 encoder of the libheif of az,
+writes 8 and 10 bits ("Svt[error]: Encoder Bit Depth shall be only 8 or 10"), and
+ImageMagick gave it 12 for an image deeper than 10 bits: a canvas of xc: at the
+quantum depth (16) with 8-bit pixels composited on it, as the video sites make
+their screenshots and the preview of the player, or a 16-bit PNG; the write failed
+("IM operation failed", the task of the site cancelled). Each frame now goes at the
+depth its pixels need (GetImageDepth): 8 bits or less as 8, more as 10.
+
+--- a/coders/heic.c
++++ b/coders/heic.c
+@@ -46,6 +46,7 @@
+ */
+ #include "MagickCore/studio.h"
+ #include "MagickCore/artifact.h"
++#include "MagickCore/attribute.h"
+ #include "MagickCore/blob.h"
+ #include "MagickCore/blob-private.h"
+ #include "MagickCore/channel.h"
+@@ -2518,6 +2519,28 @@
+   heif_context=heif_context_alloc();
+   encode_avif=(LocaleCompare(image_info->magick,"AVIF") == 0) ? MagickTrue :
+     MagickFalse;
++  if (encode_avif != MagickFalse)
++    {
++      Image
++        *frame;
++
++      size_t
++        depth;
++
++      /*
++        SVT-AV1, the AV1 encoder of libheif here, writes 8 and 10 bits only:
++        each frame at the depth its pixels need (a canvas of xc: has the
++        quantum depth, and the 8-bit pixels composited on it need 8), at most
++        10.
++      */
++      for (frame=image; frame != (Image *) NULL; frame=GetNextImageInList(frame))
++      {
++        if (frame->depth <= 8)
++          continue;
++        depth=GetImageDepth(frame,exception);
++        frame->depth=depth <= 8 ? 8 : 10;
++      }
++    }
+ #if LIBHEIF_NUMERIC_VERSION >= HEIC_COMPUTE_NUMERIC_VERSION(1,20,0)
+   if ((encode_avif != MagickFalse) && (image_info->adjoin != MagickFalse) &&
+       (GetNextImageInList(image) != (Image *) NULL))
