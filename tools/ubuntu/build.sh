@@ -20,12 +20,13 @@
 #   - GCC of Ubuntu (13) instead of the clang of the FreeBSD base, with its gcc-ar for
 #     the LTO of FFmpeg (-flto=auto: the GCC way of --enable-lto) and of x264; clang
 #     only for the CUDA kernels of the filters (cuda-llvm)
-#   - the patches of the FreeBSD ports are not taken: what they change is for FreeBSD
-#     (the linker scripts of libpng and FFmpeg, the exports of libde265, cmake 3.5 for
-#     mozjpeg, vwebp, the place of fonts.dtd, av_stream_get_first_dts of Chromium)
-#     or for no program here (the APNG chunks of libpng: ImageMagick reads the first
-#     frame of an APNG either way); ours are (files/ffmpeg/, files/deps/, the
-#     imagemagick7-*.patch), and tools/ubuntu/ffmpeg/*.patch for NVENC
+#   - of the FreeBSD ports what makes the same library here: the APNG patch of libpng
+#     (its PATCHFILES: the patch lines of sources.conf), LONG_PCF_NAMES of FreeType,
+#     the version of x264 in its meson.build (b_x264); not their patches for FreeBSD
+#     (the linker scripts of libpng and FFmpeg, the exports of libde265, the CPU count
+#     of x264, cmake 3.5 for mozjpeg: CMAKE_POLICY_VERSION_MINIMUM here, vwebp, the
+#     place of fonts.dtd, av_stream_get_first_dts of Chromium); ours (files/ffmpeg/,
+#     files/deps/, the imagemagick7-*.patch), and tools/ubuntu/ffmpeg/*.patch for NVENC
 #   - fontconfig takes the configuration, fonts and cache of Ubuntu (/etc/fonts,
 #     /usr/share/fonts, /var/cache/fontconfig): the packages fontconfig-config and
 #     fonts-dejavu-core, as the port takes those of FreeBSD
@@ -120,7 +121,7 @@ unset PKG_CONFIG_PATH
 export PATH="$work/bin:$PATH"
 
 # --- sources.conf, and that it has the versions of this tree --------------------------
-names="$(awk '!/^#/ && NF >= 5 { print $1 }' "$sources")"
+names="$(awk '!/^#/ && NF >= 5 && $1 != "patch" { print $1 }' "$sources")"
 src_ver() { awk -v n="$1" '$1 == n { print $2 }' "$sources"; }
 src_file() { awk -v n="$1" '$1 == n { print $3 }' "$sources"; }
 src_sha() { awk -v n="$1" '$1 == n { print $4 }' "$sources"; }
@@ -179,14 +180,14 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
     exit 1
 fi
 
-# fetch_one <name>: the release file into $dist, by its addresses in turn, three times;
-# its SHA-256 checked
-fetch_one() {
-    f="$dist/$(src_file "$1")"; want="$(src_sha "$1")"
+# fetch_file <file> <sha256> <addresses>: a file into $dist, by its addresses in turn,
+# three times; its SHA-256 checked
+fetch_file() {
+    f="$dist/$1"; want="$2"
     if [ -f "$f" ] && [ "$(sha256sum "$f" | cut -d ' ' -f 1)" = "$want" ]; then return 0; fi
     rm -f "$f"
     for try in 1 2 3; do
-        for u in $(src_urls "$1" | tr ',' ' '); do
+        for u in $(echo "$3" | tr ',' ' '); do
             if curl -fsSL --connect-timeout 30 --max-time 900 -o "$f.part" "$u"; then mv "$f.part" "$f"; break 2; fi
             echo "== ${f##*/}: $u failed (try $try of 3)"
             rm -f "$f.part"
@@ -198,6 +199,11 @@ fetch_one() {
     [ "$h" = "$want" ] || { echo "== ${f##*/}: SHA-256 $h, not $want of sources.conf"; return 1; }
     echo "== ${f##*/}: $h"
 }
+# fetch_one <name>: its release file
+fetch_one() { fetch_file "$(src_file "$1")" "$(src_sha "$1")" "$(src_urls "$1")"; }
+# port_patches <name>: "file sha256 addresses" of its patch lines (the patch files of the
+# FreeBSD port that its default options apply: PATCHFILES)
+port_patches() { awk -v n="$1" '$1 == "patch" && $2 == n { print $3, $4, $5 }' "$sources"; }
 # extract <name>: its release file into $src/<name> (one directory on top in each)
 extract() {
     rm -rf "${src:?}/$1" && mkdir -p "$src/$1" &&
@@ -250,7 +256,12 @@ b_webp() {
     at "$1" --enable-libwebpdecoder --enable-libwebpdemux --enable-libwebpmux --disable-gl --disable-sdl \
         --disable-png --disable-jpeg --disable-tiff --disable-gif --disable-wic
 }
+# FreeType with the option LONG_PCF_NAMES of the port on (its post-patch: the long family
+# names of PCF fonts), as tools/az-build.sh gets it from make patch
 b_freetype2() {
+    sed -i 's|.*\(#define PCF_CONFIG_OPTION_LONG_FAMILY_NAMES\).*|\1|' "$1/include/freetype/config/ftoption.h" &&
+        grep -q '^#define PCF_CONFIG_OPTION_LONG_FAMILY_NAMES' "$1/include/freetype/config/ftoption.h" ||
+        { echo "== freetype2: no PCF_CONFIG_OPTION_LONG_FAMILY_NAMES in ftoption.h"; return 1; }
     cm "$1" -DFT_REQUIRE_ZLIB=ON -DFT_DISABLE_BZIP2=OFF -DFT_DISABLE_PNG=ON -DFT_DISABLE_HARFBUZZ=ON \
         -DFT_DISABLE_BROTLI=ON
 }
@@ -278,8 +289,21 @@ b_fontconfig() {
 }
 b_lcms2() { at "$1" --with-fastfloat --with-threaded --without-jpeg --without-tiff; }
 # x264 as the port (options ASM, LTO and OPTIMIZED_CFLAGS on: -O3 of CFLAGS), the
-# library only
-b_x264() { ms "$1" -Dcli=false -Dasm=enabled -Db_lto=true; }
+# library only. Its version and commit into meson.build, as the port does
+# (files/patch-meson.build and the post-patch of multimedia/x264): version.py of the
+# release file finds no git; without optimization=2 in its default options
+b_x264() {
+    c="$(src_urls x264 | sed -n 's|.*/-/archive/\([0-9a-f]\{40\}\)\.tar\.gz.*|\1|p')"
+    [ -n "$c" ] || { echo "== x264: no commit in its address in sources.conf"; return 1; }
+    sed -i -e "s|version: run_command(find_program('version.py'), '--package-version', check: true).stdout().strip(),|version: '$(src_ver x264)',|" \
+        -e "s|default_options: \['optimization=2', 'c_std=c11'\],|default_options: ['c_std=c11'],|" \
+        -e "s|^x264_commit = run_command(find_program('version.py'), '--commit-hash', check: true).stdout().strip()|x264_commit = '$c'|" \
+        "$1/meson.build" &&
+        grep -q "version: '$(src_ver x264)'," "$1/meson.build" && grep -q "^x264_commit = '$c'" "$1/meson.build" &&
+        grep -q "default_options: \['c_std=c11'\]," "$1/meson.build" ||
+        { echo "== x264: meson.build is not as the patch of the port expects"; return 1; }
+    ms "$1" -Dcli=false -Dasm=enabled -Db_lto=true
+}
 b_dav1d() { ms "$1" -Denable_tools=false -Denable_tests=false -Denable_examples=false; }
 b_libde265() {
     cm "$1" -DENABLE_ENCODER=OFF -DENABLE_DECODER=OFF -DENABLE_SDL=OFF -DENABLE_INTERNAL_DEVELOPMENT_TOOLS=OFF
@@ -423,6 +447,12 @@ build_one() {
         extract "$n" || { echo "== $n: the release file does not extract"; exit 1; }
         s="$src/$n"
         echo "== $n $(src_ver "$n"): $s"
+        port_patches "$n" | while read -r pf psha purls; do
+            fetch_file "$pf" "$psha" "$purls" || exit 1
+            echo "== $pf (the FreeBSD port)"
+            case "$pf" in *.gz) gzip -dc "$dist/$pf" ;; *) cat "$dist/$pf" ;; esac | patch -p1 -N -s -d "$s" ||
+                { echo "== $pf does not apply"; exit 1; }
+        done || exit 1
         p="$tree/az/az/files/deps/$n-$(src_ver "$n").patch"
         if [ -f "$p" ]; then
             echo "== ${p#"$tree/"}"
@@ -511,6 +541,8 @@ manifest() {
         done
         echo
         echo "Patches:"
+        awk '$1 == "patch" { printf "  %s of the FreeBSD port, to %s: sha256 %s\n", $3, $2, $4 }' "$sources"
+        echo "  the version of x264 in its meson.build and LONG_PCF_NAMES of FreeType, as their ports"
         for p in "$tree"/az/az/files/deps/*.patch; do
             b="${p##*/}"
             for n in $names; do [ "$b" = "$n-$(src_ver "$n").patch" ] && echo "  az/az/files/deps/$b: $(head -n 1 "$p" | cut -c 1-150)"; done
