@@ -74,7 +74,11 @@ CONFIGURE_ARGS=	--disable-dtrace \
 		--with-mysql=no \
 		--with-postgresql=no \
 		--with-sqlite3=${AZSUPPORT_PREFIX}
-# no -fPIE -pie (the checks of AX_HARDEN_COMPILER_FLAGS, one flag a test)
+# no -fPIE -pie (the checks of AX_HARDEN_COMPILER_FLAGS, one flag a test), and none of
+# WITH_PIE of tools/make.conf.in either: a PIE gearadmin does not link with the archive
+# of boost-libs ("relocation R_X86_64_32 cannot be used against local symbol; recompile
+# with -fPIC", run 45702768445)
+PIE_UNSAFE=	the archive libboost_program_options.a of devel/boost-libs is not PIC
 CONFIGURE_ENV=	ax_cv_check_cflags__Werror__fPIE=no \
 		ax_cv_check_cflags__Werror__pie=no \
 		ax_cv_check_cxxflags__Werror__fPIE=no \
