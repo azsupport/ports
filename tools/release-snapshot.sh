@@ -59,12 +59,14 @@ gh_api() {
     done
 }
 
-# the snapshots of the release $1, newest first (their tags hold the time)
+# the snapshots of the release $1, newest first (their tags hold the time). 10 releases a
+# page: each release comes with all its files, and 100 a page took GitHub 10 s, its limit
+# (run 45623903407, 25.11.2026: 5 times HTTP 504 with 56 releases; 10 a page: 1-4 s)
 snapshots() {
     : > "$w/snaps"
     _p=1
-    while [ "$_p" -le 50 ]; do
-        gh_api "repos/$repo/releases?per_page=100&page=$_p" --jq '.[] | "\(.draft) \(.tag_name)"' > "$w/page" || return 1
+    while [ "$_p" -le 200 ]; do
+        gh_api "repos/$repo/releases?per_page=10&page=$_p" --jq '.[] | "\(.draft) \(.tag_name)"' > "$w/page" || return 1
         [ -s "$w/page" ] || break
         while read -r _d _t; do
             [ "$_d" = false ] || continue

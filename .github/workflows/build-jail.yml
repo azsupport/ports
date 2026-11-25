@@ -263,12 +263,15 @@ jobs:
           for o in $DRAFTS; do
             pres="$pres wip-$CPUTYPE-$(printf '%s' "$o" | tr -c 'A-Za-z0-9._-' '-')-"
           done
+          # pages <path> <jq> <file> [<per page>]: the releases 10 a page, as each comes with
+          # all its files (100 a page took GitHub 10 s, its limit: HTTP 504, run 45623903407,
+          # 25.11.2026), the files of a draft 100 a page
           pages() {
             : > "$3"
             p=1
-            while [ "$p" -le 30 ]; do
+            while [ "$p" -le 200 ]; do
               t=1
-              until gh api "${1}per_page=100&page=$p" --jq "$2" > "$AZ_RUNS_STATE/page"; do
+              until gh api "${1}per_page=${4:-100}&page=$p" --jq "$2" > "$AZ_RUNS_STATE/page"; do
                 [ "$t" -ge 5 ] && return 1
                 echo "page $p of ${1%%\?*}: try $t failed, again in 20 s"
                 t=$((t + 1)); sleep 20
@@ -278,7 +281,7 @@ jobs:
               p=$((p + 1))
             done
           }
-          pages "repos/$GITHUB_REPOSITORY/releases?" '.[] | "\(.draft) \(.id) \(.tag_name)"' "$AZ_RUNS_STATE/releases" ||
+          pages "repos/$GITHUB_REPOSITORY/releases?" '.[] | "\(.draft) \(.id) \(.tag_name)"' "$AZ_RUNS_STATE/releases" 10 ||
             { echo "::warning title=saved packages::no list of the releases after 5 tries: no draft taken, what they have is built again"; exit 0; }
           awk -v pres="$pres" 'BEGIN { n = split(pres, P, " ") }
             $1 == "true" { for (i = 1; i <= n; i++) if (index($3, P[i]) == 1) { print $2, $3; next } }' \
