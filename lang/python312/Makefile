@@ -78,6 +78,11 @@ USES=		compiler:c11 cpe ncurses pathfix pkgconfig \
 		python:${PYTHON_DISTVERSION:R},env shebangfix ssl tar:xz
 # GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
 USES+=		azgcc
+# no PIE of the framework (WITH_PIE of tools/make.conf.in): GCC takes the -pie of LDFLAGS
+# after the -shared of LDSHARED, and the modules of lib-dynload were linked as programs
+# ("Scrt1.o: undefined reference to `main'", run 45702768445); python3.12 is a small
+# program over libpython3.12.so (--enable-shared), which is position independent anyway
+PIE_UNSAFE=	GCC links the modules as programs with -shared -pie
 PATHFIX_MAKEFILEIN=	Makefile.pre.in
 USE_LDCONFIG=	yes
 GNU_CONFIGURE=	yes
