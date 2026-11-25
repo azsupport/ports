@@ -78,10 +78,15 @@ for p in "$@"; do
     lost=""
     for sn in $(cat "$w/req.az"); do [ -f "$w/drop/$sn" ] && lost="$lost $sn"; done
     if [ -n "$lost" ]; then
-        # its ELF files: the symbols they bind from the SONAMEs that lost some
+        # its ELF files: the symbols they bind from the SONAMEs that lost some. The ELF
+        # files known by their magic, the first line of many files read by one awk: a
+        # readelf for each file took half an hour on the 96637 files of rocketchat8
+        # (25.11.2026), awk 5 s for 28769 files where file(1) took 552 s, and the
+        # readelf of LLVM stops at the first file of many that is not ELF
         rm -rf "$w/p" && mkdir -p "$w/p"
         tar -xf "$p" -C "$w/p" 2> /dev/null
-        find "$w/p" -type f ! -name '+*' | while read -r f; do
+        find "$w/p" -type f ! -name '+*' -exec awk 'FNR == 1 { if (substr($0, 1, 4) == "\177ELF") print FILENAME; nextfile }' {} + 2> /dev/null |
+        while read -r f; do
             readelf -d "$f" > "$w/dyn" 2> /dev/null || continue
             for sn in $lost; do
                 grep -q "Shared library: \[$sn\]" "$w/dyn" || continue
