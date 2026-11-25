@@ -279,3 +279,11 @@ jobs:
           RUNS_STEPS: build=${{ steps.build.outcome }} tests=${{ steps.tests.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
           PART: ubuntu${{ matrix.ubuntu }}-${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"
+
+  # the apt repositories of the releases (ubuntu-apt.yml, tools/ubuntu/apt-repo.sh): after
+  # the publish of all the jobs, also when one of them failed (the others published)
+  apt:
+    needs: build
+    if: ${{ always() && inputs.publish && github.ref == 'refs/heads/main' }}
+    uses: ./.github/workflows/ubuntu-apt.yml
+    secrets: inherit

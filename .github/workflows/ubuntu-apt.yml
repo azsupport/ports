@@ -1,0 +1,52 @@
+name: ubuntu-apt
+
+# The apt repositories of the releases az-ubuntu<24|22>-amd64-<v3|v2> (aZ, 25.11.2026:
+# «давай тогда уж и свой репозиторий убунты сделаем? чтобы по apt и ставилось и
+# обновлялось?»): tools/ubuntu/apt-repo.sh, the index of the packages of each release
+# signed with the key of the secret APT_SIGNING_KEY (made by aZ), next to them in the
+# release; on a server:
+#   deb [signed-by=/etc/apt/keyrings/az-apt.gpg] https://github.com/azsupport/ports/releases/download/az-ubuntu24-amd64-v3 ./
+# After each publish of ubuntu.yml (its job apt), or by hand (dry_run: the indexes made
+# and read by apt here, nothing published; without the secret with a key of the run).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'The releases, separated by spaces (default: az-ubuntu24-amd64-v3 az-ubuntu24-amd64-v2 az-ubuntu22-amd64-v3 az-ubuntu22-amd64-v2)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Make and check the indexes only, publish nothing'
+        type: boolean
+        default: false
+  workflow_call:
+    secrets:
+      APT_SIGNING_KEY:
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ubuntu-apt
+  cancel-in-progress: false
+
+jobs:
+  apt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: apt-ftparchive
+        run: command -v apt-ftparchive > /dev/null || sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends apt-utils
+
+      - name: The apt repositories
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+          AZ_APT_DRY: ${{ inputs.dry_run && '1' || '' }}
+          TAGS: ${{ inputs.tags }}
+        # shellcheck disable=SC2086
+        run: sh tools/ubuntu/apt-repo.sh $TAGS
