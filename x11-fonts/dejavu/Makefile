@@ -6,6 +6,11 @@
 # with fonts:none no fontconfig came with it, and the fonts of openjdk21 failed without
 # libfontconfig (build run 44357987655 of 18.11.2026: NullPointerException). The text of the
 # libvips of net-im/rocketchat8 (the letters of its avatars: sans-serif) takes them too.
+# USES=fonts:fc since 26.11.2026 (aZ, 13:09: «Делаем его самодостаточным — лишние
+# зависимости убираем, нужные собираем у нас.»): fontconfig alone to run it, no
+# mkfontscale, an X11 tool (the keyword @fontsdir that USES=fonts puts in the plist ran
+# mkfontscale and mkfontdir for the font index of an X server); fc-cache when it
+# installs stays, the trigger of the package fontconfig (share/fonts).
 # No DOCS.
 
 PORTNAME=	dejavu
@@ -32,7 +37,7 @@ LICENSE_PERMS_AMS=	auto-accept dist-mirror dist-sell pkg-mirror pkg-sell
 LICENSE_PERMS_AREV=	auto-accept dist-mirror dist-sell pkg-mirror pkg-sell
 LICENSE_PERMS_BITSTREAM=auto-accept dist-mirror dist-sell pkg-mirror pkg-sell
 
-USES=		fonts tar:bzip2
+USES=		fonts:fc tar:bzip2
 NO_ARCH=	yes
 NO_BUILD=	yes
 
