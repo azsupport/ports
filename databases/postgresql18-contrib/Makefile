@@ -39,10 +39,10 @@ AZSUPPORT_PG_LIBS=		xml2 xslt
 XML_CONFIGURE_WITH=	libxslt libxml
 XML_CONFIGURE_ENV=	XML2_CFLAGS=-I${WRKDIR}/azsupport/include/libxml2 \
 			XML2_LIBS="-L${WRKDIR}/azsupport/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib -lxml2"
-XML_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxslt.so:azsupport/azsupport \
-			${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
-XML_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxslt.so:azsupport/azsupport \
-			${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+XML_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxslt.so:azsupport/libxslt \
+			${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
+XML_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxslt.so:azsupport/libxslt \
+			${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
 
 post-configure:
 	@cd ${WRKSRC}/src/backend && ${SETENVI} ${WRK_ENV} ${MAKE_ENV} ${MAKE_CMD} generated-headers

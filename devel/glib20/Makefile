@@ -41,12 +41,12 @@ LICENSE=	LGPL20
 # the libraries of azsupport, to build and to run (no ldconfig hints for /usr/local/azsupport/lib:
 # by a file)
 BUILD_DEPENDS=	${PYTHON_PKGNAMEPREFIX}packaging>0:devel/py-packaging@${PY_FLAVOR} \
-		${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libiconv.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libiconv.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport
+		${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/libffi \
+		${AZSUPPORT_PREFIX}/lib/libiconv.so:azsupport/libiconv \
+		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/gettext
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/libffi \
+		${AZSUPPORT_PREFIX}/lib/libiconv.so:azsupport/libiconv \
+		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/gettext
 LIB_DEPENDS=	libpcre2-8.so:devel/pcre2
 
 USES=		compiler:c11 cpe meson perl5 pkgconfig python:build tar:xz trigger

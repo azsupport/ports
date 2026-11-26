@@ -390,16 +390,16 @@ MAIL_SSL_CONFIGURE_ON=		--with-mail_ssl_module
 
 # brotli, libzstd and libmaxminddb of azsupport (only the headers and the libraries they need,
 # in ${WRKDIR}/azsupport: pre-configure)
-BROTLI_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libbrotlienc.so:azsupport/azsupport
-BROTLI_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libbrotlienc.so:azsupport/azsupport
+BROTLI_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libbrotlienc.so:azsupport/brotli
+BROTLI_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libbrotlienc.so:azsupport/brotli
 HEADERS_MORE_CONFIGURE_ON=	--add-module=${WRKSRC_headers_more}
-HTTP_GEOIP2_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/azsupport
-HTTP_GEOIP2_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/azsupport
+HTTP_GEOIP2_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/libmaxminddb
+HTTP_GEOIP2_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/libmaxminddb
 HTTP_GEOIP2_CONFIGURE_ON=	--add-module=${WRKSRC_geoip2}
 # the shared libzstd of azsupport: only libzstd.so in ZSTD_LIB, so the config of the module, which
 # takes an archive first for a module built in, finds none and links the shared library
-ZSTD_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
-ZSTD_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+ZSTD_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
+ZSTD_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
 ZSTD_CONFIGURE_ENV=		ZSTD_INC=${WRKDIR}/azsupport/include ZSTD_LIB=${WRKDIR}/azsupport/lib
 # the --add-module of zstd and brotli: after bsd.port.pre.mk, in their order
 
@@ -421,14 +421,14 @@ CONFIGURE_ARGS+=	--with-stream=dynamic --with-stream_realip_module \
 			--with-stream_ssl_module --with-stream_ssl_preread_module \
 			--add-dynamic-module=${WRKSRC_geoip2}
 USES+=		ssl
-BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/azsupport
-RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/azsupport
+BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/libmaxminddb
+RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/libmaxminddb
 NGINX_AZ_OBJS=	ngx_stream_module.so ngx_stream_geoip2_module.so
 . elif ${NGINX_AZ_MODULE} == image-filter
 # image_filter on the libgd of azsupport
 CONFIGURE_ARGS+=	--with-http_image_filter_module=dynamic
-BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libgd.so:azsupport/azsupport
-RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libgd.so:azsupport/azsupport
+BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libgd.so:azsupport/gd
+RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libgd.so:azsupport/gd
 NGINX_AZ_OBJS=	ngx_http_image_filter_module.so
 . elif ${NGINX_AZ_MODULE} == lua
 # ndk and the http lua module, on the LuaJIT of lang/luajit-openresty (lua-nginx-module
@@ -480,10 +480,10 @@ NGINX_AZ_OBJS=	ngx_http_dav_module.so
 # on libxml2 and libxslt of azsupport; with the DAV module of nginx (www/nginx-devel-dav) for
 # the methods that write
 CONFIGURE_ARGS+=	--add-dynamic-module=${WRKSRC_dav_ext}
-BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libxslt.so:azsupport/azsupport
-RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libxslt.so:azsupport/azsupport \
+BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2 \
+		${AZSUPPORT_PREFIX}/lib/libxslt.so:azsupport/libxslt
+RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2 \
+		${AZSUPPORT_PREFIX}/lib/libxslt.so:azsupport/libxslt \
 		nginx-devel-dav>=${NGINX_VERSION}:www/nginx-devel-dav
 NGINX_AZ_OBJS=	ngx_http_dav_ext_module.so
 . elif ${NGINX_AZ_MODULE} == vod

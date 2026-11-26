@@ -74,8 +74,8 @@ EXTRA_PATCHES=	${DOVECOT_CVE_PATCHES:@p@${FILESDIR}/cve/${p}.patch:-p1@}
 # zstd of azsupport, with its run path: its headers and library alone in a directory of the
 # work (the pkg-config check of configure takes ZSTD_CFLAGS and ZSTD_LIBS, the
 # checks of zstd_errors.h and of ZSTD_getErrorCode CPPFLAGS and LDFLAGS)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
 CONFIGURE_ENV=	ZSTD_CFLAGS="-I${WRKDIR}/azsupport" \
 		ZSTD_LIBS="-L${WRKDIR}/azsupport/lib -lzstd"
 

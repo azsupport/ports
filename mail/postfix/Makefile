@@ -91,8 +91,8 @@ TLSRPT_DESC=		Enable sending RFC 8460 TLS reports
 
 BDB_USES=			bdb
 CDB_LIB_DEPENDS=		libcdb.so:databases/tinycdb
-EAI_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/azsupport
-EAI_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/azsupport
+EAI_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/icu
+EAI_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/icu
 LDAP_USES=			ldap
 MONGO_LIB_DEPENDS=		libbson2.so:devel/libbson \
 				libmongoc2.so:devel/mongo-c-driver

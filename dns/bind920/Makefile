@@ -41,12 +41,12 @@ LICENSE_FILE=	${WRKSRC}/COPYRIGHT
 
 # the libraries of azsupport, to build and to run (no ldconfig hints for /usr/local/azsupport/lib:
 # by a file)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/liburcu.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libnghttp2.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/liburcu.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libnghttp2.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/libuv \
+		${AZSUPPORT_PREFIX}/lib/liburcu.so:azsupport/liburcu \
+		${AZSUPPORT_PREFIX}/lib/libnghttp2.so:azsupport/nghttp2
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/libuv \
+		${AZSUPPORT_PREFIX}/lib/liburcu.so:azsupport/liburcu \
+		${AZSUPPORT_PREFIX}/lib/libnghttp2.so:azsupport/nghttp2
 .if !defined(BIND_TOOLS_SLAVE)
 RUN_DEPENDS+=	bind-tools>0:dns/bind-tools
 .endif
@@ -157,8 +157,8 @@ FIXED_RRSET_CONFIGURE_ENABLE=	fixed-rrset
 
 # GEOIP: libmaxminddb of azsupport, its two headers alone in a directory of the work; the
 # GeoIP databases where net/geoipupdate puts them (MAXMINDDB_PREFIX/share/GeoIP)
-GEOIP_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/azsupport
-GEOIP_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/azsupport
+GEOIP_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/libmaxminddb
+GEOIP_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/libmaxminddb
 GEOIP_CONFIGURE_ENABLE=		geoip
 GEOIP_CONFIGURE_WITH=		maxminddb
 GEOIP_CONFIGURE_ENV=		MAXMINDDB_CFLAGS="-I${WRKDIR}/mmdb" \
@@ -178,8 +178,8 @@ GSSAPI_NONE_CONFIGURE_ON=	--without-gssapi
 
 # libidn2 of azsupport: its idn2.h and libidn2.so alone in a directory of the work
 # (--with-libidn2=<path>: -I<path>/include, -L<path>/lib), its run path above
-IDN_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/azsupport
-IDN_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/azsupport
+IDN_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/libidn2
+IDN_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/libidn2
 IDN_CONFIGURE_ON=	--with-libidn2=${WRKDIR}/idn2
 IDN_CONFIGURE_OFF=	--without-libidn2
 
@@ -205,8 +205,8 @@ STATS_JSON_CONFIGURE_ENV=	JSON_C_CFLAGS="-I${LOCALBASE}/include/json-c" \
 				JSON_C_LIBS="-L${WRKDIR}/json-c -ljson-c"
 
 # STATS_XML: libxml2 of azsupport (<libxml/...>: its include/libxml2 has only libxml)
-STATS_XML_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
-STATS_XML_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+STATS_XML_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
+STATS_XML_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
 STATS_XML_CONFIGURE_WITH=	libxml2
 STATS_XML_CONFIGURE_ENV=	LIBXML2_CFLAGS="-I${AZSUPPORT_PREFIX}/include/libxml2" \
 				LIBXML2_LIBS="-L${AZSUPPORT_PREFIX}/lib -lxml2"

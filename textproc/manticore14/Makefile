@@ -52,14 +52,14 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 
 BUILD_DEPENDS=	${LOCALBASE}/lib/libboost_context.a:devel/boost-libs \
 		bison:devel/bison \
-		${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libxxhash.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+		${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/expat \
+		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/icu \
+		${AZSUPPORT_PREFIX}/lib/libxxhash.so:azsupport/xxhash \
+		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
 LIB_DEPENDS=	libcurl.so:ftp/curl
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/expat \
+		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/icu \
+		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
 
 USES=		cmake compiler:c++17-lang mysql ssl
 USE_GITHUB=	yes

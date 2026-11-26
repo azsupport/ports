@@ -54,8 +54,8 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 BUILD_DEPENDS=	${LOCALBASE}/lib/libboost_program_options.a:devel/boost-libs \
 		${LOCALBASE}/lib/libuuid.a:misc/libuuid \
 		gperf:devel/gperf \
-		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/azsupport
+		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/libevent \
+		${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/sqlite3
 
 USES=		autoreconf compiler:c++14-lang gmake libtool pathfix pkgconfig ssl
 
@@ -113,8 +113,8 @@ CONFLICTS_INSTALL=	gearmand
 .  else
 CONFLICTS_INSTALL=	gearmand-openssl
 .  endif
-RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport \
-			${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/azsupport \
+RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/libevent \
+			${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/sqlite3 \
 			${LOCALBASE}/bin/gearadmin:devel/libgearman
 USE_RC_SUBR=		gearmand
 USERS=			gearmand

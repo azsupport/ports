@@ -34,8 +34,8 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 
 # libreadline.so of azsupport; configure finds it by AC_SEARCH_LIBS (readline, then edit:
 # the libedit of the base system, which the -L of ${WRKDIR}/azsupport keeps away)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/readline
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/readline
 
 USES=		autoreconf libtool cpe gmake ssl
 CPE_VENDOR=	sun

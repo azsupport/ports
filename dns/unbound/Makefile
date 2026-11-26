@@ -36,8 +36,8 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 
 # expat of azsupport (unbound-anchor): configure takes its header and library under the
 # path of --with-libexpat
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/expat
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/expat
 
 USES=		autoreconf cpe libtool pkgconfig ssl
 CPE_VENDOR=	nlnetlabs
@@ -87,8 +87,8 @@ STRIP_FILES=	.libs/libunbound.so.8.1.41 unbound-checkconf unbound unbound-contro
 		.libs/unbound-host .libs/unbound-anchor
 
 DEP-RSA1024_CONFIGURE_ON=	--with-deprecate-rsa-1024
-DNSCRYPT_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libsodium.so:azsupport/azsupport
-DNSCRYPT_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libsodium.so:azsupport/azsupport
+DNSCRYPT_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libsodium.so:azsupport/libsodium
+DNSCRYPT_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libsodium.so:azsupport/libsodium
 DNSCRYPT_CONFIGURE_ENABLE=	dnscrypt
 DNSCRYPT_CONFIGURE_ON=		--with-libsodium=${AZSUPPORT_PREFIX}
 DNSTAP_LIB_DEPENDS=		libfstrm.so:devel/fstrm \
@@ -103,8 +103,8 @@ GOST_VARS=			DEPENDS_ARGS+=WITH_GOST=yes
 HIREDIS_LIB_DEPENDS=		libhiredis.so:databases/hiredis
 HIREDIS_CONFIGURE_ON=		--enable-cachedb \
 				--with-libhiredis
-LIBEVENT_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
-LIBEVENT_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
+LIBEVENT_BUILD_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/libevent
+LIBEVENT_RUN_DEPENDS=		${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/libevent
 LIBEVENT_CONFIGURE_ON=		--with-libevent=${AZSUPPORT_PREFIX}
 LIBEVENT_CONFIGURE_OFF=		--without-libevent
 MUNIN_PLUGIN_SUB_FILES=		pkg-message

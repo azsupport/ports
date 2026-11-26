@@ -113,10 +113,10 @@ BROKEN_SSL_REASON=	Node.js ${PORTVERSION:R:R}.x requires OpenSSL or the BUNDLED_
 ONLY_FOR_ARCHS=	aarch64 amd64 armv6 armv7 i386 powerpc64 powerpc64le
 
 # the libraries of azsupport that node links, with their run path
-AZSUPPORT_NODE_LIBS=	libbrotlidec.so libcares.so libicui18n.so libnghttp2.so libuv.so
-BUILD_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
+AZSUPPORT_NODE_LIBS=	brotli:libbrotlidec.so c-ares:libcares.so icu:libicui18n.so nghttp2:libnghttp2.so libuv:libuv.so
+BUILD_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
 LIB_DEPENDS=	libllhttp.so:www/llhttp
-RUN_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@} \
+RUN_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@} \
 		node18-corepack>=0:www/corepack-node18
 
 # python: the configure of Node 18 takes Python 3.6 to 3.13

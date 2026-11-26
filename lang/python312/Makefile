@@ -75,9 +75,9 @@ LICENSE=	PSFL
 
 # the libraries of azsupport, to build and to run (no ldconfig hints for /usr/local/azsupport/lib:
 # by a file); libintl with NLS
-AZSUPPORT_PYTHON_LIBS=	libexpat.so libffi.so libreadline.so
-BUILD_DEPENDS=	${AZSUPPORT_PYTHON_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
-RUN_DEPENDS=	${AZSUPPORT_PYTHON_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
+AZSUPPORT_PYTHON_LIBS=	expat:libexpat.so libffi:libffi.so readline:libreadline.so
+BUILD_DEPENDS=	${AZSUPPORT_PYTHON_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
+RUN_DEPENDS=	${AZSUPPORT_PYTHON_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
 
 USES=		compiler:c11 cpe ncurses pathfix pkgconfig \
 		python:${PYTHON_DISTVERSION:R},env shebangfix ssl tar:xz
@@ -178,8 +178,8 @@ LTO_CONFIGURE_ON=	--with-lto
 # to break in Python 2.7, or preprocessor complaints in Python >= 3.3
 # Upstream Issue: https://bugs.python.org/issue6299
 # libintl of azsupport (its include directory and -L: CPPFLAGS and LDFLAGS above)
-NLS_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport
-NLS_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport
+NLS_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/gettext
+NLS_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/gettext
 NLS_LIBS=		-lintl
 NLS_CONFIGURE_ENV_OFF=	ac_cv_lib_intl_textdomain=no ac_cv_header_libintl_h=no
 

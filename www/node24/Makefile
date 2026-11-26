@@ -51,9 +51,9 @@ BROKEN_SSL_REASON=	Node.js ${PORTVERSION:R:R}.x requires OpenSSL or the BUNDLED_
 ONLY_FOR_ARCHS=	aarch64 amd64 armv6 armv7 i386 powerpc64 powerpc64le
 
 # the libraries of azsupport that node links, with their run path
-AZSUPPORT_NODE_LIBS=	libbrotlidec.so libcares.so libicui18n.so libnghttp2.so libsqlite3.so \
-		libuv.so libzstd.so
-BUILD_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
+AZSUPPORT_NODE_LIBS=	brotli:libbrotlidec.so c-ares:libcares.so icu:libicui18n.so \
+		nghttp2:libnghttp2.so sqlite3:libsqlite3.so libuv:libuv.so zstd:libzstd.so
+BUILD_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
 LIB_DEPENDS=	libada.so:devel/libada \
 		libhdr_histogram.so:graphics/hdr_histogram \
 		libllhttp.so:www/llhttp \
@@ -62,7 +62,7 @@ LIB_DEPENDS=	libada.so:devel/libada \
 		libngtcp2.so:net/libngtcp2 \
 		libsimdjson.so:devel/simdjson \
 		libuvwasi.so:devel/uvwasi
-RUN_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@} \
+RUN_DEPENDS=	${AZSUPPORT_NODE_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@} \
 		node24-corepack>=0:www/corepack-node24
 
 USES=		compiler:c++20-lang gmake localbase pkgconfig python:build shebangfix tar:xz

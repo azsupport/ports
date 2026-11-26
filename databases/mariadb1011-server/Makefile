@@ -58,11 +58,11 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 
 # fmt (its headers), lz4 and zstd of azsupport, to build and to run (no ldconfig hints for
 # /usr/local/azsupport/lib: by a file); PCRE2 of devel/pcre2
-BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libfmt.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
-RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libfmt.so:azsupport/fmt \
+		${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/lz4 \
+		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
+RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/lz4 \
+		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
 LIB_DEPENDS+=	libpcre2-8.so:devel/pcre2
 
 # the run path of the libraries of azsupport (cmake takes LDFLAGS for every link); no

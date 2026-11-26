@@ -37,8 +37,8 @@ WWW=		https://github.com/manticoresoftware/columnar \
 LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libonig.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libonig.so:azsupport/azsupport \
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libonig.so:azsupport/oniguruma
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libonig.so:azsupport/oniguruma \
 		${LOCALBASE}/bin/searchd:textproc/manticore${MC_LINE}
 
 USES=		cargo cmake compiler:c++17-lang pkgconfig

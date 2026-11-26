@@ -24,8 +24,8 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 
 # libevent.so of azsupport (its configure links -levent with -L<dir>/lib and -I<dir>/include;
 # iconv is not used, so the GNU iconv.h there does not matter), its run path
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/libevent
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/libevent
 
 USES=		autoreconf cpe pkgconfig shebangfix
 USE_CSTD=	c99

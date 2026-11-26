@@ -28,10 +28,10 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 # the shared APR and APR-util of azsupport (their run path: LDFLAGS below; not
 # LIB_DEPENDS: no ldconfig hints for ${AZSUPPORT_PREFIX}/lib), PCRE2 of devel/pcre2 (its
 # pcre2-config: --with-pcre, as the official port)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libapr-1.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libaprutil-1.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libapr-1.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libaprutil-1.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libapr-1.so:azsupport/apr \
+		${AZSUPPORT_PREFIX}/lib/libaprutil-1.so:azsupport/apr
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libapr-1.so:azsupport/apr \
+		${AZSUPPORT_PREFIX}/lib/libaprutil-1.so:azsupport/apr
 LIB_DEPENDS=	libpcre2-8.so:devel/pcre2
 
 USES=		apache:server,2.4 autoreconf compiler:c11 cpe iconv libtool perl5 tar:bzip2

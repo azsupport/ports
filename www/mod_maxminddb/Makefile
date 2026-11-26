@@ -22,8 +22,8 @@ WWW=		https://github.com/maxmind/mod_maxminddb \
 LICENSE=	APACHE20
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/libmaxminddb
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libmaxminddb.so:azsupport/libmaxminddb
 
 USES=		apache autoreconf compiler:c11 gmake
 GNU_CONFIGURE=	yes

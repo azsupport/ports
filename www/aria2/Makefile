@@ -77,8 +77,8 @@ CARES_CONFIGURE_WITH=	libcares
 EXPAT_CONFIGURE_WITH=	libexpat
 LIBUV_CONFIGURE_WITH=	libuv
 LIBXML2_CONFIGURE_WITH=	libxml2
-LIBXML2_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
-LIBXML2_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+LIBXML2_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
+LIBXML2_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
 LIBXML2_CONFIGURE_ENV=	LIBXML2_CFLAGS="-I${AZSUPPORT_PREFIX}/include/libxml2" \
 			LIBXML2_LIBS="-L${AZSUPPORT_PREFIX}/lib -lxml2"
 NLS_CONFIGURE_OFF=	--disable-nls --without-libintl-prefix
@@ -91,24 +91,24 @@ STATIC_CONFIGURE_ENABLE=static
 
 # c-ares, expat, libuv, SQLite and libssh2 of azsupport: their headers alone in a
 # directory of the work
-CARES_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libcares.so:azsupport/azsupport
-CARES_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libcares.so:azsupport/azsupport
+CARES_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libcares.so:azsupport/c-ares
+CARES_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libcares.so:azsupport/c-ares
 CARES_CONFIGURE_ENV=	LIBCARES_CFLAGS="-I${WRKDIR}/azsupport" \
 			LIBCARES_LIBS="-L${AZSUPPORT_PREFIX}/lib -lcares"
-EXPAT_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport
-EXPAT_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport
+EXPAT_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/expat
+EXPAT_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/expat
 EXPAT_CONFIGURE_ENV=	EXPAT_CFLAGS="-I${WRKDIR}/azsupport" \
 			EXPAT_LIBS="-L${AZSUPPORT_PREFIX}/lib -lexpat"
-LIBUV_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/azsupport
-LIBUV_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/azsupport
+LIBUV_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/libuv
+LIBUV_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/libuv
 LIBUV_CONFIGURE_ENV=	LIBUV_CFLAGS="-I${WRKDIR}/azsupport" \
 			LIBUV_LIBS="-L${AZSUPPORT_PREFIX}/lib -luv"
-SQLITE_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/azsupport
-SQLITE_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/azsupport
+SQLITE_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/sqlite3
+SQLITE_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/sqlite3
 SQLITE_CONFIGURE_ENV=	SQLITE3_CFLAGS="-I${WRKDIR}/azsupport" \
 			SQLITE3_LIBS="-L${AZSUPPORT_PREFIX}/lib -lsqlite3"
-SSH2_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libssh2.so:azsupport/azsupport
-SSH2_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libssh2.so:azsupport/azsupport
+SSH2_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libssh2.so:azsupport/libssh2
+SSH2_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libssh2.so:azsupport/libssh2
 SSH2_CONFIGURE_ENV=	LIBSSH2_CFLAGS="-I${WRKDIR}/azsupport" \
 			LIBSSH2_LIBS="-L${AZSUPPORT_PREFIX}/lib -lssh2"
 

@@ -38,12 +38,12 @@ WWW=		https://rsync.samba.org/ \
 LICENSE=	GPLv3+
 LICENSE_FILE=	${WRKSRC}/COPYING
 
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libxxhash.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libxxhash.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/lz4 \
+		${AZSUPPORT_PREFIX}/lib/libxxhash.so:azsupport/xxhash \
+		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/lz4 \
+		${AZSUPPORT_PREFIX}/lib/libxxhash.so:azsupport/xxhash \
+		${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
 
 USES=		autoreconf:build cpe python shebangfix ssl
 CPE_VENDOR=	samba

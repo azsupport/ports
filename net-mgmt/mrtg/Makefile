@@ -34,8 +34,8 @@ WWW=		https://oss.oetiker.ch/mrtg/ \
 LICENSE=	GPLv2
 
 # libgd.so and libpng.so of azsupport (rateup links -lgd -lpng -lz: its configure)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libgd.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libgd.so:azsupport/azsupport \
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libgd.so:azsupport/gd
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libgd.so:azsupport/gd \
 		p5-SNMP_Session>=0:net-mgmt/p5-SNMP_Session
 
 USES=		perl5 shebangfix

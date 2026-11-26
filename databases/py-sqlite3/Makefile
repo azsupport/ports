@@ -31,8 +31,8 @@ LICENSE_FILE=	${WRKDIR}/Python-${DISTVERSION}/LICENSE
 # by a file)
 BUILD_DEPENDS=	${PYTHON_PKGNAMEPREFIX}setuptools>0:devel/py-setuptools@${PY_FLAVOR} \
 		${PYTHON_PKGNAMEPREFIX}wheel>0:devel/py-wheel@${PY_FLAVOR} \
-		${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/azsupport
+		${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/sqlite3
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libsqlite3.so:azsupport/sqlite3
 
 USES=		compiler:c11 python tar:xz
 USE_PYTHON=	allflavors autoplist pep517

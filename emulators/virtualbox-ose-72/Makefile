@@ -52,9 +52,9 @@ OPTIONS_EXCLUDE_amd64=	PYTHON R0LOGGING VBOXIMG VDE WEBSERVICE
 
 AZSUPPORT_LIBS=	libxml2:libxml2.so mozjpeg:libjpeg.so png:libpng16.so
 .include "${.CURDIR:H:H}/Mk/azsupport-libs.mk"
-nox11_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libjpeg.so:azsupport/azsupport \
-			${AZSUPPORT_PREFIX}/lib/libpng16.so:azsupport/azsupport \
-			${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+nox11_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libjpeg.so:azsupport/mozjpeg \
+			${AZSUPPORT_PREFIX}/lib/libpng16.so:azsupport/png \
+			${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
 nox11_RUN_DEPENDS=	${nox11_BUILD_DEPENDS}
 
 pre-configure:

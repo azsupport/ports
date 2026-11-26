@@ -18,8 +18,8 @@ WWW=		https://github.com/nodejs/uvwasi \
 LICENSE=	MIT
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/libuv
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libuv.so:azsupport/libuv
 
 USES=		cmake:testing
 USE_GITHUB=	yes

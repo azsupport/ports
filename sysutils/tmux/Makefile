@@ -24,8 +24,8 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 
 # libevent.so of azsupport: its configure takes LIBEVENT_CORE_CFLAGS and LIBEVENT_CORE_LIBS
 # as they are (PKG_CHECK_MODULES does not ask pkg-config then)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/libevent
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/libevent
 
 USES=		cpe ncurses pkgconfig
 CPE_VENDOR=	tmux_project

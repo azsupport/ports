@@ -21,8 +21,8 @@ LICENSE=	LGPL21
 LICENSE_FILE=	${WRKSRC}/COPYING-LGPL
 
 # libreadline.so and libhistory.so of azsupport
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/readline
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libreadline.so:azsupport/readline
 
 USES=		gmake tar:bzip2
 USE_GITHUB=	yes

@@ -137,8 +137,8 @@ DTRACE_LDFLAGS=		-lelf
 DTRACE_INSTALL_TARGET=	install
 
 LZ4_CONFIGURE_WITH=	lz4
-LZ4_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport
-LZ4_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/azsupport
+LZ4_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/lz4
+LZ4_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/liblz4.so:azsupport/lz4
 
 LLVM_CONFIGURE_WITH=	llvm
 LLVM_CONFIGURE_ENV=	LLVM_CONFIG=${LLVM_CONFIG} \
@@ -146,16 +146,16 @@ LLVM_CONFIGURE_ENV=	LLVM_CONFIG=${LLVM_CONFIG} \
 LLVM_USES=		llvm:lib
 
 CONFIGURE_ARGS+=	--with-icu
-BUILD_DEPENDS+=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/azsupport
-RUN_DEPENDS+=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/azsupport
+BUILD_DEPENDS+=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/icu
+RUN_DEPENDS+=		${AZSUPPORT_PREFIX}/lib/libicuuc.so:azsupport/icu
 USES+=			pkgconfig
 
 XML_CONFIGURE_WITH=	libxml
 # libxml2 of azsupport, its flags given (they go before pkg-config and xml2-config)
 XML_CONFIGURE_ENV=	XML2_CFLAGS=-I${WRKDIR}/azsupport/include/libxml2 \
 			XML2_LIBS="-L${WRKDIR}/azsupport/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib -lxml2"
-XML_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
-XML_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+XML_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
+XML_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
 .else
 CONFIGURE_ARGS+=	--without-icu
 .endif
@@ -186,8 +186,8 @@ OPTIONS_DEFINE+=	ZSTD
 OPTIONS_DEFAULT+=	ZSTD
 ZSTD_DESC=		Build with ZSTD compression support
 ZSTD_CONFIGURE_WITH=	zstd
-ZSTD_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
-ZSTD_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/azsupport
+ZSTD_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
+ZSTD_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libzstd.so:azsupport/zstd
 USES+=			pkgconfig
 .endif
 
