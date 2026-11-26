@@ -140,6 +140,12 @@ NODE_GYP=	${LOCALBASE}/bin/node ${LOCALBASE}/lib/node_modules/npm/node_modules/n
 # takes backtrace() of libexecinfo on FreeBSD
 CPPFLAGS+=	-I${AZSUPPORT_PREFIX}/include
 LDFLAGS+=	-lexecinfo
+# no BIND_NOW of the framework (WITH_BIND_NOW of tools/make.conf.in): re2.node, the
+# addon of node-re2 with the RE2 and abseil it vendors, has the undefined symbol
+# absl::synchronization_internal::PthreadWaiter::Poke(), which neither it nor a
+# library it links defines; with -z now its dlopen failed ("Undefined symbol", run
+# 45740597411), with lazy binding the check of re2.node below passed
+BIND_NOW_UNSAFE=	re2.node has an undefined symbol of abseil
 
 # the two files of hapi the patches change (CRLF in the tarball)
 DOS2UNIX_FILES=	node_modules/@commercial/hapi/lib/request.js \
