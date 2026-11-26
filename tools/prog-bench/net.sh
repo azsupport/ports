@@ -18,7 +18,7 @@ g_progs="curl wget 3proxy"
 
 g_need() {
     need libnghttp2 pcre2
-    if [ "$mode" = bench ]; then need nginx wrk; fi
+    if [ "$mode" = bench ]; then need nginx wrk-luajit; fi
 }
 
 g_build() {

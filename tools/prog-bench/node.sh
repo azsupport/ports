@@ -23,7 +23,7 @@ esac
 g_progs="$group"
 
 g_need() {
-    if [ "$mode" = bench ]; then need wrk; fi
+    if [ "$mode" = bench ]; then need wrk-luajit; fi
 }
 
 g_build() {

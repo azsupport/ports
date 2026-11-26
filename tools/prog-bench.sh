@@ -198,7 +198,6 @@ bno() {
         tail -n 40 "$3"; echo '```'; } >> "$W/fails/$group-$2.md"
     tail -n 40 "$3" >&3
     say "FAIL: the build of $1 by $2 (${3##*/})"
-    if [ "$2" = clang19 ] && [ "$mode" = bench ]; then report; die "the build of $1 by clang19, the base of the comparison"; fi
 }
 
 # record <program> <bench> <unit> <lower|higher> <variant> <value>: a value of a round
@@ -640,8 +639,13 @@ run_group() {
         for v in $variants; do g_build "$v"; done
     fi
     export PATH="$PATH0"
+    # a program without the build of clang19 (the base of the comparison) is not measured
     for p in $g_progs; do
-        have "$p" clang19 || { report; die "no build of $p by clang19, the base of the comparison"; }
+        if ! have "$p" clang19; then
+            rm -f "$W/ok/$group-$p-"*
+            echo "$p: no build by clang19, the base of the comparison: not measured" >> "$W/fails/$group-notes.md"
+            say "$p: no build by clang19: not measured"
+        fi
     done
     g_bench
     report

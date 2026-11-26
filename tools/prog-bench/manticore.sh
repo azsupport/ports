@@ -20,7 +20,7 @@ MCF="$top/textproc/manticore14/files"
 
 g_need() {
     need boost-libs bison icu expat xxhash zstd
-    if [ "$mode" = bench ]; then need wrk; fi
+    if [ "$mode" = bench ]; then need wrk-luajit; fi
 }
 
 g_build() {

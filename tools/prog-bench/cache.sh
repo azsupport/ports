@@ -48,7 +48,7 @@ g_build() {
     _cf="$(echo "$CFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
     _cxf="$(echo "$CXXFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
     _lf="$(echo "$LDFLAGS" | sed -e 's/-pie //')"
-    if (cd "$W/src/gearmand-$_v" && autoreconf -fi && CFLAGS="$_cf" CXXFLAGS="$_cxf" LDFLAGS="-L/usr/local/lib $_lf" \
+    if (cd "$W/src/gearmand-$_v" && autoreconf -fi && MAKE=gmake CFLAGS="$_cf" CXXFLAGS="$_cxf" LDFLAGS="-L/usr/local/lib $_lf" \
         CPPFLAGS=-I/usr/local/include LIBS=-lexecinfo ./configure --prefix="$W/gearmand-$_v" \
         --disable-dtrace --disable-hiredis --disable-libdrizzle --disable-libmemcached --disable-libpq \
         --disable-libtokyocabinet --disable-shared --enable-static --disable-wolfssl --disable-ssl \

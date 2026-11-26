@@ -27,7 +27,7 @@ NGF="$top/www/nginx-devel/files"
 
 g_need() {
     need pcre2 brotli zstd apr expat
-    if [ "$mode" = bench ]; then need wrk; fi
+    if [ "$mode" = bench ]; then need wrk-luajit; fi
 }
 
 # web_fetch: the sources, unpacked once (the modules are compiled into the objs of each build)
