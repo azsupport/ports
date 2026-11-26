@@ -77,6 +77,15 @@ OPTIONS_SUB=	yes
 
 CMAKE_INSTALL_PREFIX=	${LLVM_PREFIX}
 CMAKE_SOURCE_PATH=	${WRKSRC}/llvm
+# PIE (26.11.2026, readelf: 83 programs EXEC): Mk/Features/pie.mk gives a cmake port
+# -DCMAKE_POSITION_INDEPENDENT_CODE alone, and CMake links a program with -pie only after
+# check_pie_supported() under the policy CMP0083 (cmLocalGenerator.cxx); so the flags
+# pie.mk gives the other ports, in the flags of every check of cmake (try_compile) too:
+# -fPIE -fPIC and -pie (the driver leaves -pie out with -shared); checked by
+# tools/hardening-check.sh after the install, a list in the log (its build is long)
+CFLAGS+=	-fPIE -fPIC
+CXXFLAGS+=	-fPIE -fPIC
+LDFLAGS+=	-pie
 CMAKE_ARGS=	-DLLVM_BUILD_LLVM_DYLIB=ON
 CMAKE_ARGS+=	-DLLVM_LINK_LLVM_DYLIB=ON
 CMAKE_ARGS+=	-DLLVM_ENABLE_RTTI=ON
@@ -527,6 +536,7 @@ post-install:
 	${LN} -f ${STAGEDIR}${PREFIX}/bin/${FIRST_COMMAND}${LLVM_SUFFIX} \
 	    ${STAGEDIR}${PREFIX}/bin/${command}${LLVM_SUFFIX}
 .endfor
+	@${SETENV} HARDENING_CHECK_WARN=yes ${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${LLVM_PREFIX}
 
 post-install-DOCS-on:
 	${RM} -r ${STAGEDIR}${DOCSDIR}
