@@ -12,11 +12,6 @@
 name: lib-bench
 
 on:
-  # a push of the workflow into the branch bench-libs only registers it with GitHub (a dispatch
-  # of a workflow not in the default branch needs that); no job runs then
-  push:
-    branches: [bench-libs]
-    paths: ['.github/workflows/lib-bench.yml']
   workflow_dispatch:
     inputs:
       groups:
@@ -41,7 +36,6 @@ permissions:
 
 jobs:
   groups:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       list: ${{ steps.list.outputs.json }}
