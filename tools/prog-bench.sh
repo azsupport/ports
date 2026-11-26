@@ -1,8 +1,11 @@
 #!/bin/sh
 # tools/prog-bench.sh <group> [<rounds>]: the speed of programs of this tree built by
-# the base clang (clang19, as our ports build them) and by GCC 16 of the packages
-# (gcc16, as USES=azgcc builds the PHP of this tree), from the same sources with the
-# same flags (aZ, 17.11.2026: which programs besides PHP are faster with GCC). The
+# the base clang (clang19, as our ports built them until 26.11.2026), by clang 23 of the
+# packages (clang23, as Mk/bsd.overlay.mk builds them since: devel/llvm23) and by GCC 16
+# of the packages (gcc16, as USES=azgcc builds the PHP of this tree), from the same
+# sources with the same flags (aZ, 17.11.2026: which programs besides PHP are faster with
+# GCC; 26.11.2026: clang 23 in the place of clang 19). PB_VARIANTS: the variants (default
+# "clang19 clang23 gcc16"; clang19 first, the base of the comparison). The
 # workflow .github/workflows/prog-bench.yml runs it in a FreeBSD VM, a job per group.
 #
 # The flags: those of the make.conf of our builds (tools/make.conf.in) for the level
@@ -27,8 +30,8 @@
 # Each benchmark <rounds> times (default 5), the variants interleaved (a run of each,
 # the first one turning from round to round), single-threaded ones on the last CPU
 # (cpuset); the median of each. The report: results/prog-bench/<group>.md, a table
-# per program (the medians of clang19 and gcc16, and gcc16 against clang19 in %: a
-# minus is faster with gcc16, for times and for rates alike), and the raw values.
+# per program (the medians of each variant, and each against clang19 in %: a minus is
+# faster than clang19, for times and for rates alike), and the raw values.
 
 set -u
 group="${1:?usage: $0 <group> [<rounds>]}"
@@ -54,15 +57,19 @@ ncpu="$(sysctl -n hw.ncpu)"
 last=$((ncpu - 1))
 
 F="-O3 -pipe -fno-strict-aliasing -march=x86-64-v3 -fstack-protector-strong"
-variants="clang19 gcc16"
+variants="${PB_VARIANTS:-clang19 clang23 gcc16}"
+case "$variants" in clang19\ *) ;; *) die "PB_VARIANTS: clang19 first ($variants)" ;; esac
 gcc_bin="$(command -v gcc16 || :)"
 gxx_bin="$(command -v g++16 || :)"
-[ -n "$gcc_bin" ] || die "no gcc16 (pkg install gcc16)"
+case " $variants " in *" gcc16 "*) [ -n "$gcc_bin" ] || die "no gcc16 (pkg install gcc16)" ;; esac
+case " $variants " in *" clang23 "*) command -v clang23 > /dev/null || die "no clang23 (pkg install llvm23)" ;; esac
 # set_cc <variant>: CC, CXX and the flags of the variant in the environment
 set_cc() {
     case "$1" in
     clang19)
         export CC=cc CXX=c++ CFLAGS="$F" CXXFLAGS="$F" LDFLAGS="" ;;
+    clang23)
+        export CC=clang23 CXX=clang++23 CFLAGS="$F" CXXFLAGS="$F" LDFLAGS="" ;;
     gcc16)
         export CC="$gcc_bin -static-libgcc" CXX="$gxx_bin -static-libgcc -static-libstdc++"
         export CFLAGS="$F -std=gnu17 -fno-semantic-interposition"
@@ -122,25 +129,32 @@ report() {
         echo "# prog-bench: $group"
         echo
         echo "FreeBSD $(uname -r), $(sysctl -n hw.model), $ncpu CPUs; rounds $rounds, medians;"
-        echo "flags: $F (gcc16: and -std=gnu17 for C, -fno-semantic-interposition, libgcc linked in)."
-        echo "gcc16 against clang19: a minus is faster with gcc16 (for times and for rates);"
+        echo "variants: $variants; flags: $F (gcc16: and -std=gnu17 for C, -fno-semantic-interposition, libgcc linked in)."
+        echo "<variant> against clang19: a minus is faster than clang19 (for times and for rates);"
         echo "units: s (seconds, lower is better), s5 (seconds of five runs), MBps (MB/s), MiBps (MiB/s), rps (requests/s),"
         echo "tps (transactions/s)."
         ls "$raw" | cut -d '|' -f 1 | sort -u | while IFS= read -r p; do
             echo
             echo "## $p"
             echo
-            echo "| benchmark | unit | clang19 | gcc16 | gcc16 against clang19 |"
-            echo "|---|---|--:|--:|--:|"
+            others="${variants#clang19}"
+            h="| benchmark | unit |"; l="|---|---|"
+            for v in $variants; do h="$h $v |"; l="$l--:|"; done
+            for v in $others; do h="$h $v against clang19 |"; l="$l--:|"; done
+            echo "$h"; echo "$l"
             ls "$raw" | awk -F '|' -v p="$p" '$1 == p { print $2 "|" $3 "|" $4 }' | sort -u | while IFS= read -r b; do
                 n="${b%%|*}"; rest="${b#*|}"; u="${rest%%|*}"; d="${rest#*|}"
                 a="$(median "$raw/$p|$n|$u|$d|clang19" 2> /dev/null)"
-                g="$(median "$raw/$p|$n|$u|$d|gcc16" 2> /dev/null)"
-                pct="$(awk -v a="${a:-0}" -v g="${g:-0}" -v d="$d" 'BEGIN {
-                    if (a == 0 || g == 0) { print "-"; exit }
-                    if (d == "lower") x = (g / a - 1) * 100; else x = (a / g - 1) * 100
-                    printf "%+.1f%%\n", x }')"
-                echo "| $n | $u | ${a:--} | ${g:--} | $pct |"
+                row="| $n | $u | ${a:--} |"; pcts=""
+                for v in $others; do
+                    g="$(median "$raw/$p|$n|$u|$d|$v" 2> /dev/null)"
+                    pct="$(awk -v a="${a:-0}" -v g="${g:-0}" -v d="$d" 'BEGIN {
+                        if (a == 0 || g == 0) { print "-"; exit }
+                        if (d == "lower") x = (g / a - 1) * 100; else x = (a / g - 1) * 100
+                        printf "%+.1f%%\n", x }')"
+                    row="$row ${g:--} |"; pcts="$pcts $pct |"
+                done
+                echo "$row$pcts"
             done
         done
         echo
@@ -400,7 +414,7 @@ case "$group" in
 compress|redis|postgresql|python|magick|vips) ;;
 *) die "unknown group $group (compress redis postgresql python magick vips)" ;;
 esac
-say "group $group, $rounds rounds, $ncpu CPUs, gcc16: $("$gcc_bin" --version | head -n 1)"
+say "group $group, $rounds rounds, $ncpu CPUs, variants: $variants; cc: $(cc --version | head -n 1)${gcc_bin:+; gcc16: $("$gcc_bin" --version | head -n 1)}$(command -v clang23 > /dev/null && printf '; clang23: %s' "$(clang23 --version | head -n 1)")"
 "g_$group"
 report
 say "the report: $out"
