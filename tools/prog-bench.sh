@@ -41,7 +41,8 @@
 #   compress  zstd 1.5.7 (zstd -b), lz4 1.11.1 (lz4 -b), xxHash 0.8.4 (xxhsum -b),
 #             brotli 1.2.1 (brotli -q 5, 9, 11 and -d, timed); on 100 MB of the base
 #             system (a tar of /usr/include, /usr/bin and /usr/lib)
-#   redis     Redis 8.2.11: redis-server of each, redis-benchmark of clang19 (-P 16)
+#   redis     Redis 8.2.11: redis-server of each, redis-benchmark of clang19 (-P 16,
+#             6000000 requests a test: 2000000 took 1 to 2 seconds, spread 13-70%)
 #   postgresql PostgreSQL 18.7: pgbench -S and the TPC-B of pgbench (fsync off), and
 #             a query of generate_series, against the server of each
 #   python    Python 3.12.16 as lang/python312 (libpython3.12.so, LTO, no PIE,
@@ -334,8 +335,9 @@ g_compress() {
         https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz
     for v in $variants; do
         set_cc "$v"
+        # LDFLAGS of the command line in the place of its own: its -pthread with them
         unpack zstd-1.5.7.tar.zst "$W/src/zstd-$v" && gmake -C "$W/src/zstd-$v/programs" -j"$ncpu" zstd \
-            CC="$CC" CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" > "$W/b-zstd-$v.log" 2>&1 || bfail "zstd $v" "$W/b-zstd-$v.log"
+            CC="$CC" CFLAGS="$CFLAGS" LDFLAGS="-pthread $LDFLAGS" > "$W/b-zstd-$v.log" 2>&1 || bfail "zstd $v" "$W/b-zstd-$v.log"
         unpack lz4-1.11.1.tar.gz "$W/src/lz4-$v" && gmake -C "$W/src/lz4-$v/programs" -j"$ncpu" lz4 \
             CC="$CC" CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" > "$W/b-lz4-$v.log" 2>&1 || bfail "lz4 $v" "$W/b-lz4-$v.log"
         unpack xxHash-0.8.4.tar.gz "$W/src/xxhash-$v" && gmake -C "$W/src/xxhash-$v" -j"$ncpu" xxhsum \
@@ -405,7 +407,7 @@ g_redis() {
                 --daemonize no > "$W/redis-$v.log" 2>&1 &
             pid=$!
             sleep 2
-            cpuset -l "$others" "$rb" -p 6390 -q -n 2000000 -P 16 -c 50 -t "$tests" --csv 2> /dev/null > "$W/rb.csv"
+            cpuset -l "$others" "$rb" -p 6390 -q -n 6000000 -P 16 -c 50 -t "$tests" --csv 2> /dev/null > "$W/rb.csv"
             kill "$pid"; wait "$pid" 2> /dev/null
             # "test","rps",...: a test has spaces in its name ("LRANGE_100 (first 100 elements)")
             tr -d '"' < "$W/rb.csv" | awk -F ',' 'NR > 1 { print $2 "|" $1 }' | while IFS='|' read -r rps t; do
