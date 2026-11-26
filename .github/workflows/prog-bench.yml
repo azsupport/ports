@@ -19,9 +19,9 @@ on:
   workflow_dispatch:
     inputs:
       groups:
-        description: 'Groups (compress redis postgresql python magick vips, and tools/prog-bench/*.sh), separated by spaces; a+b: one VM'
+        description: 'Groups (compress redis postgresql python magick vips, and tools/prog-bench/*.sh), separated by spaces; a+b: one VM (none: no group)'
         required: false
-        default: 'compress+redis+vips postgresql+magick python'
+        default: 'none'
       split:
         description: 'Groups built in a VM per variant and measured in one (node24 node18 mariadb …)'
         required: false
@@ -53,7 +53,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           {
-            printf 'json=%s\n' "$(printf '%s\n' $PB_GROUPS | jq -R . | jq -sc 'map(select(length > 0))')"
+            printf 'json=%s\n' "$(printf '%s\n' $PB_GROUPS | jq -R . | jq -sc 'map(select(length > 0 and . != "none"))')"
             printf 'split=%s\n' "$(printf '%s\n' $PB_SPLIT | jq -R . | jq -sc 'map(select(length > 0))')"
             printf 'builds=%s\n' "$(for g in $PB_SPLIT; do for v in clang19 clang23 gcc16; do printf '{"group":"%s","variant":"%s"}\n' "$g" "$v"; done; done | jq -sc .)"
           } >> "$GITHUB_OUTPUT"
