@@ -94,7 +94,8 @@
 #   instead, as make -V has them), the level and tools/make.conf.in,
 #   and of the hash of each port of this tree it needs to build (so a change of a port
 #   builds again what needs it to build), of one it takes only to run the name of its
-#   package (aZ, 24.11.2026 15:47: "чтобы по каждому чиху все не пересобиралось"), but
+#   package (aZ, 24.11.2026 15:47: "чтобы по каждому чиху все не пересобиралось"), of the
+#   compiler (lang/gcc<N>: USES=azgcc, azsupport/azsupport) the name of its package too, but
 #   of azsupport/azsupport the interface hashes of the libraries of azsupport the
 #   port uses and of those they need (aZ, 12.11.2026: the manifests of the package of
 #   azsupport, tools/azsupport-interface.sh; the content hash of the libraries of AZSUPPORT_STATIC_LIBS), so
@@ -121,7 +122,7 @@
 # - a port that names no file of the static tree of azsupport in its dependencies builds
 #   without its archives (they go from its chroot): only a port that says AZSUPPORT_STATIC_LIBS
 #   (tools/check-tree.sh) can link them;
-# - the build tools of AZSUPPORT_TOOLS_OFFICIAL (below: Python, Perl, meson, GCC 16, GNU
+# - the build tools of AZSUPPORT_TOOLS_OFFICIAL (below: Python, Perl, meson, GNU
 #   make, pkgconf, Rust) come from the official packages of FreeBSD also when this tree
 #   has the origin (aZ, 11.11.2026:
 #   our python312 and perl5.42 link libraries of azsupport, which needs them to build): for a
@@ -219,15 +220,15 @@ ports_url="https://github.com/freebsd/freebsd-ports"
 # extension for it, ours. The origins as the dependencies name them (lang/python3 the
 # meta port of the default Python, meson needs it); an origin this tree does not have
 # is official anyway. Here only: not taken from the environment.
-# lang/gcc16: the compiler of USES=azgcc (PHP, Redis, Python) and of azsupport/azsupport stays the
-# official package until these move to the gcc16 of this tree with the next full build
-# (aZ, 18.11.2026: «а) ... да, давай так»); our lang/gcc16-libs is not a tool and goes
-# to the ports that run with it (sysutils/arcconf)
+# lang/gcc16: the compiler of USES=azgcc (PHP, Redis, Python) and of azsupport/azsupport is the
+# gcc16 of this tree (16.2.0; aZ, 18.11.2026: «а) ... да, давай так»; the official package
+# until 26.11.2026); our lang/gcc16-libs is not a tool and goes to the ports that run with
+# it (sysutils/arcconf)
 # devel/gmake, devel/pkgconf, lang/rust: ours are for the servers, where the native
 # extensions of gems build with them (aZ, 20.11.2026); the builds of this tree keep the
 # official packages, so that adding them builds again only the ports that run with
 # them (www/npm-node18 and www/npm-node24: gmake for node-gyp)
-AZSUPPORT_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson lang/gcc16 devel/gmake devel/pkgconf lang/rust"
+AZSUPPORT_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson devel/gmake devel/pkgconf lang/rust"
 # the ports that build against the sources of the kernel without being kernel modules
 # (no USES=kmod, no IGNORE without them): they get them as a kernel module does
 # (ksrc_get). VirtualBox generates headers of the kernel out of them (VBOX_FREEBSD_SRC=
@@ -1323,12 +1324,21 @@ hash_port() {
         fi
         h_dk="$(key "$h_d")"
         echo "dep $h_d $(cat "$q/dhash-old/$h_dk" 2>/dev/null || echo none)" >> "$q/dlo-$h_k"
-        if grep -qxF "$h_d" "$q/bdeps/$h_k"; then
-            echo "dep $h_d $(cat "$q/dhash/$h_dk" 2>/dev/null || echo none)" >> "$q/dl-$h_k"
-        else
-            h_pn="$(sed -n 1p "$q/info/$h_dk" 2> /dev/null)"
-            echo "run $h_d ${h_pn%-*}" >> "$q/dl-$h_k"
-        fi
+        # the compiler (lang/gcc<N> of USES=azgcc and azsupport/azsupport) by the name of its
+        # package, also to build: a change of the port of GCC builds again itself only, the
+        # next GCC (its name) the ports that build with it (aZ, 26.11.2026)
+        case "$h_d" in
+            lang/gcc[0-9][0-9])
+                h_pn="$(sed -n 1p "$q/info/$h_dk" 2> /dev/null)"
+                echo "tool $h_d ${h_pn%-*}" >> "$q/dl-$h_k" ;;
+            *)
+                if grep -qxF "$h_d" "$q/bdeps/$h_k"; then
+                    echo "dep $h_d $(cat "$q/dhash/$h_dk" 2>/dev/null || echo none)" >> "$q/dl-$h_k"
+                else
+                    h_pn="$(sed -n 1p "$q/info/$h_dk" 2> /dev/null)"
+                    echo "run $h_d ${h_pn%-*}" >> "$q/dl-$h_k"
+                fi ;;
+        esac
     done
     {
         cat "$q/azlibs-$h_k" 2> /dev/null
