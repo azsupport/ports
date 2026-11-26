@@ -9,9 +9,11 @@ AZSUPPORT_OFFICIAL=	multimedia/yamdi
 EXTRA_PATCHES=	${.CURDIR}/files/patch-yamdi.c:-p1
 # The protections of the linker (26.11.2026, readelf: yamdi EXEC, without BIND_NOW): the
 # do-build of the official port compiles and links in one command, ${CC} ${CFLAGS}
-# yamdi.c -o yamdi, without LDFLAGS; those of the framework (-pie, -Wl,-zrelro,
-# -Wl,-znow) through CFLAGS
-CFLAGS+=	${LDFLAGS}
+# yamdi.c -o yamdi, without LDFLAGS; the flags Mk/Features gives LDFLAGS (-pie,
+# -Wl,-zrelro, -Wl,-znow) through CFLAGS, written out: ${LDFLAGS} here comes out empty,
+# as bsd.port.mk sets CFLAGS:= (its trailing space away) before it includes Mk/Features
+# (build-jail.yml 45811350382: yamdi EXEC, found by tools/hardening-check.sh)
+CFLAGS+=	-pie -Wl,-zrelro -Wl,-znow
 
 post-install:
 	@${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${PREFIX}/bin
