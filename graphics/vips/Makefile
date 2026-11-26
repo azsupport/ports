@@ -40,24 +40,24 @@ LICENSE_FILE=	${WRKSRC}/LICENSE
 
 # the libraries of azsupport, to build and to run (no ldconfig hints for /usr/local/azsupport/lib:
 # by a file)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libjpeg.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libpng16.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libwebp.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libwebpmux.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libwebpdemux.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/liblcms2.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libjpeg.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libpng16.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libwebp.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libwebpmux.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libwebpdemux.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/liblcms2.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/expat \
+		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/gettext \
+		${AZSUPPORT_PREFIX}/lib/libjpeg.so:azsupport/mozjpeg \
+		${AZSUPPORT_PREFIX}/lib/libpng16.so:azsupport/png \
+		${AZSUPPORT_PREFIX}/lib/libwebp.so:azsupport/webp \
+		${AZSUPPORT_PREFIX}/lib/libwebpmux.so:azsupport/webp \
+		${AZSUPPORT_PREFIX}/lib/libwebpdemux.so:azsupport/webp \
+		${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/libheif \
+		${AZSUPPORT_PREFIX}/lib/liblcms2.so:azsupport/lcms2
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/expat \
+		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/gettext \
+		${AZSUPPORT_PREFIX}/lib/libjpeg.so:azsupport/mozjpeg \
+		${AZSUPPORT_PREFIX}/lib/libpng16.so:azsupport/png \
+		${AZSUPPORT_PREFIX}/lib/libwebp.so:azsupport/webp \
+		${AZSUPPORT_PREFIX}/lib/libwebpmux.so:azsupport/webp \
+		${AZSUPPORT_PREFIX}/lib/libwebpdemux.so:azsupport/webp \
+		${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/libheif \
+		${AZSUPPORT_PREFIX}/lib/liblcms2.so:azsupport/lcms2
 LIB_DEPENDS=	libcgif.so:graphics/cgif \
 		libexif.so:graphics/libexif \
 		libhwy.so:devel/highway \

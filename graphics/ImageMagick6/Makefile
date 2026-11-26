@@ -1,5 +1,5 @@
 # graphics/ImageMagick6: the programs of the ImageMagick 6 of azsupport/ports in the
-# place of the official graphics/ImageMagick6 (the design: the head of azsupport/azsupport/Makefile):
+# place of the official graphics/ImageMagick6 (the design: the head of azsupport/static/Makefile):
 # bin/convert, identify, mogrify, composite and the others by their usual names (aZ,
 # 14.11.2026: without the 6 at the end, which only graphics/ImageMagick67 gives them,
 # next to ImageMagick 7), with only what the video sites need. Its libraries,
@@ -36,14 +36,18 @@ LICENSE_TEXT=	The licence is in share/licenses/ImageMagick6/LICENSE of libimagem
 LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 
 # its libraries: built with the programs, the package has only the programs, which
-# run with those of libimagemagick6 (also when the build checks them)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/azsupport \
+# run with those of libimagemagick6 (also when the build checks them); the libraries of
+# azsupport its shared libraries and its programs link (their NEEDED), to build and to run
+# (by a file: no ldconfig hints for /usr/local/azsupport/lib), and fontconfig
+# (x11-fonts/fontconfig)
+AZSUPPORT_IM_LIBS=	freetype2:libfreetype.so lcms2:liblcms2.so libheif:libheif.so \
+		mozjpeg:libjpeg.so png:libpng16.so webp:libwebp.so
+BUILD_DEPENDS=	${AZSUPPORT_IM_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@} \
+		${LOCALBASE}/lib/libfontconfig.so:x11-fonts/fontconfig \
 		${AZSUPPORT_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libheif.so:azsupport/azsupport \
+RUN_DEPENDS=	${AZSUPPORT_IM_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@} \
+		${LOCALBASE}/lib/libfontconfig.so:x11-fonts/fontconfig \
 		${AZSUPPORT_PREFIX}/lib/libMagickWand-6.so:graphics/libimagemagick6
-# the libraries of azsupport in its hash (tools/build.sh) besides libheif: those its shared
-# libraries and its programs link (their NEEDED)
-AZSUPPORT_HASH_LIBS=	fontconfig freetype2 lcms2 mozjpeg png webp
 
 USES=		gmake perl5 pkgconfig
 USE_PERL5=	build
@@ -57,7 +61,7 @@ CONFLICTS_INSTALL=	ImageMagick6-nox11 ImageMagick7 ImageMagick7-nox11 \
 NO_WRKSUBDIR=	yes
 EXTRACT_ONLY=
 
-.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/static/Makefile.common"
 
 AZSUPPORT_IM_ENV=	AZSUPPORT_IM_CONF=${.CURDIR:H}/ImageMagick7/files/imagemagick.conf AZSUPPORT_IM_PART=bin
 # the conf (im, take and configure lines of both) and the policy of

@@ -5,8 +5,8 @@
 # and why), against the shared libraries of our ports (aZ, 10.11.2026: our ports
 # link each other's shared libraries): GLib of devel/glib20 (mc had a static GLib of
 # its own before 11.11.2026) and libssh2 of azsupport (with the OpenSSL of the base
-# system), with the run path /usr/local/azsupport/lib. So mc needs the packages azsupport and glib
-# (with pcre2) at run time (the official one needs glib with Python, libssh2,
+# system), with the run path /usr/local/azsupport/lib. So mc needs the packages azsupport-libssh2,
+# azsupport-slang and glib (with pcre2) at run time (the official one needs glib with Python, libssh2,
 # gettext-runtime, libiconv, pcre2, libffi, zip, Perl and Python) and libraries of
 # the base system (libutil, libz, libcrypto; libtinfow through S-Lang), with the S-Lang
 # of azsupport as the screen library (aZ, 20.11.2026: «переходим на libslang2»). zip, jar, 7z, rar and
@@ -31,15 +31,15 @@ WWW=		https://midnight-commander.org/ \
 
 LICENSE=	GPLv3+
 
-# the shared tree of azsupport (libssh2) and GLib of devel/glib20, to build and to run; the
+# libssh2 and S-Lang of azsupport and GLib of devel/glib20, to build and to run; the
 # tools of the build of mc (gmake, Perl for its help file; autoconf, automake, libtool
 # and autopoint for the autoreconf after files/copy-clone-1.patch, which changes
 # configure.ac; check for the unit test of that patch: tools/mc-build.sh)
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libssh2.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libslang.so:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libssh2.so:azsupport/libssh2 \
+		${AZSUPPORT_PREFIX}/lib/libslang.so:azsupport/slang
 LIB_DEPENDS=	libglib-2.0.so:devel/glib20
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libssh2.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libslang.so:azsupport/azsupport \
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libssh2.so:azsupport/libssh2 \
+		${AZSUPPORT_PREFIX}/lib/libslang.so:azsupport/slang \
 		${LOCALBASE}/libdata/pkgconfig/check.pc:devel/check
 
 USES=		autoreconf:build gettext-tools gmake libtool:build perl5 pkgconfig
@@ -52,7 +52,7 @@ NO_WRKSUBDIR=	yes
 # the version of the official port the script builds, which has to be this one
 AZSUPPORT_MC_ENV=	AZSUPPORT_MC_VERSION=${DISTVERSION}
 
-.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/static/Makefile.common"
 
 post-fetch:
 	@${SETENV} ${AZSUPPORT_ENV} ${AZSUPPORT_MC_ENV} AZSUPPORT_FILESDIR=${FILESDIR} ${SH} ${AZSUPPORT_TOOLS}/mc-build.sh --fetch
