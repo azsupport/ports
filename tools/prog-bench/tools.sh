@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # tools/prog-bench/tools.sh: the group tools of tools/prog-bench.sh (sourced by it).
 #
-# git 2.56.1 (devel/git, its distinfo) as the port: configure --with-libpcre (PCRE2 of the
+# git 2.56.1 (devel/git, its distinfo) as the port (NO_PERL of make; its configure without
+# --without-perl, which the patch of configure.ac of the port allows): --with-libpcre (PCRE2 of the
 # packages), the libcurl of the packages (ours: that of ftp/curl), no Perl, Python, Tcl/Tk,
 # gettext, expat, Rust; zlib and OpenSSL of the base system. On a bare clone of nginx/nginx
 # (GitHub; its whole history), one thread (pack.threads, grep.threads, index-pack --threads):
@@ -35,7 +36,7 @@ g_build() {
     _ga="DEVELOPER= NO_RUST=yes NO_TCLTK=yes NO_PERL=1 NO_GETTEXT=yes NO_EXPAT=1 CURLDIR=/usr/local V=1"
     # shellcheck disable=SC2086
     if (cd "$W/src/git-$_v" && ./configure --prefix="$W/git-$_v" --enable-pthreads=-pthread ac_cv_header_libcharset_h=no \
-        --with-libpcre --without-perl --without-python --with-curl CPPFLAGS=-I/usr/local/include \
+        --with-libpcre --without-python --with-curl CPPFLAGS=-I/usr/local/include \
         LDFLAGS="-L/usr/local/lib $LDFLAGS" && gmake -j"$ncpu" $_ga all && gmake $_ga install) > "$_b" 2>&1; then
         bok git "$_v" "$W/git-$_v/bin/git"
     else

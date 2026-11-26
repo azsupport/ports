@@ -20,7 +20,8 @@
 g_progs="perl ruby luajit tcl84 calc bash"
 
 g_need() {
-    need gmp libyaml rust
+    # bash: the make of calc runs its scripts with it (SHELL)
+    need gmp libyaml rust bash
 }
 
 g_build() {
@@ -41,8 +42,10 @@ g_build() {
     # Perl
     unpack perl-5.42.3.tar.xz "$W/src/perl-$_v"
     _b="$W/b-perl-$_v.log"
+    # as lang/perl5.42: -Doptimize of the CFLAGS (with -fPIE -fPIC), no -Dldflags (its Configure
+    # takes no LDFLAGS: -pie without -fPIC in its tests failed, "recompile with -fPIC")
     if (cd "$W/src/perl-$_v" && sh Configure -des -Dprefix="$W/perl-$_v" -Dcc="$CC" -Doptimize="$CFLAGS" \
-        -Dldflags="$LDFLAGS" -Duseshrplib -Dusethreads -Dusemultiplicity -Duse64bitint -Uinstallusrbinperl \
+        -Duseshrplib -Dusethreads -Dusemultiplicity -Duse64bitint -Uinstallusrbinperl \
         -Dman1dir=none -Dman3dir=none -Dsiteman1dir=none -Dsiteman3dir=none && gmake -j"$ncpu" && gmake install) > "$_b" 2>&1; then
         bok perl "$_v" "$W/perl-$_v/bin/perl"
     else
@@ -56,7 +59,7 @@ g_build() {
         --with-gmp --with-setjmp-type=_setjmp --disable-install-doc --with-opt-dir=/usr/local \
         LDFLAGS="-L/usr/local/lib -Wl,-rpath,$W/ruby-$_v/lib $LDFLAGS" && gmake -j"$ncpu" && gmake install) > "$_b" 2>&1 &&
         "$W/ruby-$_v/bin/ruby" --yjit -e 'exit(RubyVM::YJIT.enabled? ? 0 : 1)' >> "$_b" 2>&1; then
-        bok ruby "$_v" "$W/ruby-$_v/lib/libruby.so.3.4"
+        bok ruby "$_v" "$(ls "$W/ruby-$_v"/lib/libruby.so* | head -n 1)"
     else
         bno ruby "$_v" "$_b"
     fi
@@ -68,8 +71,10 @@ g_build() {
     for p in "$top"/lang/luajit-openresty/files/patch-*; do
         (cd "$W/src/luajit-$_v" && patch -s -p0 < "$p") >> "$_b" 2>&1 || echo "FAIL: ${p##*/}" >> "$_b"
     done
+    # the directories the stage of the framework has (patch-Makefile of the port makes no bin/)
     if (cd "$W/src/luajit-$_v" && gmake -j"$ncpu" PREFIX="$W/luajit-$_v" CC="$CC" Q= CCDEBUG= &&
-        gmake install PREFIX="$W/luajit-$_v") >> "$_b" 2>&1 && _lj="$(ls "$W/luajit-$_v"/bin/luajit* 2> /dev/null | head -n 1)" &&
+        mkdir -p "$W/luajit-$_v/bin" "$W/luajit-$_v/lib" "$W/luajit-$_v/include" "$W/luajit-$_v/share/man/man1" \
+            "$W/luajit-$_v/libdata/pkgconfig" && gmake install PREFIX="$W/luajit-$_v") >> "$_b" 2>&1 && _lj="$(ls "$W/luajit-$_v"/bin/luajit* 2> /dev/null | head -n 1)" &&
         [ -n "$_lj" ] && ln -sf "$_lj" "$W/luajit-$_v/bin/lj" && "$W/luajit-$_v/bin/lj" -e 'print(1)' >> "$_b" 2>&1; then
         bok luajit "$_v" "$_lj"
     else
@@ -79,8 +84,10 @@ g_build() {
     unpack tcl8.4.20-src.tar.gz "$W/src/tcl-$_v"
     _b="$W/b-tcl84-$_v.log"
     : > "$_b"
+    # the patches of the sources (those of the Makefile, configure and installManPage name the
+    # files as the port installs them: libtcl84.so.1, linked by its post-build)
     for p in "$top"/lang/tcl84/files/patch-*; do
-        case "$p" in *patch-test-*) continue ;; esac
+        case "$p" in *patch-test-*|*patch-Makefile.in|*patch-configure|*patch-unix-installManPage) continue ;; esac
         (cd "$W/src/tcl-$_v/unix" && patch -s -p0 < "$p") >> "$_b" 2>&1 || echo "FAIL: ${p##*/}" >> "$_b"
     done
     if (cd "$W/src/tcl-$_v/unix" && ./configure --prefix="$W/tcl84-$_v" --enable-shared --enable-threads --enable-64bit &&
