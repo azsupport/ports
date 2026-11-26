@@ -245,6 +245,14 @@ post-configure:
 	@${GREP} -q -- '${AZSUPPORT_PREFIX}/include' ${WRKSRC}/config.gypi || \
 		{ ${ECHO_MSG} "config.gypi: no include directory ${AZSUPPORT_PREFIX}/include (pkg-config of azsupport)"; ${FALSE}; }
 
+# The recipe of the target install of the Makefile of Node 18 without its
+# prerequisite all: all runs make -C out again, and in run 45702768445 that make
+# compiled the objects of V8 a second time, one at a time (do-install has no -j):
+# 368 of the 811 of v8_base_without_compiler in an hour, with the same commands as
+# the build. The build has made all already; Node 24 does not rebuild.
+do-install:
+	cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${PYTHON_CMD} tools/install.py install '${STAGEDIR}' '${PREFIX}'
+
 post-install:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/node
 # bin/node: the libraries of azsupport by its run path, llhttp of www/llhttp, the base
