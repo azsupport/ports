@@ -47,6 +47,63 @@ LIB_DIRS+=	${AZSUPPORT_PREFIX}/lib
 # below use
 AZSUPPORT_OVERLAY:=	${.PARSEDIR:H}
 
+# The compiler of the ports (aZ, 26.11.2026 16:39: «что под гцц не собираем, то
+# собираем цлангом, но не системным, а последним»): clang, clang++, clang-cpp and
+# lld of devel/llvm${AZSUPPORT_CLANG} of this tree, the latest release of LLVM (the llvm of
+# DEFAULT_VERSIONS in tools/make.conf.in), in the place of the clang 19 of the base
+# system, for every port but those GCC builds (USES=azgcc with AZSUPPORT_GCC other than
+# no: Mk/Uses/azgcc.mk; USE_GCC) and devel/llvm*, which the clang of the base system
+# builds. In the first pass only, before the USES of the port are read:
+# - CC, CXX and CPP, and a BUILD_DEPENDS on the port of the compiler;
+# - BINARY_ALIAS (the directory of them is first in the PATH of configure and of the
+#   build) for what builds call by name: cc, c++, cpp, clang and clang++, and ar,
+#   nm, ranlib and ld of LLVM ${AZSUPPORT_CLANG}: the LTO of the ports (WITH_LTO, ThinLTO
+#   of mongodb80, x264 of azsupport) puts the bitcode of the compiler into the objects
+#   and the archives, which the ar and the lld of LLVM 19 of the base system do not
+#   read;
+# - AZSUPPORT_TOOLCHAIN_ENV for tools/*-build.sh (AZSUPPORT_CC, AZSUPPORT_CXX,
+#   AZSUPPORT_AR, AZSUPPORT_NM, AZSUPPORT_RANLIB), which build without the
+#   environment of make;
+# - the annotation azsupport_cc, clang<N> (pkg info -A; Mk/Uses/azgcc.mk writes its own);
+# - what Mk/Uses/compiler.mk would ask the compiler: its version (it takes the
+#   major and the minor only: COMPILER_VERSION ${AZSUPPORT_CLANG}1), its C++ library (libc++
+#   of the base system) and the standards it takes, so that make -V says the same
+#   before llvm${AZSUPPORT_CLANG} is installed: the builder reads the dependencies of every
+#   port before it builds one, and compiler.mk without the compiler would take it
+#   for GCC.
+AZSUPPORT_CLANG?=	${LLVM_DEFAULT}
+.if defined(_PREMKINCLUDED) && !defined(_POSTMKINCLUDED) && !defined(_AZSUPPORT_CLANG_DONE)
+_AZSUPPORT_CLANG_DONE=	yes
+.  if !(${.CURDIR:H:T} == devel && !empty(.CURDIR:T:Mllvm[0-9]*)) && !defined(USE_GCC) && \
+	(empty(USES:Mazgcc) || ${AZSUPPORT_GCC:U} == no)
+CC=	${LOCALBASE}/bin/clang${AZSUPPORT_CLANG}
+CXX=	${LOCALBASE}/bin/clang++${AZSUPPORT_CLANG}
+CPP=	${LOCALBASE}/bin/clang-cpp${AZSUPPORT_CLANG}
+BUILD_DEPENDS+=	clang${AZSUPPORT_CLANG}:devel/llvm${AZSUPPORT_CLANG}
+BINARY_ALIAS+=	cc=${CC} c++=${CXX} cpp=${CPP} clang=${CC} clang++=${CXX} \
+		ar=${LOCALBASE}/bin/llvm-ar${AZSUPPORT_CLANG} nm=${LOCALBASE}/bin/llvm-nm${AZSUPPORT_CLANG} \
+		ranlib=${LOCALBASE}/bin/llvm-ranlib${AZSUPPORT_CLANG} ld=${LOCALBASE}/bin/ld.lld${AZSUPPORT_CLANG}
+AZSUPPORT_TOOLCHAIN_ENV=	AZSUPPORT_CC=${CC} AZSUPPORT_CXX=${CXX} \
+		AZSUPPORT_AR=${LOCALBASE}/bin/llvm-ar${AZSUPPORT_CLANG} \
+		AZSUPPORT_NM=${LOCALBASE}/bin/llvm-nm${AZSUPPORT_CLANG} \
+		AZSUPPORT_RANLIB=${LOCALBASE}/bin/llvm-ranlib${AZSUPPORT_CLANG}
+.    if empty(USES:Mazgcc)
+PKG_NOTES+=	azsupport_cc
+PKG_NOTE_azsupport_cc=	clang${AZSUPPORT_CLANG}
+.    endif
+_AZSUPPORT_CC_HASH:=	${CC:hash}
+_AZSUPPORT_CXX_HASH:=	${CXX:hash}
+_CCVERSION_${_AZSUPPORT_CC_HASH}=	clang version ${AZSUPPORT_CLANG}.1.0 (devel/llvm${AZSUPPORT_CLANG} of azsupport/ports) Target: x86_64-portbld-freebsd${OSREL}
+_CXXINTERNAL_${_AZSUPPORT_CXX_HASH}=	"-lc++"
+.    for _s in c89 c99 c11 c17 gnu89 gnu99 gnu11 c++98 c++0x c++11 c++14 c++17 c++20 c++23 c++2b \
+	gnu++98 gnu++11 gnu++14 gnu++17 gnu++20 gnu++2b
+CC_OUTPUT_${_AZSUPPORT_CC_HASH}_${_s:hash}=	yes
+.    endfor
+.  else
+AZSUPPORT_TOOLCHAIN_ENV=
+.  endif
+.endif
+
 # No manual pages, documentation or info pages in our packages (aZ, 20.11.2026: «и доки и
 # маны мы не юзаем»; DOCS, MAN3 and MANPAGES were off already, but most ports install
 # their manual pages whatever the options, and the package script of postfix chowned the

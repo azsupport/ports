@@ -1,7 +1,7 @@
 --- clang/lib/Basic/Targets/PPC.h.orig
 +++ clang/lib/Basic/Targets/PPC.h
-@@ -479,7 +479,12 @@
-       DataLayout += "-i64:64-n32:64";
+@@ -452,7 +452,12 @@
+       ABI = "elfv1";
      }
  
 -    if (Triple.isOSFreeBSD() || Triple.isOSOpenBSD() || Triple.isMusl()) {

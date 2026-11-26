@@ -141,7 +141,9 @@ opt="${AZSUPPORT_CFLAGS:-$(mc_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 level="${cputype#x86-64-}"
-export CC=cc CXX=c++
+# the compiler of the port (Mk/bsd.overlay.mk: clang of devel/llvm<N>, AZSUPPORT_TOOLCHAIN_ENV),
+# the cc of the base system without it
+export CC="${AZSUPPORT_CC:-cc}" CXX="${AZSUPPORT_CXX:-c++}"
 export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -fno-strict-aliasing -fPIC"
 export CXXFLAGS="$CFLAGS"
 export CPPFLAGS="-I$P/include"
@@ -182,7 +184,11 @@ export PATH="$P/bin:$PATH"
 # LTO (x264, as its port) puts LLVM bitcode into static archives: their index
 # needs the ar of LLVM, taken by name when ar of the base system is another one.
 unset AR RANLIB NM
-if ! ar --version 2>/dev/null | grep -q LLVM && command -v llvm-ar >/dev/null 2>&1; then
+if [ -n "${AZSUPPORT_AR:-}" ]; then
+    # those of the LLVM of the compiler (AZSUPPORT_TOOLCHAIN_ENV): the ar of LLVM 19 of the
+    # base system does not read the bitcode of a newer LLVM
+    export AR="$AZSUPPORT_AR" RANLIB="${AZSUPPORT_RANLIB:-ranlib}" NM="${AZSUPPORT_NM:-nm}"
+elif ! ar --version 2>/dev/null | grep -q LLVM && command -v llvm-ar >/dev/null 2>&1; then
     export AR=llvm-ar RANLIB=llvm-ranlib NM=llvm-nm
 fi
 
@@ -494,10 +500,10 @@ EOF
             "#define PACKAGE_VERSION \"$v\"" > "$o/config.h" || return 1
     for f in psl lookup_string_in_fixed_set; do
         # shellcheck disable=SC2086
-        cc $CFLAGS -fvisibility=hidden -DHAVE_CONFIG_H -DBUILDING_PSL "-I$o" "-I$o/include" -c "$s/src/$f.c" -o "$o/$f.o" || return 1
+        $CC $CFLAGS -fvisibility=hidden -DHAVE_CONFIG_H -DBUILDING_PSL "-I$o" "-I$o/include" -c "$s/src/$f.c" -o "$o/$f.o" || return 1
     done
     # shellcheck disable=SC2086
-    cc -shared -o "$S/lib/libpsl.so.5" -Wl,-soname,libpsl.so.5 "$o/psl.o" "$o/lookup_string_in_fixed_set.o" $LDFLAGS &&
+    $CC -shared -o "$S/lib/libpsl.so.5" -Wl,-soname,libpsl.so.5 "$o/psl.o" "$o/lookup_string_in_fixed_set.o" $LDFLAGS &&
         ln -sf libpsl.so.5 "$S/lib/libpsl.so" && cp "$o/include/libpsl.h" "$S/include/" &&
         printf '%s\n' "prefix=$S" 'libdir=${prefix}/lib' 'includedir=${prefix}/include' '' 'Name: libpsl' \
             'Description: Public Suffix List C library' "Version: $v" 'Libs: -L${libdir} -lpsl' \
@@ -1052,7 +1058,7 @@ finish() {
     # only noted.
     : > "$res/pic.txt"; : > "$res/pic-notes.txt"
     for a in "$P"/lib/*.a; do
-        if ! cc -shared -o "$work/pic-test.so" -Wl,--whole-archive "$a" -Wl,--no-whole-archive \
+        if ! $CC -shared -o "$work/pic-test.so" -Wl,--whole-archive "$a" -Wl,--no-whole-archive \
                 -Wl,--unresolved-symbols=ignore-all > "$work/pic-test.log" 2>&1; then
             if grep -q -i 'relocation' "$work/pic-test.log"; then
                 echo "${a##*/}: not position independent: $(grep -m 1 -i relocation "$work/pic-test.log")" >> "$res/pic.txt"

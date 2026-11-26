@@ -115,7 +115,9 @@ opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr
 level="${cputype#x86-64-}"
 # FFmpeg adds -fPIC itself (--enable-pic).
 ffcflags="$opt -march=$cputype -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -fno-strict-aliasing"
-export CC=cc CXX=c++
+# the compiler of the port (Mk/bsd.overlay.mk: clang of devel/llvm<N>, AZSUPPORT_TOOLCHAIN_ENV),
+# the cc of the base system without it
+export CC="${AZSUPPORT_CC:-cc}" CXX="${AZSUPPORT_CXX:-c++}"
 export CFLAGS="$ffcflags -fPIC"
 export CXXFLAGS="$CFLAGS"
 export CPPFLAGS="-I$A/include"
@@ -125,7 +127,11 @@ unset PKG_CONFIG_PATH
 # LTO (FFmpeg) puts LLVM bitcode into its static archives: their index needs the ar
 # of LLVM, taken by name when ar of the base system is another one.
 unset AR RANLIB NM
-if ! ar --version 2>/dev/null | grep -q LLVM && command -v llvm-ar >/dev/null 2>&1; then
+if [ -n "${AZSUPPORT_AR:-}" ]; then
+    # those of the LLVM of the compiler (AZSUPPORT_TOOLCHAIN_ENV): the ar of LLVM 19 of the
+    # base system does not read the bitcode of a newer LLVM
+    export AR="$AZSUPPORT_AR" RANLIB="${AZSUPPORT_RANLIB:-ranlib}" NM="${AZSUPPORT_NM:-nm}"
+elif ! ar --version 2>/dev/null | grep -q LLVM && command -v llvm-ar >/dev/null 2>&1; then
     export AR=llvm-ar RANLIB=llvm-ranlib NM=llvm-nm
 fi
 
@@ -187,7 +193,7 @@ b_ffmpeg() {
     done
     (
         cd "$1" || exit 1
-        set -- --prefix="$F" --cc=cc --cxx=c++ --pkg-config=pkgconf --pkg-config-flags=--static \
+        set -- --prefix="$F" --cc="$CC" --cxx="$CXX" --pkg-config=pkgconf --pkg-config-flags=--static \
             --extra-cflags="$ffcflags -I$A/include" --extra-cxxflags="$ffcflags -I$A/include" \
             --extra-ldflags="-L$A/lib -Wl,-rpath,$A/lib"
         if [ -n "${AR:-}" ]; then set -- "$@" --ar="$AR" --ranlib="$RANLIB" --nm="$NM -g"; fi

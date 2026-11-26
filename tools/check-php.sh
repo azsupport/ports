@@ -211,12 +211,15 @@ elf_libs() {
 }
 
 # cc_check <file> [gcc]: the compiler of a file against the annotation azsupport_cc of
-# its package (Mk/Uses/azgcc.mk: gcc<N> or clang; "gcc": the file must be of GCC).
+# its package (Mk/Uses/azgcc.mk: gcc<N>, or clang<N> of devel/llvm<N> (clang: of the
+# packages built before 26.11.2026, by the clang of the base system); "gcc": the file
+# must be of GCC).
 # gcc<N> (N: $gccv, AZSUPPORT_GCC of Mk/Uses/azgcc.mk): the strings "GCC: (...) <N>.<...>"
 # in its section .comment (each object leaves its compiler there; the start files
 # of the base system name clang too) and no NEEDED libgcc_s.so.1 (-static-libgcc);
-# clang: no GCC in .comment (which the strip of the base system removes) and no
-# NEEDED libstdc++ (its C++ with the libc++ of the base system)
+# clang<N> and clang: no GCC in .comment (which the strip of the base system removes),
+# a clang of version N there if it is left (clang<N>), and no NEEDED libstdc++ (its C++
+# with the libc++ of the base system)
 cc_check() {
     _f="$1"; _n="compiler of ${1#"$P"/}"
     [ -f "$_f" ] || { fail "$_n" "no $_f"; return; }
@@ -231,9 +234,9 @@ cc_check() {
     # what the file must be: the azsupport_cc of its package, GCC of Mk/Uses/azgcc.mk for "gcc"
     _w="$_a"
     case "$_a" in
-        gcc[0-9]*|clang) ;;
+        gcc[0-9]*|clang|clang[0-9]*) ;;
         '') _why=" $_p has no annotation azsupport_cc (Mk/Uses/azgcc.mk);" ;;
-        *) _why=" $_p has azsupport_cc $_a, neither gcc<N> nor clang;" ;;
+        *) _why=" $_p has azsupport_cc $_a, neither gcc<N> nor clang<N>;" ;;
     esac
     case "${2:-}:$_a" in
         gcc:gcc[0-9]*) ;;
@@ -257,8 +260,13 @@ cc_check() {
                 _why="$_why NEEDED libgcc_s.so.1 (not linked with -static-libgcc);"
             fi
             _got="GCC $_g, no libgcc_s.so.1" ;;
-        clang)
+        clang|clang[0-9]*)
             [ -z "$_g" ] || _why="$_why .comment names GCC $_g;"
+            if [ "$_w" != clang ]; then
+                for _v in $_l; do
+                    case "$_v" in "${_w#clang}".*) ;; *) _why="$_why .comment names clang $_v, not ${_w#clang}.x;" ;; esac
+                done
+            fi
             _s="$(printf '%s\n' "$_d" | grep '^libstdc++' | head -n 1)"
             [ -z "$_s" ] || _why="$_why NEEDED $_s, the C++ library of GCC;"
             _got="clang ${_l:-(no .comment: the strip of the base system removes it)}"

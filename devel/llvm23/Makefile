@@ -1,20 +1,24 @@
-# devel/llvm19: the LLVM 19 of azsupport/ports in the place of the official
-# devel/llvm19, for the JIT of PostgreSQL 18 (databases/postgresql18-server: its
-# llvmjit.so links libLLVM; aZ, 16.11.2026: «с jit, но llvm собираем с минимальным
-# списком сборки, но без исключения всех фукнций ускорения и опитимизации - это
-# приоритет»). The official port with these options: the backend of this machine
-# only (BE_NATIVE: X86, in the place of all the standard ones, AMDGPU and WebAssembly)
-# and clang (PostgreSQL compiles with it the bitcode its JIT inlines: clang and
-# libLLVM of one version); not built: lld, lldb, MLIR, OpenMP, Polly, Flang, the
-# extra clang tools, compiler-rt, lit, the Python bindings of clang, the static
+# devel/llvm23: the LLVM 23 of azsupport/ports in the place of the official
+# devel/llvm23. The compiler of the ports of this tree that GCC does not build (aZ,
+# 26.11.2026 16:39: «что под гцц не собираем, то собираем цлангом, но не
+# системным, а последним»: clang and lld of the latest release of LLVM in the
+# place of the clang 19 of the base system; Mk/bsd.overlay.mk), the libLLVM of the
+# JIT of PostgreSQL 18 and the libclang of bindgen (lang/rust). Built itself by
+# the clang of the base system. The official port with these options: the
+# backend of this machine only (BE_NATIVE: X86, in the place of all the standard
+# ones, AMDGPU and WebAssembly), clang and lld (the linker of clang, ld in
+# LLVM_PREFIX/bin: the LTO of the ports puts the bitcode of LLVM 23 into the
+# objects, which the lld 19 of the base system does not read); not built: lldb,
+# MLIR, OpenMP (-fopenmp takes omp.h and libomp of the base system), Polly, Flang,
+# the extra clang tools, compiler-rt (the builtins are the libgcc of the base
+# system, as with its clang), lit, the Python bindings of clang, the static
 # libraries and the docs. Kept whole: libLLVM with all its passes of optimization
-# and the code generator of X86 (what the JIT of PostgreSQL runs: the pipelines
-# O0-O3 of LLVM, its inlining), built Release (-O3 and the CFLAGS of aZ, as the
+# and the code generator of X86, built Release (-O3 and the CFLAGS of aZ, as the
 # official default). No zstd (LLVM uses it to compress debug sections only: the
 # zstd of the ports was its one library outside the base system).
 
 PORTNAME=	llvm
-DISTVERSION=	19.1.7
+DISTVERSION=	23.1.6
 PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	devel lang
 MASTER_SITES=	https://github.com/llvm/llvm-project/releases/download/llvmorg-${DISTVERSION}/
@@ -24,12 +28,11 @@ DISTNAME=	llvm-project-${DISTVERSION}.src
 DISTFILES=	llvm-project-${DISTVERSION}.src${EXTRACT_SUFX}
 
 MAINTAINER=	github@azsupport.com
-COMMENT=	LLVM and Clang (of azsupport/ports, the JIT of PostgreSQL)
+COMMENT=	LLVM, Clang and lld (of azsupport/ports, the compiler of its ports)
 WWW=		https://llvm.org/
 
 # the licence file of the official devel/llvm-devel, here
 .include "${.CURDIR}/Makefile.LICENSE"
-
 
 FLAVORS=	default lite
 FLAVOR?=	${FLAVORS:[1]}
@@ -77,12 +80,12 @@ OPTIONS_SUB=	yes
 
 CMAKE_INSTALL_PREFIX=	${LLVM_PREFIX}
 CMAKE_SOURCE_PATH=	${WRKSRC}/llvm
-# PIE (26.11.2026, readelf: 83 programs EXEC): Mk/Features/pie.mk gives a cmake port
-# -DCMAKE_POSITION_INDEPENDENT_CODE alone, and CMake links a program with -pie only after
-# check_pie_supported() under the policy CMP0083 (cmLocalGenerator.cxx); so the flags
-# pie.mk gives the other ports, in the flags of every check of cmake (try_compile) too:
-# -fPIE -fPIC and -pie (the driver leaves -pie out with -shared); checked by
-# tools/hardening-check.sh after the install, a list in the log (its build is long)
+# PIE: Mk/Features/pie.mk gives a cmake port -DCMAKE_POSITION_INDEPENDENT_CODE alone,
+# and CMake links a program with -pie only after check_pie_supported() under the
+# policy CMP0083 (cmLocalGenerator.cxx); so the flags pie.mk gives the other ports,
+# in the flags of every check of cmake (try_compile) too: -fPIE -fPIC and -pie (the
+# driver leaves -pie out with -shared); checked by tools/hardening-check.sh after
+# the install, a list in the log (its build is long), as in devel/llvm19 before it
 CFLAGS+=	-fPIE -fPIC
 CXXFLAGS+=	-fPIE -fPIC
 LDFLAGS+=	-pie
@@ -105,8 +108,8 @@ OPTIONS_DEFINE=	BE_AMDGPU BE_WASM CLANG COMPILER_RT DOCS LLD STATIC_LIBS
 OPTIONS_SINGLE=		BACKENDS
 OPTIONS_SINGLE_BACKENDS=BE_FREEBSD BE_NATIVE BE_STANDARD
 
-# the options of aZ (16.11.2026): clang only
-OPTIONS_DEFAULT=	CLANG
+# clang and lld (aZ, 26.11.2026: the compiler of the ports)
+OPTIONS_DEFAULT=	CLANG LLD
 
 # BE_NATIVE for 32-bit
 OPTIONS_DEFAULT_armv6=		BE_NATIVE
@@ -115,7 +118,7 @@ OPTIONS_DEFAULT_i386=		BE_NATIVE BE_AMDGPU BE_WASM
 OPTIONS_DEFAULT_powerpc=	BE_NATIVE
 OPTIONS_DEFAULT_powerpcspe=	BE_NATIVE
 # FLAVOR-dependent BE for 64-bit
-# the backend of this machine only (aZ, 16.11.2026)
+# the backend of this machine only (aZ, 16.11.2026, as devel/llvm19 before it)
 _BE_default=	BE_NATIVE
 _BE_lite=	BE_FREEBSD BE_AMDGPU BE_WASM
 OPTIONS_DEFAULT_aarch64=	${_BE_${FLAVOR}}
@@ -171,7 +174,9 @@ CLANG_USES=		perl5
 CLANG_USE=		PERL5=build
 .endif
 COMPILER_RT_DESC=	Sanitizer libraries
-COMPILER_RT_CMAKE_ON=	-DCOMPILER_RT_INSTALL_PATH=${LLVM_PREFIX}/lib/clang/${LLVM_RELEASE}
+COMPILER_RT_CMAKE_ON=	\
+	-DCOMPILER_RT_INSTALL_PATH=${LLVM_PREFIX}/lib/clang/${LLVM_RELEASE} \
+	-DCOMPILER_RT_DEFAULT_TARGET_ONLY=On
 COMPILER_RT_PLIST_FILES=${_COMPILER_RT_LIBS}
 COMPILER_RT_CONFLICTS_BUILD=${ARCH}-binutils
 DOCS_BUILD_DEPENDS= \
@@ -206,11 +211,14 @@ LLDB_CMAKE_ON= \
 	-DCURSES_FORM_LIBRARY=/usr/lib/libform.so \
 	-DCURSES_NCURSES_LIBRARY=/usr/lib/libncurses.so \
 	-DLLDB_ENABLE_LIBXML2=OFF \
+	-DLLDB_ENABLE_PYTHON_LIMITED_API=OFF \
+	-DLLDB_EXPORT_ALL_SYMBOLS=ON \
 	-DPANEL_LIBRARIES=/usr/lib/libpanel.so
 LLDB_DESC=		Install lldb, the LLVM debugger
 LLDB_IMPLIES=		CLANG
 LLDB_PLIST_SUB=		PYTHON_ABIVER=${PYTHON_ABIVER}
-LLDB_USES=		lua:53 libedit
+LLDB_USES=		gnome lua:54 libedit
+LLDB_USE=		gnome=libxml2
 LLDB_VARS=		_USES_PYTHON=python
 MLIR_DESC=		Multi-Level Intermediate Representation
 OPENMP_DESC=		Install libomp, the LLVM OpenMP runtime library
@@ -218,7 +226,6 @@ OPENMP_CMAKE_ON= \
 	-DLIBOMPTARGET_BUILD_DEVICERTL_BCLIB=OFF \
 	-DLIBOMPTARGET_DEP_LIBFFI_INCLUDE_DIR="" \
 	-DLIBOMPTARGET_DEP_LIBFFI_LIBRARIES=""
-OPENMP_PORTDOCS=	openmp
 PYCLANG_DESC=		Install python bindings to libclang
 PYCLANG_IMPLIES=	CLANG
 PYCLANG_VARS=		_USES_PYTHON=python
@@ -277,7 +284,7 @@ EXTRAS_LIBS=	\
 EXTRAS_FILES=	index.js
 EXTRAS_PATTERN=	${EXTRAS_COMMANDS:tW:C/  */|/g}|${EXTRAS_LIBS:tW:C/  */|/g}|${EXTRAS_FILES:tW:C/  */|/g}
 
-FLANG_PATTERN=	${FLANG_COMMANDS:S/^/bin./:tW:C/  */|/g}|flang|libCUF|libFIR|libFortran|libHLFIR|ISO_Fortran_binding.h
+FLANG_PATTERN=	${FLANG_COMMANDS:S/^/bin./:tW:C/  */|/g}|flang|libCUF|libFIR|libFlang|libFortran|libHLFIR|libMIFDialect|ISO_Fortran_binding.h
 
 MLIR_PATTERN=	${MLIR_COMMANDS:S/^/bin./:tW:C/  */|/g}|mlir|libMLIR|obj.MLIRCAP
 
@@ -309,11 +316,10 @@ CONFIGURE_TARGET:=${ARCH:C/amd64/x86_64/:C/arm64/aarch64/}-portbld-${OPSYS:tl}${
 LLVM_ENABLE_PROJECTS+=	clang
 COMMANDS+=	${CLANG_COMMANDS}
 MAN1SRCS+=	${CLANG_MAN1SRCS}
-USES+=		gnome
 .endif
 
 .if ${PORT_OPTIONS:MCOMPILER_RT}
-LLVM_ENABLE_PROJECTS+=	compiler-rt
+LLVM_ENABLE_RUNTIMES+=	compiler-rt
 .endif
 
 .if ${PORT_OPTIONS:MEXTRAS}
@@ -325,12 +331,9 @@ PORTDOCS+=	clang-tools
 
 .if ${PORT_OPTIONS:MFLANG}
 LLVM_ENABLE_PROJECTS+=	flang
+LLVM_ENABLE_RUNTIMES+=	flang-rt
 COMMANDS+=	${FLANG_COMMANDS}
-.if ${OSVERSION} > 1600017 || \
-    (${OSVERSION} < 1600000 && ${OSVERSION} > 1501501) || \
-    (${OSVERSION} < 1500000 && ${OSVERSION} > 1404501)
-EXTRA_PATCHES+=	${PATCHDIR}/libc++21-flang_runtime_io-api-minimal.cpp
-.endif
+MAN1SRCS+=	${FLANG_MAN1SRCS}
 .endif
 
 .if ${PORT_OPTIONS:MLIT}
@@ -356,7 +359,7 @@ COMMANDS+=	${MLIR_COMMANDS}
 .endif
 
 .if ${PORT_OPTIONS:MOPENMP}
-LLVM_ENABLE_PROJECTS+=	openmp
+LLVM_ENABLE_RUNTIMES+=	openmp
 USE_LDCONFIG+=	${LLVM_PREFIX}/lib/${CONFIGURE_TARGET}
 MAN1SRCS+=	${OPENMP_MAN1SRCS}
 COMMANDS+=	${OPENMP_COMMANDS}
@@ -369,6 +372,9 @@ MAN1SRCS+=	${POLLY_MAN1SRCS}
 
 .if defined(LLVM_ENABLE_PROJECTS)
 CMAKE_ARGS+=	-DLLVM_ENABLE_PROJECTS="${LLVM_ENABLE_PROJECTS:ts;}"
+.endif
+.if defined(LLVM_ENABLE_RUNTIMES)
+CMAKE_ARGS+=	-DLLVM_ENABLE_RUNTIMES="${LLVM_ENABLE_RUNTIMES:ts;}"
 .endif
 
 .include <bsd.port.pre.mk>
@@ -400,7 +406,8 @@ FREEBSD_BACKENDS+=	WebAssembly
 NATIVE_BACKENDS+=	WebAssembly
 .endif
 STANDARD_BACKENDS=	${_FREEBSD_BACKENDS} AMDGPU AVR BPF Hexagon Lanai \
-			LoongArch Mips MSP430 NVPTX SystemZ VE WebAssembly XCore
+			LoongArch Mips MSP430 NVPTX SPIRV SystemZ VE WebAssembly \
+			XCore
 _BE_LIBS_COMMON=	CodeGen Desc Info
 _BE_LIBS_AArch64=	AsmParser Disassembler Utils
 _BE_LIBS_BACKWARDS_AArch64=Exegesis
@@ -421,9 +428,10 @@ _BE_LIBS_Mips=		AsmParser Disassembler
 _BE_LIBS_BACKWARDS_Mips=Exegesis
 _BE_LIBS_PowerPC=	AsmParser Disassembler
 _BE_LIBS_BACKWARDS_PowerPC=Exegesis
-_BE_MODS_PowerPC=	__ppc_intrinsics.mod mma.mod
 _BE_INCS_RISCV=		riscv_vector.h
 _BE_LIBS_RISCV=		AsmParser Disassembler TargetMCA
+_BE_LIBS_BACKWARDS_RISCV=Exegesis
+_BE_LIBS_SPIRV=		Analysis
 _BE_LIBS_Sparc=		AsmParser Disassembler
 _BE_LIBS_SystemZ=	AsmParser Disassembler
 _BE_LIBS_VE=		AsmParser Disassembler
@@ -437,34 +445,26 @@ _BE_LIBS_${BE}+=	${_BE_LIBS_COMMON:S/^/${BE_ARCH}/} \
 			${_BE_LIBS_${BE_ARCH}:S/^/${BE_ARCH}/} \
 			${_BE_LIBS_BACKWARDS_${BE_ARCH}:S/$/${BE_ARCH}/}
 _BE_INCS_${BE}+=	${_BE_INCS_${BE_ARCH}}
-_BE_MODS_${BE}+=	${_BE_MODS_${BE_ARCH}}
 .endfor
 .endfor
-BE_PATTERN=LLVM(${_BE_LIBS_STANDARD:O:S/$/.a/:ts|})|${_BE_INCS_STANDARD:ts|}|${_BE_MODS_STANDARD:ts|}
-
-.if ${PORT_OPTIONS:MFLANG}
-.for BE in FREEBSD NATIVE STANDARD
-BE_${BE}_PLIST_FILES+= \
-	${_BE_MODS_${BE}:S|^|${LLVM_DIR}/include/flang/|:N${LLVM_DIR}/include/flang/$}
-.endfor
-.endif
+BE_PATTERN=LLVM(${_BE_LIBS_STANDARD:O:S/$/.a/:ts|})|${_BE_INCS_STANDARD:ts|}
 
 .if ${ARCH} == "aarch64"
 COMPILER_RT_ARCHS=	aarch64
 .elif ${ARCH} == "amd64"
 COMPILER_RT_ARCHS=	x86_64
-.if exists(/usr/lib32/libc.so.7)
-COMPILER_RT_ARCHS+=	i386
-.endif
+#.if exists(/usr/lib32/libc.so.7)
+#COMPILER_RT_ARCHS+=	i386
+#.endif
 .elif ${ARCH} == "i386"
 COMPILER_RT_ARCHS=	i386
 .elif ${ARCH} == "powerpc"
 COMPILER_RT_ARCHS=	powerpc
 .elif ${ARCH} == "powerpc64"
 COMPILER_RT_ARCHS=	powerpc64
-.if exists(/usr/lib32/libc.so.7)
-COMPILER_RT_ARCHS+=	powerpc
-.endif
+#.if exists(/usr/lib32/libc.so.7)
+#COMPILER_RT_ARCHS+=	powerpc
+#.endif
 .elif ${ARCH} == "powerpc64le"
 COMPILER_RT_ARCHS=	powerpc64le
 .elif ${ARCH} == "riscv64"
@@ -544,13 +544,13 @@ post-install-DOCS-on:
 	${MV} ${STAGEDIR}${LLVM_PREFIX}/share/doc/LLVM/* ${STAGEDIR}${DOCSDIR}
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/share/doc/LLVM
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/share/doc
+.if ${PORT_OPTIONS:MFLANG}
+	${RMDIR} ${STAGEDIR}${DOCSDIR}/flang/html/_sources
+.endif
 .for _man in ${MAN1SRCS}
 	${MV} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/${_man} \
 	    ${STAGEDIR}${PREFIX}/share/man/man1/${_man:R}${LLVM_SUFFIX}.1
 .endfor
-.if ${PORT_OPTIONS:MFLANG}
-	${RMDIR} ${STAGEDIR}${DOCSDIR}/flang/html/_sources
-.endif
 .if ! ${PORT_OPTIONS:MLIT}
 	${RM} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/lit.1
 	${RM} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/FileCheck.1
@@ -560,9 +560,6 @@ post-install-DOCS-on:
 .endif
 .if ! ${PORT_OPTIONS:MMLIR}
 	${RM} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/mlir-tblgen.1
-.endif
-.if ${PORT_OPTIONS:MOPENMP}
-	${RMDIR} ${STAGEDIR}${DOCSDIR}/openmp/html/_sources
 .endif
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/share/man/man1/
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/share/man/
@@ -586,14 +583,20 @@ post-install-CLANG-on:
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/clang/Basic/Target/
 
 post-install-EXTRAS-on:
+	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/clang-tidy/cert
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/clang-tidy/misc/ConfusableTable
+	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/clang-tidy/zircon
 
 post-install-FLANG-on:
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/CodeGen/CMakeFiles
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/Dialect/CMakeFiles
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/Dialect/CUF/Attributes/CMakeFiles
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/Dialect/CUF/CMakeFiles
+	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/Dialect/FIRCG/CMakeFiles
+	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/Dialect/MIF/CMakeFiles
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/HLFIR/CMakeFiles
+	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/OpenACC/CMakeFiles
+	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/OpenMP/CMakeFiles
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/Transforms/CMakeFiles
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/Optimizer/CMakeFiles
 	${RMDIR} ${STAGEDIR}${LLVM_PREFIX}/include/flang/CMakeFiles
@@ -653,8 +656,9 @@ build-plist:
 	    ${GREP} -v '_ignorelist.txt$$' | \
 	    ${GREP} -v '[/-]lit$$' | ${GREP} -v 'FileCheck$$' | \
 	    ${GREP} -v man/man1 | ${SED} -e 's|${STAGEDIR}${PREFIX}/||' \
+	    -e 's|${LUA_MODLIBDIR:C|${PREFIX}/||}|%%LUA_MODLIBDIR%%|' \
 	    -e 's|${PYTHON_SITELIBDIR:C|${PREFIX}/||}|%%PYTHON_SITELIBDIR%%|' \
-	    -e 's|${PYTHON_TAG:C/\./\\./g}${PYTHON_ABIVER}|%%PYTHON_TAG%%%%PYTHON_ABIVER%%|' \
+	    -e 's|${PYTHON_SOABI}|%%PYTHON_SOABI%%|' \
 	    -e 's|${LLVM_RELEASE}|%%LLVM_RELEASE%%|' \
 	    -e 's|release.cmake|%%CMAKE_BUILD_TYPE%%.cmake|' \
 	    -e 's|${LLVM_RELEASE:C/\./\\./g}|%%LLVM_RELEASE%%|' \
@@ -680,12 +684,14 @@ build-plist:
 	    if ($$0 ~ /(${EXTRAS_PATTERN})/) {printf "%%%%EXTRAS%%%%"} \
 	    if ($$0 ~ /(${FLANG_PATTERN})/ && $$0 !~ /${BE_PATTERN}$$/) {printf "%%%%FLANG%%%%"} \
 	    if ($$0 ~ /(bin\/(ld|lld|wasm-ld))|liblld[^b]|\/lld\// && $$0 !~ /(lldb)/) {printf "%%%%LLD%%%%"} \
-	    if ($$0 ~ /(argdumper|lldb|six.py)/) {printf "%%%%LLDB%%%%"} \
+	    if ($$0 ~ /(argdumper|lldb|six.py|yaml2macho-core)/) {printf "%%%%LLDB%%%%"} \
 	    if ($$0 ~ /(${MLIR_PATTERN})/) {printf "%%%%MLIR%%%%"} \
 	    if ($$0 ~ /(${OPENMP_PATTERN})/) {printf "%%%%OPENMP%%%%"} \
 	    if ($$0 ~ /(${POLLY_PATTERN})/) {printf "%%%%POLLY%%%%"} \
 	    if ($$0 ~ /${PYCLANG_PATTERN}/) {printf "%%%%PYCLANG%%%%"} \
-	    if ($$0 !~ /(lib[a-z]*_rt|LLVMgold)/ && $$0 !~ /(${BE_PATTERN})$$/) {print}}' ${PLIST}.tmp >> ${PLIST}
+	    if ($$0 !~ /(lib[a-z]*_rt|LLVMgold)/ && $$0 !~ /(${BE_PATTERN})$$/) {print} \
+	    if ($$0 ~ /libflang_rt.runtime.a/) {print} \
+	}' ${PLIST}.tmp >> ${PLIST}
 	${ECHO_CMD} '@postexec if type ccache-update-links >/dev/null 2>&1; then ccache-update-links -v; fi' >> ${PLIST}
 	${ECHO_CMD} '@postunexec if type ccache-update-links >/dev/null 2>&1; then ccache-update-links -v; fi' >> ${PLIST}
 	${RM} ${PLIST}.tmp

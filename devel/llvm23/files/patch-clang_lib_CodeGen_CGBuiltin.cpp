@@ -1,6 +1,6 @@
 --- clang/lib/CodeGen/CGBuiltin.cpp.orig
 +++ clang/lib/CodeGen/CGBuiltin.cpp
-@@ -148,7 +148,7 @@
+@@ -228,7 +228,7 @@
    else {
      // TODO: This mutation should also be applied to other targets other than
      // PPC, after backend supports IEEE 128-bit style libcalls.
@@ -9,7 +9,7 @@
          &getTarget().getLongDoubleFormat() == &llvm::APFloat::IEEEquad() &&
          F128Builtins.contains(BuiltinID))
        Name = F128Builtins[BuiltinID];
-@@ -2560,6 +2560,7 @@
+@@ -2619,6 +2619,7 @@
    // TODO: This mutation should also be applied to other targets other than PPC,
    // after backend supports IEEE 128-bit style libcalls.
    if (getTarget().getTriple().isPPC64() &&

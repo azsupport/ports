@@ -1,5 +1,5 @@
-# The C of the port compiled and linked by GCC of the ports instead of the base
-# clang, GCC a build dependency only: nothing of it is needed at run time. A
+# The C of the port compiled and linked by GCC of the ports instead of clang
+# (Mk/bsd.overlay.mk), GCC a build dependency only: nothing of it is needed at run time. A
 # USES of the overlay azsupport/ports (the official tree has no such file),
 # for its PHP ports: the masters lang/php56, lang/php74, lang/php81,
 # lang/php82, lang/php83 and lang/php84 have it in their USES, so the cores,
@@ -22,8 +22,8 @@
 # Valid ARGS:	(none)
 #
 # AZSUPPORT_GCC: the version of GCC, that of lang/gcc${AZSUPPORT_GCC}. AZSUPPORT_GCC=no in the
-# Makefile of a port (before bsd.port.pre.mk): the base clang, as without this
-# file. The PHP modules with C++ (intl, swoole, openswoole) have AZSUPPORT_GCC=no:
+# Makefile of a port (before bsd.port.pre.mk): clang of devel/llvm${AZSUPPORT_CLANG}, as without
+# this file (Mk/bsd.overlay.mk: the compiler of the ports GCC does not build). The PHP modules with C++ (intl, swoole, openswoole) have AZSUPPORT_GCC=no:
 # they link C++ libraries of azsupport built by clang with libc++ (ICU), and g++ would
 # link libstdc++ of the gcc package, a library of the ports, so that one
 # process would have two C++ runtimes of different ABIs. imagick and gmagick
@@ -65,7 +65,7 @@
 #   keeps the section .comment (the compilers of the objects of the file,
 #   "GCC: (FreeBSD Ports Collection) 16.1.0"); the strip of the base system
 #   removes it. tools/check-php.sh checks the compiler of the files by it;
-# - the annotation azsupport_cc of the package: gcc${AZSUPPORT_GCC}, or clang with
+# - the annotation azsupport_cc of the package: gcc${AZSUPPORT_GCC}, or clang${AZSUPPORT_CLANG} with
 #   AZSUPPORT_GCC=no (pkg info -A; tools/check-php.sh).
 #
 # MAINTAINER: github@azsupport.com
@@ -80,13 +80,14 @@ IGNORE=	USES=azgcc takes no arguments
 AZSUPPORT_GCC?=	16
 
 # the compiler of the package as its annotation azsupport_cc (pkg info -A), which
-# tools/check-php.sh compares with the files: gcc16, or clang (the base cc)
+# tools/check-php.sh compares with the files: gcc16, or clang<N> (devel/llvm<N>,
+# Mk/bsd.overlay.mk)
 PKG_NOTES+=	azsupport_cc
 .  if ${AZSUPPORT_GCC} != no
 USE_GCC=	${AZSUPPORT_GCC}:build
 PKG_NOTE_azsupport_cc=	gcc${AZSUPPORT_GCC}
 .  else
-PKG_NOTE_azsupport_cc=	clang
+PKG_NOTE_azsupport_cc=	clang${AZSUPPORT_CLANG}
 .  endif
 
 _USES_POST+=	azgcc
