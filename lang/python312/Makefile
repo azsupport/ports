@@ -83,6 +83,16 @@ USES+=		azgcc
 # ("Scrt1.o: undefined reference to `main'", run 45702768445); python3.12 is a small
 # program over libpython3.12.so (--enable-shared), which is position independent anyway
 PIE_UNSAFE=	GCC links the modules as programs with -shared -pie
+# _FORTIFY_SOURCE=1, not the 2 of tools/make.conf.in: level 2 checks with
+# __builtin_object_size(ptr, 1), the size of the subobject, and GCC knows that
+# SAS2SA(&addrbuf) of socketmodule.c is &addrbuf.sa, a struct sockaddr of 16
+# bytes in a union, while the length is that of the union; the getsockname,
+# getpeername and recvfrom of <ssp/socket.h> of FreeBSD 15.1 called __chk_fail
+# for AF_UNIX and AF_INET6. The forkserver of multiprocessing aborted at its
+# getsockname, and compileall -j0 of the install with it ("EOFError: unexpected
+# EOF", no .pyc, run 45734425567). Level 1 takes the whole object (the union);
+# clang does not see the subobject through the inline function either.
+FORTIFY_SOURCE=	1
 PATHFIX_MAKEFILEIN=	Makefile.pre.in
 USE_LDCONFIG=	yes
 GNU_CONFIGURE=	yes
