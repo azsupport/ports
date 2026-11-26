@@ -5,8 +5,8 @@
 # azsupport/freetype2, Mk/azsupport-libs.mk: their headers and .pc files, the run path
 # /usr/local/azsupport/lib), not on textproc/expat2 and print/freetype2: its LIB_DEPENDS is
 # emptied (a variable of the command line, which the LIB_DEPENDS= of the official
-# Makefile does not replace; so is what an option would add there: NLS, which the builder
-# has off, would need libintl). The libraries of AZSUPPORT_LIBS are those of the needs
+# Makefile does not replace; so is what an option adds there: NLS, below). The libraries
+# of AZSUPPORT_LIBS are those of the needs
 # line of fontconfig in azsupport/azsupport/files/deps.conf (tools/azsupport-lib-ports.sh
 # --check compares them).
 #
@@ -32,6 +32,16 @@ AZSUPPORT_LIB=		fontconfig
 AZSUPPORT_LIBS=		expat:libexpat.so freetype2:libfreetype.so
 DISTINFO_FILE=	${.CURDIR}/distinfo
 .MAKEFLAGS:	DISTVERSION=2.18.4 LIB_DEPENDS=
+
+# The options of the official port, as the builder has them (OPTIONS_UNSET of
+# tools/make.conf.in): BITMAPS and HINTING_SLIGHT on (its defaults); DOCS, NLS, TEST,
+# HINTING_NONE, HINTING_MEDIUM and HINTING_FULL off. Of them only NLS needs a library,
+# libintl (USES=gettext-runtime: its LIB_DEPENDS, which is emptied here): with NLS on
+# that of azsupport/gettext, its headers and .pc files linked as those of AZSUPPORT_LIBS
+# (azsupport-libs-prepare); TEST needs bash only to test, DOCS nothing.
+NLS_VARS=	AZSUPPORT_LIBS+=gettext:libintl.so
+NLS_BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/gettext
+NLS_RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/gettext
 
 PLIST_FILES+=	${AZSUPPORT_PREFIX:S,^${PREFIX}/,,}/share/azsupport/interface/fontconfig.txt
 _USES_stage+=	710:azsupport-fontconfig-manifest
