@@ -1,0 +1,42 @@
+The second factor kept when other preferences are saved (phpMyAdmin issue 19900, "two
+factor auth disappears"). UserPreferences::save() writes the whole set of preferences
+of the user, and the settings of a page (PageSettings) and the reset of
+/preferences/manage gave it one with no 2fa: the two-factor authentication went away
+with them, with no new authentication, as through /config/set (CVE-2026-119429, vuxml
+e6b90d23-d49d-11f1-bae2-3497f65b111b). Now save() keeps the stored 2fa when the set it
+is given has none; the page of two-factor authentication still takes it away (it saves
+a 2fa with no backend), after the second factor.
+
+Upstream, in QA_5_2 (5.2.4, not released) and master; this is UserPreferences.php of
+QA_5_2 against 5.2.3 (git diff RELEASE_5_2_3 QA_5_2):
+- 889af69af89f78c02d4d9558524b62c0fd2191be, efturtle, 07.11.2025: "Preserve 2FA settings
+  when saving partial user preferences"
+- 88608105b96dfd715a6470e3a4c782e02ac3d95a, efturtle, 07.11.2025: "Fix 2FA preservation
+  for both session and database storage"
+  (both pull request 19925, merged in 4de9f0f0b1bd on 17.12.2025)
+- daa9d1e252f9e4f49b8047453c6fd7bf1abfa94c, Maurício Meneghini Fauth, 24.01.2026: "Fix
+  case where user preferences are not removed", pull request 20047 (merged in
+  b1cec4e48f09): only the 2fa is kept, not the rest of what was stored
+https://github.com/phpmyadmin/phpmyadmin/pull/19925
+https://github.com/phpmyadmin/phpmyadmin/pull/20047
+https://github.com/phpmyadmin/phpmyadmin/issues/19900
+
+--- libraries/classes/UserPreferences.php.orig
++++ libraries/classes/UserPreferences.php
+@@ -125,6 +125,16 @@
+      */
+     public function save(array $config_array)
+     {
++        // Smart merge: If this looks like a partial save (missing 2fa but we have it stored),
++        // automatically merge to prevent accidental overwrites
++        if (! isset($config_array['2fa'])) {
++            $existingPrefs = $this->load();
++            if (isset($existingPrefs['config_data']['2fa'])) {
++                // This is likely a partial save from page settings - merge to preserve 2fa
++                $config_array['2fa'] = $existingPrefs['config_data']['2fa'];
++            }
++        }
++
+         global $dbi;
+ 
+         $relationParameters = $this->relation->getRelationParameters();
