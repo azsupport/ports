@@ -6,10 +6,11 @@ Every library of the kind `shared` in `deps.conf` is a port of its own, `azsuppo
 (the package `azsupport-<name>`; fontconfig: `x11-fonts/fontconfig`), and the libraries of
 the kind `static` are built together by `azsupport/azsupport` (the package `azsupport`, the
 static tree `/usr/local/azsupport/static`). The confs and the patches are here, in
-`azsupport/azsupport/files/`, with the port that reads all of them; the `pkg-config` wrapper
-of the shared tree is the port `azsupport/pkg-config` and the trigger of the services the
-port `azsupport/service`, so that a port that needs one of them takes none of these files
-into its hash. The files of a library are those of its port, which
+`azsupport/azsupport/files/`, with the port that reads all of them; the trigger of the
+services is the port `azsupport/services`, and the `pkg-config` wrapper of the shared tree
+is in no package (the ports that need it write it into their work,
+`Mk/azsupport-pkg-config.mk`), so that a port that needs one of them takes none of these
+files into its hash. The files of a library are those of its port, which
 [`tools/azsupport-lib-ports.sh`](../../../../tools/azsupport-lib-ports.sh) makes from them
 (`--write <official tree>`):
 
