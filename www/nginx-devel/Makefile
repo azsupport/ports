@@ -285,9 +285,21 @@ NGINX_ERRORLOG?=	${NGINX_LOGDIR}/error.log
 MODULESDIR=	${PREFIX}/libexec/${PORTNAME}
 
 HAS_CONFIGURE=	yes
+# The protections of the framework that are in LDFLAGS (tools/make.conf.in, Mk/Features:
+# -pie of WITH_PIE, -Wl,-zrelro of WITH_RELRO, -Wl,-znow of WITH_BIND_NOW) in
+# --with-ld-opt: the configure of nginx reads no LDFLAGS, and its objs/Makefile links
+# nginx and each module with --with-ld-opt alone, so nginx was an EXEC without BIND_NOW
+# and the modules had no BIND_NOW (nginx-devel-1.31.10_26112521, 26.11.2026). Only those
+# flags, not the whole LDFLAGS: it can carry the -L and run paths of a USES, which would
+# change what is linked. The CFLAGS of the environment, with the -fPIE -fPIC of WITH_PIE,
+# the configure does take, for the objects and for its own tests alike (CC_TEST_FLAGS of
+# auto/cc/conf), so a test it links with -pie is compiled for it, and --with-cc-opt
+# needs no -fPIE. A module is linked with -shared, where clang leaves -pie out (IsPIE of
+# its FreeBSD.cpp is false with -shared): it gets -znow and -zrelro, as does
+# www/nginx-devel-passenger, whose PIE_UNSAFE keeps -pie out of LDFLAGS.
 CONFIGURE_ARGS+=--prefix=${ETCDIR} \
 		--with-cc-opt="-DNGX_HTTP_AZ_SERVER=0 -I ${WRKDIR}/azsupport/include -I ${LOCALBASE}/include" \
-		--with-ld-opt="-L ${WRKDIR}/azsupport/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib -L ${LOCALBASE}/lib" \
+		--with-ld-opt="-L ${WRKDIR}/azsupport/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib -L ${LOCALBASE}/lib ${LDFLAGS:M-pie} ${LDFLAGS:M-Wl,-z*}" \
 		--conf-path=${ETCDIR}/nginx.conf \
 		--sbin-path=${PREFIX}/sbin/nginx \
 		--modules-path=${MODULESDIR} \
