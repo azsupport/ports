@@ -1,18 +1,19 @@
-# textproc/opensearch219 of azsupport/ports: OpenSearch 2.19.7, in the place of the
+# textproc/opensearch219 of azsupport/ports: OpenSearch 2.19.8, in the place of the
 # official textproc/opensearch219 (its origin, as www/apache24), for the migration
 # of aZ's cluster of 2.17.1 to 3.x (aZ, 12.11.2026: 3.x upgrades from 2.19 alone).
 # Ahead of the official port, at 2.19.6 in the pinned tree and in freebsd-ports
-# main (12.11.2026), for a vulnerability that touches aZ (the rule: a release
-# ahead of its port for such a one; aZ, 12.11.2026): his sites give the text of
-# their visitors to query_string, and up to 2.19.6 a query_string with deeply
-# nested parentheses overflows the stack of the classic query parser of Lucene,
-# which recurses at each one (upstream's test: 15000, 30011 characters, within
-# the 32000 of search.query.max_query_string_length), and OpenSearch halts at
-# the StackOverflowError (OpenSearchUncaughtExceptionHandler, exit 126) on every
-# node that parses it for a shard; 2.19.7 rejects such a query, with
+# main (12.11.2026, and still 26.11.2026), since 2.19.7, for a vulnerability
+# that touches aZ (the rule: a release ahead of its port for such a one; aZ,
+# 12.11.2026): his sites give the text of their visitors to query_string, and up
+# to 2.19.6 a query_string with deeply nested parentheses overflows the stack of
+# the classic query parser of Lucene, which recurses at each one (upstream's
+# test: 15000, 30011 characters, within the 32000 of
+# search.query.max_query_string_length), and OpenSearch halts at the
+# StackOverflowError (OpenSearchUncaughtExceptionHandler, exit 126) on every node
+# that parses it for a shard; 2.19.7 rejects such a query, with
 # search.query.max_query_nesting_depth (200; upstream #22477, #22854).
-# tools/opensearch-test.sh sends it as its last check (2.19.7: rejected, the node
-# up). CVE-2025-9624 (a query_string of nested clauses that exhausted the node)
+# tools/opensearch-test.sh sends it as its last check (rejected, the node up).
+# CVE-2025-9624 (a query_string of nested clauses that exhausted the node)
 # is fixed since 2.19.4, by search.query.max_query_string_length (32000 by
 # default). What else 2.19.7 fixes (its release notes, the commits of its branch
 # after 2.19.6):
@@ -38,15 +39,56 @@
 #        ml-commons#5115); Jackson 2.18.9 in flow-framework.
 # The bundle of 2.19.7 differs from that of 2.19.6 in its jars alone: the same
 # plugins, modules, config and bin.
+# 2.19.8, a release of the same branch with fixes of security (aZ, 22.11.2026:
+# within one branch, a release with a fix of security is taken), fixes (its
+# release notes, the commits of its branch after 2.19.7 and of the plugins
+# after 2.19.7.0):
+#   OpenSearch: Jackson 2.18.12 (CVE-2026-68495 and CVE-2026-68496, the
+#        maxNameLength of the parsers of CBOR and Smile never checked: the
+#        request bodies in those formats of any client that reaches the HTTP
+#        port; CVE-2026-89407, a ReDoS of NumberInput.looksLikeValidNumber();
+#        CVE-2026-89425, an unbounded error token of UTF8DataInputJsonParser)
+#        and zstd-jni 1.5.7-25 (CVE-2026-87795, CVE-2026-87823,
+#        CVE-2026-87824, CVE-2026-87825, CVE-2026-87877, CVE-2026-89045,
+#        CVE-2026-90560 and CVE-2026-90852: reads out of bounds, uses after
+#        free and an endless loop of its native code, with the arguments of
+#        the Java code that calls it, the codec zstd and compression; its jar
+#        has a native library of FreeBSD for amd64, which runs here:
+#        freebsd/amd64/libzstd-jni-1.5.7-25.so, of FreeBSD clang 13.0.0, with
+#        libc.so.7 and libthr.so.3) (#23629); the parameters of the min_hash
+#        filter bounded (#23374, an OOM); netty 4.1.141.Final (#23490,
+#        #23667); OpenTelemetry 1.67.0 (#23363); ptrace and the system calls
+#        that read the memory of other processes blocked by its system call
+#        filter (#23494: seccomp, Linux alone); the JDK of the bundle
+#        21.0.13.1 (not installed);
+#   plugins: Jackson 2.18.12 in anomaly-detection, flow-framework,
+#        observability and reports-scheduler; zstd-jni 1.5.7-25 in
+#        custom-codecs (custom-codecs#393); sql, the regular expressions of the
+#        parse command of PPL bounded by a configurable limit of matching
+#        (sql#5922), and Guava 33.7.2-jre in its build (sql#5919,
+#        CVE-2026-102554: the deserialization of Java of CompactHashMap,
+#        CompactHashSet and MapMakerInternalMap); the bundle has no Guava of
+#        sql, which runs on the guava-32.1.3-jre of opensearch-job-scheduler,
+#        the plugin it extends, as in 2.19.7, and its checker-qual-3.37.0 and
+#        jsr305-3.0.2 are j2objc-annotations-3.1 and jspecify-1.0.1; the
+#        others, their versions alone.
+# The bundle of 2.19.8 differs from that of 2.19.7 in its jars alone (the
+# lists of distinfo.yml, runs 43269168558 and 45866537104): the same plugins
+# and modules, the same names and sizes of every other file but those of its JDK
+# and of opensearch-performance-analyzer (neither installed), and the files this
+# port patches or installs from config and bin (jvm.options,
+# log4j2.properties, opensearch.yml, the scripts of bin, the configuration of
+# the plugins, rule_categories.json) the same as in 2.19.7.
 # Every decision of textproc/opensearch217 holds, with its files: its patches
-# apply to the bundle of 2.19.7 as they are (jvm.options, log4j2.properties,
-# opensearch.yml and the scripts of bin are the same files as in 2.17.1), and
-# its rc script and its rollover of the logs are the same. On OpenJDK 21,
-# java/openjdk21 of ours (headless; aZ, 12.11.2026: one JDK for opensearch217,
-# opensearch219, 3.x, which needs 21 at least, and elasticsearch6), the JDK
-# of the bundle (Temurin 21.0.12.1) and of the official port: OpenSearch 2.19
-# runs on 11, 17 and 21, and not on 24 and later (JEP 486: those JDKs refuse the
-# Security Manager that OpenSearch 2.x installs at its start,
+# apply to the bundles of 2.19.7 and 2.19.8 as they are (jvm.options,
+# log4j2.properties, opensearch.yml and the scripts of bin are the same files as
+# in 2.17.1), and its rc script and its rollover of the logs are the same. On
+# OpenJDK 21, java/openjdk21 of ours (headless; aZ, 12.11.2026: one JDK for
+# opensearch217, opensearch219, 3.x, which needs 21 at least, and
+# elasticsearch6), the JDK of the bundle (Temurin 21.0.13.1 in 2.19.8) and of
+# the official port: OpenSearch 2.19 runs on 11, 17 and 21, and not on 24 and
+# later (JEP 486: those JDKs refuse the Security Manager that OpenSearch 2.x
+# installs at its start,
 # System.setSecurityManager of bootstrap/OpenSearch.java and Security.java, and
 # the -Djava.security.manager=allow of its launcher and jvm.options). USES=java
 # with JAVA_VERSION 21 gives the rc script ${LOCALBASE}/openjdk21, and
@@ -105,7 +147,7 @@
 #        package (the official port leaves them out).
 # No jar of the bundle is replaced (aZ, 12.11.2026: the fixes that newer jars of
 # the same lines would bring go to him as a list first): the code of OpenSearch,
-# its plugins and their libraries is that of 2.19.7; post-patch checks that the
+# its plugins and their libraries is that of 2.19.8; post-patch checks that the
 # jars of netty are those of the bundle this port was written for.
 #
 # No writes that are of no use (aZ, 11.11.2026, as for elasticsearch6 and
@@ -140,7 +182,7 @@
 # of RAM and more.
 
 PORTNAME=	opensearch
-DISTVERSION=	2.19.7
+DISTVERSION=	2.19.8
 DISTVERSIONSUFFIX=	-linux-x64
 PORTREVISION=	${AZSUPPORT_STAMP:U0}
 CATEGORIES=	textproc java devel
@@ -212,15 +254,15 @@ ML_NATIVE_JARS=	onnxruntime_gpu-1.16.3.jar tokenizers-0.31.1.jar
 NETTY_JARS=	netty-buffer netty-codec netty-codec-http netty-common \
 		netty-handler netty-resolver netty-transport \
 		netty-transport-native-unix-common
-NETTY_BUNDLED=	4.1.139.Final
-NETTY_ML=	netty-buffer-4.1.139.Final.jar netty-codec-4.1.139.Final.jar \
-		netty-codec-http-4.1.139.Final.jar \
-		netty-codec-http2-4.1.139.Final.jar \
-		netty-common-4.1.139.Final.jar netty-handler-4.1.139.Final.jar \
-		netty-nio-client-2.32.29.jar netty-resolver-4.1.139.Final.jar \
-		netty-transport-4.1.139.Final.jar \
+NETTY_BUNDLED=	4.1.141.Final
+NETTY_ML=	netty-buffer-4.1.141.Final.jar netty-codec-4.1.141.Final.jar \
+		netty-codec-http-4.1.141.Final.jar \
+		netty-codec-http2-4.1.141.Final.jar \
+		netty-common-4.1.141.Final.jar netty-handler-4.1.141.Final.jar \
+		netty-nio-client-2.32.29.jar netty-resolver-4.1.141.Final.jar \
+		netty-transport-4.1.141.Final.jar \
 		netty-transport-classes-epoll-4.1.124.Final.jar \
-		netty-transport-native-unix-common-4.1.139.Final.jar
+		netty-transport-native-unix-common-4.1.141.Final.jar
 
 # the prepackaged rules of opensearch-security-analytics in config/ (above): the
 # rules and rule_categories.json
