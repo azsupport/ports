@@ -1,4 +1,4 @@
-# devel/glib20: GLib 2.88 of azsupport/ports in the place of the official
+# devel/glib20: GLib 2.90 of azsupport/ports in the place of the official
 # devel/glib20 (aZ, 11.11.2026: "как нет glib? ... Делай портами это всё"), the GLib
 # of misc/mc and graphics/vips: our ports link each other's shared libraries (aZ,
 # 10.11.2026; mc had a static GLib of its own). The official port with its patches
@@ -11,16 +11,20 @@
 # system; the file monitor of GIO the inotify of the base system (FreeBSD 15).
 # Python only to build: the scripts of GLib (glib-mkenums, gdbus-codegen ...) need
 # it to run, the libraries do not.
-# GLib 2.88.4 (08.10.2026) ahead of the official port (2.88.3), for its security
-# fixes (rule of 04.11.2026): fourteen backports to glib-2-88 (Unicode normalization,
-# corrupted GVariant data, GMarkup error paths, GResource, GIOChannel, the fields of
-# the structured log, socket addresses, the mode of a new file), in what mc and vips
-# use; the patches of the official port apply to it as they are. Its distfile: the
-# SHA-256 of download.gnome.org and of its checksum file (workflow distinfo.yml,
-# run 42971518990), the size as Gentoo.
+# GLib 2.90.2 (25.11.2026), the stable line after 2.88 (aZ, 26.11.2026: «переходим»),
+# ahead of the official port (2.88.3), for the security fixes of 2.90.2 that no release
+# of 2.88 has (2.88.4 is the last; its branch has only the one of socket addresses): a
+# stack overflow in GRegex, a buffer overflow in g_unix_socket_address_to_native, a
+# use-after-free of GDBusConnection in property calls, the authentication of a GDBus
+# client and the UNIX file descriptors a GDBus peer passes bounded, the resync of UTF-8
+# after invalid bytes (2.88.4 had the fourteen backports of 2.90.1: Unicode
+# normalization, corrupted GVariant data, GMarkup error paths ...). The build options
+# and the installed files are those of 2.88; the patches of the official port apply to
+# it as they are (with offsets). Its distfile: the SHA-256 of download.gnome.org and
+# of its checksum file (workflow distinfo.yml, run 45869488361).
 
 PORTNAME=	glib
-DISTVERSION=	2.88.4
+DISTVERSION=	2.90.2
 PORTREVISION=	${AZSUPPORT_STAMP:U0}
 PORTEPOCH=	2
 CATEGORIES=	devel
