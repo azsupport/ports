@@ -45,7 +45,7 @@ HELP_DESC=	Install calc help files
 # that of azsupport alone (links in ${WRKDIR}/azsupport: not the include directory of azsupport with its other
 # headers, iconv.h of GNU libiconv), with its run path
 post-extract:
-	${SED} -e 's|%%CC%%|${CC}|; s|%%CFLAGS%%|${CFLAGS}|; s|%%SH%%|${SH}|' \
+	${SED} -e 's|%%CC%%|${CC}|; s|%%CFLAGS%%|${CFLAGS}|; s|%%LDFLAGS%%|${LDFLAGS}|g; s|%%SH%%|${SH}|' \
 		-e 's|%%AZ%%|${WRKDIR}/azsupport|g; s|%%AZSUPPORT_PREFIX%%|${AZSUPPORT_PREFIX}|g' \
 		${FILESDIR}/Makefile.freebsd > ${WRKSRC}/Makefile.local
 # The upstream Makefiles are a mess. Bash is hardcoded in many files, and only
@@ -61,5 +61,6 @@ post-extract:
 # a stripped copy in the place of a link; no debug in our packages, aZ 17.11.2026)
 post-install:
 	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${.CURDIR:H:H}/tools/strip-elf.sh ${STAGEDIR}${PREFIX}
+	@${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${PREFIX}/bin ${STAGEDIR}${PREFIX}/lib
 
 .include <bsd.port.mk>

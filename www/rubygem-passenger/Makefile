@@ -8,7 +8,9 @@
 #   name with the version first, as php84), not rubygem-passenger-nginx;
 # - no APR (devel/apr1): only the Apache module links it, not the agent; libcurl of
 #   ftp/curl of this tree (the agent), OpenSSL of the base system;
-# - our gems: ruby34-etc, -logger, -rack, -rackup and -rake of this tree, on lang/ruby34.
+# - our gems: ruby34-etc, -logger, -rack, -rackup and -rake of this tree, on lang/ruby34;
+# - CFLAGS and LDFLAGS of the framework to rake too, not CXXFLAGS alone: PassengerAgent a
+#   PIE with BIND_NOW (26.11.2026), checked by tools/hardening-check.sh.
 
 PORTNAME=	passenger
 PORTVERSION=	6.2.2
@@ -75,9 +77,16 @@ post-patch:
 post-patch-DEBUG-off:
 	@${REINPLACE_CMD} 's|-DPASSENGER_DEBUG|-DNDEBUG|g' ${WRKSRC}/build/basics.rb
 
+# rake: the flags of the framework for each part of its build (26.11.2026, readelf of
+# ruby34-passenger-nginx 6.2.2_26112521: PassengerAgent EXEC, without BIND_NOW): CFLAGS
+# for its C (the libev and libuv it builds, which the agent links), CXXFLAGS for its C++,
+# LDFLAGS (-pie, -Wl,-zrelro, -Wl,-znow) for the link of the agent (build/basics.rb of
+# Passenger: EXTRA_LDFLAGS goes to its executables alone, not to the static libraries
+# and the objects the nginx module links)
 post-build:
 .if ${FLAVOR} == nginx
-	cd ${WRKSRC} && ${SETENV} CC=${CC} CXX=${CXX} EXTRA_CXXFLAGS="${CXXFLAGS}" USE_VENDORED_LIBUV=true ${LOCALBASE}/bin/rake nginx
+	cd ${WRKSRC} && ${SETENV} CC=${CC} CXX=${CXX} EXTRA_CFLAGS="${CFLAGS}" EXTRA_CXXFLAGS="${CXXFLAGS}" \
+		EXTRA_LDFLAGS="${LDFLAGS}" USE_VENDORED_LIBUV=true ${LOCALBASE}/bin/rake nginx
 .endif
 	${FIND} ${WRKSRC} -name '*.bak' -o -name '*.o' -o -name '*.orig' -delete
 
@@ -86,6 +95,7 @@ post-install:
 	${CHMOD} +x ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR}/buildout/support-binaries/*
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR}/buildout/ruby/*/passenger_native_support.so
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR}/buildout/support-binaries/PassengerAgent
+	@${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${PREFIX}/${GEM_LIB_DIR}/buildout/support-binaries
 # the static libraries and the object files of buildout (libboost_oxt.a, the objects of
 # libboost_oxt/ and the others the nginx module links) without their debug information
 # (rake builds them with -g; no debug in our packages, aZ 17.11.2026)

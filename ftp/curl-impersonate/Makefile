@@ -107,6 +107,15 @@ CMAKE_ARGS=	-DAZ_INCLUDE_DIR:PATH=${WRKDIR}/azsupport-include \
 # the run path of the libraries of azsupport (files/patch-CMakeLists.txt gives the linker
 # flags to curl)
 LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
+# PIE (26.11.2026, readelf: curl-impersonate EXEC): Mk/Features/pie.mk gives a cmake
+# port -DCMAKE_POSITION_INDEPENDENT_CODE alone, and CMake links a program with -pie only
+# after check_pie_supported() under the policy CMP0083 (cmLocalGenerator.cxx); so the
+# flags pie.mk gives the other ports, in the flags of every check of cmake (try_compile)
+# too: -fPIE -fPIC and -pie (the driver leaves -pie out with -shared); checked by
+# tools/hardening-check.sh after the install
+CFLAGS+=	-fPIE -fPIC
+CXXFLAGS+=	-fPIE -fPIC
+LDFLAGS+=	-pie
 
 USE_LDCONFIG=	yes
 
@@ -156,6 +165,7 @@ post-install:
 	@${RMDIR} ${STAGEDIR}${PREFIX}/include/curl
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/bin/curl-impersonate \
 		${STAGEDIR}${PREFIX}/lib/libcurl-impersonate.so.4.*
+	@${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${PREFIX}/bin ${STAGEDIR}${PREFIX}/lib
 # the library: c-ares, brotli, zstd, libidn2 and libpsl of azsupport by its run path (that
 # alone), zlib of the base system, no OpenSSL and no nghttp2, nghttp3 or ngtcp2 of a
 # package, none of the symbols of what is built in exported, curl_easy_impersonate

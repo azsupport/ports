@@ -28,4 +28,13 @@ READLINE_EXTRAS:=	${READLINE_LIBS} -lhistory -lncurses
 # /usr/local/lib (libreadline.so.8, libhistory.so.8) wherever one is installed
 # (tests/ports/utils-test.sh of azsupport, run 44807210093); the build directory for
 # the link only (-rpath-link)
-LD_SHARE:=	-Wl,-rpath,%%AZSUPPORT_PREFIX%%/lib:${LIBDIR} -Wl,-rpath-link,${PWD}
+LD_SHARE:=	%%LDFLAGS%% -Wl,-rpath,%%AZSUPPORT_PREFIX%%/lib:${LIBDIR} -Wl,-rpath-link,${PWD}
+
+# The protections of the linker (26.11.2026, readelf: calc EXEC, calc, libcalc and
+# libcustcalc without BIND_NOW): LDFLAGS of the framework (-pie, -Wl,-zrelro, -Wl,-znow)
+# in LD_SHARE above (the links of calc and of the sample programs, whose objects have
+# CFLAGS with -fPIE) and in the flags of the links of the two libraries (the driver
+# leaves -pie out with -shared); not in EXTRA_LDFLAGS: the programs the build runs
+# itself (ILDFLAGS) are compiled without CFLAGS (no -fPIE)
+LIBCALC_SHLIB:=	-shared "-Wl,-soname,libcalc${LIB_EXT_VERSION}" %%LDFLAGS%%
+LIBCUSTCALC_SHLIB:=	-shared "-Wl,-soname,libcustcalc${LIB_EXT_VERSION}" %%LDFLAGS%%

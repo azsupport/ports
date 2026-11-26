@@ -105,5 +105,17 @@ post-patch:
 .endfor
 	@${PATCH} -d ${WRKSRC} -p1 -s -f < ${.CURDIR}/files/cve-2014-8139-pkvms.patch
 	@${PATCH} -d ${WRKSRC} -p1 -s -f < ${.CURDIR}/files/zipinfo-usage.patch
+# The protections of the linker (26.11.2026, readelf: unzip, funzip and unzipsfx EXEC,
+# without BIND_NOW): LF, SL and FL of unix/Makefile, the flags of the links of the three,
+# end in $(LFLAGS1) (the ICONV option of the official port gives it the -L of iconv); LDFLAGS
+# of the framework (-pie, -Wl,-zrelro, -Wl,-znow), in the environment of its make
+# (MAKE_ENV), after it. The objects are compiled with CFLAGS (-fPIE -fPIC: CF and
+# LOCAL_UNZIP)
+	@${REINPLACE_CMD} -e '/^[LSF][FL] = -o /s|$$(LFLAGS1)$$|$$(LFLAGS1) $$(LDFLAGS)|' ${WRKSRC}/unix/Makefile
+	@[ "$$(${GREP} -c -E '^(LF|SL|FL) = -o .*\$$\(LFLAGS1\) \$$\(LDFLAGS\)$$' ${WRKSRC}/unix/Makefile)" = 3 ] || \
+		{ ${ECHO_MSG} "==> unzip: LF, SL and FL of unix/Makefile without \$$(LDFLAGS)"; ${FALSE}; }
+
+post-install:
+	@${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${PREFIX}/bin
 
 .include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

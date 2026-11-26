@@ -7,5 +7,13 @@ AZSUPPORT_OFFICIAL=	multimedia/yamdi
 # (1010-strn-buffer-overflow.patch, see the file; upstream silent since 2010). The
 # lines of yamdi.c end in CR LF, and so do those of the patch.
 EXTRA_PATCHES=	${.CURDIR}/files/patch-yamdi.c:-p1
+# The protections of the linker (26.11.2026, readelf: yamdi EXEC, without BIND_NOW): the
+# do-build of the official port compiles and links in one command, ${CC} ${CFLAGS}
+# yamdi.c -o yamdi, without LDFLAGS; those of the framework (-pie, -Wl,-zrelro,
+# -Wl,-znow) through CFLAGS
+CFLAGS+=	${LDFLAGS}
+
+post-install:
+	@${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${PREFIX}/bin
 
 .include "${.CURDIR:H:H}/Mk/azsupport-official.mk"

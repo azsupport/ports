@@ -120,6 +120,15 @@ CMAKE_ARGS+=	${MC_COLUMNAR_ARGS}
 MAKE_ENV=	CMAKE_POLICY_VERSION_MINIMUM=3.5
 # ICU of azsupport (and the libraries of azsupport loaded at run time) by the run path of azsupport
 LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
+# PIE (26.11.2026, readelf: searchd, indexer, indextool and the others EXEC):
+# Mk/Features/pie.mk gives a cmake port -DCMAKE_POSITION_INDEPENDENT_CODE alone, and
+# CMake links a program with -pie only after check_pie_supported() under the policy
+# CMP0083 (cmLocalGenerator.cxx); so the flags pie.mk gives the other ports, in the flags
+# of every check of cmake (try_compile) too: -fPIE -fPIC and -pie (the driver leaves -pie
+# out with -shared); checked by tools/hardening-check.sh after the install
+CFLAGS+=	-fPIE -fPIC
+CXXFLAGS+=	-fPIE -fPIC
+LDFLAGS+=	-pie
 
 USERS=		manticore
 GROUPS=		manticore
@@ -189,6 +198,7 @@ post-install:
 		${STAGEDIR}${DATADIR}/modules/
 	${INSTALL_DATA} ${WRKDIR}/manticore-cache/freebsd-amd64/jieba/dict/*.utf8 ${STAGEDIR}${DATADIR}/jieba/
 	${LN} -s /usr/share/zoneinfo ${STAGEDIR}${DATADIR}/tzdata
+	@${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${PREFIX}/bin
 
 post-install-MANPAGES-on:
 	${INSTALL_MAN} ${WRKSRC}/doc/searchd.1 ${WRKSRC}/doc/indexer.1 ${WRKSRC}/doc/indextool.1 \

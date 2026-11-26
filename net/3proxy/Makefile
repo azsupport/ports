@@ -72,6 +72,16 @@ CMAKE_ARGS+=	-D3PROXY_USE_OPENSSL=OFF
 CONFLICTS_INSTALL=	3proxy-openssl
 .endif
 
+# PIE (26.11.2026, readelf: 3proxy, mycrypt and the servers EXEC): Mk/Features/pie.mk
+# gives a cmake port -DCMAKE_POSITION_INDEPENDENT_CODE alone, and CMake links a program
+# with -pie only after check_pie_supported() under the policy CMP0083
+# (cmLocalGenerator.cxx); so the flags pie.mk gives the other ports, in the flags of every
+# check of cmake (try_compile) too: -fPIE -fPIC and -pie (the driver leaves -pie out with
+# -shared); checked by tools/hardening-check.sh after the install
+CFLAGS+=	-fPIE -fPIC
+CXXFLAGS+=	-fPIE -fPIC
+LDFLAGS+=	-pie
+
 PLIST_SUB=	3PROXY_LOGDIR=${3PROXY_LOGDIR} \
 		PORTNAME=${PORTNAME}
 
@@ -123,6 +133,9 @@ do-install:
 .for s in ${3PROXY_SERVERS}
 	${INSTALL_MAN} ${WRKSRC}/man/${s}.8 ${STAGEDIR}${PREFIX}/share/man/man8/
 .endfor
+
+post-install:
+	@${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${PREFIX}/bin ${STAGEDIR}${PREFIX}/lib/${PORTNAME}
 
 do-install-DOCS-on:
 	@${MKDIR} ${STAGEDIR}${DOCSDIR}

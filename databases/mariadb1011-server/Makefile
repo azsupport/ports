@@ -68,6 +68,15 @@ LIB_DEPENDS+=	libpcre2-8.so:devel/pcre2
 # the run path of the libraries of azsupport (cmake takes LDFLAGS for every link); no
 # -L/usr/local/lib of the official port: cmake/os/FreeBSD.cmake of MariaDB has it
 LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
+# PIE (26.11.2026, readelf: 24 programs of the server, 15 of the client EXEC):
+# Mk/Features/pie.mk gives a cmake port -DCMAKE_POSITION_INDEPENDENT_CODE alone, and
+# CMake links a program with -pie only after check_pie_supported() under the policy
+# CMP0083 (cmLocalGenerator.cxx); so the flags pie.mk gives the other ports, in the flags
+# of every check of cmake (try_compile) too: -fPIE -fPIC and -pie (the driver leaves -pie
+# out with -shared); checked by tools/hardening-check.sh after the install
+CFLAGS+=	-fPIE -fPIC
+CXXFLAGS+=	-fPIE -fPIC
+LDFLAGS+=	-pie
 
 # no iconv:translit of the official one: GNU libiconv of the ports, which only
 # the CONNECT engine linked, by the ICONV_LIBRARY that USES=iconv gives cmake
@@ -327,6 +336,7 @@ post-install:
 		${STAGEDIR}${PREFIX}/include/mysql/server \
 		${STAGEDIR}${ETCDIR}/init.d \
 		${STAGEDIR}${PREFIX}/lib/mysql/pkgconfig
+	@${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${PREFIX}/bin ${STAGEDIR}${PREFIX}/lib/mysql
 
 post-install-GSSAPI_NONE-off:
 	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/mysql/plugin/auth_gssapi_client.so
@@ -350,6 +360,8 @@ post-install:
 	${MKDIR} ${STAGEDIR}${MARIADB_LOGDIR}
 	${SED} '/%%/d;/^@comment /d;s/^/@comment /' ${.CURDIR:H}/${PORTNAME}${PKGNAMESUFFIX:S/-server/-client/}/pkg-plist \
 		>> ${TMPPLIST}
+	@${SH} ${.CURDIR:H:H}/tools/hardening-check.sh ${STAGEDIR}${PREFIX}/bin ${STAGEDIR}${PREFIX}/libexec \
+		${STAGEDIR}${PREFIX}/lib/mysql
 
 post-install-MROONGA-on:
 	${MV} ${STAGEDIR}${PREFIX}/share/groonga ${STAGEDIR}${DOCSDIR}/
