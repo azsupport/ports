@@ -11,8 +11,8 @@
 # LuaJIT 2.1-20261107 of OpenResty (lang/luajit-openresty) with the patches of the port: the
 # interpreter of LuaJIT is assembler (DynASM), the code it compiles its own; the C of it is
 # its runtime (the GC, the string library, the parser, the compiler of traces). Tcl 8.4.20
-# (lang/tcl84) with the patches of the port, threads, shared. calc 2.17.0.2 (math/calc):
-# its own arbitrary precision. bash 5.3 (shells/bash: the official port, its tarball without
+# (lang/tcl84) with the patches of its sources of the port, threads, shared. calc 2.17.0.2
+# (math/calc): its own arbitrary precision; readline of the packages (ours: azsupport). bash 5.3 (shells/bash: the official port, its tarball without
 # the 20 patches of the port, which fix bugs), without its malloc, no NLS.
 # The benchmarks: regular expressions over log lines, hashes, strings, sorting, function
 # and method calls, pack (Perl), JSON (Ruby), bignum (Ruby, calc), the GC; see the scripts.
@@ -21,7 +21,7 @@ g_progs="perl ruby luajit tcl84 calc bash"
 
 g_need() {
     # bash: the make of calc runs its scripts with it (SHELL)
-    need gmp libyaml rust bash
+    need gmp libyaml rust bash readline
 }
 
 g_build() {
@@ -46,7 +46,7 @@ g_build() {
     # takes no LDFLAGS: -pie without -fPIC in its tests failed, "recompile with -fPIC")
     if (cd "$W/src/perl-$_v" && sh Configure -des -Dprefix="$W/perl-$_v" -Dcc="$CC" -Doptimize="$CFLAGS" \
         -Duseshrplib -Dusethreads -Dusemultiplicity -Duse64bitint -Uinstallusrbinperl \
-        -Dman1dir=none -Dman3dir=none -Dsiteman1dir=none -Dsiteman3dir=none && gmake -j"$ncpu" && gmake install) > "$_b" 2>&1; then
+        -Dman1dir=none -Dman3dir=none -Dsiteman1dir=none -Dsiteman3dir=none && { gmake -j"$ncpu" || gmake; } && gmake install) > "$_b" 2>&1; then
         bok perl "$_v" "$W/perl-$_v/bin/perl"
     else
         bno perl "$_v" "$_b"
@@ -76,7 +76,8 @@ g_build() {
         mkdir -p "$W/luajit-$_v/bin" "$W/luajit-$_v/lib" "$W/luajit-$_v/include" "$W/luajit-$_v/share/man/man1" \
             "$W/luajit-$_v/libdata/pkgconfig" && gmake install PREFIX="$W/luajit-$_v") >> "$_b" 2>&1 && _lj="$(ls "$W/luajit-$_v"/bin/luajit* 2> /dev/null | head -n 1)" &&
         [ -n "$_lj" ] && ln -sf "$_lj" "$W/luajit-$_v/bin/lj" && "$W/luajit-$_v/bin/lj" -e 'print(1)' >> "$_b" 2>&1; then
-        bok luajit "$_v" "$_lj"
+        # luajit is stripped by its make: the compilers of its objects
+        bok luajit "$_v" "$W/src/luajit-$_v/src/lj_api.o"
     else
         bno luajit "$_v" "$_b"
     fi
@@ -90,17 +91,21 @@ g_build() {
         case "$p" in *patch-test-*|*patch-Makefile.in|*patch-configure|*patch-unix-installManPage) continue ;; esac
         (cd "$W/src/tcl-$_v/unix" && patch -s -p0 < "$p") >> "$_b" 2>&1 || echo "FAIL: ${p##*/}" >> "$_b"
     done
+    # its libtcl84.so.1 (tcl.m4 on FreeBSD) and -ltcl84 of the link of tclsh: the link to it, as
+    # the port has it in its stage
     if (cd "$W/src/tcl-$_v/unix" && ./configure --prefix="$W/tcl84-$_v" --enable-shared --enable-threads --enable-64bit &&
-        gmake -j"$ncpu" && gmake install-binaries install-libraries) >> "$_b" 2>&1 && [ -x "$W/tcl84-$_v/bin/tclsh8.4" ]; then
-        bok tcl84 "$_v" "$W/tcl84-$_v/lib/libtcl8.4.so"
+        { gmake -j"$ncpu" || { ln -sf libtcl84.so.1 libtcl84.so && gmake -j"$ncpu"; }; } &&
+        gmake install-binaries install-libraries) >> "$_b" 2>&1 && [ -n "$(ls "$W/tcl84-$_v"/bin/tclsh* 2> /dev/null)" ]; then
+        ln -sf "$(ls "$W/tcl84-$_v"/bin/tclsh* | head -n 1)" "$W/tcl84-$_v/bin/pbtclsh"
+        bok tcl84 "$_v" "$(ls "$W/tcl84-$_v"/lib/libtcl8* | head -n 1)"
     else
         bno tcl84 "$_v" "$_b"
     fi
     # calc (its make is not parallel: MAKE_JOBS_UNSAFE of the port)
     unpack lcn2-calc-v2.17.0.2_GH0.tar.gz "$W/src/calc-$_v"
     _b="$W/b-calc-$_v.log"
-    printf '%s\n' "CC:= $CC" "LCC:= $CC" "CFLAGS:= $CFLAGS \${ICFLAGS} \${CCOPT}" "USE_READLINE:=" "READLINE_LIBS:=" \
-        "READLINE_EXTRAS:=" "LD_SHARE:= $LDFLAGS" "LIBCALC_SHLIB:= -shared \"-Wl,-soname,libcalc\${LIB_EXT_VERSION}\" $LDFLAGS" \
+    printf '%s\n' "CC:= $CC" "LCC:= $CC" "CFLAGS:= $CFLAGS \${ICFLAGS} \${CCOPT}" "USE_READLINE:= -DUSE_READLINE -I/usr/local/include" \
+        "READLINE_LIBS:= -L/usr/local/lib -lreadline" "READLINE_EXTRAS:= -L/usr/local/lib -lreadline -lhistory -lncurses" "LD_SHARE:= $LDFLAGS" "LIBCALC_SHLIB:= -shared \"-Wl,-soname,libcalc\${LIB_EXT_VERSION}\" $LDFLAGS" \
         "LIBCUSTCALC_SHLIB:= -shared \"-Wl,-soname,libcustcalc\${LIB_EXT_VERSION}\" $LDFLAGS" > "$W/src/calc-$_v/Makefile.local"
     if (cd "$W/src/calc-$_v" && gmake && mkdir -p "$W/calc-$_v" &&
         cp -R calc libcalc.so* libcustcalc.so* cal "$W/calc-$_v/") > "$_b" 2>&1 &&
@@ -261,7 +266,7 @@ g_bench() {
                 for b in fib string pattern table gc; do run1 "$v" luajit "$b" "$W/luajit-$v/bin/lj" "$W/pb.lua" "$b"; done
             fi
             if have tcl84 "$v"; then
-                for b in string list expr array regexp; do run1 "$v" tcl84 "$b" "$W/tcl84-$v/bin/tclsh8.4" "$W/pb.tcl" "$b"; done
+                for b in string list expr array regexp; do run1 "$v" tcl84 "$b" "$W/tcl84-$v/bin/pbtclsh" "$W/pb.tcl" "$b"; done
             fi
             if have calc "$v"; then
                 c="$W/calc-$v/calc"

@@ -194,8 +194,9 @@ have() { [ -f "$W/ok/$group-$1-$2" ]; }
 # (and into the log of the job); the others go on without it, clang19 (the base of the
 # comparison) failing ends the group
 bno() {
-    { echo; echo "FAIL: the build of $1 by $2, the last 40 lines of ${3##*/}:"; echo; echo '```'
-        tail -n 40 "$3"; echo '```'; } >> "$W/fails/$group-$2.md"
+    { echo; echo "FAIL: the build of $1 by $2, the last 40 lines of ${3##*/} (and its last lines of errors before them):"; echo; echo '```'
+        head -n "$(( $(wc -l < "$3") - 40 ))" "$3" 2> /dev/null | grep -n -E '(^|[^a-z])(error|Error|ERROR|\*\*\*|FAIL|Abort|undefined reference|No such file)' | tail -n 12
+        echo '---'; tail -n 40 "$3"; echo '```'; } >> "$W/fails/$group-$2.md"
     tail -n 40 "$3" >&3
     say "FAIL: the build of $1 by $2 (${3##*/})"
 }
