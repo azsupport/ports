@@ -13,9 +13,14 @@
 # graphics/png and textproc/libxml2 the official port takes (LIB_DEPENDS, USES=jpeg and
 # USE_GNOME=libxml2): LIB_DEPENDS is given on the command line of make (.MAKEFLAGS),
 # which the assignments of the official Makefile and of its USES do not change, with
-# the other libraries of the official port: libcurl of ftp/curl of this tree and the
-# official packages of those neither azsupport nor this tree has (libogg, libvorbis, libvpx;
-# libtpms of TPM, libvncserver of VNC). For the libraries of azsupport, Mk/azsupport-libs.mk: their
+# the other libraries of the official port, each of a port of this tree: libcurl of
+# ftp/curl; libogg, libvorbis and libvpx (the recording), libtpms (TPM) and libvncserver
+# (VNC) of audio/libogg, audio/libvorbis, multimedia/libvpx, sysutils/libtpms and
+# net/libvncserver, the official ports as they are (libvncserver on the libpng and
+# libjpeg of azsupport, with archivers/lzo2, security/libgcrypt and security/libgpg-error).
+# Those five were the official packages of FreeBSD, which the repository does not have,
+# until aZ took that back (26.11.2026 13:09: «Делаем его самодостаточным — лишние
+# зависимости убираем, нужные собираем у нас.»). For the libraries of azsupport, Mk/azsupport-libs.mk: their
 # headers alone and their .pc files (the configure of VirtualBox finds libxml2 and
 # libjpeg by pkg-config), its BUILD_DEPENDS and RUN_DEPENDS once more as those of the
 # flavor (the official Makefile assigns both; the framework adds these after it). Before
@@ -23,7 +28,7 @@
 # ask pkg-config for it), the run path of azsupport in its test programs, which it runs; the
 # three in LocalConfig.kmk by their paths (kBuild links a library named by a path as it
 # is), so that the official ones in the build (libxml2 of the build tool xsltproc of
-# textproc/libxslt, libpng and libjpeg of libvncserver) are not linked, and
+# textproc/libxslt) are not linked, and
 # /usr/local/azsupport/lib in the run path of every program and library of VirtualBox after
 # its own directory. post-stage checks what they link.
 

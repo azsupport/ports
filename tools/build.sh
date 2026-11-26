@@ -123,7 +123,8 @@
 #   without its archives (they go from its chroot): only a port that says AZSUPPORT_STATIC_LIBS
 #   (tools/check-tree.sh) can link them;
 # - the build tools of AZSUPPORT_TOOLS_OFFICIAL (below: Python, Perl, meson, GNU
-#   make, pkgconf, Rust) come from the official packages of FreeBSD also when this tree
+#   make, pkgconf, Rust, autoconf, m4, the binutils, py-requests) come from the official
+#   packages of FreeBSD also when this tree
 #   has the origin (aZ, 11.11.2026:
 #   our python312 and perl5.42 link libraries of azsupport, which needs them to build): for a
 #   port that needs such an origin only to build it (FETCH_, EXTRACT_, PATCH_, BUILD_
@@ -228,7 +229,15 @@ ports_url="https://github.com/freebsd/freebsd-ports"
 # extensions of gems build with them (aZ, 20.11.2026); the builds of this tree keep the
 # official packages, so that adding them builds again only the ports that run with
 # them (www/npm-node18 and www/npm-node24: gmake for node-gyp)
-AZSUPPORT_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson devel/gmake devel/pkgconf lang/rust"
+# devel/autoconf, devel/autoconf-switch, devel/m4, devel/binutils, www/py-requests: ours for
+# the packages of the repository that run with them (aZ, 26.11.2026 13:09: «Делаем его
+# самодостаточным — лишние зависимости убираем, нужные собираем у нас.»: devel/automake
+# with autoconf, lang/gcc16 with the binutils, www/yt-dlp with py-requests); the builds
+# of this tree keep the official packages, so that adding them builds again only those:
+# autoconf of phpize (every PHP module) and of USES=autoreconf (442 ports of this tree,
+# 26.11.2026), the binutils of USES=azgcc (409), m4 and py-requests of
+# databases/mongodb80
+AZSUPPORT_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson devel/gmake devel/pkgconf lang/rust devel/autoconf devel/autoconf-switch devel/m4 devel/binutils www/py-requests"
 # the ports that build against the sources of the kernel without being kernel modules
 # (no USES=kmod, no IGNORE without them): they get them as a kernel module does
 # (ksrc_get). VirtualBox generates headers of the kernel out of them (VBOX_FREEBSD_SRC=
