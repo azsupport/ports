@@ -82,8 +82,8 @@ libs_net="curl c-ares nghttp2 libidn2 libpsl libuv apr libmaxminddb libmemcached
 pkgs_compress=""
 pkgs_crypto="pcre2 libffi gettext-runtime"
 pkgs_text="libxml2"
-pkgs_image="dejavu freetype2 expat fontconfig pixman png glib"
-pkgs_video="x265 svt-av1 dav1d libde265 png libjpeg-turbo"
+pkgs_image="dejavu freetype2 expat fontconfig pixman png glib gperf"
+pkgs_video="x265 svt-av1 dav1d libde265 png jpeg-turbo"
 pkgs_net="bison"
 # not measured, and why (aZ: «без осмысленной нагрузки — строка почему»)
 not_measured="readline|line editing of a terminal: no load of a server
@@ -148,10 +148,14 @@ set_cc() {
     export PKG_CONFIG_PATH="$2/lib/pkgconfig:$2/libdata/pkgconfig"
     unset AR NM RANLIB
     case "$1" in
-    clang23) export AR="$b/ar" NM="$b/nm" RANLIB="$b/ranlib" ;;
+    clang23)
+        # lld of LLVM 23 (ld.lld beside clang23), also for the LTO of x264
+        export AR="$b/ar" NM="$b/nm" RANLIB="$b/ranlib" LDFLAGS="$LDFLAGS -fuse-ld=lld" ;;
     gcc16)
         export CFLAGS="$F -std=gnu17 -fno-semantic-interposition" CXXFLAGS="$F -fno-semantic-interposition"
-        export LDFLAGS="$LDFLAGS -Wl,-rpath,/usr/local/lib/gcc16" ;;
+        export LDFLAGS="$LDFLAGS -Wl,-rpath,/usr/local/lib/gcc16"
+        # the archives of GCC LTO objects (x264) need its plugin: gcc-ar
+        command -v gcc-ar16 > /dev/null && export AR=gcc-ar16 NM=gcc-nm16 RANLIB=gcc-ranlib16 ;;
     esac
 }
 # the compilers that a file was built with, from its .comment
@@ -342,7 +346,10 @@ m_argon2() {
 }
 f_gmp() { fetch gmp-6.3.0.tar.xz a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898 \
     https://gmplib.org/download/gmp/gmp-6.3.0.tar.xz https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz "$DC/gmp-6.3.0.tar.xz" && V=6.3.0 A=gmp-6.3.0.tar.xz; }
-b_gmp() { ac "$2" "$3" --disable-cxx --enable-fat && drv "$1" "$3" d-gmp.c -lgmp; }
+b_gmp() {
+    # no doc/ (its info pages), as tools/azsupport-build.sh
+    sed -i '' -e '/^SUBDIRS/ s|doc||' "$2/Makefile.in" && ac "$2" "$3" --disable-cxx --enable-fat && drv "$1" "$3" d-gmp.c -lgmp
+}
 so_gmp() { echo "lib/libgmp.so.10"; }
 m_gmp() { DRV gmp "$1" "$2/bin/d-gmp"; }
 f_mpdecimal() { fetch mpdecimal-4.0.1.tar.gz 96d33abb4bb0070c7be0fed4246cd38416188325f820468214471938545b1ac8 \
@@ -508,7 +515,7 @@ b_tiff() {
         drv "$1" "$3" d-tiff.c -ltiff
 }
 so_tiff() { echo "lib/libtiff.so.6"; }
-m_tiff() { DRV tiff "$1" "$2/bin/d-tiff" "$W/in/in.ppm"; }
+m_tiff() { (cd "$W" && DRV tiff "$1" "$2/bin/d-tiff" "$W/in/in.ppm"); }
 f_freetype2() { fetch freetype-2.15.0.tar.xz 93cd47eb719c325107f2d3cf087d06299e944c3b48a40b55537302304dea1dd5 \
     https://download.savannah.gnu.org/releases/freetype/freetype-2.15.0.tar.xz https://downloads.sourceforge.net/project/freetype/freetype2/2.15.0/freetype-2.15.0.tar.xz && V=2.15.0 A=freetype-2.15.0.tar.xz; }
 b_freetype2() {
@@ -777,7 +784,8 @@ report() {
         echo
         echo "| library | why |"; echo "|---|---|"
         cat "$notes"
-        echo "$not_measured" | while IFS='|' read -r a b; do echo "| $a | $b |"; done
+        # the libraries of no group, in the report of the first group only
+        [ "$group" = compress ] && echo "$not_measured" | while IFS='|' read -r a b; do echo "| $a | $b |"; done
         cat "$W/details" 2> /dev/null
         echo
         echo "## The raw values (a line per benchmark and variant, a value per round)"
@@ -852,11 +860,11 @@ eval "pk=\"\$pkgs_$group\""
 say "group $group: $libs; $rounds rounds, $ncpu CPUs, variants: $variants"
 say "cc: $(cc --version | head -n 1); clang23: $(clang23 --version 2> /dev/null | head -n 1); gcc16: $("$gcc_bin" --version 2> /dev/null | head -n 1)"
 for v in $variants; do [ -x "$W/bin-$v/cc" ] || { echo "| (all) | no compiler $v ($W/bin-$v/cc) |" >> "$notes"; variants="$(echo " $variants " | sed "s/ $v / /; s/^ //; s/ $//")"; }; done
-if [ -n "$pk" ]; then
-    # shellcheck disable=SC2086
-    env ASSUME_ALWAYS_YES=yes pkg install -y -r FreeBSD-ports $pk > "$W/log/pkg.log" 2>&1 ||
-        env ASSUME_ALWAYS_YES=yes pkg install -y $pk >> "$W/log/pkg.log" 2>&1 || say "pkg install $pk: $(tail -n 3 "$W/log/pkg.log" | tr '\n' ' ')"
-fi
+# one at a time: a package that is not there stops only itself
+for q in $pk; do
+    env ASSUME_ALWAYS_YES=yes pkg install -y -r FreeBSD-ports "$q" >> "$W/log/pkg.log" 2>&1 ||
+        say "pkg install $q: $(tail -n 2 "$W/log/pkg.log" | tr '\n' ' ')"
+done
 : > "$W/summary"; : > "$W/details"
 built=""
 for lib in $libs; do
