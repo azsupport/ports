@@ -5,7 +5,7 @@
 # https://github.com/azsupport/php-src (08.11.2026), which keeps its own for the
 # ext/curl of the PHP tarballs (tools/sync.sh there).
 #
-# Usage: sh tools/azsupport-curl-sources.sh [<target>] <dir>
+# Usage: sh tools/azsupport-curl-sources.sh [--only <name>] [<target>] <dir>
 #
 # Puts curl into <dir>/libcurl and every library into <dir>/deps/<name>, from the
 # release files, checked against the SHA-256 of the conf (that of the distinfo of
@@ -14,7 +14,10 @@
 # files/curl/<name>-<version>.patch where there is one, and writes
 # <dir>/deps/VERSIONS ("name version SHA-256 distfile", files/curl/build-libcurl.sh
 # rebuilds when it changes). Without <target>: the curl of the last line of
-# curl.conf. tools/azsupport-build.sh runs it for the curl of /usr/local/azsupport. The confs
+# curl.conf. --only <name>: that one alone, a library of curl-deps.conf (libpsl with
+# psl-list, its list) or curl, for the port of one library (tools/azsupport-build.sh
+# --lib <name>); without it all of them, for the static tree (--static).
+# tools/azsupport-build.sh runs it for the curl of /usr/local/azsupport. The confs
 # and patches: AZSUPPORT_FILESDIR (default azsupport/azsupport/files of this tree).
 #
 # Two changes to the releases, both for a build with only cc and make:
@@ -37,11 +40,26 @@ files="${AZSUPPORT_FILESDIR:-$(cd "$(dirname "$0")/.." && pwd)/azsupport/azsuppo
 curl_conf="$files/curl.conf"
 deps_conf="$files/curl-deps.conf"
 patches="$files/curl"
+only=""
+if [ "${1:-}" = "--only" ]; then
+    [ $# -ge 2 ] && [ -n "$2" ] || { echo "usage: sh tools/azsupport-curl-sources.sh [--only <name>] [<target>] <dir>" >&2; exit 2; }
+    only="$2"; shift 2
+fi
 case $# in
     1) target="" dir="$1" ;;
     2) target="$1" dir="$2" ;;
-    *) echo "usage: sh tools/azsupport-curl-sources.sh [<target>] <dir>" >&2; exit 2 ;;
+    *) echo "usage: sh tools/azsupport-curl-sources.sh [--only <name>] [<target>] <dir>" >&2; exit 2 ;;
 esac
+# wanted <name>: the release of <name> is unpacked (all of them without --only; psl-list
+# with libpsl, whose built-in list it is)
+wanted() {
+    [ -z "$only" ] || [ "$1" = "$only" ] || { [ "$1" = psl-list ] && [ "$only" = libpsl ]; }
+}
+if [ -n "$only" ] && [ "$only" != curl ] &&
+    ! awk -v n="$only" '!/^#/ && NF >= 7 && $1 == n { f = 1 } END { exit !f }' "$deps_conf"; then
+    echo "curl-sources: --only $only: neither curl nor a library of $deps_conf" >&2
+    exit 1
+fi
 cache="${CURL_DISTFILES:-${TMPDIR:-/tmp}/curl-distfiles}"
 mkdir -p "$cache" "$dir"
 
@@ -90,41 +108,52 @@ patch_in() {
 }
 
 # curl
-if [ -n "$target" ]; then
-    set -- $(awk -v t="$target" '$1 == t { print $2, $3, $4 }' "$curl_conf")
+cv=""
+if wanted curl; then
+    if [ -n "$target" ]; then
+        set -- $(awk -v t="$target" '$1 == t { print $2, $3, $4 }' "$curl_conf")
+    else
+        set -- $(awk '!/^#/ && NF >= 4 { v = $2; u = $3; s = $4 } END { print v, u, s }' "$curl_conf")
+    fi
+    [ $# = 3 ] || { echo "curl-sources: no curl for ${target:-any target} in $curl_conf" >&2; exit 1; }
+    cv="$1" cu="$2" cs="$3"
+    f="$(fetch "${cu##*/}" "$cs" "$cu")"
+    unpack "$f" "$dir/libcurl"
+    patch_in "$dir/libcurl" "$patches/curl-$cv.patch"
 else
-    set -- $(awk '!/^#/ && NF >= 4 { v = $2; u = $3; s = $4 } END { print v, u, s }' "$curl_conf")
+    echo "curl-sources: --only $only: not curl"
 fi
-[ $# = 3 ] || { echo "curl-sources: no curl for ${target:-any target} in $curl_conf" >&2; exit 1; }
-cv="$1" cu="$2" cs="$3"
-f="$(fetch "${cu##*/}" "$cs" "$cu")"
-unpack "$f" "$dir/libcurl"
-patch_in "$dir/libcurl" "$patches/curl-$cv.patch"
 
 # the libraries
 rm -rf "$dir/deps"
 mkdir -p "$dir/deps"
 : > "$dir/deps/VERSIONS"
 awk '!/^#/ && NF >= 7 { print $1, $2, $5, $6, $7 }' "$deps_conf" | while read -r n v df s u; do
+    wanted "$n" || continue
     f="$(fetch "$df" "$s" "$u")"
     unpack "$f" "$dir/deps/$n"
     patch_in "$dir/deps/$n" "$patches/$n-$v.patch"
     printf '%s %s %s %s\n' "$n" "$v" "$s" "$df" >> "$dir/deps/VERSIONS"
 done
 for n in c-ares nghttp2 brotli zstd libidn2 libpsl libssh2 psl-list; do
+    wanted "$n" || continue
     [ -d "$dir/deps/$n" ] || { echo "curl-sources: $n is not in $deps_conf" >&2; exit 1; }
 done
 
+# brotli: its test scripts out
+if wanted brotli; then rm -rf "$dir/deps/brotli/tests"; fi
 # libpsl: the built-in list from psl-list, no file looked for at run time
-rm -rf "$dir/deps/brotli/tests"
-psl="$dir/deps/libpsl"
-rm -rf "$psl/fuzz"
-python3 -I "$psl/src/psl-make-dafsa" --output-format=cxx+ \
-    "$dir/deps/psl-list/public_suffix_list.dat" "$psl/src/suffixes_dafsa.h.new"
-sed 's/^static const char _psl_filename\[\] = ".*";$/static const char _psl_filename[] = "";/' \
-    "$psl/src/suffixes_dafsa.h.new" > "$psl/src/suffixes_dafsa.h"
-rm -f "$psl/src/suffixes_dafsa.h.new"
-grep -q '^static const char _psl_filename\[\] = "";$' "$psl/src/suffixes_dafsa.h" ||
-    { echo "curl-sources: no _psl_filename in the output of psl-make-dafsa" >&2; exit 1; }
+if wanted libpsl; then
+    psl="$dir/deps/libpsl"
+    rm -rf "$psl/fuzz"
+    python3 -I "$psl/src/psl-make-dafsa" --output-format=cxx+ \
+        "$dir/deps/psl-list/public_suffix_list.dat" "$psl/src/suffixes_dafsa.h.new"
+    sed 's/^static const char _psl_filename\[\] = ".*";$/static const char _psl_filename[] = "";/' \
+        "$psl/src/suffixes_dafsa.h.new" > "$psl/src/suffixes_dafsa.h"
+    rm -f "$psl/src/suffixes_dafsa.h.new"
+    grep -q '^static const char _psl_filename\[\] = "";$' "$psl/src/suffixes_dafsa.h" ||
+        { echo "curl-sources: no _psl_filename in the output of psl-make-dafsa" >&2; exit 1; }
+fi
 
-echo "curl-sources: curl $cv and $(awk '{ printf "%s%s %s", (NR > 1 ? ", " : ""), $1, $2 }' "$dir/deps/VERSIONS") in $dir"
+libs="$(awk '{ printf "%s%s %s", (NR > 1 ? ", " : ""), $1, $2 }' "$dir/deps/VERSIONS")"
+echo "curl-sources: ${cv:+curl $cv}${cv:+${libs:+ and }}$libs in $dir${only:+ (--only $only)}"
