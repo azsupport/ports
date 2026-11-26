@@ -130,7 +130,7 @@ if ($n eq 'regex') {
     for my $k (1 .. 2) { for (1 .. 1000000) { $sink += $h{"key$_"}; } }
     delete $h{"key$_"} for 1 .. 500000; $sink += scalar keys %h;
 } elsif ($n eq 'string') {
-    for my $k (1 .. 10) { my $s = ''; $s .= "word" . ($_ % 100) . ' ' for 1 .. 100000;
+    for my $k (1 .. 40) { my $s = ''; $s .= "word" . ($_ % 100) . ' ' for 1 .. 100000;
         my @w = split / /, $s; $sink += length(join ',', map { sprintf '%8s', uc } @w) + index($s, 'word99'); }
 } elsif ($n eq 'sort') {
     srand(1); my @a = map { int(rand(1e9)) } 1 .. 1000000; my @s = sort { $a <=> $b } @a; $sink += $s[0];
@@ -165,15 +165,15 @@ when 'sort'
   t = Array.new(500000) { "k#{r.rand(1_000_000_000)}" }; sink += t.sort[0].size + t.sort_by { |x| x.size }[0].size
 when 'objects'
   pt = Struct.new(:x, :y) { def len = Math.sqrt(x * x + y * y) }
-  (1..2000000).each { |i| sink += pt.new(i, i + 1).len }
+  (1..5000000).each { |i| sink += pt.new(i, i + 1).len }
 when 'calls'
   def fib(x) = x < 2 ? x : fib(x - 1) + fib(x - 2)
-  sink += fib(29)
+  sink += fib(34)
 when 'json'
   a = (1..200000).map { |i| { 'id' => i, 'name' => "item #{i}", 'price' => i * 1.25, 'tags' => ["a#{i % 7}", "b#{i % 13}"], 'nested' => { 'x' => i % 100, 'ok' => i.even? } } }
   4.times { s = JSON.generate(a); sink += JSON.parse(s).size + s.size }
 when 'bignum'
-  x = (1..20000).inject(:*); sink += x.to_s.size + (x % (2**127 - 1)).bit_length
+  x = (1..60000).inject(:*); sink += x.to_s.size + (x % (2**127 - 1)).bit_length
 end
 printf("%.4f\n", Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0); puts sink if sink == -1
 EOF
@@ -181,9 +181,9 @@ EOF
 local n = arg[1]; local t0 = os.clock(); local sink = 0
 if n == 'fib' then
   local function fib(x) if x < 2 then return x end return fib(x - 1) + fib(x - 2) end
-  sink = fib(32)
+  sink = fib(37)
 elseif n == 'string' then
-  for k = 1, 10 do local t = {} for i = 1, 100000 do t[#t + 1] = string.format('word%d', i % 100) end
+  for k = 1, 50 do local t = {} for i = 1, 100000 do t[#t + 1] = string.format('word%d', i % 100) end
     local s = table.concat(t, ' '); local u = s:gsub('word(%d+)', 'w%1'); sink = sink + #u + (s:find('word99', 1, true) or 0) end
 elseif n == 'pattern' then
   local t = {} for i = 1, 200000 do t[#t + 1] = ('10.%d.%d.1 - - [26/Nov/2026] "GET /videos/%d/clip_%d.mp4?start=%d HTTP/1.1" 200 %d'):format(i % 256, math.floor(i / 256) % 256, i, i % 1000, i % 300, i * 13 % 100000) end
@@ -194,7 +194,7 @@ elseif n == 'table' then
   table.sort(t); sink = t[1]
   local h = {} for i = 1, 500000 do h['k' .. i] = i end for i = 1, 500000 do sink = sink + h['k' .. i] end
 elseif n == 'gc' then
-  for i = 1, 5000000 do local o = { i, i + 1, x = i } sink = sink + o[2] end
+  local keep = {} for i = 1, 5000000 do local o = { i, i + 1, x = i } keep[i % 1000 + 1] = o sink = sink + o[2] end
   collectgarbage('collect')
 end
 io.write(string.format('%.4f\n', os.clock() - t0)); if sink == -1 then print(sink) end
@@ -203,12 +203,12 @@ EOF
 set n [lindex $argv 0]; set t0 [clock clicks -milliseconds]; set sink 0
 proc fib {x} { if {$x < 2} { return $x }; return [expr {[fib [expr {$x - 1}]] + [fib [expr {$x - 2}]]}] }
 switch -- $n {
-    string { for {set k 0} {$k < 5} {incr k} { set s ""; for {set i 0} {$i < 100000} {incr i} { append s "word[expr {$i % 100}] " }
+    string { for {set k 0} {$k < 15} {incr k} { set s ""; for {set i 0} {$i < 100000} {incr i} { append s "word[expr {$i % 100}] " }
         set u [string map {word w} $s]; regsub -all {w(9[0-9])} $u {x\1} u; incr sink [string length $u]; incr sink [string first word99 $s] } }
-    list { set l {}; for {set i 0} {$i < 500000} {incr i} { lappend l [expr {($i * 7919) % 1000003}] }
+    list { set l {}; for {set i 0} {$i < 1500000} {incr i} { lappend l [expr {($i * 7919) % 1000003}] }
         set s [lsort -integer $l]; incr sink [lindex $s 0]; incr sink [lsearch -exact $l 999]; set j [join $s ,]; incr sink [llength [split $j ,]] }
     expr { set x 0.0; for {set i 0} {$i < 2000000} {incr i} { set x [expr {$x + ($i % 7) * 1.5 - $i / 3.0}] }; set sink [expr {int($x) % 1000}]; incr sink [fib 22] }
-    array { for {set i 0} {$i < 500000} {incr i} { set a(k$i) $i }; for {set i 0} {$i < 500000} {incr i} { incr sink $a(k$i) } }
+    array { for {set i 0} {$i < 1500000} {incr i} { set a(k$i) $i }; for {set i 0} {$i < 1500000} {incr i} { incr sink $a(k$i) } }
     regexp { for {set i 0} {$i < 100000} {incr i} { if {[regexp {^(\d+)\.(\d+) GET (/[a-z]+/(\d+))} "10.$i GET /videos/$i/clip.mp4" -> a b c d]} { incr sink [string length $c] } } }
 }
 puts [format %.4f [expr {([clock clicks -milliseconds] - $t0) / 1000.0}]]

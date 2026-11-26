@@ -65,11 +65,11 @@ const B = {
       lines.push(`10.${i % 256}.${(i >> 8) % 256}.${i % 97} - - [26/Nov/2026:20:${i % 60}:${i % 60} +0100] "GET /videos/${i}/clip_${i % 1000}.mp4?start=${i % 300} HTTP/1.1" 200 ${i * 13 % 100000} "-" "Mozilla/5.0"`);
     const text = lines.join('\n');
     const re = /^(\d+\.\d+\.\d+\.\d+) - - \[([^\]]+)\] "(GET|POST) ([^ ?]+)(\?[^ ]*)? HTTP\/1\.[01]" (\d{3}) (\d+)/gm;
-    for (let k = 0; k < 3; k++) { let m; re.lastIndex = 0; while ((m = re.exec(text)) !== null) sink += m[4].length; }
+    for (let k = 0; k < 8; k++) { let m; re.lastIndex = 0; while ((m = re.exec(text)) !== null) sink += m[4].length; }
     sink += text.replace(/clip_(\d+)/g, 'c$1').length;
   },
   strings() {
-    for (let k = 0; k < 20; k++) {
+    for (let k = 0; k < 50; k++) {
       let s = '';
       for (let i = 0; i < 100000; i++) s += 'word' + (i % 100) + ' ';
       const w = s.split(' ');
@@ -79,7 +79,7 @@ const B = {
   binarytrees() {
     function make(d) { return d === 0 ? { l: null, r: null } : { l: make(d - 1), r: make(d - 1) }; }
     function check(t) { return t.l === null ? 1 : 1 + check(t.l) + check(t.r); }
-    const max = 17;
+    const max = 19;
     const long = make(max);
     for (let d = 4; d <= max; d += 2) {
       const n = 1 << (max - d + 4);
@@ -105,7 +105,7 @@ const B = {
     const s = 'Привет, мир! Hello, world! こんにちは 🌍 '.repeat(1 << 20);
     const enc = new TextEncoder().encode(s);
     const dec = new TextDecoder('utf-8');
-    for (let k = 0; k < 10; k++) sink += dec.decode(enc).length + new TextEncoder().encode(s).length;
+    for (let k = 0; k < 5; k++) sink += dec.decode(enc).length + new TextEncoder().encode(s).length;
   },
   compile() {
     const vm = require('vm');
