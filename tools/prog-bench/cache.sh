@@ -9,7 +9,9 @@
 # (-d 10); the operations per second.
 #
 # gearmand 2.2.0 (devel/gearmand, its distinfo) with the patches of the port (the fixes of
-# master after 2.2.0, files/patch-*) and its options: libevent, Boost.Program_options and
+# master after 2.2.0, files/patch-*) and its options (make with noinst_PROGRAMS empty, as the
+# port: libtest does not build on FreeBSD, "undeclared identifier 'environ'"; then the two
+# programs of its benchmark): libevent, Boost.Program_options and
 # libuuid of the packages, SQLite (the persistent queue, off here), no TLS, no PIE (the port:
 # PIE_UNSAFE); its blobslap_client and blobslap_worker (of the build by clang19 for all). The
 # server on the last CPU (-t 1), 4 workers and the client on the others: 100000 jobs of 64
@@ -53,7 +55,8 @@ g_build() {
         --disable-dtrace --disable-hiredis --disable-libdrizzle --disable-libmemcached --disable-libpq \
         --disable-libtokyocabinet --disable-shared --enable-static --disable-wolfssl --disable-ssl \
         --enable-jobserver=no --with-boost=/usr/local --with-mysql=no --with-postgresql=no --with-sqlite3=/usr/local &&
-        gmake -j"$ncpu" && mkdir -p "$W/gearmand-$_v/bin" &&
+        gmake -j"$ncpu" noinst_PROGRAMS= && gmake benchmark/blobslap_client benchmark/blobslap_worker &&
+        mkdir -p "$W/gearmand-$_v/bin" &&
         cp gearmand/gearmand benchmark/blobslap_client benchmark/blobslap_worker "$W/gearmand-$_v/bin/") >> "$_b" 2>&1; then
         bok gearmand "$_v" "$W/gearmand-$_v/bin/gearmand"
     else

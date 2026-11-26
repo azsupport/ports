@@ -242,15 +242,17 @@ timedin() {
     fi
 }
 # wrkrate <variant> <program> <bench> <url> [<wrk option>...]: the requests per second of
-# wrk (3 threads, 64 connections, 8 seconds) on the other CPUs, against a server on the last
-# one; a run with errors of sockets or non-2xx/3xx answers is said, not recorded
+# wrk (3 threads, 64 connections, 8 seconds, a timeout of 10 s) on the other CPUs, against a
+# server on the last one; a run with non-2xx/3xx answers or errors of connect, read or
+# write is said, not recorded (timeouts are said)
 wrkrate() {
     _v="$1" _p="$2" _b="$3" _u="$4"; shift 4
-    cpuset -l "$others" wrk -t 3 -c "${PB_WRK_CONN:-64}" -d "${PB_WRK_TIME:-8}s" "$@" "$_u" > "$W/wrk.out" 2>&1
-    if grep -q -E 'Non-2xx or 3xx responses|Socket errors' "$W/wrk.out"; then
+    cpuset -l "$others" wrk -t 3 -c "${PB_WRK_CONN:-64}" -d "${PB_WRK_TIME:-8}s" --timeout 10s "$@" "$_u" > "$W/wrk.out" 2>&1
+    if grep -q -E 'Non-2xx or 3xx responses|Socket errors: connect [1-9]|Socket errors: .*(read|write) [1-9]' "$W/wrk.out"; then
         say "$_p $_b $_v: wrk: $(grep -E 'Non-2xx|Socket errors|Requests/sec' "$W/wrk.out" | tr '\n' ' ')"
         return 0
     fi
+    grep -q 'Socket errors' "$W/wrk.out" && say "$_p $_b $_v: wrk: $(grep 'Socket errors' "$W/wrk.out")"
     record "$_p" "$_b" rps higher "$_v" "$(awk '$1 == "Requests/sec:" { print $2 }' "$W/wrk.out")"
 }
 # order <round>: the variants, the first one turning from round to round
