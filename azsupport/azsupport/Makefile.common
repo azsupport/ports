@@ -1,6 +1,6 @@
 # What the ports azsupport/azsupport, ftp/curl, multimedia/ffmpeg, graphics/ImageMagick6,
 # graphics/ImageMagick7, graphics/GraphicsMagick and misc/mc share (the design: the head of
-# azsupport/static/Makefile). Each of
+# azsupport/azsupport/Makefile). Each of
 # them includes this file before bsd.port.mk; AZSUPPORT_PREFIX (/usr/local/azsupport),
 # AZSUPPORT_STATIC (/usr/local/azsupport/static) and AZSUPPORT_STAMP come from Mk/bsd.overlay.mk.
 
@@ -17,7 +17,7 @@ DIST_SUBDIR=	azsupport
 
 # The scripts of this tree; the commit of the official tree (deps.conf of azsupport/azsupport)
 AZSUPPORT_TOOLS=	${.CURDIR:H:H}/tools
-AZSUPPORT_DEPS_CONF=	${.CURDIR:H:H}/azsupport/static/files/deps.conf
+AZSUPPORT_DEPS_CONF=	${.CURDIR:H:H}/azsupport/azsupport/files/deps.conf
 AZSUPPORT_PORTS_COMMIT!=	/usr/bin/awk '$$1 == "ports" { print $$2 }' ${AZSUPPORT_DEPS_CONF}
 
 # The environment of a script: its stage in WRKDIR (do-install copies it into

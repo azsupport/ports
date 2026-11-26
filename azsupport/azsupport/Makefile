@@ -233,12 +233,8 @@ do-install:
 	${RM} ${STAGEDIR}${AZSUPPORT_PREFIX}/.az-build
 	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${AZSUPPORT_TOOLS}/strip-elf.sh ${STAGEDIR}${AZSUPPORT_PREFIX}
 
-# the trigger of pkg that names the services of the packages of a transaction to restart
-# (files/azsupport-services.ucl; Mk/bsd.overlay.mk gives the packages their directories
-# share/azsupport/services/<service>)
+# (the trigger of pkg that names the services to restart is the port azsupport/service)
 post-install:
-	@${MKDIR} ${STAGEDIR}${PREFIX}/share/pkg/triggers
-	${INSTALL_DATA} ${FILESDIR}/azsupport-services.ucl ${STAGEDIR}${PREFIX}/share/pkg/triggers
 	@${AZSUPPORT_PLIST}
 
 .include <bsd.port.mk>

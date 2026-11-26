@@ -12,7 +12,7 @@
 #
 # The fork bundles curl into PHP (--with-curl=bundled: freebsd/curl.conf,
 # freebsd/curl-deps.conf, freebsd/curl/ there), and azsupport/azsupport builds the libcurl of
-# the package azsupport and the program curl from copies of them (azsupport/static/files/curl.conf,
+# the package azsupport and the program curl from copies of them (azsupport/azsupport/files/curl.conf,
 # curl-deps.conf, curl/ here): the same releases of curl and of its libraries,
 # with the same patches, so that a fix of curl reaches both (aZ, 10.11.2026).
 # Compared: the lines of the two conf files without comments and blank lines; the
@@ -25,7 +25,7 @@
 
 set -u
 top="$(pwd)"
-here="$top/azsupport/static/files"
+here="$top/azsupport/azsupport/files"
 [ -f "$here/curl.conf" ] ||
     { echo "curl-sync-check: no $here/curl.conf (run from the top of a checkout of azsupport/ports)" >&2; exit 2; }
 t="$(mktemp -d "${TMPDIR:-/tmp}/curl-sync-check.XXXXXX")" || exit 2
@@ -83,23 +83,23 @@ done < "$t/names"
 # their SHA-256 (the DISTFILES of azsupport/azsupport, under the names of the confs, / made _), so
 # that a release changed in the confs is the one the build takes (24.11.2026: zstd 1.6.0
 # in curl-deps.conf, 1.5.7 in azsupport/azsupport, and every library of the bundled curl failed)
-di="$top/azsupport/static/distinfo"
+di="$top/azsupport/azsupport/distinfo"
 {
     data "$here/curl-deps.conf" | awk '{ print $5, $6 }'
     data "$here/curl.conf" | awk '{ n = $3; sub(/.*\//, "", n); print n, $4 }'
 } | LC_ALL=C sort -u | while read -r f s; do
     n="azsupport/$(printf '%s' "$f" | tr / _)"
     if grep -qxF "SHA256 ($n) = $s" "$di"; then
-        echo "OK   azsupport/static/distinfo: $n"
+        echo "OK   azsupport/azsupport/distinfo: $n"
     else
-        echo "FAIL azsupport/static/distinfo: no $n with the SHA-256 of the confs ($s): its DISTFILES, MASTER_SITES and distinfo"
+        echo "FAIL azsupport/azsupport/distinfo: no $n with the SHA-256 of the confs ($s): its DISTFILES, MASTER_SITES and distinfo"
         : > "$t/dfail"
     fi
 done
 [ ! -f "$t/dfail" ] || rc=1
 if [ "$rc" -ne 0 ]; then
     echo
-    echo "The curl of azsupport must be that of the PHP of azsupport/php-src ($ref): bring azsupport/static/files/curl.conf,"
+    echo "The curl of azsupport must be that of the PHP of azsupport/php-src ($ref): bring azsupport/azsupport/files/curl.conf,"
     echo "curl-deps.conf and curl/ to freebsd/curl.conf, curl-deps.conf and curl/ of azsupport/php-src"
     echo "(their data lines and patches; the comments name the paths of this tree), then the"
     echo "distinfo of azsupport/azsupport (the release files of curl and its libraries). A change of curl not"

@@ -1,7 +1,7 @@
 #!/bin/sh
 # azsupport-curl-sources.sh - the sources of the bundled curl of the package azsupport: the curl
-# release of azsupport/static/files/curl.conf and the libraries it needs
-# (azsupport/static/files/curl-deps.conf). Moved from tools/curl-sources.sh of
+# release of azsupport/azsupport/files/curl.conf and the libraries it needs
+# (azsupport/azsupport/files/curl-deps.conf). Moved from tools/curl-sources.sh of
 # https://github.com/azsupport/php-src (08.11.2026), which keeps its own for the
 # ext/curl of the PHP tarballs (tools/sync.sh there).
 #
@@ -18,7 +18,7 @@
 # psl-list, its list) or curl, for the port of one library (tools/azsupport-build.sh
 # --lib <name>); without it all of them, for the static tree (--static).
 # tools/azsupport-build.sh runs it for the curl of /usr/local/azsupport. The confs
-# and patches: AZSUPPORT_FILESDIR (default azsupport/static/files of this tree).
+# and patches: AZSUPPORT_FILESDIR (default azsupport/azsupport/files of this tree).
 #
 # Two changes to the releases, both for a build with only cc and make:
 #   - libpsl gets src/suffixes_dafsa.h, the built-in list, made here with its
@@ -36,7 +36,7 @@
 # gzip, zstd and lzip), patch and python3.
 
 set -eu
-files="${AZSUPPORT_FILESDIR:-$(cd "$(dirname "$0")/.." && pwd)/azsupport/static/files}"
+files="${AZSUPPORT_FILESDIR:-$(cd "$(dirname "$0")/.." && pwd)/azsupport/azsupport/files}"
 curl_conf="$files/curl.conf"
 deps_conf="$files/curl-deps.conf"
 patches="$files/curl"

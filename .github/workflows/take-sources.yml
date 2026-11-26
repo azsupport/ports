@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       names:
-        description: 'Names of take lines (azsupport/static/files/deps.conf, graphics/ImageMagick7/files/imagemagick.conf ...), separated by spaces'
+        description: 'Names of take lines (azsupport/azsupport/files/deps.conf, graphics/ImageMagick7/files/imagemagick.conf ...), separated by spaces'
         required: true
 
 permissions:

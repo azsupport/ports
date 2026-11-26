@@ -30,7 +30,7 @@
 #     Collator (a German list) of de_DE, each against the exact string of ICU
 #     76 (the ICU of azsupport); the time zone data: the version of
 #     IntlTimeZone::getTZDataVersion() that of the ICU patch of azsupport
-#     (azsupport/static/files/deps/icu-*.patch, its TZVersion) and America/Asuncion on
+#     (azsupport/azsupport/files/deps/icu-*.patch, its TZVersion) and America/Asuncion on
 #     -03:00 in July 2026 (tz 2025a and later); locale_filter_matches() of a tag
 #     whose extensions ICU 70 and later canonicalize to keywords (5.6:
 #     devel/php56-intl/files/patch-icu70); MessageFormatter with 12 arguments
@@ -47,7 +47,7 @@
 #     libssh2 of azsupport);
 #   - gd (phpXY-gd): the libgd of azsupport, imageantialias(), no XPM, a PNG; imagerotate()
 #     of a palette image by 0, 180 and, with IMG_NEAREST_NEIGHBOUR, 45 degrees
-#     (libgd #810 and #929, azsupport/static/files/deps/gd-2.3.3.patch): truecolor images
+#     (libgd #810 and #929, azsupport/azsupport/files/deps/gd-2.3.3.patch): truecolor images
 #     of the right sizes and pixels, the image of the caller still there;
 #   - xsl (phpXY-xsl): a stylesheet with result tree fragments in variables,
 #     exsl:node-set() of them, a fragment per call of a template and key() on a
@@ -343,9 +343,9 @@ intl_checks() {
         echo $s === $w ? "OK $s" : "FAIL $s, not $w";' "$@"
     # the time zone data: that of the ICU patch of azsupport (its TZVersion), and an offset
     # that changed after the data of ICU 76.1 (tz 2024b): Paraguay on -03 all year
-    _tzv="$(sed -n 's/^+ *TZVersion { "\([0-9a-z]*\)" }.*$/\1/p' "$top"/azsupport/static/files/deps/icu-*.patch 2> /dev/null | head -n 1)"
+    _tzv="$(sed -n 's/^+ *TZVersion { "\([0-9a-z]*\)" }.*$/\1/p' "$top"/azsupport/azsupport/files/deps/icu-*.patch 2> /dev/null | head -n 1)"
     if [ -z "$_tzv" ]; then
-        skip "intl: the time zone data" "no TZVersion in $top/azsupport/static/files/deps/icu-*.patch"
+        skip "intl: the time zone data" "no TZVersion in $top/azsupport/azsupport/files/deps/icu-*.patch"
     else
         intl_check "intl: the time zone data" '
             $v = IntlTimeZone::getTZDataVersion();
