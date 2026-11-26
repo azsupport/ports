@@ -1,5 +1,5 @@
 # multimedia/ffmpeg: the FFmpeg of azsupport/ports in the place of the official
-# multimedia/ffmpeg (the design: the head of azsupport/static/Makefile), the package ffmpeg
+# multimedia/ffmpeg (the design: the head of azsupport/azsupport/Makefile), the package ffmpeg
 # of tools/build-az.sh of azsupport/php-src: bin/ffmpeg and bin/ffprobe with only
 # what the video sites need (files/ffmpeg.conf: why, and the options), its own
 # libraries in them.
@@ -55,7 +55,7 @@ NO_WRKSUBDIR=	yes
 # for ffmpeg-build.sh, after AZSUPPORT_ENV: the nonfree build with libfdk_aac (aZ, 16.11.2026)
 AZSUPPORT_FFMPEG_ENV=	AZSUPPORT_FFMPEG_NONFREE=yes
 
-.include "${.CURDIR:H:H}/azsupport/static/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
 
 post-fetch:
 	@${SETENV} ${AZSUPPORT_ENV} ${AZSUPPORT_FFMPEG_ENV} AZSUPPORT_FILESDIR=${FILESDIR} ${SH} ${AZSUPPORT_TOOLS}/ffmpeg-build.sh --fetch

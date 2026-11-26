@@ -1,5 +1,5 @@
 # graphics/ImageMagick7: the programs of the ImageMagick 7 of azsupport/ports in the
-# place of the official graphics/ImageMagick7 (the design: the head of azsupport/static/Makefile):
+# place of the official graphics/ImageMagick7 (the design: the head of azsupport/azsupport/Makefile):
 # bin/magick and the usual names linked to it, with only what the video sites need
 # (files/imagemagick.conf: why, and the options). Its libraries, headers, config
 # scripts, configuration and policy (files/policy.xml as etc/ImageMagick-7/policy.xml)
@@ -58,7 +58,7 @@ CONFLICTS_INSTALL=	ImageMagick7-nox11 ImageMagick6 ImageMagick6-nox11 \
 NO_WRKSUBDIR=	yes
 EXTRACT_ONLY=
 
-.include "${.CURDIR:H:H}/azsupport/static/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
 
 AZSUPPORT_IM_ENV=	AZSUPPORT_IM_CONF=${.CURDIR:H}/ImageMagick7/files/imagemagick.conf AZSUPPORT_IM_PART=bin
 

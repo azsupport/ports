@@ -2,7 +2,7 @@
 # our ports link each other's shared libraries), each seen with its own headers and
 # .pc files only: the include directory of azsupport has others (GNU iconv.h, libintl.h ...),
 # which a port is not to take by -I of the whole directory. graphics/vips does the same
-# by hand. The port names the libraries of azsupport (their names in azsupport/static/files/deps.conf)
+# by hand. The port names the libraries of azsupport (their names in azsupport/azsupport/files/deps.conf)
 # with a shared library of each, before it includes this file:
 #
 #   AZSUPPORT_LIBS=	freetype2:libfreetype.so fontconfig:libfontconfig.so png:libpng16.so

@@ -2,7 +2,7 @@
 Description: conncache: an idle HTTP/1.1 connection with input pending is not
  reused (the stray bytes came back as the response to the next request, and
  every later one was shifted), as ftp/curl of this tree has it
- (azsupport/static/files/curl/curl-8.23.0.patch).
+ (azsupport/azsupport/files/curl/curl-8.23.0.patch).
 Origin: upstream https://github.com/curl/curl/commit/ef6b17cf12d4af4dfb2af4f9bc35861772be71c7
  (lib/conncache.c, after 8.23.0; as Gentoo net-misc/curl 8.23.0-r1 carries it).
  Appended to patches/curl.patch by the port.

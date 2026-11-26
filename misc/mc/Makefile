@@ -52,7 +52,7 @@ NO_WRKSUBDIR=	yes
 # the version of the official port the script builds, which has to be this one
 AZSUPPORT_MC_ENV=	AZSUPPORT_MC_VERSION=${DISTVERSION}
 
-.include "${.CURDIR:H:H}/azsupport/static/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
 
 post-fetch:
 	@${SETENV} ${AZSUPPORT_ENV} ${AZSUPPORT_MC_ENV} AZSUPPORT_FILESDIR=${FILESDIR} ${SH} ${AZSUPPORT_TOOLS}/mc-build.sh --fetch

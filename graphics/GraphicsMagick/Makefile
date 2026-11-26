@@ -1,5 +1,5 @@
 # graphics/GraphicsMagick: the GraphicsMagick of azsupport/ports in the place of
-# the official graphics/GraphicsMagick (the design: the head of azsupport/static/Makefile),
+# the official graphics/GraphicsMagick (the design: the head of azsupport/azsupport/Makefile),
 # built as our ImageMagick 7: bin/gm with only the formats of our ImageMagick
 # (files/graphicsmagick.conf: which, and how the coders not registered take the
 # place of a policy, which GraphicsMagick does not have), linking its shared
@@ -27,12 +27,12 @@ WWW=		https://graphicsmagick.sourceforge.io/ \
 
 LICENSE=	MIT
 
-# the static tree (azsupport/static) for the static libraries; for gm and the shared
+# the static tree (azsupport/azsupport) for the static libraries; for gm and the shared
 # libraries, which link them (their NEEDED), the libraries of azsupport, to build and to
 # run (by a file: no ldconfig hints for /usr/local/azsupport/lib)
 AZSUPPORT_GM_LIBS=	freetype2:libfreetype.so lcms2:liblcms2.so libheif:libheif.so \
 		libzip:libzip.so mozjpeg:libjpeg.so png:libpng16.so webp:libwebp.so
-BUILD_DEPENDS=	${AZSUPPORT_STATIC}/lib/libheif.a:azsupport/static \
+BUILD_DEPENDS=	${AZSUPPORT_STATIC}/lib/libheif.a:azsupport/azsupport \
 		${AZSUPPORT_GM_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
 RUN_DEPENDS=	${AZSUPPORT_GM_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
 # the libraries of the static tree in its hash (tools/build.sh) besides libheif: those its
@@ -50,7 +50,7 @@ CONFLICTS_INSTALL=	GraphicsMagick-nox11
 NO_WRKSUBDIR=	yes
 EXTRACT_ONLY=
 
-.include "${.CURDIR:H:H}/azsupport/static/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
 
 AZSUPPORT_GM_ENV=	AZSUPPORT_GM_CONF=${FILESDIR}/graphicsmagick.conf
 

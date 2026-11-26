@@ -56,7 +56,7 @@ CONFLICTS_INSTALL=	ImageMagick6-nox11
 NO_WRKSUBDIR=	yes
 EXTRACT_ONLY=
 
-.include "${.CURDIR:H:H}/azsupport/static/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
 
 AZSUPPORT_IM_ENV=	AZSUPPORT_IM_CONF=${.CURDIR:H}/ImageMagick7/files/imagemagick.conf AZSUPPORT_IM_PART=lib
 # what tools/imagemagick-build.sh reads of the other ports: the conf and the policy

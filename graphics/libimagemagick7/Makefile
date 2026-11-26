@@ -6,7 +6,7 @@
 # bin/MagickWand-config, bin/MagickCore-config there (the link line with the run
 # path), which imagick7 runs; its static libraries, headers and config scripts in
 # /usr/local/azsupport/static, for the static imagick of PHP built on a server
-# (azsupport-menu.sh); etc/ImageMagick-7 (its configuration, with the policy
+# (azsupport-ports.sh); etc/ImageMagick-7 (its configuration, with the policy
 # graphics/ImageMagick7/files/policy.xml, which the libraries read) and
 # share/ImageMagick-7 in /usr/local, the licences and share/doc/ImageMagick7/VERSIONS.
 # tools/imagemagick-build.sh makes the official port of the pinned commit with the
@@ -35,13 +35,13 @@ LICENSE_NAME=	ImageMagick License
 LICENSE_TEXT=	The licence is in share/licenses/ImageMagick7/LICENSE
 LICENSE_PERMS=	dist-mirror dist-sell pkg-mirror pkg-sell auto-accept
 
-# the static tree (azsupport/static) for the static libraries; for libMagickWand-7.so and
+# the static tree (azsupport/azsupport) for the static libraries; for libMagickWand-7.so and
 # the other shared libraries, which link them (their NEEDED), the libraries of azsupport,
 # to build and to run (by a file: no ldconfig hints for /usr/local/azsupport/lib), and
 # fontconfig (x11-fonts/fontconfig)
 AZSUPPORT_IM_LIBS=	freetype2:libfreetype.so lcms2:liblcms2.so libheif:libheif.so \
 		mozjpeg:libjpeg.so png:libpng16.so webp:libwebp.so
-BUILD_DEPENDS=	${AZSUPPORT_STATIC}/lib/libheif.a:azsupport/static \
+BUILD_DEPENDS=	${AZSUPPORT_STATIC}/lib/libheif.a:azsupport/azsupport \
 		${AZSUPPORT_IM_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@} \
 		${LOCALBASE}/lib/libfontconfig.so:x11-fonts/fontconfig
 RUN_DEPENDS=	${AZSUPPORT_IM_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@} \
@@ -62,7 +62,7 @@ CONFLICTS_INSTALL=	ImageMagick7-nox11
 NO_WRKSUBDIR=	yes
 EXTRACT_ONLY=
 
-.include "${.CURDIR:H:H}/azsupport/static/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
 
 AZSUPPORT_IM_ENV=	AZSUPPORT_IM_CONF=${.CURDIR:H}/ImageMagick7/files/imagemagick.conf AZSUPPORT_IM_PART=lib
 # the conf and the policy of graphics/ImageMagick7, which tools/imagemagick-build.sh

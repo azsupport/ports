@@ -1,5 +1,5 @@
 # graphics/ImageMagick6: the programs of the ImageMagick 6 of azsupport/ports in the
-# place of the official graphics/ImageMagick6 (the design: the head of azsupport/static/Makefile):
+# place of the official graphics/ImageMagick6 (the design: the head of azsupport/azsupport/Makefile):
 # bin/convert, identify, mogrify, composite and the others by their usual names (aZ,
 # 14.11.2026: without the 6 at the end, which only graphics/ImageMagick67 gives them,
 # next to ImageMagick 7), with only what the video sites need. Its libraries,
@@ -61,7 +61,7 @@ CONFLICTS_INSTALL=	ImageMagick6-nox11 ImageMagick7 ImageMagick7-nox11 \
 NO_WRKSUBDIR=	yes
 EXTRACT_ONLY=
 
-.include "${.CURDIR:H:H}/azsupport/static/Makefile.common"
+.include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
 
 AZSUPPORT_IM_ENV=	AZSUPPORT_IM_CONF=${.CURDIR:H}/ImageMagick7/files/imagemagick.conf AZSUPPORT_IM_PART=bin
 # the conf (im, take and configure lines of both) and the policy of
