@@ -1,6 +1,7 @@
 #!/bin/sh
-# azsupport-plist.sh - the plist of a port of azsupport/azsupport, ftp/curl, multimedia/ffmpeg,
-# graphics/ImageMagick6, ImageMagick7, GraphicsMagick and misc/mc: every file and link under
+# azsupport-plist.sh - the plist of a port of the category azsupport (the static tree and each
+# library, azsupport/<name>), ftp/curl, multimedia/ffmpeg, graphics/ImageMagick6, ImageMagick7,
+# GraphicsMagick and misc/mc: every file and link under
 # <stagedir><prefix>, as a path relative to <prefix>, sorted, as tools/build-az.sh
 # of https://github.com/azsupport/php-src listed the files of its packages; the
 # policy of ImageMagick (etc/ImageMagick-6/policy.xml, etc/ImageMagick-7/policy.xml)

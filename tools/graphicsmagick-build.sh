@@ -4,9 +4,9 @@
 # in the place of the official one): bin/gm with only the formats of
 # graphics/GraphicsMagick/files/graphicsmagick.conf (see the head of that file
 # for which, why, and how the coders not registered take the place of a policy),
-# linking its shared libraries and those of the package azsupport, /usr/local/azsupport/lib
-# (installed: the port azsupport/azsupport first), with that run path: our ports link each
-# other's shared libraries (aZ, 10.11.2026). Written after
+# linking its shared libraries and those of azsupport, /usr/local/azsupport/lib
+# (installed first: the packages azsupport-<name> of their ports), with that run path: our
+# ports link each other's shared libraries (aZ, 10.11.2026). Written after
 # tools/imagemagick-build.sh (08.11.2026), which builds ImageMagick 7 the same way.
 #
 # Usage (FreeBSD; the port graphics/GraphicsMagick runs it in its post-fetch and
@@ -131,8 +131,10 @@ export PKG_CONFIG="$work/bin/pkg-config"
 export PKG_CONFIG_LIBDIR="$S/lib/pkgconfig:/usr/libdata/pkgconfig"
 unset PKG_CONFIG_PATH
 export PATH="$work/bin:$PATH"
-# the libraries GraphicsMagick builds with, by their .pc names (as in the trees of azsupport)
+# the libraries GraphicsMagick builds with, by their .pc names (as in the trees of azsupport);
+# pc_lib <.pc name>: its library, the port azsupport/<library> of the shared one
 pcs="libjpeg libpng16 libwebp libheif freetype2 lcms2"
+pc_lib() { case "$1" in libjpeg) echo mozjpeg ;; libpng16) echo png ;; libwebp) echo webp ;; *) echo "$1" ;; esac; }
 
 ports_commit="$(awk '$1 == "ports" { print $2 }' "$deps_conf")"
 gm_name="$(awk '$1 == "gm" { print $2; exit }' "$conf")"
@@ -142,7 +144,7 @@ take_of() { awk -v n="$1" '$1 == "take" && $2 == n { print $3, $4, $5, $6 }' "$c
 conf_opts() { awk -v k="$1" '$1 == k { for (i = 2; i <= NF; i++) print $i }' "$conf"; }
 
 # The official tree PORTSDIR has to be at the commit of deps.conf (as in
-# tools/azsupport-build.sh); it is only read here, never changed.
+# azsupport-build.sh); it is only read here, never changed.
 ports_check() {
     [ -f "$ports/Mk/bsd.port.mk" ] || { echo "graphicsmagick-build: no ports tree in $ports (PORTSDIR)" >&2; return 1; }
     h="$(git -C "$ports" rev-parse HEAD 2>/dev/null)"
@@ -171,7 +173,7 @@ fix_guess() {
 }
 
 # pc_add <file.pc> <Libs|Libs.private> <-lname>...: add to that line of a .pc file the
-# libraries it does not name yet (as in tools/azsupport-build.sh)
+# libraries it does not name yet (as in azsupport-build.sh)
 pc_add() {
     pc="$1"; field="$2"; shift 2
     [ -f "$pc" ] || return 0
@@ -279,7 +281,7 @@ b_gm_shared() {
     rm -rf "$sst"
     for pc in $pcs; do
         [ -f "$A/lib/pkgconfig/$pc.pc" ] ||
-            { echo "== shared: no $A/lib/pkgconfig/$pc.pc of the shared libraries (the package azsupport)"; return 1; }
+            { echo "== shared: no $A/lib/pkgconfig/$pc.pc of the shared libraries: install the package azsupport-$(pc_lib "$pc") first"; return 1; }
     done
     echo "== shared libraries and gm: configure, gmake and gmake install-strip in $1"
     (
@@ -464,7 +466,7 @@ build_one() {
         # shellcheck disable=SC2086
         pmake "$port" $targs patch || { echo "make patch failed"; exit 1; }
         # what the configure stage of the framework fixes in the sources before
-        # configure, which make patch does not do (as in tools/azsupport-build.sh): FreeBSD 1x
+        # configure, which make patch does not do (as in azsupport-build.sh): FreeBSD 1x
         # taken for 1.x by old autotools, and the libtool fixes of USES=libtool
         for fx in run-autotools-fixup patch-libtool; do
             # shellcheck disable=SC2086
@@ -592,7 +594,7 @@ manifest() {
     {
         echo "GraphicsMagick for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $CFLAGS"
-        echo "libraries: the shared ones of $A/lib (the package azsupport, with that run path): mozjpeg, libpng, libwebp,"
+        echo "libraries: the shared ones of $A/lib (a package azsupport-<name> each, with that run path): mozjpeg, libpng, libwebp,"
         echo "libheif (libde265, dav1d), FreeType, lcms2; the static libraries against the static ones of $S"
         echo
         while read -r n pkgname port; do

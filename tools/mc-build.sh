@@ -28,8 +28,8 @@
 # AZSUPPORT_WORK/stage/mc) and runs the unit test of upstream for file cloning
 # (tests/lib/vfs/vfs_clone_file.c, with check of devel/check, in a build of its own),
 # with files/ubsdtar in libexec/mc/extfs.d, its VERSIONS in
-# share/doc/mc and its licence in share/licenses/mc. So mc needs the packages azsupport and
-# glib (with pcre2) and libraries of the base system (libutil, libz, libthr, libc;
+# share/doc/mc and its licence in share/licenses/mc. So mc needs the packages azsupport-libssh2,
+# azsupport-slang and glib (with pcre2) and libraries of the base system (libutil, libz, libthr, libc;
 # the termcap of libtinfow through the S-Lang of azsupport, the screen of mc). The work directory is AZSUPPORT_WORK/mc (default
 # /var/tmp/azsupport-work/mc). Results go to AZSUPPORT_RESULTS (default mc-results/ of the current
 # directory: summary.txt, a log per port, bins.txt, version.txt, VERSIONS); the
@@ -49,7 +49,7 @@
 set -u
 # A build as from a shell: the make of the port that runs this script leaves its
 # MAKEFLAGS in the environment, which every gmake here would take as variables of its
-# own command line (as tools/azsupport-build.sh says).
+# own command line (as azsupport-build.sh says).
 unset MAKEFLAGS MFLAGS MAKELEVEL __MKLVL__
 tools="$(cd "$(dirname "$0")" && pwd)"
 files="${AZSUPPORT_FILESDIR:-$tools/../misc/mc/files}"
@@ -116,7 +116,7 @@ pm() {
 conf_opts() { awk '$1 == "configure" { for (i = 2; i <= NF; i++) print $i }' "$conf"; }
 
 # The official tree PORTSDIR has to be at the commit of deps.conf (as in
-# tools/azsupport-build.sh); it is only read here, never changed.
+# azsupport-build.sh); it is only read here, never changed.
 ports_check() {
     [ -f "$ports/Mk/bsd.port.mk" ] || { echo "mc-build: no ports tree in $ports (PORTSDIR)" >&2; return 1; }
     h="$(git -C "$ports" rev-parse HEAD 2>/dev/null)"
@@ -245,8 +245,8 @@ b_mc() {
     # OPTIONS_UNSET of the make.conf of the servers); the help of mc (F1) stays
     rm -rf "$stage$F/share/man"
     install -m 755 "$files/ubsdtar" "$stage$F/libexec/mc/extfs.d/ubsdtar" || return 1
-    # the licence of mc (the shared libraries it links are those of the packages azsupport
-    # and glib, with their licences, and of the base system)
+    # the licence of mc (the shared libraries it links are those of the packages
+    # azsupport-libssh2, azsupport-slang and glib, with their licences, and of the base system)
     lic="$stage$F/share/licenses/mc"
     mkdir -p "$lic" && cp "$1/COPYING" "$lic/mc-COPYING" || return 1
     return 0
@@ -293,13 +293,13 @@ manifest() {
         echo "Midnight Commander for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $cflags"
         echo "GLib: libglib-2.0.so of devel/glib20 ($(pkgconf --modversion /usr/local/libdata/pkgconfig/glib-2.0.pc 2>/dev/null));"
-        echo "libssh2: the shared library of $A/lib (the package azsupport, with that run path), with the"
+        echo "libssh2: the shared library of $A/lib (the package azsupport-libssh2, with that run path), with the"
         echo "OpenSSL of the base system:"
         awk '$1 == "libssh2" { print "    " $0 }' \
-            "$A/share/doc/azsupport/VERSIONS" 2>/dev/null
-        echo "S-Lang, the screen of mc: the shared library of $A/lib (the package azsupport):"
+            "$A/share/doc/azsupport-libssh2/VERSIONS" 2>/dev/null
+        echo "S-Lang, the screen of mc: the shared library of $A/lib (the package azsupport-slang):"
         awk '$1 == "slang" { print "    " $0 }' \
-            "$A/share/doc/azsupport/VERSIONS" 2>/dev/null
+            "$A/share/doc/azsupport-slang/VERSIONS" 2>/dev/null
         echo
         while read -r n pkgname port; do
             printf '%-8s %-24s %s\n' "$n" "$pkgname" "$port"
@@ -423,10 +423,12 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
     echo "mc-build: this CPU ${why:-cannot tell the features of} -march=$cputype" >&2
     exit 1
 fi
-for f in lib/libssh2.so lib/pkgconfig/libssh2.pc include/libssh2.h lib/libslang.so lib/pkgconfig/slang.pc include/slang.h; do
+for e in libssh2:lib/libssh2.so libssh2:lib/pkgconfig/libssh2.pc libssh2:include/libssh2.h \
+    slang:lib/libslang.so slang:lib/pkgconfig/slang.pc slang:include/slang.h; do
+    lib="${e%%:*}"; f="${e#*:}"
     if [ ! -e "$A/$f" ]; then
-        printf '%-8s FAIL  no %s of the shared libraries in %s: install the package azsupport first (azsupport/azsupport)\n' libs "$f" "$A" >> "$res/summary.txt"
-        echo "mc-build: no $A/$f; install the package azsupport first (the port azsupport/azsupport)" >&2
+        printf '%-8s FAIL  no %s of the shared libraries in %s: install the package azsupport-%s first (azsupport/%s)\n' libs "$f" "$A" "$lib" "$lib" >> "$res/summary.txt"
+        echo "mc-build: no $A/$f; install the package azsupport-$lib first (the port azsupport/$lib)" >&2
         exit 1
     fi
 done

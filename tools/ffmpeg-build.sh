@@ -4,7 +4,7 @@
 # /usr/local/bin/ffmpeg, /usr/local/bin/ffprobe) from the official FreeBSD port of
 # multimedia/ffmpeg/files/ffmpeg.conf, with only the formats, codecs and protocols
 # listed there (see the head of that file for why), against the shared libraries of
-# the package azsupport, /usr/local/azsupport/lib (installed). Moved from
+# azsupport, /usr/local/azsupport/lib (installed: the packages azsupport-<name>). Moved from
 # tools/build-ffmpeg.sh of https://github.com/azsupport/php-src (08.11.2026).
 #
 # Usage (FreeBSD; the port multimedia/ffmpeg runs it in its post-fetch and do-build):
@@ -13,7 +13,7 @@
 #                                       into AZSUPPORT_DISTDIR (its make fetch)
 #   sh tools/ffmpeg-build.sh            build FFmpeg
 #
-# As tools/azsupport-build.sh: the ports framework fetches the distfiles of the port at
+# As azsupport-build.sh: the ports framework fetches the distfiles of the port at
 # the ports commit of azsupport/azsupport/files/deps.conf (the official tree PORTSDIR, at that
 # commit), checks them against its distinfo, extracts them and applies the port's
 # patches (make patch), then those of files/ffmpeg/; this script then builds the
@@ -136,7 +136,7 @@ take_of() { awk -v n="$1" '$1 == "take" && $2 == n { print $3, $4, $5, $6 }' "$c
 conf_opts() { awk '$1 == "configure" { for (i = 2; i <= NF; i++) print $i }' "$conf"; }
 
 # The official tree PORTSDIR has to be at the commit of deps.conf (as in
-# tools/azsupport-build.sh); it is only read here, never changed.
+# azsupport-build.sh); it is only read here, never changed.
 ports_check() {
     [ -f "$ports/Mk/bsd.port.mk" ] || { echo "ffmpeg-build: no ports tree in $ports (PORTSDIR)" >&2; return 1; }
     h="$(git -C "$ports" rev-parse HEAD 2>/dev/null)"
@@ -302,7 +302,7 @@ manifest() {
     {
         echo "FFmpeg for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
         echo "freebsd-ports $ports_commit; CFLAGS: $ffcflags"
-        echo "x264, dav1d, SVT-AV1 and libwebp: the shared libraries of $A/lib (the package azsupport, with that run path)"
+        echo "x264, dav1d, SVT-AV1 and libwebp: the shared libraries of $A/lib (a package azsupport-<name> each, with that run path)"
         [ -z "$nonfree" ] || echo "fdk-aac: its static library, built here (the nonfree build, files/ffmpeg-nonfree.conf)"
         echo
         while read -r n pkgname port; do
@@ -338,10 +338,10 @@ manifest() {
             echo "Licence: nonfree and unredistributable (FFmpeg with --enable-gpl and --enable-nonfree:"
             echo "x264 under the GPL and libfdk_aac under the licence of the Fraunhofer FDK AAC library);"
             echo "this package may not be given to anyone. The licences are in share/licenses/ffmpeg/"
-            echo "(fdk-aac-NOTICE; x264, dav1d, SVT-AV1 and webp, shared libraries: LICENSES/ of /usr/local/azsupport, the package azsupport)."
+            echo "(fdk-aac-NOTICE; x264, dav1d, SVT-AV1 and webp, shared libraries: LICENSES/ of /usr/local/azsupport, their packages azsupport-<name>)."
         else
             echo "Licence: GPL version 2 or later (FFmpeg with --enable-gpl, x264); the licences are in"
-            echo "share/licenses/ffmpeg/ (x264, dav1d, SVT-AV1 and webp, shared libraries: LICENSES/ of /usr/local/azsupport, the package azsupport)."
+            echo "share/licenses/ffmpeg/ (x264, dav1d, SVT-AV1 and webp, shared libraries: LICENSES/ of /usr/local/azsupport, their packages azsupport-<name>)."
         fi
         echo "Sources: the distfiles above (their SHA-256), the patches of the port at the commit above,"
         echo "files/ffmpeg/ and tools/ffmpeg-build.sh of https://github.com/azsupport/ports (multimedia/ffmpeg/files/ffmpeg.conf)."
@@ -420,10 +420,11 @@ if [ ! -s "$work/cpu-need" ] || [ -n "$lacks" ]; then
     echo "ffmpeg-build: this CPU ${why:-cannot tell the features of} -march=$cputype" >&2
     exit 1
 fi
-for pc in x264 dav1d SvtAv1Enc libwebp; do
+for e in x264:x264 dav1d:dav1d svtav1:SvtAv1Enc webp:libwebp; do
+    lib="${e%%:*}"; pc="${e#*:}"
     if [ ! -f "$A/lib/pkgconfig/$pc.pc" ]; then
-        printf '%-8s FAIL  no %s of the shared libraries in %s/lib/pkgconfig: install the package azsupport first (azsupport/azsupport)\n' libs "$pc" "$A" >> "$res/summary.txt"
-        echo "ffmpeg-build: no $A/lib/pkgconfig/$pc.pc; install the package azsupport first (the port azsupport/azsupport)" >&2
+        printf '%-8s FAIL  no %s of the shared libraries in %s/lib/pkgconfig: install the package azsupport-%s first (azsupport/%s)\n' libs "$pc" "$A" "$lib" "$lib" >> "$res/summary.txt"
+        echo "ffmpeg-build: no $A/lib/pkgconfig/$pc.pc; install the package azsupport-$lib first (the port azsupport/$lib)" >&2
         exit 1
     fi
 done
