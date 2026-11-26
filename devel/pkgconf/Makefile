@@ -8,4 +8,10 @@
 
 AZSUPPORT_OFFICIAL=	devel/pkgconf
 
+# libpkgconf.so stripped too: the official port strips its programs only, and the debug
+# check of tools/build.sh failed the package (run 45818202408); in the targets of the
+# option DOCS, so that the post-install of the official port stays as it is
+post-install-DOCS-on post-install-DOCS-off:
+	${STRIP_CMD} ${STAGEDIR}${PREFIX}/lib/libpkgconf.so.[0-9]*.[0-9]*.[0-9]*
+
 .include "${.CURDIR:H:H}/Mk/azsupport-official.mk"
