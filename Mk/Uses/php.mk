@@ -20,9 +20,10 @@
 # - The modules of USE_PHP and their origins: Mk/php-modules.mk of the
 #   overlay, <module>_DEPENDS=<origin> and <module>_PRIO=<NN> (the priority of
 #   its ini file, the default of PHP_MOD_PRIO), for every module.
-# - A module links the shared tree of the package azsupport (${AZSUPPORT_PREFIX} of
-#   Mk/bsd.overlay.mk) with its run path (no ldconfig hints) and finds it with
-#   its pkg-config (set in the post part, after USES=pkgconfig set pkgconf).
+# - A module links the shared libraries of azsupport (${AZSUPPORT_PREFIX} of
+#   Mk/bsd.overlay.mk, a port azsupport/<name> each) with their run path (no ldconfig
+#   hints) and finds them with the pkg-config of the package azsupport (set in the post
+#   part, after USES=pkgconfig set pkgconf).
 # - phpize reads config.m4 only: a config0.m4 or config9.m4 (so that php-src
 #   runs it first or last) becomes config.m4 before phpize.
 # - make EXTRA_CFLAGS="-include config.h": every source file of a module sees
@@ -322,8 +323,8 @@ BUILD_DEPENDS+=	${PHPBASE}/bin/phpize${PHP_VER}:${PHP_PORT} \
 		autoconf>0:devel/autoconf
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS+=--with-php-config=${PHPBASE}/bin/php-config${PHP_VER}
-# the shared tree of the package azsupport: its libraries with their run path (no
-# ldconfig hints for ${AZSUPPORT_PREFIX}/lib); its pkg-config below (post part)
+# the shared libraries of azsupport: with their run path (no ldconfig hints for
+# ${AZSUPPORT_PREFIX}/lib); the pkg-config of the package azsupport below (post part)
 LDFLAGS+=	-L${AZSUPPORT_PREFIX}/lib -Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 # every source file of the module sees its config.h first (mysqlnd's do not
 # include it)
@@ -359,10 +360,11 @@ _INCLUDE_USES_PHP_POST_MK=yes
 # <module>_PRIO (the priority of its ini file)
 .include "${.PARSEDIR}/../php-modules.mk"
 
-# the pkg-config of the package azsupport (it runs pkgconf with the .pc files of
-# ${AZSUPPORT_PREFIX} first), here in the post part: USES=pkgconfig adds
+# the pkg-config of the package azsupport (the port azsupport/azsupport: it runs pkgconf with
+# the .pc files of ${AZSUPPORT_PREFIX} first), here in the post part: USES=pkgconfig adds
 # PKG_CONFIG=pkgconf to CONFIGURE_ENV, and the last one is the one configure gets
 .  if ${php_ARGS:Mphpize} || ${php_ARGS:Mext} || ${php_ARGS:Mzend}
+BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/bin/pkg-config:azsupport/azsupport
 CONFIGURE_ENV+=	PKG_CONFIG=${AZSUPPORT_PREFIX}/bin/pkg-config
 .  endif
 
