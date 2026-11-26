@@ -166,17 +166,23 @@ need() {
         tail -n 20 "$W/pkg-$name.log" >&3; die "pkg install $*: $(tail -n 3 "$W/pkg-$name.log" | tr '\n' ' ')"; }
 }
 
-# fetch <file> <sha256> <url>...: into $W/dist, the first URL that gives it, checked
-fetch() {
+# fetch_try <file> <sha256> <url>...: into $W/dist, the first URL that gives it with that
+# SHA-256; false when none does
+fetch_try() {
     f="$W/dist/$1"; sum="$2"; shift 2
     if [ ! -f "$f" ] || [ "$(sha256 -q "$f")" != "$sum" ]; then
+        rm -f "$f"
         for u in "$@"; do
-            curl -fsSL --retry 3 -o "$f.part" "$u" 2>> "$log" && mv -f "$f.part" "$f" && break
+            if curl -fsSL --connect-timeout 20 --retry 2 -o "$f.part" "$u" 2>> "$log"; then
+                if [ "$(sha256 -q "$f.part")" = "$sum" ]; then mv -f "$f.part" "$f"; break; fi
+                echo "$u: SHA-256 $(sha256 -q "$f.part"), not $sum" >> "$log"
+            fi
         done
     fi
-    [ -f "$f" ] || die "cannot download $1 ($*)"
-    [ "$(sha256 -q "$f")" = "$sum" ] || die "$1: SHA-256 $(sha256 -q "$f"), not $sum"
+    [ -f "$f" ]
 }
+# fetch <file> <sha256> <url>...: as fetch_try, the end when none gives it
+fetch() { fetch_try "$@" || die "cannot download $1 with the SHA-256 $2 ($(shift 2; echo "$*"))"; }
 # unpack <file> <dir>: the tarball into <dir> (its top directory stripped)
 unpack() { rm -rf "$2"; mkdir -p "$2" && tar -xf "$W/dist/$1" -C "$2" --strip-components 1 || die "cannot unpack $1"; }
 
@@ -501,16 +507,19 @@ for b in d["benchmarks"]:
 
 # ---------------------------------------------------------------- magick
 g_magick() {
-    fetch ImageMagick-7.1.2-35.tar.xz fce4636c81a3a4670ece47927f7ff924b94f09f8c7a92e6443579899713fd564 \
-        https://download.imagemagick.org/archive/releases/ImageMagick-7.1.2-35.tar.xz \
-        https://ftp.acc.umu.se/mirror/imagemagick.org/ftp/releases/ImageMagick-7.1.2-35.tar.xz \
-        https://mirror.dogado.de/imagemagick/releases/ImageMagick-7.1.2-35.tar.xz \
-        https://imagemagick.org/archive/releases/ImageMagick-7.1.2-35.tar.xz
-    fetch ImageMagick-6.9.13-60.tar.xz 8e25148ca3c0bc66bb5aa78c7e7a272b61d0d4a00f337e82dfbfeda28c845239 \
-        https://download.imagemagick.org/archive/releases/ImageMagick-6.9.13-60.tar.xz \
-        https://ftp.acc.umu.se/mirror/imagemagick.org/ftp/releases/ImageMagick-6.9.13-60.tar.xz \
-        https://mirror.dogado.de/imagemagick/releases/ImageMagick-6.9.13-60.tar.xz \
-        https://imagemagick.org/archive/releases/ImageMagick-6.9.13-60.tar.xz
+    # download.imagemagick.org did not answer the runners (26.11.2026 20:46 and 21:20), the mirrors have
+    # no older releases: then the tarballs of the releases of ImageMagick on GitHub (other bytes than
+    # those of distinfo, the same release; their SHA-256 here, said in the report)
+    fetch_try ImageMagick-7.1.2-35.tar.xz fce4636c81a3a4670ece47927f7ff924b94f09f8c7a92e6443579899713fd564 \
+        https://download.imagemagick.org/archive/releases/ImageMagick-7.1.2-35.tar.xz ||
+        { fetch ImageMagick-7.1.2-35.tar.xz 9554556c8cbf7d347cbd6bedae931ccf323a2bd5e0f08d4834856568ee19f080 \
+            https://github.com/ImageMagick/ImageMagick/releases/download/7.1.2-35/ImageMagick-7.1.2-35.tar.xz
+          echo "ImageMagick 7.1.2-35: the tarball of its release on GitHub (SHA-256 9554556c…), not that of distinfo (fce4636c…): download.imagemagick.org did not answer" >> "$out"; }
+    fetch_try ImageMagick-6.9.13-60.tar.xz 8e25148ca3c0bc66bb5aa78c7e7a272b61d0d4a00f337e82dfbfeda28c845239 \
+        https://download.imagemagick.org/archive/releases/ImageMagick-6.9.13-60.tar.xz ||
+        { fetch ImageMagick-6.9.13-60.tar.xz 2a1367ecd77c73660c1c0e62660ff3c3c89f1ca686595de2d71be4229ad504ba \
+            https://github.com/ImageMagick/ImageMagick6/releases/download/6.9.13-60/ImageMagick-6.9.13-60.tar.xz
+          echo "ImageMagick 6.9.13-60: the tarball of its release on GitHub (SHA-256 2a1367ec…), not that of distinfo (8e25148c…): download.imagemagick.org did not answer" >> "$out"; }
     fetch GraphicsMagick-1.3.49.tar.xz 7efa070dc31116b4315061b39f84bc7181e8b060bf61214ec9af851131af9c81 \
         https://downloads.sourceforge.net/project/graphicsmagick/graphicsmagick/1.3.49/GraphicsMagick-1.3.49.tar.xz
     for v in $variants; do
