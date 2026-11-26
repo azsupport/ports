@@ -12,7 +12,8 @@
 #
 # Postfix 3.11.8 (mail/postfix, its distinfo) with the patches of the port and its options
 # but those of maps (EAI, ICU, LMDB, TLSRPT left out: none of them in the path of a message
-# here): PCRE2 of the packages, TLS of the base system; static. The master and its daemons on
+# here; the hash and btree maps of the Berkeley DB of the libc of the base system, the
+# defaults of postfix): PCRE2 of the packages, TLS of the base system; static. The master and its daemons on
 # the last CPU, the queue on a tmpfs; smtp-source (of the build by clang19) on the others: 20000
 # messages of 2 KB, 20 sessions at once, to the default transport discard: until the queue
 # is empty (smtpd, cleanup, trivial-rewrite, qmgr, discard), timed.
@@ -56,7 +57,7 @@ g_build() {
     # its make takes CC, OPT (the flags), CCARGS and AUXLIBS; no maps of Berkeley DB, NIS, LMDB
     _cc="$CC"
     if (cd "$W/src/postfix-$_v" && gmake -f Makefile.init makefiles CC="$_cc" OPT="$CFLAGS" DEBUG= \
-        CCARGS="-DNO_DB -DNO_NIS -DNO_LMDB -DNO_EAI -DUSE_TLS -DHAS_PCRE=2 -I/usr/local/include -DDEF_CONFIG_DIR=\\\"$W/pf/etc\\\"" \
+        CCARGS="-DNO_NIS -DNO_LMDB -DNO_EAI -DUSE_TLS -DHAS_PCRE=2 -I/usr/local/include -DDEF_CONFIG_DIR=\\\"$W/pf/etc\\\"" \
         AUXLIBS="$LDFLAGS -lssl -lcrypto" AUXLIBS_PCRE="$(pcre2-config --libs8)" shared=no dynamicmaps=no &&
         gmake) >> "$_b" 2>&1 && [ -x "$W/src/postfix-$_v/libexec/master" ]; then
         mkdir -p "$W/postfix-$_v"
@@ -115,7 +116,7 @@ g_bench() {
     mkdir -p "$M/cur" "$M/new" "$M/tmp"
     awk -v d="$M/cur" 'BEGIN { srand(11) } { w[NR] = $1 } END {
         for (i = 1; i <= 20000; i++) {
-            f = sprintf("%s/%d.M%dP1.pb,S=0:2,S", d, 1700000000 + i, i)
+            f = sprintf("%s/%d.M%dP1.pb:2,S", d, 1700000000 + i, i)
             s = ""; for (j = 0; j < 8; j++) s = s " " w[int(rand() * NR) + 1]
             printf "Return-Path: <a%d@example.com>\nFrom: User %d <a%d@example.com>\nTo: <u1@example.com>\nSubject:%s\nDate: Thu, 26 Nov 2026 20:00:00 +0100\nMessage-ID: <%d@example.com>\nMIME-Version: 1.0\nContent-Type: text/plain; charset=utf-8\n\n", i % 500, i, i % 500, s, i > f
             n = 50 + int(rand() * 300)
@@ -168,6 +169,8 @@ EOF
                 else
                     say "dovecot $v: did not start: $(tail -n 3 "$W/dovecot-start.log" "$W/dovecot.log" 2> /dev/null | tr '\n' ' ')"
                 fi
+                grep -E -i 'error|fatal|panic|killed' "$W/dovecot.log" 2> /dev/null | tail -n 5 | while IFS= read -r l; do say "dovecot $v: $l"; done
+                : > "$W/dovecot.log"
                 "$W/dovecot-$v/bin/doveadm" -c "$W/dovecot-$v.conf" stop > /dev/null 2>&1 || pkill -f "$W/dovecot-$v/sbin/dovecot"
                 sleep 2
             fi

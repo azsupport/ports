@@ -23,15 +23,30 @@ g_build() {
         https://codeload.github.com/erlang/otp/tar.gz/OTP-28.5.0.9
     unpack erlang-otp-OTP-28.5.0.9_GH0.tar.gz "$W/src/erlang-$_v"
     _b="$W/b-erlang-$_v.log"
+    _try=1
+    while :; do
     if (cd "$W/src/erlang-$_v" && ./configure --prefix="$W/erlang-$_v" --enable-deterministic-build --disable-pgo \
         --disable-year2038 --enable-kernel-poll --with-ssl=/usr --enable-sharing-preserving --disable-sctp \
         --without-javac --without-odbc --without-wx --without-debugger --without-observer --without-et \
         --without-jinterface --without-megaco &&
         gmake -j"$ncpu" && gmake install) > "$_b" 2>&1 && [ -x "$W/erlang-$_v/bin/erl" ]; then
         bok erlang "$_v" "$(ls "$W/erlang-$_v"/lib/erlang/erts-*/bin/beam.smp | head -n 1)"
-    else
-        bno erlang "$_v" "$_b"
+        break
     fi
+    bno erlang "$_v" "$_b"
+    # an abort of the emulator built (gcc16, 45904431576: "Abort trap" of the beam generating
+    # asn1ct_rtt.erl) as the __chk_fail of _FORTIFY_SOURCE=2 with GCC (lang/python312): once more
+    # with _FORTIFY_SOURCE=1, said in the report
+    if [ "$_try" = 1 ] && grep -q -E 'Abort trap|core dumped' "$_b"; then
+        _try=2
+        export CFLAGS="$(echo "$CFLAGS" | sed 's/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1/')" CXXFLAGS="$(echo "$CXXFLAGS" | sed 's/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1/')"
+        echo "erlang $_v: the build with _FORTIFY_SOURCE=2 aborted (above); measured the build with _FORTIFY_SOURCE=1" >> "$W/fails/$group-notes.md"
+        say "erlang $_v: again with _FORTIFY_SOURCE=1"
+        unpack erlang-otp-OTP-28.5.0.9_GH0.tar.gz "$W/src/erlang-$_v"
+        continue
+    fi
+    break
+    done
     rm -rf "$W/src/erlang-$_v"
 }
 
