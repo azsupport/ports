@@ -4,7 +4,7 @@
 # Makefile: azsupport/<lib>, package azsupport-<lib>, and x11-fonts/fontconfig) has the
 # manifest of its library, AZSUPPORT_PREFIX/share/azsupport/interface/<lib>.txt (written by
 # tools/azsupport-build.sh --lib, that of x11-fonts/fontconfig by the command make below);
-# azsupport/static (package azsupport-static, the static tree) those of its static
+# azsupport/azsupport (package azsupport, the static tree) those of its static
 # libraries, AZSUPPORT_PREFIX/static/share/azsupport/interface/<lib>.txt, and common.txt, the
 # files of no library. A port that builds against a library port takes into its
 # azsupport_hash the interface hash of its library and of those it needs, so that a fix
@@ -16,7 +16,7 @@
 #   sh tools/azsupport-interface.sh extract <package> <dir> [<prefix> [<subdir>]]
 #       the manifests (*.txt) of <prefix>/<subdir> of a package file into <dir> (<prefix>:
 #       default /usr/local/azsupport, AZSUPPORT_PREFIX; <subdir>: default
-#       share/azsupport/interface, static/share/azsupport/interface for azsupport/static);
+#       share/azsupport/interface, static/share/azsupport/interface for azsupport/azsupport);
 #       exit 1 when the package has no manifest of a library there
 #   sh tools/azsupport-interface.sh hashes <dir>
 #       a line a library: <name> <interface hash> <content hash> <closure>, the closure
@@ -71,7 +71,7 @@ has_mans() {
     return 1
 }
 # the manifests of a directory: <name>.txt of the libraries (common.txt with them in that
-# of azsupport/static)
+# of azsupport/azsupport, the static tree)
 mans() {
     [ -d "$1" ] || { echo "azsupport-interface: no directory $1" >&2; exit 1; }
     has_mans "$1" || { echo "azsupport-interface: no manifest of a library in $1" >&2; exit 1; }
