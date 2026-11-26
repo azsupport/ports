@@ -53,6 +53,18 @@
 # jvm.options), so that jvm.options is one file for all; without it the heap is
 # the 31g of jvm.options (aZ, 12.11.2026; the tarball: 1g), below the cutoff of
 # compressed oops near 32 GB: for a server with 64 GB of RAM and more.
+# Three classes of the server built again with our changes (aZ, 27.11.2026 00:39,
+# on the crash of a node by one search request, the review of 12.11.2026): their
+# sources of the tag v6.8.23 of elastic/elasticsearch (files/src, Apache License
+# 2.0, the code outside x-pack) with files/patch-azsupport-src_*, compiled for Java 8
+# (--release 8, as the jar of the tarball) by the javac of the OpenJDK 21 of USES=java
+# against lib/*.jar, and put into lib/elasticsearch-${PORTVERSION}.jar in the place of
+# those of Elastic: Regex.simpleMatch without recursion (a field name of query_string
+# with 5000 escaped \* took it past the end of the stack, the node exited:
+# CVE-2023-31419, CVE-2026-72636), and a query_string or simple_query_string nested
+# too deeply (3000 and 15000 brackets) a request error, 400, where the
+# StackOverflowError of the parser of Lucene ended the node. Our own code: what
+# Elastic did in 7.17, 8.x and 9.x is not under the Apache License 2.0.
 
 PORTNAME=	elasticsearch
 PORTVERSION=	6.8.23
@@ -104,8 +116,11 @@ CPE_VENDOR=	elastic
 CONFLICTS_INSTALL=	elasticsearch elasticsearch[0-9] elasticsearch[0-9][0-9]
 
 NO_ARCH=	yes
-NO_BUILD=	yes
 JAVA_VERSION=	21
+# the sources of files/src built again (do-build), under ${WRKSRC}/azsupport-src
+ES_AZSUPPORT_SRC=	org/elasticsearch/common/regex/Regex.java \
+			org/elasticsearch/index/query/QueryStringQueryBuilder.java \
+			org/elasticsearch/index/query/SimpleQueryStringBuilder.java
 USE_RC_SUBR=	${PORTNAME}
 SHEBANG_FILES=	bin/elasticsearch \
 		bin/elasticsearch-certgen \
@@ -183,6 +198,11 @@ SUB_LIST=	ETCDIR=${ETCDIR} JAVA_HOME=${JAVA_HOME}
 # hour of the build, yymmddhh in UTC), as every package on 17 was built before
 # (the official 6.8.16 too)
 SUB_FILES=	pkg-message
+
+post-extract:
+	# the sources of the classes built again, where files/patch-azsupport-src_* patch them
+	@${MKDIR} ${WRKSRC}/azsupport-src
+	@(cd ${FILESDIR}/src && ${COPYTREE_SHARE} . ${WRKSRC}/azsupport-src)
 
 post-patch:
 	# the license files of the tarball: LICENSE.txt the Elastic License agreement,
@@ -270,6 +290,28 @@ post-patch:
 		! ${GREP} -v '^#' ${WRKSRC}/config/log4j2.properties | ${GREP} -E -q 'TimeBasedTriggeringPolicy|\.gz|%d\{yyyy|IfAccumulatedFileSize' && \
 		${GREP} -q '^rootLogger\.level = info$$' ${WRKSRC}/config/log4j2.properties || \
 		{ ${ECHO_MSG} "config/log4j2.properties: not the rollover of files/log4j2-rollover.properties alone"; ${FALSE}; }
+
+do-build:
+	# the classes of files/src with our changes, for Java 8 as those of the tarball
+	@${RM} -r ${WRKDIR}/azsupport-classes
+	@${MKDIR} ${WRKDIR}/azsupport-classes
+	${JAVAC} --release 8 -Xlint:-options -encoding UTF-8 -cp "${WRKSRC}/lib/*" \
+		-d ${WRKDIR}/azsupport-classes ${ES_AZSUPPORT_SRC:S|^|${WRKSRC}/azsupport-src/|}
+	cd ${WRKDIR}/azsupport-classes && ${JAR} uf ${WRKSRC}/lib/elasticsearch-${PORTVERSION}.jar org
+	# each class built is in the jar as it was built, and of Java 8 (major 52); the
+	# jar has each of the classes of the three sources
+	@cd ${WRKDIR}/azsupport-classes && for c in $$(${FIND} org -name '*.class'); do \
+		unzip -p ${WRKSRC}/lib/elasticsearch-${PORTVERSION}.jar "$$c" | cmp -s - "$$c" && \
+		[ "$$(od -An -j6 -N2 -tx1 "$$c" | ${TR} -d ' \n')" = 0034 ] || \
+		{ ${ECHO_MSG} "lib/elasticsearch-${PORTVERSION}.jar: $$c is not the class built here, or not of Java 8"; exit 1; }; \
+		done
+	@for s in ${ES_AZSUPPORT_SRC}; do \
+		[ -f "${WRKDIR}/azsupport-classes/$${s%.java}.class" ] || \
+		{ ${ECHO_MSG} "no class of $$s"; exit 1; }; \
+		done
+	@${GREP} -q 'azsupport/ports: a loop instead of the recursion' ${WRKSRC}/azsupport-src/org/elasticsearch/common/regex/Regex.java && \
+		[ "$$(${GREP} -c 'catch (StackOverflowError e)' ${WRKSRC}/azsupport-src/org/elasticsearch/index/query/QueryStringQueryBuilder.java ${WRKSRC}/azsupport-src/org/elasticsearch/index/query/SimpleQueryStringBuilder.java | ${SED} 's/.*://' | ${TR} '\n' ' ')" = "1 1 " ] || \
+		{ ${ECHO_MSG} "azsupport-src: not the sources of files/patch-azsupport-src_*"; exit 1; }
 
 do-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/etc/elasticsearch
