@@ -1,6 +1,6 @@
-TIMESTAMP = 1795454044
-SHA256 (manticore/manticoresoftware-manticoresearch-32.1.10_GH0.tar.gz) = 8582350e62c5d2209d9a786b35ef5136a03e6e8ddabb2c3dda2eb634bbb3c868
-SIZE (manticore/manticoresoftware-manticoresearch-32.1.10_GH0.tar.gz) = 18235186
+TIMESTAMP = 1795714725
+SHA256 (manticore/manticoresoftware-manticoresearch-32.1.12_GH0.tar.gz) = fbef4cf2dbf52d32dceeecca7d5c47092d7595e3fae388b6a2dd7014ec7c0d6b
+SIZE (manticore/manticoresoftware-manticoresearch-32.1.12_GH0.tar.gz) = 18246991
 SHA256 (manticore/manticoresoftware-cctz-8ca8e325cb3d8a0b768f7530d0e31a907982c6d4_GH0.tar.gz) = 7f8b4ab66f5478345357b940b537135970bc8368e95eae762427f7ee78af57cf
 SIZE (manticore/manticoresoftware-cctz-8ca8e325cb3d8a0b768f7530d0e31a907982c6d4_GH0.tar.gz) = 220816
 SHA256 (manticore/manticoresoftware-columnar-12f86b4299dcef1495972838b76931bf46e4426f_GH0.tar.gz) = 54c4e48e283280eabbe664627bd6d1cb07306e6a8bf3fe9557dc366f1a9213f0
