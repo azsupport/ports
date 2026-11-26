@@ -67,9 +67,12 @@ jobs:
           envs: 'PB_GROUP PB_ROUNDS'
           # GCC 16 is in the repository latest of the packages; the tools of the builds
           # (Python 3 of the packages runs pyperformance, against our builds of Python)
+          # latest for the repository FreeBSD-ports of the base (/etc/pkg/FreeBSD.conf of 15.1): a
+          # repository "FreeBSD" of its own next to it made pkg upgrade itself again and again
+          # ("New version of pkg detected", run 45856622649: each group killed after 75 minutes)
           prepare: |
             mkdir -p /usr/local/etc/pkg/repos
-            echo 'FreeBSD: { url: "https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
+            echo 'FreeBSD-ports: { url: "https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
             env ASSUME_ALWAYS_YES=yes pkg update -f
             env ASSUME_ALWAYS_YES=yes pkg install -y gcc16 llvm23 gmake cmake-core ninja meson pkgconf curl python3 libffi glib expat perl5 bison
           # the script ends well (vmactions copies results/ back only then); what failed
