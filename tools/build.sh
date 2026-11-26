@@ -95,7 +95,9 @@
 #   and of the hash of each port of this tree it needs to build (so a change of a port
 #   builds again what needs it to build), of one it takes only to run the name of its
 #   package (aZ, 24.11.2026 15:47: "чтобы по каждому чиху все не пересобиралось"), of the
-#   compiler (lang/gcc<N>: USES=azgcc, azsupport/azsupport) the name of its package too, but
+#   compilers (lang/gcc<N>: USES=azgcc, azsupport/azsupport; devel/llvm<N>, a dependency of
+#   every port GCC does not build: Mk/bsd.overlay.mk) the names of their packages too
+#   (a release 23.1.x of llvm23 builds again itself alone), but
 #   of azsupport/azsupport the interface hashes of the libraries of azsupport the
 #   port uses and of those they need (aZ, 12.11.2026: the manifests of the package of
 #   azsupport, tools/azsupport-interface.sh; the content hash of the libraries of AZSUPPORT_STATIC_LIBS), so
@@ -1336,11 +1338,13 @@ hash_port() {
         fi
         h_dk="$(key "$h_d")"
         echo "dep $h_d $(cat "$q/dhash-old/$h_dk" 2>/dev/null || echo none)" >> "$q/dlo-$h_k"
-        # the compiler (lang/gcc<N> of USES=azgcc and azsupport/azsupport) by the name of its
-        # package, also to build: a change of the port of GCC builds again itself only, the
-        # next GCC (its name) the ports that build with it (aZ, 26.11.2026)
+        # the compilers (lang/gcc<N> of USES=azgcc and azsupport/azsupport; devel/llvm<N> of
+        # every other port, Mk/bsd.overlay.mk) by the names of their packages, also to build:
+        # a change of the port of a compiler (a release 23.1.x of LLVM) builds again itself
+        # only, the next GCC or LLVM (its name; the llvm of tools/make.conf.in) the ports that
+        # build with it (aZ, 26.11.2026)
         case "$h_d" in
-            lang/gcc[0-9][0-9])
+            lang/gcc[0-9][0-9]|devel/llvm[0-9][0-9])
                 h_pn="$(sed -n 1p "$q/info/$h_dk" 2> /dev/null)"
                 echo "tool $h_d ${h_pn%-*}" >> "$q/dl-$h_k" ;;
             *)

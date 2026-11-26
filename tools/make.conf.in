@@ -42,7 +42,10 @@ JPEG_PORT= graphics/mozjpeg
 # лучше 8.3, она более обкатаная»); python and ruby (aZ, 20.11.2026: «дефолтный руби
 # добавляй в наш make.conf как и марию и питон»). It builds every port again, so it
 # goes in with the build runners.
-DEFAULT_VERSIONS+= mysql=10.11m perl5=5.42 php=8.3 python=3.12 ruby=3.4 ssl=base
+# llvm: the LLVM of USES=llvm (the JIT of PostgreSQL), of USES=compiler and the compiler
+# of the ports GCC does not build (Mk/bsd.overlay.mk: AZSUPPORT_CLANG), the latest release
+# (aZ, 26.11.2026 16:39)
+DEFAULT_VERSIONS+= llvm=23 mysql=10.11m perl5=5.42 php=8.3 python=3.12 ruby=3.4 ssl=base
 
 BATCH=	yes
 DISABLE_LICENSES= yes

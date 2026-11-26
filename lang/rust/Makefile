@@ -1,6 +1,6 @@
 # lang/rust of azsupport/ports: the official port (Mk/azsupport-official.mk), Rust 1.99.1 for
 # the servers (aZ, 20.11.2026: «наш порт»): the native extensions of gems written in
-# Rust (rb_sys) are built with its cargo there, with the libclang of devel/llvm19 for
+# Rust (rb_sys) are built with its cargo there, with the libclang of devel/llvm23 for
 # bindgen. Options: LTO on (aZ, 20.11.2026: «да»: ThinLTO of rustc and of its LLVM,
 # lto="thin" and thin-lto=true of its config.toml: a faster compiler; the code it
 # builds does not change by it); SOURCES (rust-src) and WASM (wasm32-unknown-unknown)

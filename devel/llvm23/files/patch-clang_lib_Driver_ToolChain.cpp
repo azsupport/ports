@@ -1,6 +1,6 @@
 --- clang/lib/Driver/ToolChain.cpp.orig
 +++ clang/lib/Driver/ToolChain.cpp
-@@ -181,6 +181,10 @@
+@@ -155,6 +155,10 @@
  }
  
  bool ToolChain::defaultToIEEELongDouble() const {

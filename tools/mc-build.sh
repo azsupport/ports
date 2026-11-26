@@ -90,7 +90,9 @@ opt="${AZSUPPORT_CFLAGS:-$(mkconf_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
 cflags="$opt -march=$cputype -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -fno-strict-aliasing"
-export CC=cc CXX=c++
+# the compiler of the port (Mk/bsd.overlay.mk: clang of devel/llvm<N>, AZSUPPORT_TOOLCHAIN_ENV),
+# the cc of the base system without it
+export CC="${AZSUPPORT_CC:-cc}" CXX="${AZSUPPORT_CXX:-c++}"
 # The build sees W (GLib of devel/glib20: glib_dir below) and the shared tree of azsupport,
 # nothing else of /usr/local (the base compiler does not search it; pkg-config only
 # these and the base system)

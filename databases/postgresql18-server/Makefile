@@ -13,7 +13,8 @@
 # their chain (libpq: pg_basebackup, pg_rewind, pg_upgrade, the tools of contrib), so a
 # server without OpenSSL and contrib-openssl conflict: the chain with OpenSSL is the
 # one with pgcrypto (its server listens without TLS unless ssl = on).
-# The options of aZ (16.11.2026): the JIT of LLVM (devel/llvm19 of this tree, its
+# The options of aZ (16.11.2026): the JIT of LLVM (devel/llvm23 of this tree, the llvm
+# of DEFAULT_VERSIONS in tools/make.conf.in since 26.11.2026, devel/llvm19 before; its
 # backend of X86 and clang, with all its optimization), ICU, LZ4 and ZSTD, XML; no PAM,
 # LDAP, GSSAPI, no procedural languages pl* (no ports of them); DTRACE, NLS and the docs
 # off as everywhere (tools/make.conf.in), OPTIMIZED_CFLAGS on (-O3 -funroll-loops, as
