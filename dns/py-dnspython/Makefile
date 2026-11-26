@@ -1,13 +1,15 @@
 # dns/py-dnspython of azsupport/ports: the official port as it is (Mk/azsupport-official.mk),
 # the DNS of py-pyspf, on our lang/python312 (aZ, 19.11.2026).
-# Without the options DNSSEC, DOH, DOQ, IDNA and TRIO (aZ, 26.11.2026 13:09: «Делаем его
-# самодостаточным — лишние зависимости убираем, нужные собираем у нас.»), whose Python
-# packages (py-cryptography; py-h2, py-httpcore2 and py-httpx2; py-aioquic; py-idna;
-# py-trio) the repository does not have: py-pyspf of mail/py-spf-engine asks
-# dns.resolver for its records over UDP and TCP, and dnspython takes each of them only
-# when it is there (the IDNA 2003 codec of Python in the place of py-idna).
+# Its options (26.11.2026; aZ, 13:09: «Делаем его самодостаточным — лишние зависимости
+# убираем, нужные собираем у нас.»; 15:30, on which options add functions to our Python
+# programs): IDNA on (the default: IDNA 2008 for the internationalized domains of the SPF
+# checks of py-pyspf, on py-idna of dns/py-idna, ours anyway for www/py-requests);
+# DNSSEC, DOH, DOQ and TRIO off: py-pyspf of mail/py-spf-engine asks the resolver of the
+# system, which validates DNSSEC itself, over UDP and TCP (dns.resolver), and DNS over
+# HTTPS and QUIC and trio are of no use to it, while they would take py-cryptography,
+# py-aioquic and the stack of httpx (py-h2, py-httpcore2, py-httpx2) and py-trio.
 
 AZSUPPORT_OFFICIAL=	dns/py-dnspython
-OPTIONS_EXCLUDE=	DNSSEC DOH DOQ IDNA TRIO
+OPTIONS_EXCLUDE=	DNSSEC DOH DOQ TRIO
 
 .include "${.CURDIR:H:H}/Mk/azsupport-official.mk"
