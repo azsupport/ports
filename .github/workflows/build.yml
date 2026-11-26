@@ -525,6 +525,16 @@ jobs:
                 echo "docs: OK ($nd packages of the repository: no manual pages, docs or info pages)" >> results/checks.txt
               fi
             fi
+            # every run dependency of a package of the repository a package of it, pkg aside
+            # (aZ, 26.11.2026: tools/repo-deps-check.sh on the catalog the run wrote, the
+            # signed one or that of work/repo-unsigned): a warning for now, which keeps no
+            # publish; its lines in results/repo-deps.txt, its last one in checks.txt
+            if [ -f tools/repo-deps-check.sh ]; then
+              rdir=repo
+              if [ ! -f repo/meta.conf ] && [ -f work/repo-unsigned/meta.conf ]; then rdir=work/repo-unsigned; fi
+              sh tools/repo-deps-check.sh "$rdir" > results/repo-deps.txt 2>&1 || :
+              tail -n 1 results/repo-deps.txt >> results/checks.txt
+            fi
             if [ -n "${AZSUPPORT_PLAN:-}" ]; then
               echo "plan (AZSUPPORT_PLAN): no checks and no tests (results/plan.txt)" >> results/checks.txt
             elif [ -f results/time-limit ]; then

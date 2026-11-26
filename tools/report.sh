@@ -176,6 +176,13 @@ if [ -s "$res/checks.txt" ]; then
             echo "== ${f#"$res"/}: what failed"
             grep '^FAIL' "$f" | head -n 40 | cut -c1-240
         done
+        # the run dependencies that are no packages of the repository (tools/repo-deps-check.sh,
+        # a warning for now: aZ, 26.11.2026)
+        if [ -f "$res/repo-deps.txt" ] && grep -q '^WARN' "$res/repo-deps.txt"; then
+            echo
+            echo "== repo-deps.txt: the run dependencies that are no packages of the repository"
+            grep '^WARN' "$res/repo-deps.txt" | head -n 60 | cut -c1-400
+        fi
     } > "$tmp/php.txt"
     echo "==================== the checks"
     cat "$tmp/php.txt"
@@ -187,7 +194,7 @@ if [ -s "$res/checks.txt" ]; then
         fl="$(printf '%s\n' "$fl" | grep -v -F "test $t: FAIL")"
     done
     if [ -n "$fl" ]; then level=error; rc=1
-    elif grep -q ': FAIL' "$res/checks.txt"; then level=warning
+    elif grep -q -e ': FAIL' -e '^repo-deps: WARN' "$res/checks.txt"; then level=warning
     else level=notice; fi
     annot "$level" "$title: the checks of PHP and the tests of the programs" "$tmp/php.txt"
     {
