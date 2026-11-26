@@ -1,20 +1,31 @@
+# SPDX-License-Identifier: BSD-2-Clause
 # prog-bench: the speed of programs of this tree built by the base clang (clang19), by
 # clang 23 (clang23, of the package llvm23; the compiler of our ports since 26.11.2026) and by
-# GCC 16 of the packages (gcc16), from the same sources with the flags of our builds
-# (tools/prog-bench.sh: the groups, the versions, the benchmarks), a job per group in a
-# FreeBSD VM. The report of each job goes into the branch runs of azsupport/azsupport
-# (tools/runs-report.sh: ports-prog-bench/<date>/<run>-<group>.md) and into the
-# summary of the run. Started by hand (aZ, 17.11.2026: which programs besides PHP are
-# faster with GCC): Actions, "prog-bench", "Run workflow", or gh api.
+# our GCC 16 (gcc16, the package of lang/gcc16 in the repository azsupport), from the same
+# sources with the flags of our builds (tools/prog-bench.sh: the groups, the versions, the
+# benchmarks), a job per group in a FreeBSD VM. The report of each job goes into the branch
+# runs of azsupport/azsupport (tools/runs-report.sh: ports-prog-bench/<date>/<run>-<group>.md)
+# and into the summary of the run. Started by hand (aZ, 17.11.2026: which programs besides PHP
+# are faster with GCC; 26.11.2026 20:49: every program of the tree, our gcc16 16.2.0, clang 19
+# and clang 23): Actions, "prog-bench", "Run workflow", or gh api.
+#
+# groups: a group per VM; a+b+c: those groups one after another in one VM (each with its
+# own report). split: groups whose builds take a VM each (jobs build: a group and a
+# variant, tools/prog-bench.sh <group> build <variant>, the builds as an artifact), then
+# measured in one VM (jobs measure), as one VM must measure all three.
 name: prog-bench
 
 on:
   workflow_dispatch:
     inputs:
       groups:
-        description: 'Groups (compress redis postgresql python magick vips), separated by spaces'
-        required: true
-        default: 'compress redis postgresql python magick vips'
+        description: 'Groups (compress redis postgresql python magick vips, and tools/prog-bench/*.sh), separated by spaces; a+b: one VM'
+        required: false
+        default: 'compress+redis+vips postgresql+magick python'
+      split:
+        description: 'Groups built in a VM per variant and measured in one (node24 node18 mariadb …)'
+        required: false
+        default: ''
       rounds:
         description: 'Rounds of each benchmark (their median)'
         required: true
@@ -32,16 +43,25 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       list: ${{ steps.list.outputs.json }}
+      builds: ${{ steps.list.outputs.builds }}
+      split: ${{ steps.list.outputs.split }}
     steps:
       - id: list
         env:
           PB_GROUPS: ${{ inputs.groups }}
+          PB_SPLIT: ${{ inputs.split }}
         run: |
           # shellcheck disable=SC2086
-          printf 'json=%s\n' "$(printf '%s\n' $PB_GROUPS | jq -R . | jq -sc .)" >> "$GITHUB_OUTPUT"
+          {
+            printf 'json=%s\n' "$(printf '%s\n' $PB_GROUPS | jq -R . | jq -sc 'map(select(length > 0))')"
+            printf 'split=%s\n' "$(printf '%s\n' $PB_SPLIT | jq -R . | jq -sc 'map(select(length > 0))')"
+            printf 'builds=%s\n' "$(for g in $PB_SPLIT; do for v in clang19 clang23 gcc16; do printf '{"group":"%s","variant":"%s"}\n' "$g" "$v"; done; done | jq -sc .)"
+          } >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
 
   bench:
     needs: groups
+    if: needs.groups.outputs.list != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
@@ -65,18 +85,156 @@ jobs:
           release: ${{ inputs.release }}
           mem: 12288
           envs: 'PB_GROUP PB_ROUNDS'
-          # GCC 16 is in the repository latest of the packages; the tools of the builds
-          # (Python 3 of the packages runs pyperformance, against our builds of Python)
-          # latest for the repository FreeBSD-ports of the base (/etc/pkg/FreeBSD.conf of 15.1): a
-          # repository "FreeBSD" of its own next to it made pkg upgrade itself again and again
-          # ("New version of pkg detected", run 45856622649: each group killed after 75 minutes)
+          # The tools of the builds (Python 3 of the packages runs pyperformance, against our
+          # builds of Python) and clang 23 from the repository latest of the packages (latest
+          # for the repository FreeBSD-ports of the base, /etc/pkg/FreeBSD.conf of 15.1: a
+          # repository "FreeBSD" of its own next to it made pkg upgrade itself again and again,
+          # run 45856622649); our gcc16 from the repository azsupport (README.md: a server and
+          # the repository azsupport), off for everything else (-r azsupport for gcc16 alone:
+          # the tools and the libraries of the benchmarks are those of FreeBSD), its binutils
+          # from FreeBSD-ports before it
           prepare: |
-            mkdir -p /usr/local/etc/pkg/repos
+            mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
             echo 'FreeBSD-ports: { url: "https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
             env ASSUME_ALWAYS_YES=yes pkg update -f
-            env ASSUME_ALWAYS_YES=yes pkg install -y gcc16 llvm23 gmake cmake-core ninja meson pkgconf curl python3 libffi glib expat perl5 bison
+            env ASSUME_ALWAYS_YES=yes pkg install -y llvm23 binutils gmake cmake-core ninja meson pkgconf curl python3 libffi glib expat perl5 bison
+            fetch -o /usr/local/etc/pkg/keys/azsupport.pub https://raw.githubusercontent.com/azsupport/ports/main/keys/azsupport.pub
+            [ "$(sha256 -q /usr/local/etc/pkg/keys/azsupport.pub)" = 2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6 ]
+            echo 'azsupport: { url: "https://github.com/azsupport/ports/releases/download/azsupport-fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/azsupport.pub", enabled: no }' > /usr/local/etc/pkg/repos/azsupport.conf
+            env ASSUME_ALWAYS_YES=yes pkg update -r azsupport
+            env ASSUME_ALWAYS_YES=yes pkg install -y -r azsupport gcc16
+            gcc16 --version | head -n 1 | grep ' 16\.2\.0'
           # the script ends well (vmactions copies results/ back only then); what failed
           # is in its report
+          run: |
+            for g in $(echo "$PB_GROUP" | tr '+' ' '); do sh tools/prog-bench.sh "$g" "$PB_ROUNDS" || echo "prog-bench $g: exit $?"; done
+
+      - name: Report
+        if: always()
+        env:
+          PB_GROUP: ${{ matrix.group }}
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: groups=${{ inputs.groups }} split=${{ inputs.split }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
+          RUNS_STEPS: bench=${{ steps.bench.outcome }}
+        run: |
+          for g in $(echo "$PB_GROUP" | tr '+' ' '); do
+            f="results/prog-bench/$g.md"
+            mkdir -p results/prog-bench
+            [ -s "$f" ] || echo "no report of the group $g (the step of the VM: ${{ steps.bench.outcome }})" > "$f"
+            if [ -s "results/prog-bench/$g.log" ]; then
+              { echo; echo "## The log of the job"; echo; echo '```'; tail -n 200 "results/prog-bench/$g.log"; echo '```'; } >> "$f"
+            fi
+            cat "$f" >> "$GITHUB_STEP_SUMMARY"
+            sh tools/runs-report.sh "$f" "$g"
+          done
+
+  build:
+    needs: groups
+    if: needs.groups.outputs.builds != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.groups.outputs.builds) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Free space on the runner
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+
+      - name: The builds of ${{ matrix.group }} by ${{ matrix.variant }} in FreeBSD ${{ inputs.release }}
+        id: build
+        uses: vmactions/freebsd-vm@v1
+        env:
+          PB_GROUP: ${{ matrix.group }}
+          PB_VARIANT: ${{ matrix.variant }}
+        with:
+          release: ${{ inputs.release }}
+          mem: 12288
+          envs: 'PB_GROUP PB_VARIANT'
+          # as the job bench
+          prepare: |
+            mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
+            echo 'FreeBSD-ports: { url: "https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
+            env ASSUME_ALWAYS_YES=yes pkg update -f
+            env ASSUME_ALWAYS_YES=yes pkg install -y llvm23 binutils gmake cmake-core ninja meson pkgconf curl python3 libffi glib expat perl5 bison
+            fetch -o /usr/local/etc/pkg/keys/azsupport.pub https://raw.githubusercontent.com/azsupport/ports/main/keys/azsupport.pub
+            [ "$(sha256 -q /usr/local/etc/pkg/keys/azsupport.pub)" = 2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6 ]
+            echo 'azsupport: { url: "https://github.com/azsupport/ports/releases/download/azsupport-fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/azsupport.pub", enabled: no }' > /usr/local/etc/pkg/repos/azsupport.conf
+            env ASSUME_ALWAYS_YES=yes pkg update -r azsupport
+            env ASSUME_ALWAYS_YES=yes pkg install -y -r azsupport gcc16
+            gcc16 --version | head -n 1 | grep ' 16\.2\.0'
+          run: |
+            sh tools/prog-bench.sh "$PB_GROUP" build "$PB_VARIANT" || echo "prog-bench: exit $?"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pb-${{ matrix.group }}-${{ matrix.variant }}
+          path: results/prebuilt/${{ matrix.group }}-${{ matrix.variant }}.tar
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Report
+        if: always()
+        env:
+          PB_PART: ${{ matrix.group }}-build-${{ matrix.variant }}
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: groups=${{ inputs.groups }} split=${{ inputs.split }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
+          RUNS_STEPS: build=${{ steps.build.outcome }}
+        run: |
+          f="results/prog-bench/$PB_PART.md"
+          mkdir -p results/prog-bench
+          [ -s "$f" ] || echo "no report of $PB_PART (the step of the VM: ${{ steps.build.outcome }})" > "$f"
+          if [ -s "results/prog-bench/$PB_PART.log" ]; then
+            { echo; echo "## The log of the job"; echo; echo '```'; tail -n 200 "results/prog-bench/$PB_PART.log"; echo '```'; } >> "$f"
+          fi
+          cat "$f" >> "$GITHUB_STEP_SUMMARY"
+          sh tools/runs-report.sh "$f" "$PB_PART"
+
+  measure:
+    needs: [groups, build]
+    if: always() && needs.groups.outputs.split != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(needs.groups.outputs.split) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Free space on the runner
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pb-${{ matrix.group }}-*
+          merge-multiple: true
+          path: results/prebuilt
+
+      - name: The benchmarks of ${{ matrix.group }} in FreeBSD ${{ inputs.release }}
+        id: bench
+        uses: vmactions/freebsd-vm@v1
+        env:
+          PB_GROUP: ${{ matrix.group }}
+          PB_ROUNDS: ${{ inputs.rounds }}
+        with:
+          release: ${{ inputs.release }}
+          mem: 12288
+          envs: 'PB_GROUP PB_ROUNDS'
+          prepare: |
+            mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
+            echo 'FreeBSD-ports: { url: "https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
+            env ASSUME_ALWAYS_YES=yes pkg update -f
+            env ASSUME_ALWAYS_YES=yes pkg install -y llvm23 binutils gmake cmake-core ninja meson pkgconf curl python3 libffi glib expat perl5 bison
+            fetch -o /usr/local/etc/pkg/keys/azsupport.pub https://raw.githubusercontent.com/azsupport/ports/main/keys/azsupport.pub
+            [ "$(sha256 -q /usr/local/etc/pkg/keys/azsupport.pub)" = 2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6 ]
+            echo 'azsupport: { url: "https://github.com/azsupport/ports/releases/download/azsupport-fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/azsupport.pub", enabled: no }' > /usr/local/etc/pkg/repos/azsupport.conf
+            env ASSUME_ALWAYS_YES=yes pkg update -r azsupport
+            env ASSUME_ALWAYS_YES=yes pkg install -y -r azsupport gcc16
+            gcc16 --version | head -n 1 | grep ' 16\.2\.0'
           run: |
             sh tools/prog-bench.sh "$PB_GROUP" "$PB_ROUNDS" || echo "prog-bench: exit $?"
 
@@ -85,7 +243,7 @@ jobs:
         env:
           PB_GROUP: ${{ matrix.group }}
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: groups=${{ inputs.groups }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
+          RUNS_INPUTS: groups=${{ inputs.groups }} split=${{ inputs.split }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
           RUNS_STEPS: bench=${{ steps.bench.outcome }}
         run: |
           f="results/prog-bench/$PB_GROUP.md"
