@@ -14,9 +14,10 @@
 # checksum in assembler, the rolling checksum in SIMD (C++), the included popt, no iconv and
 # IDN; xxHash, zstd and lz4 of the packages (ours: of azsupport), the OpenSSL and zlib of the
 # base system. Local copies on a tmpfs, sender and receiver on the last CPU: a tree of
-# /usr/include, /usr/share/man, /usr/bin and /usr/sbin copied into an empty directory, the
-# same again (nothing to do, 5 times), -c (the checksum of every file of the same tree), the
-# delta of a file of 512 MB with 100 blocks of 4 KB changed (--no-whole-file).
+# /usr/include, /usr/share, /usr/bin, /usr/sbin, /usr/libexec and /usr/lib copied into an empty
+# directory, the same again (nothing to do, 5 times), -c (the checksum of every file of the
+# same tree), the delta of a file of 1 GB with 200 blocks of 4 KB changed (--no-whole-file,
+# 3 times; the copy of the old file in each, cp of the base system).
 
 g_progs="git rsync"
 
@@ -70,10 +71,10 @@ g_bench() {
         echo "git: no clone of nginx/nginx (GitHub): $(tail -n 2 "$W/git-clone.log" | tr '\n' ' ')" >> "$W/fails/$group-notes.md"
     fi
     mkdir -p "$T/r"
-    tar -cf - -C / usr/include usr/share/man usr/bin usr/sbin 2> /dev/null | tar -xf - -C "$T/r"
-    head -c 536870912 /dev/random > "$T/big"
+    tar -cf - -C / usr/include usr/share usr/bin usr/sbin usr/libexec usr/lib 2> /dev/null | tar -xf - -C "$T/r"
+    head -c 1073741824 /dev/random > "$T/big"
     cp "$T/big" "$T/big.mod"
-    i=1; while [ "$i" -le 100 ]; do
+    i=1; while [ "$i" -le 200 ]; do
         head -c 4096 /dev/random | dd of="$T/big.mod" bs=4096 seek=$((i * 1300)) conv=notrunc 2> /dev/null; i=$((i + 1)); done
     say "rsync: the tree: $(find "$T/r" -type f | wc -l | tr -d ' ') files, $(du -sm "$T/r" | cut -f 1) MB"
     for r in $(seq 1 "$rounds"); do
@@ -89,7 +90,7 @@ g_bench() {
                 timed "$v" git "log -p of the history" cpuset -l "$last" "$g" -C "$T/g/wt" log -p --no-color
                 timed "$v" git "blame src/http/ngx_http_request.c" cpuset -l "$last" "$g" -C "$T/g/wt" blame src/http/ngx_http_request.c
                 timed5 "$v" git "grep -E of the work tree (one thread)" cpuset -l "$last" "$g" -C "$T/g/wt" -c grep.threads=1 grep -E -c 'ngx_[a-z_]+_(init|create)[a-z_]*\('
-                timed "$v" git "status, 20 times" sh -c 'for i in $(seq 1 20); do cpuset -l "$1" "$2" -C "$3" status --porcelain || exit 1; done' sh "$last" "$g" "$T/g/wt"
+                timed "$v" git "status, 200 times" sh -c 'for i in $(seq 1 200); do cpuset -l "$1" "$2" -C "$3" status --porcelain || exit 1; done' sh "$last" "$g" "$T/g/wt"
             fi
             if have rsync "$v"; then
                 x="$W/rsync-$v/bin/rsync"
@@ -97,8 +98,9 @@ g_bench() {
                 timed "$v" rsync "a tree into an empty directory" cpuset -l "$last" "$x" -a "$T/r/" "$T/d/"
                 timed5 "$v" rsync "the same tree again: nothing to do" cpuset -l "$last" "$x" -a "$T/r/" "$T/d/"
                 timed "$v" rsync "-c: the checksums of the same tree" cpuset -l "$last" "$x" -ac "$T/r/" "$T/d/"
-                cp "$T/big" "$T/d/big"
-                timed "$v" rsync "delta of 512 MB, 100 blocks of 4 KB changed (--no-whole-file)" cpuset -l "$last" "$x" --no-whole-file -I "$T/big.mod" "$T/d/big"
+                timed "$v" rsync "delta of 1 GB, 200 blocks of 4 KB changed (--no-whole-file), 3 times" sh -c '
+                    for i in 1 2 3; do cp "$1/big" "$1/d/big" && cpuset -l "$2" "$3" --no-whole-file -I "$1/big.mod" "$1/d/big" || exit 1; done' \
+                    sh "$T" "$last" "$x"
                 cmp -s "$T/big.mod" "$T/d/big" || say "rsync $v: the delta is not the file"
                 rm -f "$T/d/big"
             fi
