@@ -84,7 +84,8 @@ g_build() {
         AUXLIBS="$LDFLAGS -lssl -lcrypto" AUXLIBS_PCRE="$(pcre2-config --libs8)" shared=no dynamicmaps=no &&
         gmake) >> "$_b" 2>&1 && [ -x "$W/src/postfix-$_v/libexec/master" ]; then
         mkdir -p "$W/postfix-$_v"
-        cp -R "$W/src/postfix-$_v/bin" "$W/src/postfix-$_v/libexec" "$W/src/postfix-$_v/conf" "$W/src/postfix-$_v/man" "$W/postfix-$_v/"
+        cp -R "$W/src/postfix-$_v/bin" "$W/src/postfix-$_v/libexec" "$W/src/postfix-$_v/conf" "$W/src/postfix-$_v/man" \
+            "$W/src/postfix-$_v/meta" "$W/postfix-$_v/"
         [ -x "$W/postfix-$_v/bin/smtp-source" ] || cp "$W/src/postfix-$_v/src/smtpstone/smtp-source" "$W/postfix-$_v/bin/"
         cp "$W/src/postfix-$_v/postfix-install" "$W/postfix-$_v/"
         bok postfix "$_v" "$W/postfix-$_v/libexec/smtpd"
