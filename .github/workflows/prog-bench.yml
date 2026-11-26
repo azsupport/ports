@@ -26,6 +26,10 @@ on:
         description: 'Groups built in a VM per variant and measured in one (node24 node18 mariadb …)'
         required: false
         default: ''
+      from_run:
+        description: 'The split groups measured with the builds of this earlier run (its artifacts pb-<group>-<variant>), not built again'
+        required: false
+        default: ''
       rounds:
         description: 'Rounds of each benchmark (their median)'
         required: true
@@ -37,6 +41,8 @@ on:
 
 permissions:
   contents: read
+  # the artifacts of the builds of an earlier run (from_run)
+  actions: read
 
 jobs:
   groups:
@@ -50,12 +56,15 @@ jobs:
         env:
           PB_GROUPS: ${{ inputs.groups }}
           PB_SPLIT: ${{ inputs.split }}
+          PB_FROM: ${{ inputs.from_run }}
         run: |
           # shellcheck disable=SC2086
           {
             printf 'json=%s\n' "$(printf '%s\n' $PB_GROUPS | jq -R . | jq -sc 'map(select(length > 0 and . != "none"))')"
             printf 'split=%s\n' "$(printf '%s\n' $PB_SPLIT | jq -R . | jq -sc 'map(select(length > 0))')"
-            printf 'builds=%s\n' "$(for g in $PB_SPLIT; do for v in clang19 clang23 gcc16; do printf '{"group":"%s","variant":"%s"}\n' "$g" "$v"; done; done | jq -sc .)"
+            if [ -n "$PB_FROM" ]; then echo 'builds=[]'; else
+              printf 'builds=%s\n' "$(for g in $PB_SPLIT; do for v in clang19 clang23 gcc16; do printf '{"group":"%s","variant":"%s"}\n' "$g" "$v"; done; done | jq -sc .)"
+            fi
           } >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
 
@@ -214,6 +223,8 @@ jobs:
           pattern: pb-${{ matrix.group }}-*
           merge-multiple: true
           path: results/prebuilt
+          run-id: ${{ inputs.from_run || github.run_id }}
+          github-token: ${{ github.token }}
 
       - name: The benchmarks of ${{ matrix.group }} in FreeBSD ${{ inputs.release }}
         id: bench
