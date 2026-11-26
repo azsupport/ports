@@ -99,7 +99,7 @@
 #   and of the hash of each port of this tree it needs to build (so a change of a port
 #   builds again what needs it to build), of one it takes only to run the name of its
 #   package (aZ, 24.11.2026 15:47: "чтобы по каждому чиху все не пересобиралось":
-#   azsupport/service, the trigger of the services, which every library port needs to
+#   azsupport/services, the trigger of the services, which every library port needs to
 #   run), but of a library port of azsupport (AZSUPPORT_LIB of
 #   its Makefile: azsupport/<lib>, package azsupport-<lib>, and x11-fonts/fontconfig) the
 #   interface hashes of its library and of those it needs, and of azsupport/azsupport (the
@@ -1099,7 +1099,7 @@ ch_deps() {
 # ports of this tree it needs that no group before it has) built after the one before
 # it; without ports the order of aZ (11.11.2026: "Первым делом ... azsupport, на php 5.6, 7.4,
 # 8.1, 8.3, 8.2, 8.4 - в таком порядке"): azsupport (the ports azsupport/*: azsupport/azsupport,
-# the static tree, the library ports azsupport/<lib>, azsupport/pkg-config, azsupport/service;
+# the static tree, the library ports azsupport/<lib>, azsupport/pkg-config, azsupport/services;
 # and x11-fonts/fontconfig, the library port of fontconfig), then each PHP version (its core,
 # mod_php and modules), then the other ports. $q/groups: "<group> <origin>"
 : > "$q/groups"
@@ -1243,7 +1243,7 @@ while read -r l; do say "$l"; done < "$res/stages.txt"
 # library (the same headers, .pc files, SONAMEs, version and options) builds again its port
 # alone; a new version, a changed header or .pc, a new SONAME or a changed option builds
 # again the ports that use that library. A library port a port needs only to run counts by
-# the name of its package, as any other (and azsupport/service, the trigger of the services,
+# the name of its package, as any other (and azsupport/services, the trigger of the services,
 # which every library port needs to run; azsupport/pkg-config, the pkg-config of the shared
 # tree, is a port as any other for the ports that build with it: PHP, wget).
 # azsupport/azsupport (package azsupport: the static tree, the archives, headers and .pc
