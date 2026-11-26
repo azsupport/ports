@@ -787,7 +787,7 @@ IGBINARY_USE=			php=igbinary:build
 .endif
 
 .if ${PHP_MODNAME} == "ssh2"
-# security/pecl-ssh2 (1.3.1 at the ports commit of azsupport/static) with the libssh2
+# security/pecl-ssh2 (1.3.1 at the ports commit of azsupport/azsupport) with the libssh2
 # of azsupport (aZ, 10.11.2026) instead of security/libssh2; ext/ssh2 of the
 # tarball is 0.13, the last release for PHP 5 (php-src freebsd/pecl.conf).
 # Not the post-patch of the port, which makes $SSH2_DIR/lib of config.m4

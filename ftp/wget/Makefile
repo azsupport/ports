@@ -24,8 +24,7 @@ LICENSE=	GPLv3+
 LICENSE_FILE=	${WRKSRC}/COPYING
 
 BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/libidn2 \
-		${AZSUPPORT_PREFIX}/lib/libpsl.so:azsupport/libpsl \
-		${AZSUPPORT_PREFIX}/bin/pkg-config:azsupport/azsupport
+		${AZSUPPORT_PREFIX}/lib/libpsl.so:azsupport/libpsl
 RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/libidn2 \
 		${AZSUPPORT_PREFIX}/lib/libpsl.so:azsupport/libpsl
 LIB_DEPENDS=	libpcre2-8.so:devel/pcre2
@@ -36,8 +35,8 @@ USE_CSTD=	c99
 
 GNU_CONFIGURE=	yes
 GNU_CONFIGURE_MANPREFIX=	${PREFIX}/share
-# pkg-config of the package azsupport (azsupport/azsupport: the .pc files of the shared tree
-# and those of the base system: zlib, OpenSSL; nothing of /usr/local); libidn2 and libpsl of
+# the pkg-config of the shared libraries of azsupport (Mk/azsupport-pkg-config.mk: their .pc
+# files and those of the base system: zlib, OpenSSL; nothing of /usr/local); libidn2 and libpsl of
 # azsupport by hand: idn2.h and libpsl.h alone in a directory of the work (pre-configure: the
 # include directory of azsupport has GNU iconv.h, which would take wget's iconv from the
 # libiconv of azsupport), -lidn2 and -lpsl from the -L of azsupport, which has no other library
@@ -58,7 +57,7 @@ CONFIGURE_ARGS=	--with-ssl=openssl \
 		--disable-opie \
 		--without-metalink \
 		--without-libuuid
-CONFIGURE_ENV=	PKG_CONFIG="${AZSUPPORT_PREFIX}/bin/pkg-config" \
+CONFIGURE_ENV=	PKG_CONFIG="${AZSUPPORT_PKG_CONFIG}" \
 		LIBIDN2_CFLAGS="-I${WRKDIR}/azsupport" \
 		LIBIDN2_LIBS="-L${AZSUPPORT_PREFIX}/lib -lidn2" \
 		LIBPSL_CFLAGS="-I${WRKDIR}/azsupport" \
@@ -70,6 +69,8 @@ LDFLAGS+=	-Wl,-rpath,${AZSUPPORT_PREFIX}/lib
 
 PLIST_FILES=	bin/wget \
 		"@sample etc/wgetrc.sample"
+
+.include "${.CURDIR:H:H}/Mk/azsupport-pkg-config.mk"
 
 pre-configure:
 	@${MKDIR} ${WRKDIR}/pcre2 ${WRKDIR}/azsupport

@@ -249,11 +249,11 @@ PLIST_SUB+=	SAPI_INC="@comment "
 CONFIGURE_ENV+=	ac_cv_decimal_fp_supported="no" \
 		lt_cv_path_SED="sed"
 
-# the pkg-config of the package azsupport (azsupport/azsupport: it runs pkgconf of
-# USES=pkgconfig with the .pc files of ${AZSUPPORT_PREFIX} first): after USES=pkgconfig added
-# PKG_CONFIG=pkgconf to CONFIGURE_ENV, so that this one, the last, is the one configure gets
-BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/bin/pkg-config:azsupport/azsupport
-CONFIGURE_ENV+=	PKG_CONFIG=${AZSUPPORT_PREFIX}/bin/pkg-config
+# the pkg-config of the shared libraries of azsupport (Mk/azsupport-pkg-config.mk: pkgconf with
+# the .pc files of ${AZSUPPORT_PREFIX}): after USES=pkgconfig added PKG_CONFIG=pkgconf to
+# CONFIGURE_ENV, so that this one, the last, is the one configure gets
+.include "${.CURDIR:H:H}/Mk/azsupport-pkg-config.mk"
+CONFIGURE_ENV+=	PKG_CONFIG=${AZSUPPORT_PKG_CONFIG}
 
 post-patch:
 	@${TOUCH} ${WRKSRC}/ext/php_config.h
