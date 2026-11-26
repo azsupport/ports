@@ -47,9 +47,9 @@
 # the official port those of amd64 (files/); those of aarch64, arm and powerpc, of
 # Fortran, libgccjit and the sanitizers left out.
 # The ports of this tree that build with GCC (Mk/Uses/azgcc.mk: PHP, Redis, Python;
-# azsupport/azsupport) build with this one (aZ, 18.11.2026: «а) ... да, давай так»; the
-# official package of lang/gcc16, AZSUPPORT_TOOLS_OFFICIAL of tools/build.sh, until
-# 26.11.2026).
+# azsupport/azsupport) take the official package of lang/gcc16 until they move to this one with the
+# next full build (aZ, 18.11.2026: «а) ... да, давай так»): AZSUPPORT_TOOLS_OFFICIAL of
+# tools/build.sh.
 
 PORTNAME=	gcc
 PORTVERSION=	16.2.0
