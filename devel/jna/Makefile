@@ -65,8 +65,8 @@ EXTRA_PATCHES=	${_AZ_OFFICIAL_PATCHES:S|^|${AZSUPPORT_OFFICIAL_PORT}/files/|}
 
 # the libffi of azsupport, to build and to run (by a file: no ldconfig hints for
 # /usr/local/azsupport/lib)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/libffi
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/libffi
 
 USES=		gmake java:ant pkgconfig
 USE_GITHUB=	yes
@@ -121,8 +121,8 @@ do-install-DOCS-on:
 post-install:
 	@v="$$(${TAR} -xOf ${STAGEDIR}${JAVAJARDIR}/jna.jar com/sun/jna/Native.class | od -An -j 7 -N 1 -t u1 | ${TR} -d ' ')"; \
 	[ "$$v" = 52 ] || { ${ECHO_MSG} "jna.jar: com/sun/jna/Native.class is of class file version $${v:-none}, not 52 (Java 8)"; exit 1; }
-	@[ -z "${LIB_DEPENDS}${RUN_DEPENDS:N*\:azsupport/azsupport}" ] || \
-		{ ${ECHO_MSG} "the package needs more than azsupport: ${LIB_DEPENDS} ${RUN_DEPENDS:N*\:azsupport/azsupport}"; ${FALSE}; }
+	@[ -z "${LIB_DEPENDS}${RUN_DEPENDS:N*\:azsupport/*}" ] || \
+		{ ${ECHO_MSG} "the package needs more than azsupport: ${LIB_DEPENDS} ${RUN_DEPENDS:N*\:azsupport/*}"; ${FALSE}; }
 	@d=${WRKDIR}/azsupport-jars && ${RM} -r $$d && ${MKDIR} $$d/jna.jar $$d/jna-platform.jar && \
 	${TAR} -xf ${STAGEDIR}${JAVAJARDIR}/jna.jar -C $$d/jna.jar com/sun/jna/freebsd-${ANT_ARCH}/libjnidispatch.so && \
 	${TAR} -xf ${STAGEDIR}${JAVAJARDIR}/jna-platform.jar -C $$d/jna-platform.jar libjnidispatch.so || \

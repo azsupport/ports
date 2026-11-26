@@ -35,18 +35,19 @@
 #   three libraries that link them (libjavajpeg, libfontmanager, liblcms) and in
 #   no other file; zlib of the base system; HarfBuzz bundled (no port of ours has
 #   it);
-# - fontconfig: its headers (those of azsupport) to build, as libraries.m4 wants them
+# - fontconfig: that of x11-fonts/fontconfig of this tree, in /usr/local (aZ, 26.11.2026:
+#   fontconfig a port of its own), its headers to build, as libraries.m4 wants them
 #   headless too; not linked: the two patches of the official port that link
 #   libfontmanager with it (the hinting of FreeType from the settings of
 #   fontconfig) are left out. OpenJDK loads libfontconfig.so.1 with dlopen(3) by
 #   its name when it needs the fonts of the system; the rtld of FreeBSD looks for
 #   it in LD_LIBRARY_PATH, the run path of bin/java (the lib of the JDK), the
-#   ldconfig hints and /lib and /usr/lib, not in /usr/local/azsupport/lib (no hints, and
-#   the run path of the library that calls dlopen does not count). So with our
-#   packages only Java has no fontconfig and no fonts of the system (text with
-#   the logical fonts fails: tools/java-test.sh says how; Elasticsearch and
-#   OpenSearch need none); with the official fontconfig and fonts installed it
-#   takes those;
+#   ldconfig hints and /lib and /usr/lib: it finds that of /usr/local/lib by the
+#   hints (one of /usr/local/azsupport/lib it would not: no hints, and the run path of
+#   the library that calls dlopen does not count), so the package depends on it to
+#   run as well. No fonts of the system come with it (text with the logical fonts
+#   fails without one: tools/java-test.sh says how; Elasticsearch and OpenSearch
+#   need none); with fonts installed (x11-fonts/dejavu) it takes those;
 # - no fonts (xorg-fonts-truetype) and no javavmwrapper (no @javavm: no
 #   /usr/local/bin/java; Elasticsearch and OpenSearch take JAVA_HOME); CUPS: its
 #   headers to build, as the official port, nothing at run time (libawt loads
@@ -57,7 +58,8 @@
 #   their run path, no DTrace) and after the install: no ELF links a library of
 #   X11, ALSA, giflib, libpng, HarfBuzz or fontconfig; libjpeg, libfreetype and
 #   liblcms2 are those of azsupport by the run path; no libjsound, libawt_xawt and
-#   libsplashscreen, libawt_headless there; the package needs azsupport only.
+#   libsplashscreen, libawt_headless there; the package needs the libraries of
+#   azsupport and fontconfig only.
 # The flags of make.conf are not those of the JDK (its configure ignores CFLAGS):
 # its own, and its JIT compiles for the CPU it runs on.
 
@@ -106,16 +108,18 @@ IGNORE=		has no patches of the official port (${AZSUPPORT_OFFICIAL_PORT}/files)
 EXTRA_PATCHES=	${_AZ_OFFICIAL_PATCHES:S|^|${AZSUPPORT_OFFICIAL_PORT}/files/|}
 
 # the libraries of azsupport the JDK links, to build and to run (by a file: no ldconfig
-# hints for /usr/local/azsupport/lib), and fontconfig of azsupport for its headers
-AZSUPPORT_JDK_LIBS=	libfreetype.so libjpeg.so liblcms2.so
+# hints for /usr/local/azsupport/lib), and fontconfig: its headers to build, the library
+# it loads to run
+AZSUPPORT_JDK_LIBS=	freetype2:libfreetype.so mozjpeg:libjpeg.so lcms2:liblcms2.so
 BUILD_DEPENDS=	zip:archivers/zip \
 		autoconf>0:devel/autoconf \
 		${LOCALBASE}/include/cups/cups.h:print/cups \
 		bash:shells/bash \
 		gsed:textproc/gsed \
-		${AZSUPPORT_JDK_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@} \
-		${AZSUPPORT_PREFIX}/lib/libfontconfig.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_JDK_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
+		${AZSUPPORT_JDK_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@} \
+		${LOCALBASE}/lib/libfontconfig.so:x11-fonts/fontconfig
+RUN_DEPENDS=	${AZSUPPORT_JDK_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@} \
+		${LOCALBASE}/lib/libfontconfig.so:x11-fonts/fontconfig
 
 USES=		compiler:features cpe gmake iconv pkgconfig
 
@@ -168,7 +172,7 @@ CONFIGURE_ARGS=	--with-boot-jdk=${BOOTSTRAPJDKDIR} \
 		--disable-javac-server \
 		--enable-headless-only \
 		--with-cups=${LOCALBASE} \
-		--with-fontconfig=${AZSUPPORT_PREFIX} \
+		--with-fontconfig=${LOCALBASE} \
 		--with-freetype=system \
 		--with-libjpeg=system \
 		--with-giflib=bundled \
@@ -304,8 +308,8 @@ do-install:
 AZSUPPORT_JDK_NOT_NEEDED=	lib(X[A-Za-z0-9_-]*|xcb[A-Za-z0-9_-]*|asound|gif|png[0-9]*|harfbuzz[A-Za-z0-9_-]*|fontconfig)\.so
 AZSUPPORT_JDK_AZ_LINKS=	libfontmanager.so:libfreetype libjavajpeg.so:libjpeg liblcms.so:liblcms2
 post-install:
-	@[ -z "${LIB_DEPENDS}${RUN_DEPENDS:N*\:azsupport/azsupport}" ] || \
-		{ ${ECHO_MSG} "the package needs more than azsupport: ${LIB_DEPENDS} ${RUN_DEPENDS:N*\:azsupport/azsupport}"; ${FALSE}; }
+	@[ -z "${LIB_DEPENDS}${RUN_DEPENDS:N*\:azsupport/*:N*\:x11-fonts/fontconfig}" ] || \
+		{ ${ECHO_MSG} "the package needs more than azsupport and fontconfig: ${LIB_DEPENDS} ${RUN_DEPENDS:N*\:azsupport/*:N*\:x11-fonts/fontconfig}"; ${FALSE}; }
 	@cd ${STAGEDIR}${INSTALLDIR} && n=0 && for f in $$(${FIND} . -type f | ${SORT}); do \
 		${FILE} -b "$$f" | ${GREP} -q '^ELF ' || continue; \
 		n=$$((n + 1)); \
