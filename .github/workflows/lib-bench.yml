@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# lib-bench: the speed of the C and C++ libraries of this tree (those of the package azsupport,
+# azsupport/azsupport/files/deps.conf and curl-deps.conf, and the library ports) built by the
+# base clang (clang19), by clang 23.1.6 (clang23: the package llvm23, the release of
+# devel/llvm23) and by our GCC 16.2.0 (gcc16: the package gcc16 of the repository azsupport,
+# lang/gcc16), from the same sources with the flags of our builds (tools/lib-bench3.sh: the
+# groups, the versions, the benchmarks), a job per group in a FreeBSD VM, the three variants
+# in the same VM. The report of each job goes into the branch runs of azsupport/azsupport
+# (tools/runs-report.sh: ports-lib-bench/<date>/<run>-<group>.md) and into the summary of
+# the run. Started by hand (aZ, 26.11.2026: our GCC 16.2, the base clang and our clang 23 for
+# the whole tree): Actions, "lib-bench", "Run workflow", or gh api.
+name: lib-bench
+
+on:
+  # a push of the workflow into the branch bench-libs only registers it with GitHub (a dispatch
+  # of a workflow not in the default branch needs that); no job runs then
+  push:
+    branches: [bench-libs]
+    paths: ['.github/workflows/lib-bench.yml']
+  workflow_dispatch:
+    inputs:
+      groups:
+        description: 'Groups (compress crypto text image video net), separated by spaces'
+        required: true
+        default: 'compress crypto text image video net'
+      rounds:
+        description: 'Rounds of each benchmark (their median; at least 5)'
+        required: true
+        default: '7'
+      libs:
+        description: 'Only these libraries of the groups (empty: all)'
+        required: false
+        default: ''
+      release:
+        description: 'FreeBSD release'
+        required: true
+        default: '15.1'
+
+permissions:
+  contents: read
+
+jobs:
+  groups:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.list.outputs.json }}
+    steps:
+      - id: list
+        env:
+          LB_GROUPS: ${{ inputs.groups }}
+        run: |
+          # shellcheck disable=SC2086
+          printf 'json=%s\n' "$(printf '%s\n' $LB_GROUPS | jq -R . | jq -sc .)" >> "$GITHUB_OUTPUT"
+
+  bench:
+    needs: groups
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        group: ${{ fromJSON(needs.groups.outputs.list) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # the disk of the VM grows on that of the runner
+      - name: Free space on the runner
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+
+      - name: The benchmarks in FreeBSD ${{ inputs.release }}
+        id: bench
+        uses: vmactions/freebsd-vm@v1
+        env:
+          LB_GROUP: ${{ matrix.group }}
+          LB_ROUNDS: ${{ inputs.rounds }}
+          LB_LIBS: ${{ inputs.libs }}
+        with:
+          release: ${{ inputs.release }}
+          mem: 12288
+          envs: 'LB_GROUP LB_ROUNDS LB_LIBS'
+          # latest for the repository FreeBSD-ports of the base (fb88861: no repository "FreeBSD"
+          # of its own); clang 23 is the package llvm23; GCC 16.2.0 the package gcc16 of the
+          # repository azsupport (its key: keys/azsupport.pub, SHA-256 of README.md), its
+          # dependency binutils from FreeBSD-ports first; the build tools of the libraries
+          prepare: |
+            mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
+            echo 'FreeBSD-ports: { url: "https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
+            env ASSUME_ALWAYS_YES=yes pkg update -f
+            env ASSUME_ALWAYS_YES=yes pkg install -y llvm23 binutils gmake cmake-core ninja meson pkgconf nasm python3 curl autoconf automake libtool
+            fetch -o /usr/local/etc/pkg/keys/azsupport.pub https://raw.githubusercontent.com/azsupport/ports/main/keys/azsupport.pub
+            [ "$(sha256 -q /usr/local/etc/pkg/keys/azsupport.pub)" = 2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6 ]
+            printf '%s\n' 'azsupport: { url: "https://github.com/azsupport/ports/releases/download/azsupport-fbsd15-amd64-v3", signature_type: "pubkey", pubkey: "/usr/local/etc/pkg/keys/azsupport.pub", priority: 100, enabled: yes }' > /usr/local/etc/pkg/repos/azsupport.conf
+            env ASSUME_ALWAYS_YES=yes pkg update -r azsupport
+            env ASSUME_ALWAYS_YES=yes pkg install -y -r azsupport gcc16
+            gcc16 --version | head -n 1 | grep -q ' 16\.2\.0'
+            sed -i '' 's/enabled: yes/enabled: no/' /usr/local/etc/pkg/repos/azsupport.conf
+            gcc16 --version | head -n 1; clang23 --version | head -n 1; cc --version | head -n 1
+          # the script ends well (vmactions copies results/ back only then); what failed
+          # is in its report
+          run: |
+            sh tools/lib-bench3.sh "$LB_GROUP" "$LB_ROUNDS" || echo "lib-bench3: exit $?"
+
+      - name: Report
+        if: always()
+        env:
+          LB_GROUP: ${{ matrix.group }}
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: groups=${{ inputs.groups }} rounds=${{ inputs.rounds }} libs=${{ inputs.libs }} release=${{ inputs.release }}
+          RUNS_STEPS: bench=${{ steps.bench.outcome }}
+        run: |
+          f="results/lib-bench/$LB_GROUP.md"
+          mkdir -p results/lib-bench
+          [ -s "$f" ] || echo "no report of the group $LB_GROUP (the step of the VM: ${{ steps.bench.outcome }})" > "$f"
+          if [ -s "results/lib-bench/$LB_GROUP.log" ]; then
+            { echo; echo "## The log of the job"; echo; echo '```'; tail -n 300 "results/lib-bench/$LB_GROUP.log"; echo '```'; } >> "$f"
+          fi
+          head -c 900000 "$f" >> "$GITHUB_STEP_SUMMARY"
+          sh tools/runs-report.sh "$f" "$LB_GROUP"
