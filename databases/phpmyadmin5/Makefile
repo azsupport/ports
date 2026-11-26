@@ -30,7 +30,8 @@ USE_PHP+=	json
 # through setup/validate.php), CVE-2026-119429 (the second factor removed through
 # /config/set; /config/get gave any setting). Of QA_5_2 (5.2.4, not released): the
 # second factor kept when other preferences are saved, CVE-2026-119563 (stored XSS,
-# the name of a table in the query history of Designer; js/src and js/dist).
+# the name of a table in the query history of Designer; js/src and js/dist). Ours:
+# CVE-2026-119562 (SQL injection, Central Columns), which upstream has not fixed.
 # CVE-2026-119561 (WebAuthn of CustomServer) is not in this package: it has
 # web-auth/webauthn-lib, which phpMyAdmin then takes in place of CustomServer. The
 # files of this directory, also for the slaves (${.CURDIR:H}/phpmyadmin5).
@@ -39,7 +40,8 @@ EXTRA_PATCHES=	${.CURDIR:H}/phpmyadmin5/files/patch-CVE-2026-119426 \
 		${.CURDIR:H}/phpmyadmin5/files/patch-CVE-2026-119428 \
 		${.CURDIR:H}/phpmyadmin5/files/patch-CVE-2026-119429 \
 		${.CURDIR:H}/phpmyadmin5/files/patch-2fa-kept-on-save \
-		${.CURDIR:H}/phpmyadmin5/files/patch-CVE-2026-119563
+		${.CURDIR:H}/phpmyadmin5/files/patch-CVE-2026-119563 \
+		${.CURDIR:H}/phpmyadmin5/files/patch-CVE-2026-119562
 
 # patch(1) keeps each file it changes as <file>.orig: those go before the post-patch
 # of the official port lists every file of WRKSRC into the plist, which would install
