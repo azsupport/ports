@@ -19,16 +19,16 @@
 #    pyproject.toml, the same as EJS_VERSION of its Makefile and VERSION of
 #    yt_dlp/extractor/youtube/jsc/_builtin/vendor/_info.py: yt-dlp takes the scripts of
 #    yt-dlp-ejs only of that major.minor and with the SHA3-512 of that release) against
-#    www/py-yt-dlp-ejs, ours when this tree has it, else the official port at the
-#    commit pinned in tools/build.sh. A newer pin: ours made from tools/ytdlp-ejs/ (the
-#    wheel of the release of github.com/yt-dlp/ejs, whose SHA-256 yt-dlp pins as
-#    EJS_WHEEL_HASH of its Makefile) or ours updated, DISTVERSION and distinfo. The
-#    oldest deno yt-dlp runs (DenoJsRuntime of yt_dlp/utils/_jsruntime.py) against the
-#    official www/deno: a warning when that is older (deno stays the official package).
+#    www/py-yt-dlp-ejs, ours (the wheel of PyPI with the scripts built, run by node of
+#    www/node24: the official port builds them with deno and runs them with it; aZ,
+#    26.11.2026). A newer pin: DISTVERSION and distinfo, the wheel of PyPI whose SHA-256
+#    yt-dlp pins as EJS_WHEEL_HASH of its Makefile. The oldest node yt-dlp runs
+#    (NodeJsRuntime of yt_dlp/utils/_jsruntime.py) against www/node24: a warning when
+#    that is older.
 # 4. The ports checked with make -V (tools/check-tree-ci.sh), then one commit of aZ and
 #    a push to main (a refused push: again on top of the new main, 5 times).
 # 5. The build, when the releases azsupport-fbsd<major>-amd64-v3 and -v2 do not have the
-#    yt-dlp of the tree (and its yt-dlp-ejs, when that is ours): build-jail.yml of main for
+#    yt-dlp of the tree and its yt-dlp-ejs: build-jail.yml of main for
 #    www/yt-dlp, both levels, on the first free build runner of our jails (runner any;
 #    24.11.2026: the builds on our runners, not those of GitHub), publish with
 #    publish_only (the release takes the new
@@ -45,8 +45,9 @@
 #   --pretend <v>      a test, with --dry-run: www/yt-dlp taken as at <v> (DISTVERSION
 #                      and the paths of distinfo set to <v> first, in this checkout
 #                      only), so that the latest release is an update
-#   --pretend-ejs <v>  a test, with --dry-run: the official www/py-yt-dlp-ejs taken as
-#                      at <v>, so that ours is made
+#   --pretend-ejs <v>  a test, with --dry-run: www/py-yt-dlp-ejs taken as at <v>
+#                      (DISTVERSION and the paths of distinfo set to <v> first, in this
+#                      checkout only), so that the pin of the release is an update
 # Outside a run of main (GITHUB_REF) it is always a dry run. For a Linux runner of
 # GitHub (GNU patch, diff and sort, gh, curl).
 # Environment: GH_TOKEN (gh, the API of GitHub), GITHUB_REPOSITORY, GITHUB_REF,
@@ -136,15 +137,7 @@ dl() {
     curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "$2" "$1" 2> "$w/curl.err" ||
         fail "$1 not fetched: $(tail -n 1 "$w/curl.err")"
 }
-# offv <origin>: DISTVERSION of the official port at the pinned commit
-offv() {
-    curl -fsSL --retry 3 "https://raw.githubusercontent.com/freebsd/freebsd-ports/$commit/$1/Makefile" > "$w/off.mk" 2> /dev/null &&
-        mkvar "$w/off.mk" DISTVERSION
-}
-
 [ -f www/yt-dlp/Makefile ] || fail "no www/yt-dlp in this tree"
-commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
-[ -n "$commit" ] || fail "no ports_commit in tools/build.sh"
 # the FreeBSD release of the builds: the default of build-jail.yml
 release="$(awk '/^      release:$/ { r = 1 } r && /^ *default:/ { gsub(/[^0-9.]/, "", $2); print $2; exit }' .github/workflows/build-jail.yml)"
 case "$release" in [0-9]*.[0-9]*) ;; *) fail "no default release in .github/workflows/build-jail.yml" ;; esac
@@ -333,7 +326,7 @@ setvar www/yt-dlp/Makefile DISTVERSION "$tag"
     echo "SIZE (yt-dlp/$tag/yt-dlp.tar.gz) = $size"
 } > www/yt-dlp/distinfo
 
-# --- 3. yt-dlp-ejs and deno ----------------------------------------------------------------
+# --- 3. yt-dlp-ejs and node ----------------------------------------------------------------
 pin="$(sed -n 's/^[[:space:]]*"yt-dlp-ejs==\([0-9][0-9a-z.]*\)",\{0,1\}[[:space:]]*$/\1/p' "$src/pyproject.toml" | sort -u)"
 case "$pin" in
     "") fail "pyproject.toml of $tag pins no yt-dlp-ejs (\"yt-dlp-ejs==<version>\"): the port needs a hand" ;;
@@ -346,54 +339,47 @@ whash="$(sed -n 's/^EJS_WHEEL_HASH = sha256:\([0-9a-f]\{64\}\)$/\1/p' "$src/Make
 wname="$(sed -n 's/^EJS_WHEEL_NAME = //p' "$src/Makefile")"
 [ "$vpin" = "$pin" ] || fail "yt-dlp $tag: pyproject.toml pins yt-dlp-ejs $pin, its vendor/_info.py has ${vpin:-none}"
 [ "$mpin" = "$pin" ] || fail "yt-dlp $tag: pyproject.toml pins yt-dlp-ejs $pin, EJS_VERSION of its Makefile is ${mpin:-none}"
-ours=0; [ -f www/py-yt-dlp-ejs/Makefile ] && ours=1
-offejs="$(offv www/py-yt-dlp-ejs)"
-[ -n "$pretend_ejs" ] && offejs="$pretend_ejs" && line "- pretend: the official www/py-yt-dlp-ejs taken as at $pretend_ejs"
-if [ "$ours" = 1 ]; then
-    have="$(mkvar www/py-yt-dlp-ejs/Makefile DISTVERSION)"; whose="ours"
-else
-    [ -n "$offejs" ] || fail "no official www/py-yt-dlp-ejs at $commit (raw.githubusercontent.com)"
-    have="$offejs"; whose="the official port"
-fi
+[ -f www/py-yt-dlp-ejs/Makefile ] ||
+    fail "no www/py-yt-dlp-ejs in this tree: it is ours (the wheel of PyPI, node of www/node24; the official port builds with deno and runs with it)"
+have="$(mkvar www/py-yt-dlp-ejs/Makefile DISTVERSION)"
 ejsnote=""
+if [ -n "$pretend_ejs" ]; then
+    setvar www/py-yt-dlp-ejs/Makefile DISTVERSION "$pretend_ejs"
+    sed "s#yt_dlp_ejs-$(re "$have")-#yt_dlp_ejs-$pretend_ejs-#" www/py-yt-dlp-ejs/distinfo > "$w/di" && cat "$w/di" > www/py-yt-dlp-ejs/distinfo
+    git commit -q -m "pretend: www/py-yt-dlp-ejs at $pretend_ejs (a test, never pushed)" -- www/py-yt-dlp-ejs || fail "the commit of --pretend-ejs failed"
+    line "- pretend: www/py-yt-dlp-ejs taken as at $pretend_ejs (it is at $have)"
+    have="$pretend_ejs"
+fi
 if newer "$pin" "$have"; then
     whl="yt_dlp_ejs-$pin-py3-none-any.whl"
     [ -n "$whash" ] || fail "yt-dlp $tag pins yt-dlp-ejs $pin without EJS_WHEEL_HASH in its Makefile: no SHA-256 to check the wheel by"
     [ -z "$wname" ] || [ "$wname" = "$whl" ] || fail "yt-dlp $tag: EJS_WHEEL_NAME is $wname, not $whl"
-    dl "https://github.com/yt-dlp/ejs/releases/download/$pin/$whl" "$w/dl/$whl"
+    # the path of PyPI that names the file alone (MASTER_SITE_SUBDIR of the port)
+    dl "https://files.pythonhosted.org/packages/py3/y/yt_dlp_ejs/$whl" "$w/dl/$whl"
     esha="$(sha256f "$w/dl/$whl")"
     esize="$(wc -c < "$w/dl/$whl" | tr -d ' ')"
-    [ "$esha" = "$whash" ] || fail "$whl of github.com/yt-dlp/ejs: SHA-256 $esha, EJS_WHEEL_HASH of yt-dlp $tag is $whash"
-    if [ "$ours" = 0 ]; then
-        mkdir -p www/py-yt-dlp-ejs
-        cp tools/ytdlp-ejs/Makefile tools/ytdlp-ejs/pkg-descr www/py-yt-dlp-ejs/ || fail "tools/ytdlp-ejs/ not copied"
-        ejsnote="www/py-yt-dlp-ejs: ours at $pin, made from tools/ytdlp-ejs/ (the official port of the pinned tree has $have)"
-    else
-        ejsnote="www/py-yt-dlp-ejs: ours from $have to $pin"
-    fi
+    [ "$esha" = "$whash" ] || fail "$whl of PyPI: SHA-256 $esha, EJS_WHEEL_HASH of yt-dlp $tag is $whash"
     setvar www/py-yt-dlp-ejs/Makefile DISTVERSION "$pin"
     {
         echo "TIMESTAMP = $(date +%s)"
         echo "SHA256 (yt-dlp-ejs/$whl) = $esha"
         echo "SIZE (yt-dlp-ejs/$whl) = $esize"
     } > www/py-yt-dlp-ejs/distinfo
-    line "- yt-dlp-ejs: $tag pins **$pin**, $whose has $have: $ejsnote; $whl of the release of github.com/yt-dlp/ejs, $esize bytes, SHA-256 $esha (EJS_WHEEL_HASH of yt-dlp)"
+    ejsnote="www/py-yt-dlp-ejs: from $have to $pin"
+    line "- yt-dlp-ejs: $tag pins **$pin**, www/py-yt-dlp-ejs has $have: to $pin; $whl of PyPI, $esize bytes, SHA-256 $esha (EJS_WHEEL_HASH of yt-dlp)"
 elif [ "$pin" = "$have" ]; then
-    line "- yt-dlp-ejs: $tag pins $pin, $whose has it"
+    line "- yt-dlp-ejs: $tag pins $pin, www/py-yt-dlp-ejs has it"
 else
-    warn "yt-dlp-ejs: $tag pins $pin, $whose has $have, newer: yt-dlp takes the scripts of $pin only (major.minor and SHA3-512)"
+    warn "yt-dlp-ejs: $tag pins $pin, www/py-yt-dlp-ejs has $have, newer: yt-dlp takes the scripts of $pin only (major.minor and SHA3-512)"
 fi
-if [ "$ours" = 1 ] && [ -n "$offejs" ] && ! newer "$(mkvar www/py-yt-dlp-ejs/Makefile DISTVERSION)" "$offejs"; then
-    line "- yt-dlp-ejs: the official port of the pinned tree has $offejs, as ours: ours can go (git rm -r www/py-yt-dlp-ejs)"
-fi
-dmin="$(awk '/^class DenoJsRuntime/ { d = 1 } d && /MIN_SUPPORTED_VERSION *=/ { gsub(/[^0-9,]/, ""); gsub(/,/, "."); print; exit }' "$src/yt_dlp/utils/_jsruntime.py" 2> /dev/null)"
-deno="$(offv www/deno)"
-if [ -z "$dmin" ] || [ -z "$deno" ]; then
-    warn "deno: the oldest one yt-dlp $tag runs (${dmin:-not found in yt_dlp/utils/_jsruntime.py}) or the official www/deno (${deno:-not found}) unknown"
-elif newer "$dmin" "$deno"; then
-    warn "deno: yt-dlp $tag runs deno $dmin or newer, the official www/deno of the pinned tree is $deno: yt-dlp cannot solve the challenges of YouTube with it"
+nmin="$(awk '/^class NodeJsRuntime/ { d = 1 } d && /MIN_SUPPORTED_VERSION *=/ { gsub(/[^0-9,]/, ""); gsub(/,/, "."); print; exit }' "$src/yt_dlp/utils/_jsruntime.py" 2> /dev/null)"
+node="$(sed -n 's/^NODEJS_PORTVERSION=[[:space:]]*//p' www/node24/Makefile.version 2> /dev/null)"
+if [ -z "$nmin" ] || [ -z "$node" ]; then
+    warn "node: the oldest one yt-dlp $tag runs (${nmin:-not found in yt_dlp/utils/_jsruntime.py}) or that of www/node24 (${node:-not found in www/node24/Makefile.version}) unknown"
+elif newer "$nmin" "$node"; then
+    warn "node: yt-dlp $tag runs node $nmin or newer, www/node24 is $node: yt-dlp cannot solve the challenges of YouTube with it"
 else
-    line "- deno: the official $deno; yt-dlp $tag runs $dmin or newer"
+    line "- node: $node of www/node24; yt-dlp $tag runs $nmin or newer"
 fi
 line "- the dependencies yt-dlp $tag declares (pyproject.toml, default): $(sed -n '/^default = \[/,/^\]/p' "$src/pyproject.toml" | sed -n 's/^[[:space:]]*"\([^"]*\)".*/`\1`/p' | tr '\n' ' ' | sed 's/ $//; s/` `/`, `/g')"
 
@@ -431,9 +417,9 @@ case "$ejsnote" in www/py-yt-dlp-ejs:*) subj="$subj; www/py-yt-dlp-ejs: $pin" ;;
         printf ' %s' "The patches apply without fuzz."
     fi
     if [ -n "$ejsnote" ]; then
-        printf ' %s' "$ejsnote: the wheel of the release of github.com/yt-dlp/ejs, with the SHA-256 yt-dlp pins (EJS_WHEEL_HASH)."
+        printf ' %s' "$ejsnote: the wheel of PyPI, with the SHA-256 yt-dlp pins (EJS_WHEEL_HASH)."
     else
-        printf ' %s' "yt-dlp-ejs: $pin, the pin of the release, as $whose has it."
+        printf ' %s' "yt-dlp-ejs: $pin, the pin of the release, as www/py-yt-dlp-ejs has it."
     fi
     echo
 } | fold -s -w 72 | sed 's/ *$//' > "$w/body"

@@ -4,12 +4,29 @@
 # grabbers of the sites need the extractors of the latest one), with ffprobe and ffmpeg
 # of our multimedia/ffmpeg (FFMPEG, on by default as in the official port). The
 # rest is the official port as it is: its patches (no self-update, no pandoc; one
-# that a release lets apply only with fuzz made again), its dependencies (official
-# packages; www/py-yt-dlp-ejs ours when a release pins a newer yt-dlp-ejs than the
-# official port has), pkg-plist and pkg-descr. IMPERSONATE (aZ, 16.11.2026: on by
-# default): the browser impersonation of --impersonate with py-curl-cffi of our
-# ftp/py-curl-cffi on our ftp/curl-impersonate; yt-dlp 2026.11.23 takes curl_cffi
-# 0.5.10 and 0.10 through 0.17 (yt_dlp/networking/_curlcffi.py).
+# that a release lets apply only with fuzz made again), its dependencies, pkg-plist
+# and pkg-descr. The dependencies are ports of this tree (aZ, 26.11.2026 13:09: «Делаем
+# его самодостаточным — лишние зависимости убираем, нужные собираем у нас.»): the
+# official ports of the Python packages as they are (Mk/azsupport-official.mk) and
+# www/py-yt-dlp-ejs, ours (the scripts of the wheel of PyPI, no deno). IMPERSONATE (aZ,
+# 16.11.2026: on by default): the browser impersonation of --impersonate with
+# py-curl-cffi of our ftp/py-curl-cffi on our ftp/curl-impersonate; yt-dlp 2026.11.23
+# takes curl_cffi 0.5.10 and 0.10 through 0.17 (yt_dlp/networking/_curlcffi.py).
+# The JavaScript runtime (the challenges of YouTube, the scripts of yt-dlp-ejs): node
+# of www/node24, the package node24, which py-yt-dlp-ejs runs with (aZ, 26.11.2026
+# 13:40: no deno, the official port takes it and it builds V8 from its sources). yt-dlp
+# enables deno alone by default, so two patches of ours make it node:
+# files/patch-yt__dlp_options.py (the command line: the default of --js-runtimes, to
+# which --js-runtimes adds another runtime and which --no-js-runtimes clears) and
+# files/patch-yt__dlp_YoutubeDL.py (the API: YoutubeDL without js_runtimes); yt-dlp finds
+# node in the scripts directory of its Python, /usr/local/bin, whatever the PATH
+# (_find_exe of yt_dlp/utils/_jsruntime.py). Not a configuration file: yt-dlp reads that
+# of the system only from /etc (/etc/yt-dlp.conf, /etc/yt-dlp/config:
+# get_system_config_dirs of yt_dlp/utils/_utils.py), outside the prefix of a package,
+# and the portable one next to the program (/usr/local/bin/yt-dlp.conf), and
+# --ignore-config drops both. The warning of the YouTube
+# extractor when no runtime is there still says that deno alone is enabled by default
+# (yt_dlp/extractor/youtube/_video.py, which changes with every release: not patched).
 # A new release (aZ, 12.11.2026: the releases of GitHub, not the official port):
 # DISTVERSION and distinfo by tools/ytdlp-update.sh, which the workflow
 # yt-dlp-update.yml runs every 6 hours (the SHA-256 of yt-dlp.tar.gz that of the

@@ -6,8 +6,8 @@ name: yt-dlp at the latest release of GitHub
 # tools/ytdlp-update.sh every 6 hours on main. A newer release: DISTVERSION and
 # distinfo of www/yt-dlp (the SHA-256 that of the API of GitHub and of the
 # SHA2-256SUMS of the release), its patches checked against the new source (one that
-# applies only with fuzz made again), www/py-yt-dlp-ejs ours (tools/ytdlp-ejs/) when
-# the release pins a newer yt-dlp-ejs than the official port of the pinned tree, the
+# applies only with fuzz made again), DISTVERSION and distinfo of www/py-yt-dlp-ejs
+# (ours: the wheel of PyPI, node of www/node24) when the release pins a newer one, the
 # ports checked with make -V (tools/check-tree-ci.sh), one commit of aZ pushed to main
 # with the token of the run, and the build of www/yt-dlp on both levels: build-jail.yml
 # with publish and publish_only, so that the release takes the new packages only
@@ -32,7 +32,7 @@ on:
         required: false
         default: ''
       pretend_ejs:
-        description: 'A test, with dry_run and pretend: the official www/py-yt-dlp-ejs taken as at this version (0.7.0), so that ours is made'
+        description: 'A test, with dry_run and pretend: www/py-yt-dlp-ejs taken as at this version (0.7.0), so that the pin of the release is an update'
         required: false
         default: ''
 
