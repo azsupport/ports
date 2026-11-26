@@ -63,3 +63,12 @@ post-install:
 		${SORT} >> ${TMPPLIST}
 
 .include <bsd.port.mk>
+
+# No devel/gettext-runtime (aZ, 26.11.2026 13:09: «Делаем его самодостаточным — лишние
+# зависимости убираем, нужные собираем у нас.»): USE_GNOME=glib20 adds
+# libintl.so:devel/gettext-runtime to LIB_DEPENDS with GLib (glib20_LIB_DEPENDS of
+# Mk/Uses/gnome.mk, which bsd.port.mk reads with the USES of the port), and HarfBuzz
+# links no libintl (the -lintl of glib-2.0.pc: libintl.so of azsupport by the -L of
+# Mk/azsupport-libs.mk, dropped by --as-needed). The targets of bsd.port.mk read
+# LIB_DEPENDS when they run, so it goes out here, after them.
+LIB_DEPENDS:=	${LIB_DEPENDS:Nlibintl.so\:devel/gettext-runtime}
