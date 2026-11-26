@@ -9,8 +9,8 @@ PKGNAMEPREFIX=	azsupport-
 COMMENT=	apr of /usr/local/azsupport (shared; devel/apr1)
 WWW=		https://github.com/azsupport/ports
 
-LICENSE=	APACHE20 BSD4CLAUSE
-LICENSE_COMB=	dual
+# the licence of what this package has: APR and APR-util without Berkeley DB (--without-berkeley-db): the BSD4CLAUSE of the option BDB1 of its port is not in it (LICENSE of devel/apr1: APACHE20 BSD4CLAUSE, dual)
+LICENSE=	APACHE20
 
 AZSUPPORT_LIB=		apr
 AZSUPPORT_LIB_PORT=	devel/apr1

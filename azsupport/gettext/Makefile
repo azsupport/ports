@@ -9,8 +9,8 @@ PKGNAMEPREFIX=	azsupport-
 COMMENT=	gettext of /usr/local/azsupport (shared; devel/gettext-runtime)
 WWW=		https://github.com/azsupport/ports
 
-LICENSE=	LGPL21+ GPLv3+
-LICENSE_COMB=	multi
+# the licence of what this package has: libintl alone: the GPLv3+ of its port is that of the programs of gettext-runtime (LICENSE of devel/gettext-runtime: LGPL21+ GPLv3+, multi)
+LICENSE=	LGPL21+
 
 AZSUPPORT_LIB=		gettext
 AZSUPPORT_LIB_PORT=	devel/gettext-runtime

@@ -11,7 +11,9 @@
 #               DIST_SUBDIR azsupport of Makefile.common; a GitHub archive without the
 #               name of the file gets ?dummy=/), COMMENT, LICENSE (and LICENSE_COMB, and
 #               the name and permissions of a licence of its port that the framework
-#               does not know) of its official port, the dependencies of the extras below,
+#               does not know) of its official port, but that of what the package has
+#               where the port names more (lic_of_lib: apr, lz4, gettext), the
+#               dependencies of the extras below,
 #               AZSUPPORT_LIB (its name), AZSUPPORT_LIB_PORT (its port, or bundle),
 #               AZSUPPORT_LIB_CONF and AZSUPPORT_LIB_FILES (conf_lines_of and lib_files_of
 #               of tools/azsupport-build.sh, taken from it: its lines of the confs and its
@@ -196,6 +198,18 @@ size() {
     printf '%s' "$_z"
 }
 
+# lic_of_lib <name>: "<LICENSE>|<why>" for a library whose package has less than its
+# official port, whose LICENSE names what that port installs (main session, 26.11.2026:
+# the licence of a package of a library names what the package ships); nothing for the
+# others, which take LICENSE and LICENSE_COMB of their official ports
+lic_of_lib() {
+    case "$1" in
+        apr) echo "APACHE20|APR and APR-util without Berkeley DB (--without-berkeley-db): the BSD4CLAUSE of the option BDB1 of its port is not in it" ;;
+        lz4) echo "BSD2CLAUSE|the library alone: the GPLv2 of its port is that of the program lz4" ;;
+        gettext) echo "LGPL21+|libintl alone: the GPLv3+ of its port is that of the programs of gettext-runtime" ;;
+    esac
+}
+
 # makeval <text>: refused when make would take it for something else
 makeval() {
     case "$1" in *'$'* | *'#'* | *'\'*) return 1 ;; esac
@@ -358,7 +372,12 @@ for n in $libs; do
             done | grep -v -F -x "$origin" | grep -v '^Mk/' | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//')"
         hoff="$origin${hoff:+ $hoff}"
     fi
-    lic="$(offv "$origin" 2)" lcomb="$(offv "$origin" 3)"
+    lic="$(offv "$origin" 2)" lcomb="$(offv "$origin" 3)" lwhy=""
+    lov="$(lic_of_lib "$n")"
+    if [ -n "$lov" ]; then
+        lwhy="${lov#*|} (LICENSE of $origin: $lic${lcomb:+, $lcomb})"
+        lic="${lov%%|*}" lcomb=""
+    fi
     [ -n "$ver" ] || { miss "$n: no version (its take line, curl-deps.conf or PORTVERSION of $origin)"; continue; }
     # a make too old for the official tree gives no error for what it cannot evaluate
     # (bmake 20200710 and the :On of devel/readline: 8.3.:[-1]})
@@ -392,6 +411,7 @@ for n in $libs; do
         printf 'COMMENT=\t%s of /usr/local/azsupport (shared; %s)\n' "$n" "$via"
         printf 'WWW=\t\thttps://github.com/azsupport/ports\n'
         echo
+        [ -z "$lwhy" ] || echo "# the licence of what this package has: $lwhy"
         printf 'LICENSE=\t%s\n' "$lic"
         [ -z "$lcomb" ] || printf 'LICENSE_COMB=\t%s\n' "$lcomb"
         for l in $lic; do

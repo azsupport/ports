@@ -9,8 +9,8 @@ PKGNAMEPREFIX=	azsupport-
 COMMENT=	lz4 of /usr/local/azsupport (shared; archivers/liblz4)
 WWW=		https://github.com/azsupport/ports
 
-LICENSE=	BSD2CLAUSE GPLv2
-LICENSE_COMB=	multi
+# the licence of what this package has: the library alone: the GPLv2 of its port is that of the program lz4 (LICENSE of archivers/liblz4: BSD2CLAUSE GPLv2, multi)
+LICENSE=	BSD2CLAUSE
 
 AZSUPPORT_LIB=		lz4
 AZSUPPORT_LIB_PORT=	archivers/liblz4
