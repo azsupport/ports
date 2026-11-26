@@ -637,7 +637,7 @@ jobs:
           # caches, next to the repository); a FAIL fails the run
           if [ -n "$rb" ] && [ -d "$rb" ]; then
             r=0
-            SPLIT_WORK="$(realpath repo).compare" sh tools/split-compare.sh "$rb" repo > results/split-compare.txt 2>&1 || r=$?
+            SPLIT_WORK="$(realpath repo).compare" SPLIT_QUEUE="$(realpath results)/queue.txt" sh tools/split-compare.sh "$rb" repo > results/split-compare.txt 2>&1 || r=$?
             rm -rf "$(realpath repo).compare"
             if [ "$r" = 0 ]; then
               echo "split-compare: OK (the packages of azsupport of the release and of this run: $(grep -c '^OK ' results/split-compare.txt) checks; results/split-compare.txt)" >> results/checks.txt
