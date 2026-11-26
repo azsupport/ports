@@ -200,10 +200,12 @@ bno() {
     say "FAIL: the build of $1 by $2 (${3##*/})"
 }
 
-# record <program> <bench> <unit> <lower|higher> <variant> <value>: a value of a round
+# record <program> <bench> <unit> <lower|higher> <variant> <value>: a value of a round (a / of
+# the name of a benchmark as ∕, the division slash: the name is that of a file)
 record() {
     case "$6" in ''|*[!0-9.]*) say "$1 $2 $5: no number ('$6')"; return 0 ;; esac
-    echo "$6" >> "$raw/$1|$2|$3|$4|$5"
+    _rb="$(printf '%s' "$2" | sed 's|/|∕|g')"
+    echo "$6" >> "$raw/$1|$_rb|$3|$4|$5" || say "$1 $2 $5: cannot record $6"
 }
 median() { sort -n "$1" | awk '{ v[NR] = $1 } END { if (NR == 0) exit; if (NR % 2) print v[(NR + 1) / 2]; else print (v[NR / 2] + v[NR / 2 + 1]) / 2 }'; }
 # spread <file>: (max - min) / median of the values, in %

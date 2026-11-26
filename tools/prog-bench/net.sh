@@ -4,15 +4,15 @@
 # HTTP on 8081, HTTPS with HTTP/2 on 8443, a certificate of its own).
 #
 # curl 8.23.0 (ftp/curl, its distinfo): the OpenSSL of the base system, nghttp2 of the
-# packages (ours: azsupport), static; on the last CPU: 20000 requests of 1 KB on one
-# connection (HTTP/1.1), 5000 on one of TLS 1.3, 20000 over HTTP/2, 100 at once (-Z), 1 GB
+# packages (ours: azsupport), static; on the last CPU: 100000 requests of 1 KB on one
+# connection (HTTP/1.1), 20000 on one of TLS 1.3, 100000 over HTTP/2, 100 at once (-Z), 4 GB
 # over HTTP and over HTTPS. wget 1.25.0 (ftp/wget, its distinfo): OpenSSL of the base
-# system, PCRE2 of the packages, no NLS, libpsl, IDN: 2000 requests of 1 KB (-i, one
-# connection), 1 GB over HTTP.
+# system, PCRE2 of the packages, no NLS, libpsl, IDN: 20000 requests of 1 KB (-i, one
+# connection), 4 GB over HTTP. No delayed ACK (sysctl net.inet.tcp.delayed_ack=0).
 # 3proxy 0.9.9.3 (net/3proxy, its distinfo; CMake as the port), on the last CPU, curl of the
-# packages and wrk on the others: through its HTTP proxy 5000 requests of 1 KB on one
-# connection, 1 GB, and wrk (64 connections) with absolute URLs; through its SOCKS5 5000
-# requests of 1 KB and 1 GB.
+# packages and wrk on the others: through its HTTP proxy 20000 requests of 1 KB on one
+# connection, 4 GB, and wrk (64 connections) with absolute URLs; through its SOCKS5 20000
+# requests of 1 KB and 4 GB.
 
 g_progs="curl wget 3proxy"
 
@@ -96,7 +96,10 @@ http {
 EOF
     cpuset -l "$others" nginx -c "$W/ngx-net.conf" || die "net: the nginx of the packages did not start"
     waitport 8443 || die "net: nginx does not listen"
-    i=1; while [ "$i" -le 2000 ]; do echo "http://127.0.0.1:8081/1k.html?$i"; i=$((i + 1)); done > "$W/wget-urls.txt"
+    i=1; while [ "$i" -le 20000 ]; do echo "http://127.0.0.1:8081/1k.html?$i"; i=$((i + 1)); done > "$W/wget-urls.txt"
+    # no delayed ACK (40 ms on each small answer through the keep-alive connection of the proxy:
+    # 5000 requests took 200 s with every variant, 45900388811)
+    sysctl net.inet.tcp.delayed_ack=0 > /dev/null
     printf 'nscache 65536\nmaxconn 1000\nauth none\nproxy -p3128 -i127.0.0.1 -e127.0.0.1\nsocks -p1080 -i127.0.0.1 -e127.0.0.1\n' > "$W/3proxy.cfg"
     printf 'wrk.method = "GET"\nwrk.path = "http://127.0.0.1:8081/1k.html"\nwrk.headers["Host"] = "127.0.0.1:8081"\n' > "$W/proxy.lua"
     u=http://127.0.0.1:8081 s=https://127.0.0.1:8443
@@ -105,26 +108,26 @@ EOF
         for v in $(order "$r"); do
             if have curl "$v"; then
                 c="$W/curl-$v/bin/curl"
-                timed "$v" curl "HTTP/1.1: 20000 requests of 1 KB, one connection" cpuset -l "$last" "$c" -s "$u/1k.html?[1-20000]"
-                timed "$v" curl "HTTPS, TLS 1.3: 5000 requests of 1 KB, one connection" cpuset -l "$last" "$c" -s -k "$s/1k.html?[1-5000]"
-                timed "$v" curl "HTTP/2 over TLS: 20000 requests of 1 KB, 100 at once" cpuset -l "$last" "$c" -s -k --http2 -Z --parallel-max 100 "$s/1k.html?[1-20000]"
-                timed "$v" curl "1 GB over HTTP" cpuset -l "$last" "$c" -s -o /dev/null "$u/1g.bin"
-                timed "$v" curl "1 GB over HTTPS" cpuset -l "$last" "$c" -s -k -o /dev/null "$s/1g.bin"
+                timed "$v" curl "HTTP/1.1: 100000 requests of 1 KB, one connection" cpuset -l "$last" "$c" -s "$u/1k.html?[1-100000]"
+                timed "$v" curl "HTTPS, TLS 1.3: 20000 requests of 1 KB, one connection" cpuset -l "$last" "$c" -s -k "$s/1k.html?[1-20000]"
+                timed "$v" curl "HTTP/2 over TLS: 100000 requests of 1 KB, 100 at once" cpuset -l "$last" "$c" -s -k --http2 -Z --parallel-max 100 "$s/1k.html?[1-100000]"
+                timed "$v" curl "4 GB over HTTP (1 GB 4 times)" cpuset -l "$last" "$c" -s -o /dev/null -o /dev/null -o /dev/null -o /dev/null "$u/1g.bin" "$u/1g.bin" "$u/1g.bin" "$u/1g.bin"
+                timed "$v" curl "4 GB over HTTPS (1 GB 4 times)" cpuset -l "$last" "$c" -s -k -o /dev/null -o /dev/null -o /dev/null -o /dev/null "$s/1g.bin" "$s/1g.bin" "$s/1g.bin" "$s/1g.bin"
             fi
             if have wget "$v"; then
                 w="$W/wget-$v/bin/wget"
-                timed "$v" wget "2000 requests of 1 KB (-i, one connection)" cpuset -l "$last" "$w" -q -O /dev/null -i "$W/wget-urls.txt"
-                timed "$v" wget "1 GB over HTTP" cpuset -l "$last" "$w" -q -O /dev/null "$u/1g.bin"
+                timed "$v" wget "20000 requests of 1 KB (-i, one connection)" cpuset -l "$last" "$w" -q -O /dev/null -i "$W/wget-urls.txt"
+                timed "$v" wget "4 GB over HTTP (1 GB 4 times)" cpuset -l "$last" "$w" -q -O /dev/null "$u/1g.bin" "$u/1g.bin" "$u/1g.bin" "$u/1g.bin"
             fi
             if have 3proxy "$v"; then
                 cpuset -l "$last" "$W/3proxy-$v/bin/3proxy" "$W/3proxy.cfg" > "$W/3proxy-$v.log" 2>&1 &
                 pid=$!
                 if waitport 3128 && waitport 1080; then
-                    timed "$v" 3proxy "HTTP proxy: 5000 requests of 1 KB, one connection (curl)" cpuset -l "$others" curl -s -x http://127.0.0.1:3128 "$u/1k.html?[1-5000]"
-                    timed "$v" 3proxy "HTTP proxy: 1 GB (curl)" cpuset -l "$others" curl -s -x http://127.0.0.1:3128 -o /dev/null "$u/1g.bin"
+                    timed "$v" 3proxy "HTTP proxy: 20000 requests of 1 KB, one connection (curl)" cpuset -l "$others" curl -s -x http://127.0.0.1:3128 "$u/1k.html?[1-20000]"
+                    timed "$v" 3proxy "HTTP proxy: 4 GB (curl, 1 GB 4 times)" cpuset -l "$others" curl -s -x http://127.0.0.1:3128 -o /dev/null -o /dev/null -o /dev/null -o /dev/null "$u/1g.bin" "$u/1g.bin" "$u/1g.bin" "$u/1g.bin"
                     wrkrate "$v" 3proxy "HTTP proxy: requests of 1 KB, 64 connections (wrk)" http://127.0.0.1:3128/ -s "$W/proxy.lua"
-                    timed "$v" 3proxy "SOCKS5: 5000 requests of 1 KB, one connection (curl)" cpuset -l "$others" curl -s --socks5 127.0.0.1:1080 "$u/1k.html?[1-5000]"
-                    timed "$v" 3proxy "SOCKS5: 1 GB (curl)" cpuset -l "$others" curl -s --socks5 127.0.0.1:1080 -o /dev/null "$u/1g.bin"
+                    timed "$v" 3proxy "SOCKS5: 20000 requests of 1 KB, one connection (curl)" cpuset -l "$others" curl -s --socks5 127.0.0.1:1080 "$u/1k.html?[1-20000]"
+                    timed "$v" 3proxy "SOCKS5: 4 GB (curl, 1 GB 4 times)" cpuset -l "$others" curl -s --socks5 127.0.0.1:1080 -o /dev/null -o /dev/null -o /dev/null -o /dev/null "$u/1g.bin" "$u/1g.bin" "$u/1g.bin" "$u/1g.bin"
                 else
                     say "3proxy $v: did not start: $(tail -n 3 "$W/3proxy-$v.log" | tr '\n' ' ')"
                 fi
