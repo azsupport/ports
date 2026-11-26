@@ -125,7 +125,7 @@ http {
     access_log /mnt/pbrd/ngx-access.log main buffer=256k;
     gzip on; gzip_comp_level 5; gzip_min_length 256; gzip_types text/plain text/css application/javascript application/json;
     brotli on; brotli_comp_level 5; brotli_min_length 256; brotli_types text/plain text/css application/javascript application/json;
-    zstd on; zstd_comp_level 3; zstd_min_length 256; zstd_types text/plain text/html text/css application/javascript application/json;
+    zstd on; zstd_comp_level 3; zstd_min_length 256; zstd_types text/plain text/css application/javascript application/json;
     vod_metadata_cache metadata_cache 64m;
     vod_segment_duration 4000;
     server {
