@@ -57,9 +57,14 @@ PATCHFILES=	7f936694dbc0dc0dbb07d98fa668776c4e4ca595.patch:-p1 \
 # connection reset under load came as an EOF of the protocol, not as OSError (the
 # HTTPS of yt-dlp goes through it); and gh-134100 as Gentoo carries it (the
 # cherry-pick to 3.13 of 4e9005d): a use-after-free on an error path of a relative
-# import; see the files
+# import; CVE-2025-15366 (gh-143921) and CVE-2025-15367 (gh-143923), the upstream
+# fixes of 3.13 and main that no release of 3.12 has (aZ, 26.11.2026: «ок, остаемся
+# на 3.12», with the fixes carried here): imaplib and poplib reject a CR or LF in a
+# command, which went to the server as another command; see the files
 EXTRA_PATCHES=	${.CURDIR}/files/00462-fix-pyssl_seterror-handling-ssl_error_syscall.patch:-p1 \
-		${.CURDIR}/files/gh-134100.patch:-p1
+		${.CURDIR}/files/gh-134100.patch:-p1 \
+		${.CURDIR}/files/gh-143921-imaplib.patch:-p1 \
+		${.CURDIR}/files/gh-143923-poplib.patch:-p1
 
 MAINTAINER=	github@azsupport.com
 COMMENT=	Interpreted object-oriented programming language (of azsupport/ports)
