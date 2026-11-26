@@ -1,4 +1,4 @@
 The trigger of pkg for the services of the packages of azsupport/ports: at the end
 of a transaction (pkg upgrade, install, delete) that touched a package of a service,
 the commands that restart those services that rc.conf enables
-(share/pkg/triggers/azsupport-service.ucl).
+(share/pkg/triggers/azsupport-services.ucl).
