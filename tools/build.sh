@@ -59,10 +59,10 @@
 #   AZSUPPORT_DRYRUN        1: the queue, the hashes and the waves of the run (what the
 #                    repository has with the same azsupport_hash left out), nothing installed
 #                    or built, no repository (the ports that build against a library port of
-#                    azsupport or azsupport/static to be built: decided once it is built,
+#                    azsupport or azsupport/azsupport to be built: decided once it is built,
 #                    AZSUPPORT_PLAN)
 #   AZSUPPORT_PLAN          1: the plan of the run: the library ports of azsupport (azsupport/<lib>,
-#                    x11-fonts/fontconfig), azsupport/static and the ports they need built when
+#                    x11-fonts/fontconfig), azsupport/azsupport and the ports they need built when
 #                    they are to be (the hashes of the ports that build against them are made
 #                    with the interfaces of the new packages), every other port only decided:
 #                    kept from the repository or to be built, and why (results/plan.txt,
@@ -88,7 +88,7 @@
 #   its MASTERDIR and the other files of this tree its Makefile reads, Mk/bsd.overlay.mk
 #   and the other makefiles of Mk/ of this tree it reads: Mk/Uses/php.mk for the PHP
 #   ports, not for the ports of azsupport; the files of tools/ its makefiles name outside
-#   their comments, and those these name: tools/azsupport-build.sh of azsupport/static and
+#   their comments, and those these name: tools/azsupport-build.sh of azsupport/azsupport and
 #   of the library ports; the files of this tree its EXTRA_PATCHES and AZSUPPORT_HASH_FILES
 #   name: files of the directory of another port its build reads, tools/check-tree.sh),
 #   of the files of the official tree it reads (its makefiles there, Mk/Uses/*.mk of its
@@ -99,11 +99,11 @@
 #   and of the hash of each port of this tree it needs to build (so a change of a port
 #   builds again what needs it to build), of one it takes only to run the name of its
 #   package (aZ, 24.11.2026 15:47: "чтобы по каждому чиху все не пересобиралось":
-#   azsupport/azsupport, the pkg-config of the shared tree and the trigger of the
-#   services, for the library ports), but of a library port of azsupport (AZSUPPORT_LIB of
+#   azsupport/service, the trigger of the services, which every library port needs to
+#   run), but of a library port of azsupport (AZSUPPORT_LIB of
 #   its Makefile: azsupport/<lib>, package azsupport-<lib>, and x11-fonts/fontconfig) the
-#   interface hashes of its library and of those it needs, and of azsupport/static (the
-#   static tree, package azsupport-static) those of the static libraries the port builds
+#   interface hashes of its library and of those it needs, and of azsupport/azsupport (the
+#   static tree, package azsupport) those of the static libraries the port builds
 #   against (aZ, 12.11.2026: the manifests of their packages,
 #   tools/azsupport-interface.sh; the content hash of the libraries of
 #   AZSUPPORT_STATIC_LIBS), so a fix inside a library builds again only its port and a
@@ -181,7 +181,7 @@
 #   builds go it waits and the ports ready after it start meanwhile, until it has to
 #   start to end before AZSUPPORT_TIME_HARD (alone_due; aZ, 24.11.2026); the summary in the
 #   order of the queue, results/waves.txt (the ports that came ready together);
-# - a NEED_ROOT port (azsupport/static and the library ports azsupport/<lib> build into the
+# - a NEED_ROOT port (azsupport/azsupport and the library ports azsupport/<lib> build into the
 #   real prefix and refuse files of a package of theirs there): into the /usr/local/azsupport
 #   of its own chroot, as any port, with the packages of the libraries it needs there;
 # - the repository: one package per origin (of two in <dir> at the start, the newer
@@ -219,7 +219,7 @@ set -u
 
 # the official tree the overlay is built over: freebsd-ports main of 25.11.2026 17:35
 # (Prague; aZ, 25.11.2026 18:20: «новости портов прогони прежде чем заново всё
-# пересобирать», before the full rebuild of az as azsupport), the commit of azsupport/static/files/deps.conf too. The rule of aZ: the latest version of a port, or a newer release for its
+# пересобирать», before the full rebuild of az as azsupport), the commit of azsupport/azsupport/files/deps.conf too. The rule of aZ: the latest version of a port, or a newer release for its
 # security or a serious bug (a take line of deps.conf), so before a build this goes to
 # the latest commit of main (it had stayed at 04.11.2026: apache24 2.4.69 for 2.4.70
 # of 07.11.2026, aZ 10.11.2026)
@@ -228,7 +228,7 @@ ports_url="https://github.com/freebsd/freebsd-ports"
 
 # The build tools a port gets from the official packages of FreeBSD even when this
 # tree has the origin (aZ, 11.11.2026): our Python and Perl link libraries of azsupport, and
-# azsupport/static and the library ports need python3, meson and perl5 to build (a cycle, and every package built
+# azsupport/azsupport and the library ports need python3, meson and perl5 to build (a cycle, and every package built
 # again with each update of them). For a port that needs one of these only to build
 # it, the official package (see the head); for one that runs with it or builds an
 # extension for it, ours. The origins as the dependencies name them (lang/python3 the
@@ -762,7 +762,7 @@ tool_official() {
 # official ones into $q/odeps/<key> and $q/orun/<key>; the origins of this tree it gets
 # official (tool_official) are among the official ones, and in $q/info/<key>.tools;
 # $q/info/<key>.static when a dependency names a file of the static tree of azsupport
-# (AZSUPPORT_STATIC, of azsupport/static: the port builds against it)
+# (AZSUPPORT_STATIC, of azsupport/azsupport: the port builds against it)
 port_info() {
     _k="$(key "$1")"
     [ -f "$q/info/$_k" ] && return 0
@@ -781,7 +781,7 @@ port_info() {
         return 1
     fi
     _st="$(sed -n 23p "$q/info/$_k")"
-    if [ -n "$_st" ] && sed -n '3,9p' "$q/info/$_k" | tr -s ' \t' '\n\n' | grep -q -e "^$_st/[^:]*:azsupport/static\$" -e "^$_st/[^:]*:azsupport/static[:@]"; then
+    if [ -n "$_st" ] && sed -n '3,9p' "$q/info/$_k" | tr -s ' \t' '\n\n' | grep -q -e "^$_st/[^:]*:azsupport/azsupport\$" -e "^$_st/[^:]*:azsupport/azsupport[:@]"; then
         : > "$q/info/$_k.static"
     fi
     sed -n '3,9p' "$q/info/$_k" | dep_origins > "$q/info/$_k.all"
@@ -812,14 +812,14 @@ port_info() {
 # name and those of AZSUPPORT_HASH_FILES (files, or directories: their files; the files of
 # the directory of another port its build reads, which tools/check-tree.sh asks for:
 # graphics/ImageMagick6 the conf and policy of graphics/ImageMagick7, a library port its
-# patches in azsupport/static/files/deps), and the
+# patches in azsupport/azsupport/files/deps), and the
 # makefiles of this tree it reads
 # (.MAKE.MAKEFILES: Mk/bsd.overlay.mk, which every port reads, taken also when make
 # does not say; Mk/Uses/php.mk only by the ports that read it); and the files of
 # tools/ that the lines of those makefiles name outside their comments
 # (tools/<name> or ${AZSUPPORT_TOOLS}/<name>: the wrapper ports run the builds of tools/,
-# azsupport/static and the library ports (azsupport/static/Makefile.lib)
-# ${AZSUPPORT_TOOLS}/azsupport-build.sh; the design comment of azsupport/static/Makefile names the
+# azsupport/azsupport and the library ports (azsupport/azsupport/Makefile.lib)
+# ${AZSUPPORT_TOOLS}/azsupport-build.sh; the design comment of azsupport/azsupport/Makefile names the
 # scripts of all the wrapper ports and does not count), with the files of tools/
 # those scripts name in turn (comments too: azsupport-build.sh names azsupport-check-links.py);
 # the files of the official ports of its AZSUPPORT_HASH_OFFICIAL (the official port a
@@ -887,7 +887,7 @@ port_files() {
         for _p in $(sed -n '11,16p' "$q/info/$_k"); do
             if [ -d "$_p" ]; then files_in "$_p"; elif [ -f "$_p" ]; then echo "$_p"; fi
         done
-        # EXTRA_PATCHES (<file>[:-p<n>]) of this tree: ftp/curl applies the patch of curl of azsupport/static
+        # EXTRA_PATCHES (<file>[:-p<n>]) of this tree: ftp/curl applies the patch of curl of azsupport/azsupport
         for _p in $(sed -n 21p "$q/info/$_k"); do
             _p="${_p%%:*}"
             [ -f "$_p" ] && echo "$_p"
@@ -1080,12 +1080,12 @@ ch_deps() {
             grep -qxF "$_l" "$cs/shlibs-have" || echo "$_l ($_pn)"
     done | LC_ALL=C sort -u | tr '\n' ' ')"
     [ -z "$_ml" ] || say "  $1: warning: needed in the chroot and not there: $_ml"
-    # the archives of the static tree of azsupport (azsupport/static) only for a port that
+    # the archives of the static tree of azsupport (azsupport/azsupport) only for a port that
     # names a file of that tree in its dependencies (and so says AZSUPPORT_STATIC_LIBS,
     # tools/check-tree.sh): no other can link them into its package, which its azsupport_hash
     # would not know
     _st="$(sed -n 23p "$q/info/$k")"
-    if [ -n "$_st" ] && [ ! -f "$q/info/$k.static" ] && grep -qxF azsupport/static "$q/dl/$k.ours" && [ -d "$c$_st/lib" ]; then
+    if [ -n "$_st" ] && [ ! -f "$q/info/$k.static" ] && grep -qxF azsupport/azsupport "$q/dl/$k.ours" && [ -d "$c$_st/lib" ]; then
         rm -f "$c$_st"/lib/*.a
         echo "== the archives of $_st/lib away from the chroot: $1 names no file of the static tree of azsupport in its dependencies (AZSUPPORT_STATIC_LIBS)" >> "$log"
     fi
@@ -1099,9 +1099,9 @@ ch_deps() {
 # ports of this tree it needs that no group before it has) built after the one before
 # it; without ports the order of aZ (11.11.2026: "Первым делом ... azsupport, на php 5.6, 7.4,
 # 8.1, 8.3, 8.2, 8.4 - в таком порядке"): azsupport (the ports azsupport/*: azsupport/azsupport,
-# azsupport/static, the library ports azsupport/<lib>; and x11-fonts/fontconfig, the library
-# port of fontconfig), then each PHP version (its core, mod_php and modules), then the other
-# ports. $q/groups: "<group> <origin>"
+# the static tree, the library ports azsupport/<lib>, azsupport/pkg-config, azsupport/service;
+# and x11-fonts/fontconfig, the library port of fontconfig), then each PHP version (its core,
+# mod_php and modules), then the other ports. $q/groups: "<group> <origin>"
 : > "$q/groups"
 g=1
 for o in "$@"; do
@@ -1200,11 +1200,11 @@ for o in $(cat "$q/queue.txt"); do
     echo "$o $l" >> "$q/libports"
     echo "$l" > "$q/islib/$k"
 done
-# azsupport/static (the static tree) in the queue: stin; and make -V worked for it: stq
+# azsupport/azsupport (the static tree) in the queue: stin; and make -V worked for it: stq
 stin=0; stq=0
-grep -qxF azsupport/static "$q/queue.txt" && stin=1
-[ "$stin" = 1 ] && [ ! -f "$q/info/azsupport_static.bad" ] && stq=1
-[ -s "$q/libports" ] && say "the library ports of azsupport in the queue: $(wc -l < "$q/libports" | tr -d ' ')$( [ "$stq" = 1 ] && echo ', and azsupport/static')"
+grep -qxF azsupport/azsupport "$q/queue.txt" && stin=1
+[ "$stin" = 1 ] && [ ! -f "$q/info/azsupport_azsupport.bad" ] && stq=1
+[ -s "$q/libports" ] && say "the library ports of azsupport in the queue: $(wc -l < "$q/libports" | tr -d ' ')$( [ "$stq" = 1 ] && echo ', and azsupport/azsupport')"
 : > "$res/stages.txt"
 i=1
 while [ "$i" -le "$nst" ]; do
@@ -1243,27 +1243,28 @@ while read -r l; do say "$l"; done < "$res/stages.txt"
 # library (the same headers, .pc files, SONAMEs, version and options) builds again its port
 # alone; a new version, a changed header or .pc, a new SONAME or a changed option builds
 # again the ports that use that library. A library port a port needs only to run counts by
-# the name of its package, as any other (and azsupport/azsupport, the pkg-config of the
-# shared tree and the trigger of the services, which every library port needs to run).
-# azsupport/static (package azsupport-static: the static tree, the archives, headers and .pc
+# the name of its package, as any other (and azsupport/service, the trigger of the services,
+# which every library port needs to run; azsupport/pkg-config, the pkg-config of the shared
+# tree, is a port as any other for the ports that build with it: PHP, wget).
+# azsupport/azsupport (package azsupport: the static tree, the archives, headers and .pc
 # files of the libraries of kind static, for the PHP a server builds and the few ports that
 # link them): a port that builds against it (its dependencies name a file of the static
-# tree, ${AZSUPPORT_STATIC}/...:azsupport/static) folds in the interface hash of each static
+# tree, ${AZSUPPORT_STATIC}/...:azsupport/azsupport) folds in the interface hash of each static
 # library of the files its dependencies name and of those its AZSUPPORT_HASH_LIBS names
 # (graphics/GraphicsMagick, graphics/libimagemagick7), with their closure, the hash of the
 # files of no library of that tree (common.txt: static/bin/pkg-config), and the content hash
 # of the libraries of AZSUPPORT_STATIC_LIBS (it links their archives into its package; "none":
 # it builds against the static tree, its package has no code of azsupport) and of their
-# closure (static_dep): the manifests of the package of azsupport/static
+# closure (static_dep): the manifests of the package of azsupport/azsupport
 # (AZSUPPORT_PREFIX/static/share/azsupport/interface). A file of the static tree a dependency
 # names that no manifest has, or a name of those variables that is no static library: the
-# hash of all of azsupport/static (said in results/hashes.txt); a library port done without
+# hash of all of azsupport/azsupport (said in results/hashes.txt); a library port done without
 # a manifest: its hash. The manifests are those of the packages of the run: of the
 # repository when the port is kept (its package has the same azsupport_hash and its
 # manifests), of the new package when it is built, so the hashes of the ports that build
 # against them (and of those that need these) are made once these are done (lib_resolve; they
 # are the first stage), and no such port is ready before. A package of a library port or of
-# azsupport/static of the repository without its manifests is built again.
+# azsupport/azsupport of the repository without its manifests is built again.
 #
 # The base of every hash: the files of the official tree every build takes (Mk/Scripts,
 # Keywords, Templates), the level, tools/make.conf.in and the way the builder builds
@@ -1315,7 +1316,7 @@ mkdir -p "$q/dhash" "$q/hash-old" "$q/dhash-old" "$q/azcov" "$q/uncov" "$q/abifa
 # those of the library ports done so far (the shared ones, <lib>.txt: of the new package
 # when the port was built, of the repository when it was kept; $q/azif.d/<lib> the
 # manifest out of one package), azif.hashes and azif.sonames of them
-# (tools/azsupport-interface.sh hashes, sonames); $q/azst those of azsupport/static (the
+# (tools/azsupport-interface.sh hashes, sonames); $q/azst those of azsupport/azsupport (the
 # static tree), azst.hashes and azst.paths; none until they are read
 mkdir -p "$q/azif" "$q/azif.d" "$q/azst"
 : > "$q/azif.hashes"; : > "$q/azif.sonames"; : > "$q/azif.sonames.names"; : > "$q/azif.err"
@@ -1349,12 +1350,12 @@ lib_load() {
     mv -f "$q/azif.sonames.names.t" "$q/azif.sonames.names"
     echo "$1 $2 $3" >> "$q/libloaded"
 }
-# static_load <package of azsupport/static>: the manifests of its static libraries
+# static_load <package of azsupport/azsupport>: the manifests of its static libraries
 # (AZSUPPORT_PREFIX/static/share/azsupport/interface: their paths relative to AZSUPPORT_PREFIX,
 # static/...; common.txt, the files of no library of the static tree) into $q/azst,
 # azst.hashes and azst.paths; 1 when it has none
 static_load() {
-    sl_pre="$(sed -n 22p "$q/info/azsupport_static" 2> /dev/null)"
+    sl_pre="$(sed -n 22p "$q/info/azsupport_azsupport" 2> /dev/null)"
     sh "$top/tools/azsupport-interface.sh" extract "$1" "$q/azst" "${sl_pre:-/usr/local/azsupport}" static/share/azsupport/interface 2> "$q/azst.err" &&
         sh "$top/tools/azsupport-interface.sh" hashes "$q/azst" > "$q/azst.hashes" 2>> "$q/azst.err" &&
         sh "$top/tools/azsupport-interface.sh" paths "$q/azst" > "$q/azst.paths" 2>> "$q/azst.err" &&
@@ -1362,12 +1363,12 @@ static_load() {
     : > "$q/azst.hashes"; : > "$q/azst.paths"
     return 1
 }
-# static_dep <key>: the lines of azsupport/static for the hash of a port that builds against
-# it: "dep azsupport/static common <hash>", "dep azsupport/static interface <library> <hash>"
+# static_dep <key>: the lines of azsupport/azsupport for the hash of a port that builds against
+# it: "dep azsupport/azsupport common <hash>", "dep azsupport/azsupport interface <library> <hash>"
 # for each static library of the closure of those it uses (by the files of the static tree
-# its dependencies name, and its AZSUPPORT_HASH_LIBS), "dep azsupport/static static <library>
-# <hash>" (the content hash) for the closure of its AZSUPPORT_STATIC_LIBS; "dep azsupport/static
-# <hash of azsupport/static>" when a file of the static tree its dependencies name is in no
+# its dependencies name, and its AZSUPPORT_HASH_LIBS), "dep azsupport/azsupport static <library>
+# <hash>" (the content hash) for the closure of its AZSUPPORT_STATIC_LIBS; "dep azsupport/azsupport
+# <hash of azsupport/azsupport>" when a file of the static tree its dependencies name is in no
 # manifest or a name is no static library. The libraries its hash covers into
 # $q/azlibs-s-<key> (static:<library>), what it says into $q/azdep-s-<key>
 static_dep() {
@@ -1377,7 +1378,7 @@ static_dep() {
     sd_pre="$(sed -n 22p "$q/info/$1")"
     sd_bad=""
     for sd_e in $(sed -n '3,9p' "$q/info/$1"); do
-        case "$sd_e" in *:azsupport/static | *:azsupport/static:* | *:azsupport/static@*) ;; *) continue ;; esac
+        case "$sd_e" in *:azsupport/azsupport | *:azsupport/azsupport:* | *:azsupport/azsupport@*) ;; *) continue ;; esac
         sd_p="${sd_e%%:*}"
         sd_l="$(awk -v p="${sd_p#"$sd_pre"/}" '$1 == p { print $2; exit }' "$q/azst.paths")"
         # a file of no library (static/bin/pkg-config): common, in the hash of every port on it
@@ -1388,12 +1389,12 @@ static_dep() {
         awk -v n="$sd_l" '$1 == n && n != "common" { f = 1 } END { exit !f }' "$q/azst.hashes" || sd_bad="$sd_bad $sd_l"
     done
     if [ -n "$sd_bad" ] || [ ! -s "$q/azst.hashes" ]; then
-        echo "dep azsupport/static $(cat "$q/dhash/azsupport_static" 2>/dev/null || echo none)"
+        echo "dep azsupport/azsupport $(cat "$q/dhash/azsupport_azsupport" 2>/dev/null || echo none)"
         awk '$1 != "common" { print "static:" $1 }' "$q/azst.hashes" > "$q/azlibs-s-$1"
         if [ -s "$q/azst.hashes" ]; then
-            echo "all of azsupport/static: no static library of azsupport for$sd_bad" > "$q/azdep-s-$1"
+            echo "all of azsupport/azsupport: no static library of azsupport for$sd_bad" > "$q/azdep-s-$1"
         else
-            echo "all of azsupport/static: no manifests of its static libraries" > "$q/azdep-s-$1"
+            echo "all of azsupport/azsupport: no manifests of its static libraries" > "$q/azdep-s-$1"
         fi
         return 0
     fi
@@ -1410,13 +1411,13 @@ static_dep() {
         }
         END {
             close_of(libs, want); close_of(st, swant)
-            print "dep azsupport/static common " ih["common"]
+            print "dep azsupport/azsupport common " ih["common"]
             n = sorted(want, a); l = ""
-            for (i = 1; i <= n; i++) { print "dep azsupport/static interface " a[i] " " ih[a[i]]; print "static:" a[i] > out; l = l " " a[i] }
+            for (i = 1; i <= n; i++) { print "dep azsupport/azsupport interface " a[i] " " ih[a[i]]; print "static:" a[i] > out; l = l " " a[i] }
             m = sorted(swant, b); sl = ""
-            for (i = 1; i <= m; i++) { print "dep azsupport/static static " b[i] " " ch[b[i]]; print "static:" b[i] > out; sl = sl " " b[i] }
+            for (i = 1; i <= m; i++) { print "dep azsupport/azsupport static " b[i] " " ch[b[i]]; print "static:" b[i] > out; sl = sl " " b[i] }
             if (n + m == 0) printf "" > out
-            printf "the interfaces of %d static libraries of azsupport/static:%s%s\n", n, l, (m ? "; the archives of" sl : "") > note
+            printf "the interfaces of %d static libraries of azsupport/azsupport:%s%s\n", n, l, (m ? "; the archives of" sl : "") > note
         }' "$q/azst.hashes"
 }
 # libs_dep <key>: the lines of the library ports a port builds against (among its
@@ -1487,12 +1488,12 @@ hash_same() {
 # hash_port <origin>: the two hashes of a port (its files in $q/pf-<key> and
 # $q/nfd-<key>), its line of results/hashes.txt; the libraries of azsupport its hash covers,
 # its own and those of the ports of this tree it needs, into $q/azcov/<key> (<library> of a
-# library port, static:<library> of azsupport/static)
+# library port, static:<library> of azsupport/azsupport)
 hash_port() {
     h_o="$1"; h_k="$(key "$1")"
     # the ports of this tree it needs: one it needs to build by its hash for the ports
     # that need it, one it takes only to run by the name of its package (nothing of the
-    # package changes with it; aZ, 24.11.2026); the library ports and azsupport/static it
+    # package changes with it; aZ, 24.11.2026); the library ports and azsupport/azsupport it
     # builds against by the interfaces of their libraries (libs_dep, static_dep); the lines
     # of the old hash beside
     : > "$q/dl-$h_k"; : > "$q/dlo-$h_k"
@@ -1501,7 +1502,7 @@ hash_port() {
     for h_d in $(LC_ALL=C sort -u "$q/deps/$h_k"); do
         h_dk="$(key "$h_d")"
         if grep -qxF "$h_d" "$q/bdeps/$h_k"; then
-            if [ "$h_d" = azsupport/static ]; then
+            if [ "$h_d" = azsupport/azsupport ]; then
                 static_dep "$h_k" > "$q/dlaz-$h_k"
                 cat "$q/dlaz-$h_k" >> "$q/dl-$h_k"; cat "$q/dlaz-$h_k" >> "$q/dlo-$h_k"
                 continue
@@ -1567,17 +1568,17 @@ hash_port() {
     echo "$h_o $(cat "$q/hash/$h_k")$h_n" >> "$res/hashes.txt"
 }
 # the files of each port, its hash when it builds against no library port and not against
-# azsupport/static; those that do (or that need a port that does) wait for the manifests
+# azsupport/azsupport; those that do (or that need a port that does) wait for the manifests
 # of these ($q/deferred, in the order of the queue: lib_resolve). A port whose
 # AZSUPPORT_HASH_LIBS (the static libraries whose interfaces its hash takes) names libraries
-# without a dependency to build on azsupport/static fails: the shared libraries go by the
+# without a dependency to build on azsupport/azsupport fails: the shared libraries go by the
 # library ports among its dependencies
 for o in $(cat "$q/queue.txt"); do
     k="$(key "$o")"
     [ -f "$q/info/$k.bad" ] && continue
     hl="$(sed -n 18p "$q/info/$k")"
-    if [ -n "$hl" ] && ! grep -qxF azsupport/static "$q/bdeps/$k"; then
-        echo "AZSUPPORT_HASH_LIBS ($hl) names libraries of the static tree, and it does not build against azsupport/static: name the library ports (azsupport/<lib>) in its dependencies" > "$q/info/$k.bad"
+    if [ -n "$hl" ] && ! grep -qxF azsupport/azsupport "$q/bdeps/$k"; then
+        echo "AZSUPPORT_HASH_LIBS ($hl) names libraries of the static tree, and it does not build against azsupport/azsupport: name the library ports (azsupport/<lib>) in its dependencies" > "$q/info/$k.bad"
         say "$o: $(cat "$q/info/$k.bad")"
         continue
     fi
@@ -1596,7 +1597,7 @@ for o in $(cat "$q/queue.txt"); do
         say "$o: the official packages of $(LC_ALL=C sort -u "$q/info/$k.tools" | tr '\n' ' ' | sed 's/ $//') to build it, not ours (AZSUPPORT_TOOLS_OFFICIAL)"
     wait_az=0
     for d in $(cat "$q/bdeps/$k"); do
-        if [ "$d" = azsupport/static ] || [ -f "$q/islib/$(key "$d")" ]; then wait_az=1; break; fi
+        if [ "$d" = azsupport/azsupport ] || [ -f "$q/islib/$(key "$d")" ]; then wait_az=1; break; fi
     done
     if [ "$wait_az" = 0 ] && [ -s "$q/deferred" ]; then
         for d in $(cat "$q/deps/$k"); do
@@ -1604,11 +1605,11 @@ for o in $(cat "$q/queue.txt"); do
         done
     fi
     if [ "$wait_az" = 0 ]; then hash_port "$o"; continue; fi
-    # what it waits for, once: the library ports and azsupport/static among its dependencies to
+    # what it waits for, once: the library ports and azsupport/azsupport among its dependencies to
     # build ($q/dwait-<key>), its deferred dependencies ($q/ddef-<key>), "<key> <origin>" a line
     for d in $(cat "$q/bdeps/$k"); do
         dk="$(key "$d")"
-        if [ "$d" = azsupport/static ] || [ -f "$q/islib/$dk" ]; then echo "$dk $d"; fi
+        if [ "$d" = azsupport/azsupport ] || [ -f "$q/islib/$dk" ]; then echo "$dk $d"; fi
     done > "$q/dwait-$k"
     for d in $(cat "$q/deps/$k"); do
         grep -qxF "$d" "$q/deferred" && echo "$(key "$d") $d"
@@ -1655,11 +1656,11 @@ apre="${apre:-/usr/local/azsupport}"
 # azsupport into a port a library (no package of the port in the repository yet): of the
 # package of azsupport/azsupport of before, which had every library (its
 # share/azsupport/interface/<lib>.txt, without the files of the static tree); $q/azstold
-# those of azsupport/static
+# those of azsupport/azsupport
 mkdir -p "$q/azold" "$q/azold.d" "$q/libdone" "$q/lost" "$q/rcl" "$q/chk"
 : > "$q/azold.src"; : > "$q/libloaded"; : > "$q/libbuilt"; : > "$q/ifbuilt"; : > "$q/hashed-late"
 asold=""
-ash="$(awk '$2 == "azsupport/static" { print $4; exit }' "$q/repo-had")"
+ash="$(awk '$2 == "azsupport/azsupport" { print $4; exit }' "$q/repo-had")"
 if [ -n "$ash" ] && sh "$top/tools/azsupport-interface.sh" extract "$repo/$ash" "$q/azstold" "$apre" static/share/azsupport/interface 2> /dev/null; then
     asold="$ash"
 fi
@@ -1677,28 +1678,28 @@ while read -r lo ll; do
             echo "$ll $azcomb (azsupport/azsupport of before the split)" >> "$q/azold.src"
     fi
 done < "$q/libports"
-# lib_manicheck <origin> <key>: a library port or azsupport/static kept by its hash (its package
+# lib_manicheck <origin> <key>: a library port or azsupport/azsupport kept by its hash (its package
 # in the repository has the same azsupport_hash) whose package has not the manifests of its
 # libraries is built again ($q/nomani-<key>, said)
 lib_manicheck() {
     lm_hf="$(awk -v o="$1" '$2 == o { print $3, $4; exit }' "$q/repo-had")"
     [ -n "$lm_hf" ] && [ "$force" = 0 ] && hash_same "$2" "$1" "${lm_hf%% *}" || return 0
-    if [ "$1" = azsupport/static ]; then
+    if [ "$1" = azsupport/azsupport ]; then
         sh "$top/tools/azsupport-interface.sh" extract "$repo/${lm_hf#* }" "$q/chk/s" "$apre" static/share/azsupport/interface > /dev/null 2>&1 && return 0
-        say "azsupport/static: ${lm_hf#* } of the repository has no manifests of the interfaces of its static libraries: built again"
+        say "azsupport/azsupport: ${lm_hf#* } of the repository has no manifests of the interfaces of its static libraries: built again"
     else
         lib_extract "$(cat "$q/islib/$2")" "$1" "$repo/${lm_hf#* }" "$q/chk/l" > /dev/null 2>&1 && return 0
         say "$1: ${lm_hf#* } of the repository has no manifest of the interface of its library: built again"
     fi
     : > "$q/nomani-$2"
 }
-# the library ports and azsupport/static whose hash is made: kept by it, their packages need
+# the library ports and azsupport/azsupport whose hash is made: kept by it, their packages need
 # their manifests (those whose hash waits for the libraries they need: once it is made,
-# lib_resolve); libwait: 1 while a library port, azsupport/static or a port that waits for
+# lib_resolve); libwait: 1 while a library port, azsupport/azsupport or a port that waits for
 # their manifests is not done
 libwait=0
 : > "$q/libres"
-for lo in $( [ "$stin" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q/libports"); do
+for lo in $( [ "$stin" = 1 ] && echo azsupport/azsupport ) $(awk '{ print $1 }' "$q/libports"); do
     libwait=1
     lk="$(key "$lo")"
     echo "$lo=$lk" >> "$q/libres"
@@ -1706,13 +1707,13 @@ for lo in $( [ "$stin" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q
     lib_manicheck "$lo" "$lk"
 done
 nlibres="$(grep -c . "$q/libres")"
-# lib_resolve: what the library ports and azsupport/static done since the last call give
+# lib_resolve: what the library ports and azsupport/azsupport done since the last call give
 # (built, kept from the repository, failed or skipped): the manifests of their packages
 # ($q/file/<key>: the new one, or that of the repository) loaded (lib_load, static_load;
 # $q/libdone/<key>: loaded, noload, nopkg, or the state), the ABI check of the packages of
 # the repository against a library built in this run (lib_abi); then the hashes of the
 # deferred ports that can be made now, in the order of the queue: those whose library ports
-# and azsupport/static among their dependencies to build are done and whose deferred
+# and azsupport/azsupport among their dependencies to build are done and whose deferred
 # dependencies have their hash; a port that cannot have one (such a port of it failed, or
 # this dry run would build it: no package to read) into $q/lost/<key>, with why. Once
 # nothing waits (libwait 0), the official packages of the ports hashed so late fetched
@@ -1737,13 +1738,13 @@ lib_resolve() {
             echo nopkg > "$q/libdone/$lr_k"
             continue
         fi
-        if [ "$lr_o" = azsupport/static ]; then
+        if [ "$lr_o" = azsupport/azsupport ]; then
             if static_load "$lr_f"; then
                 echo loaded > "$q/libdone/$lr_k"
                 [ "$lr_s" = ok ] && awk '$1 != "common" { print "static:" $1 }' "$q/azst.hashes" >> "$q/ifbuilt"
             else
                 echo noload > "$q/libdone/$lr_k"
-                say "warning: ${lr_f##*/} has no manifests of the interfaces of its static libraries ($(head -n 1 "$q/azst.err" 2> /dev/null)): the ports that build against azsupport/static take its hash"
+                say "warning: ${lr_f##*/} has no manifests of the interfaces of its static libraries ($(head -n 1 "$q/azst.err" 2> /dev/null)): the ports that build against azsupport/azsupport take its hash"
             fi
             continue
         fi
@@ -1759,7 +1760,7 @@ lib_resolve() {
             lib_abi "$lr_l" "$lr_o" "$lr_f"
         fi
     done
-    # a deferred port can be hashed only once a library port or azsupport/static is done
+    # a deferred port can be hashed only once a library port or azsupport/azsupport is done
     [ "$lr_new" = 1 ] || return 0
     lr_n=0; lr_left=0
     for lr_ok in $(cat "$q/deferred.k"); do
@@ -1792,7 +1793,7 @@ lib_resolve() {
         [ -f "$q/islib/$lr_k" ] && lib_manicheck "$lr_o" "$lr_k"
     done
     [ "$lr_n" = 0 ] ||
-        say "the azsupport_hash of $lr_n ports that build against library ports of azsupport or azsupport/static: made with the interfaces of $(grep -c . "$q/azif.hashes") libraries$( [ -s "$q/azst.hashes" ] && echo " and of $(grep -c -v '^common ' "$q/azst.hashes") static ones") (results/hashes.txt)"
+        say "the azsupport_hash of $lr_n ports that build against library ports of azsupport or azsupport/azsupport: made with the interfaces of $(grep -c . "$q/azif.hashes") libraries$( [ -s "$q/azst.hashes" ] && echo " and of $(grep -c -v '^common ' "$q/azst.hashes") static ones") (results/hashes.txt)"
     [ "$lr_left" = 0 ] || return 0
     [ "$(ls "$q/libdone" | grep -c .)" -ge "$nlibres" ] || return 0
     # nothing waits any more
@@ -1933,7 +1934,7 @@ overlay_rev="$(git -C "$top" log -1 --format='%h %s' 2>/dev/null)"
     echo "pkg:      $(pkg -v 2>/dev/null); the official packages from: $(printf '%s\n' "$off_repos" | awk 'NF {
         printf "%s%s %s%s", (n++ ? ", " : ""), $1, $2, ($2 == $3 ? "" : " (the machine: " $3 ")") }')"
     echo "repo:     $repo ($(npkg "$repo") packages before the run)"
-    echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')$( [ "$serial" = 0 ] && echo ", AZSUPPORT_JOBS=$jobs")$( [ "$dryrun" = 1 ] && echo ', AZSUPPORT_DRYRUN')$( [ "$plan" = 1 ] && echo ', AZSUPPORT_PLAN: the library ports, azsupport/static and the ports they need built, the others only decided')$( [ "$ccheck" = 1 ] && echo ', AZSUPPORT_CONFIGURE_CHECK')"
+    echo "queue:    $(wc -l < "$q/queue.txt" | tr -d ' ') ports$( [ "$force" = 1 ] && echo ', --force')$( [ "$serial" = 0 ] && echo ", AZSUPPORT_JOBS=$jobs")$( [ "$dryrun" = 1 ] && echo ', AZSUPPORT_DRYRUN')$( [ "$plan" = 1 ] && echo ', AZSUPPORT_PLAN: the library ports, azsupport/azsupport and the ports they need built, the others only decided')$( [ "$ccheck" = 1 ] && echo ', AZSUPPORT_CONFIGURE_CHECK')"
 } > "$sum"
 
 # --- the builds ------------------------------------------------------------------------
@@ -2020,7 +2021,7 @@ pre_port() {
     hs="$(printf '%s' "$h" | cut -c1-12)"
     had="$(awk -v o="$1" '$2 == o { print $3, $4; exit }' "$q/repo-had")"
     [ -f "$q/tobuild-$k" ] && return 0
-    # the library ports and azsupport/static done: the hashes of the ports that build against
+    # the library ports and azsupport/azsupport done: the hashes of the ports that build against
     # them first (never in a job)
     if [ "$libwait" = 1 ]; then
         lib_resolve
@@ -2040,7 +2041,7 @@ pre_port() {
     kmod_src=0
     case "$ign" in *"requires kernel source files"*) [ -f /usr/src/sys/Makefile ] || { kmod_src=1; ign=""; } ;; esac
     if [ -n "$ign" ]; then record "$1" fail "$pn: the port says IGNORE: $ign"; return 1; fi
-    # no azsupport_hash: it builds against a library port or azsupport/static that this dry run
+    # no azsupport_hash: it builds against a library port or azsupport/azsupport that this dry run
     # does not build (their interfaces decide), or whose manifests are not there ($q/lost/<key>)
     if [ -z "$h" ]; then
         lw="$(cat "$q/lost/$k" 2> /dev/null)"
@@ -2072,7 +2073,7 @@ pre_port() {
     elif [ "${had%% *}" = - ]; then why="${had#* } in the repository has no azsupport_hash"
     else why="azsupport_hash $hs, not $(printf '%s' "${had%% *}" | cut -c1-12) of ${had#* } in the repository"
     fi
-    # AZSUPPORT_PLAN: only the library ports, azsupport/static and the ports they need are built;
+    # AZSUPPORT_PLAN: only the library ports, azsupport/azsupport and the ports they need are built;
     # the libraries of azsupport the package of the repository links checked against the new
     # hash (the same build)
     if [ "$plan" = 1 ] && ! grep -qxF "$1" "$q/azpre"; then
@@ -2202,7 +2203,7 @@ ch_init() {
         say "warning: pkg update in a chroot failed (results/logs/chroots.log): the catalogs of the machine as they are"
     fi
     # the official packages of the ports the run may build (those whose azsupport_hash is made:
-    # the ports that build against library ports or azsupport/static come once these are done)
+    # the ports that build against library ports or azsupport/azsupport come once these are done)
     # shellcheck disable=SC2046
     pf_fetch $(cat "$q/queue.txt")
     ch_down "$c" || die "the chroot $c could not be torn down"
@@ -2211,7 +2212,7 @@ ch_init() {
 # pf_fetch <origin>...: the official packages of those of the ports the run may build
 # (no package with the same azsupport_hash in the repository, or --force, or the ABI check
 # failed; make -V worked, no IGNORE, its azsupport_hash made; AZSUPPORT_PLAN: the library ports,
-# azsupport/static and the ports they need) fetched into the cache of pkg in the chroot $c
+# azsupport/azsupport and the ports they need) fetched into the cache of pkg in the chroot $c
 # (results/logs/chroots.log)
 pf_fetch() {
     _cl="$res/logs/chroots.log"
@@ -2241,7 +2242,7 @@ pf_fetch() {
     fi
 }
 # prefetch <origin>...: pf_fetch in a chroot of its own (the ports that build against the
-# library ports of azsupport or azsupport/static, once these are done: their hashes are made
+# library ports of azsupport or azsupport/azsupport, once these are done: their hashes are made
 # then, lib_resolve)
 prefetch() {
     [ $# -gt 0 ] || return 0
@@ -2380,7 +2381,7 @@ make_port() {
     ch_run -l "$q/fetch.lock" make -C "$top/$1" checksum USE_PACKAGE_DEPENDS_ONLY=yes \
         AZSUPPORT_STAMP="$azsupport_stamp" AZSUPPORT_HASH="$h" >> "$log" 2>&1
     start="$(date +%s)"
-    # AZSUPPORT_RESULTS: the results of the scripts of tools/ (azsupport/static: the line of each library)
+    # AZSUPPORT_RESULTS: the results of the scripts of tools/ (azsupport/azsupport: the line of each library)
     # in results/azsupport-results/<key>, where they stay after make clean
     _pcd="$(port_cache "$k")"
     if [ -n "$_pcd" ]; then
@@ -2474,26 +2475,26 @@ make_port() {
     return 0
 }
 
-# AZSUPPORT_PLAN: the library ports, azsupport/static and the ports of this tree they need,
+# AZSUPPORT_PLAN: the library ports, azsupport/azsupport and the ports of this tree they need,
 # the ports it builds
 : > "$q/azpre"
 awk '{ print $1 }' "$q/libports" > "$q/libports.o"
-if [ "$plan" = 1 ] && { [ -s "$q/libports" ] || grep -qxF azsupport/static "$q/queue.txt"; }; then
-    { cat "$q/libports.o"; grep -xF azsupport/static "$q/queue.txt"; } | LC_ALL=C sort -u > "$q/azpre"
+if [ "$plan" = 1 ] && { [ -s "$q/libports" ] || grep -qxF azsupport/azsupport "$q/queue.txt"; }; then
+    { cat "$q/libports.o"; grep -xF azsupport/azsupport "$q/queue.txt"; } | LC_ALL=C sort -u > "$q/azpre"
     cp "$q/azpre" "$q/azpre.new"
     while [ -s "$q/azpre.new" ]; do
         for o in $(cat "$q/azpre.new"); do cat "$q/deps/$(key "$o")"; done | LC_ALL=C sort -u | grep -vxF -f "$q/azpre" > "$q/azpre.next" || :
         cat "$q/azpre.next" >> "$q/azpre"
         mv "$q/azpre.next" "$q/azpre.new"
     done
-    say "AZSUPPORT_PLAN: built when they are to be: the $(grep -c . "$q/libports") library ports of azsupport$(grep -qxF azsupport/static "$q/azpre" && echo ', azsupport/static') and the ports they need$(grep -vxF -f "$q/libports.o" "$q/azpre" | grep -vxF azsupport/static | tr '\n' ' ' | sed 's/ $//; s/^./: &/'); the other ports only decided"
+    say "AZSUPPORT_PLAN: built when they are to be: the $(grep -c . "$q/libports") library ports of azsupport$(grep -qxF azsupport/azsupport "$q/azpre" && echo ', azsupport/azsupport') and the ports they need$(grep -vxF -f "$q/libports.o" "$q/azpre" | grep -vxF azsupport/azsupport | tr '\n' ' ' | sed 's/ $//; s/^./: &/'); the other ports only decided"
 fi
 : > "$q/kept-if"
 # the chroots share what ch_init makes (not for a dry run)
 [ "$dryrun" = 1 ] || ch_init
 if [ "$serial" = 1 ]; then
     # one port after another, in the order of the queue, each in its chroot (the ports
-    # that build against library ports of azsupport or azsupport/static have their azsupport_hash
+    # that build against library ports of azsupport or azsupport/azsupport have their azsupport_hash
     # once these are done: lib_resolve)
     for o in $(cat "$q/queue.txt"); do
         lib_resolve
@@ -2529,7 +2530,7 @@ else
     # it needs are done (built, kept, failed or skipped); up to AZSUPPORT_JOBS ports at once,
     # each in a chroot of its own with only its own dependencies (so that the ports
     # building at once never take each other's packages away: one of a pair with the
-    # same files, phpXY-mysqlnd and phpXY-mysqlnd-openssl, goes beside the other; azsupport/static
+    # same files, phpXY-mysqlnd and phpXY-mysqlnd-openssl, goes beside the other; azsupport/azsupport
     # and the library ports, NEED_ROOT, as any port, into the /usr/local/azsupport of its chroot), each with its log
     # and its own packages directory; its screen output said when it ends. A port
     # starts as soon as it is ready and a place is free, not after the whole wave
@@ -2578,7 +2579,7 @@ else
     # until no other build goes)
     nxt=""
     while :; do
-        # the library ports and azsupport/static done: the hashes of the ports that build
+        # the library ports and azsupport/azsupport done: the hashes of the ports that build
         # against them (none of these is ready before)
         lib_resolve
         # the ports that came ready, those that need no build said at once (the next
@@ -2838,7 +2839,7 @@ if [ "$ccheck" = 1 ] && [ "$dryrun" = 0 ]; then
 fi
 
 # results/azsupport-interface.txt: the library ports of azsupport in this run (built or kept,
-# the interface hash and the closure of each library), azsupport/static, the interfaces that
+# the interface hash and the closure of each library), azsupport/azsupport, the interfaces that
 # changed against the repository before this run (of the libraries built again), the ABI
 # check (results/abi-check.txt, a part a library), the ports that take interfaces of
 # azsupport (and those kept by them while a library they use was built again), the packages
@@ -2853,7 +2854,7 @@ if [ -s "$q/libports" ] || [ "$stq" = 1 ]; then
         cp "$q/azold/$l.txt" "$q/ifo/" && cp "$q/azif/$l.txt" "$q/ifn/"
         sh "$top/tools/azsupport-interface.sh" diff "$q/ifo" "$q/ifn" 2>&1
     done > "$q/azdiff"
-    if [ "$(st azsupport/static)" = ok ] && [ -n "$asold" ] && [ -s "$q/azst.hashes" ]; then
+    if [ "$(st azsupport/azsupport)" = ok ] && [ -n "$asold" ] && [ -s "$q/azst.hashes" ]; then
         sh "$top/tools/azsupport-interface.sh" diff "$q/azstold" "$q/azst" > "$q/azstdiff" 2>&1
     fi
     nlb="$(LC_ALL=C sort -u "$q/libbuilt" | grep -c .)"
@@ -2872,13 +2873,13 @@ if [ -s "$q/libports" ] || [ "$stq" = 1 ]; then
             printf '  %-14s %-26s %-8s %s\n' "$ll" "$lo" "$w" "${ih:-(no manifest)}"
         done < "$q/libports"
         if [ "$stq" = 1 ]; then
-            case "$(st azsupport/static)" in
-                ok) w="built in this run ($(basename "$(cat "$q/file/azsupport_static" 2> /dev/null)"))" ;;
-                repo) w="kept from the repository ($(basename "$(cat "$q/file/azsupport_static" 2> /dev/null)"))" ;;
+            case "$(st azsupport/azsupport)" in
+                ok) w="built in this run ($(basename "$(cat "$q/file/azsupport_azsupport" 2> /dev/null)"))" ;;
+                repo) w="kept from the repository ($(basename "$(cat "$q/file/azsupport_azsupport" 2> /dev/null)"))" ;;
                 '') w="not done" ;;
-                *) w="$(st azsupport/static)" ;;
+                *) w="$(st azsupport/azsupport)" ;;
             esac
-            echo "azsupport/static (the static tree): $w; the interfaces of its $(grep -c -v '^common ' "$q/azst.hashes") static libraries"
+            echo "azsupport/azsupport (the static tree): $w; the interfaces of its $(grep -c -v '^common ' "$q/azst.hashes") static libraries"
         fi
         if [ "$nlb" -gt 0 ]; then
             if [ -s "$q/azdiff" ]; then
@@ -2890,14 +2891,14 @@ if [ -s "$q/libports" ] || [ "$stq" = 1 ]; then
             grep -q 'of before the split' "$q/azold.src" &&
                 echo "  (the manifests before: of the package of azsupport/azsupport of before the split, its files of the static tree left out: $(grep -c 'of before the split' "$q/azold.src") libraries)"
         fi
-        if [ "$(st azsupport/static)" = ok ]; then
+        if [ "$(st azsupport/azsupport)" = ok ]; then
             if [ -z "$asold" ]; then
-                echo "azsupport/static: no package with manifests of it in the repository before this run: its static interfaces not compared"
+                echo "azsupport/azsupport: no package with manifests of it in the repository before this run: its static interfaces not compared"
             elif [ -s "$q/azstdiff" ]; then
-                echo "the static interfaces that changed against azsupport/static of the repository before this run ($asold):"
+                echo "the static interfaces that changed against azsupport/azsupport of the repository before this run ($asold):"
                 sed 's/^/  /' "$q/azstdiff"
             else
-                echo "against azsupport/static of the repository before this run ($asold): no static interface changed"
+                echo "against azsupport/azsupport of the repository before this run ($asold): no static interface changed"
             fi
         fi
         if [ -s "$res/abi-check.txt" ]; then
@@ -2915,7 +2916,7 @@ if [ -s "$q/libports" ] || [ "$stq" = 1 ]; then
             cat "$q"/uncov/* | sed 's/^/  /'
         fi
         if [ -n "$(ls "$q/lost")" ]; then
-            echo "ports without an azsupport_hash (a library port or azsupport/static they build against gave no manifests):"
+            echo "ports without an azsupport_hash (a library port or azsupport/azsupport they build against gave no manifests):"
             for f in "$q"/lost/*; do echo "  $(awk -v k="${f##*/}" '{ o = $0; gsub(/[\/@]/, "_", o) } o == k { print; exit }' "$q/queue.txt"): $(cat "$f")"; done
         fi
     } > "$res/azsupport-interface.txt"
@@ -2933,7 +2934,7 @@ if [ -s "$q/libports" ] || [ "$stq" = 1 ]; then
     else azw="no library built again"
     fi
     [ -s "$q/azstdiff" ] && azw="$azw; static interfaces changed: $(cut -d: -f1 "$q/azstdiff" | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//')"
-    echo "libraries: $nlb built$lbl, $nlk kept$( [ "$nlx" = 0 ] || echo ", $nlx failed or not built")$( [ "$stq" = 1 ] && echo "; azsupport/static $(case "$(st azsupport/static)" in ok) echo built ;; repo) echo kept ;; *) st azsupport/static ;; esac)"); $azw; $nki ports kept by interface; ABI check: $nabf of $nabi packages failed (results/azsupport-interface.txt)" >> "$sum"
+    echo "libraries: $nlb built$lbl, $nlk kept$( [ "$nlx" = 0 ] || echo ", $nlx failed or not built")$( [ "$stq" = 1 ] && echo "; azsupport/azsupport $(case "$(st azsupport/azsupport)" in ok) echo built ;; repo) echo kept ;; *) st azsupport/azsupport ;; esac)"); $azw; $nki ports kept by interface; ABI check: $nabf of $nabi packages failed (results/azsupport-interface.txt)" >> "$sum"
 fi
 # AZSUPPORT_PLAN: results/plan.txt, the ports to be built (and why) and the counts
 if [ "$plan" = 1 ]; then
@@ -2941,7 +2942,7 @@ if [ "$plan" = 1 ]; then
     nkp="$(for o in $(cat "$q/queue.txt"); do [ "$(st "$o")" = repo ] && echo "$o"; done | grep -c .)"
     nbu="$(for o in $(cat "$q/queue.txt"); do [ "$(st "$o")" = ok ] && echo "$o"; done | grep -c .)"
     {
-        echo "The plan of the run (AZSUPPORT_PLAN): $npl ports to be built, $nkp kept from the repository, $nbu built in this run (the library ports, azsupport/static and the ports they need, when they were to be built)"
+        echo "The plan of the run (AZSUPPORT_PLAN): $npl ports to be built, $nkp kept from the repository, $nbu built in this run (the library ports, azsupport/azsupport and the ports they need, when they were to be built)"
         awk '$2 == "PLAN" || ($1 ~ /\// && $2 == "OK") { print }' "$sum"
     } > "$res/plan.txt"
     echo "plan:     $npl to be built, $nkp kept from the repository, $nbu built (results/plan.txt)" >> "$sum"

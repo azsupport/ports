@@ -14,22 +14,20 @@
 #   - two ports have the same PKGNAME;
 #   - a dependency on a port of this tree by a package pattern (<name>>=<version>:
 #     <origin>, no @flavor) names another package than that of the port (its PKGBASE);
-#   - the static tree of azsupport (aZ, 12.11.2026; the port azsupport/static): a port whose
-#     dependencies name a file of it (${AZSUPPORT_STATIC}/...:azsupport/static) without
+#   - the static tree of azsupport (aZ, 12.11.2026; the port azsupport/azsupport): a port whose
+#     dependencies name a file of it (${AZSUPPORT_STATIC}/...:azsupport/azsupport) without
 #     AZSUPPORT_STATIC_LIBS (the libraries of azsupport whose archives it links into its package,
 #     whose content its azsupport_hash takes, or "none": it builds against that tree and its
 #     package has no code of azsupport), one with AZSUPPORT_STATIC_LIBS that names no such file,
-#     or a name there that is no library of kind static of azsupport/static/files/deps.conf
+#     or a name there that is no library of kind static of azsupport/azsupport/files/deps.conf
 #     (tools/build.sh builds every other port without the archives of azsupport in its
 #     chroot); AZSUPPORT_HASH_LIBS (the static libraries whose interfaces its azsupport_hash
-#     takes) without a dependency to build on azsupport/static, or a name there that is no
+#     takes) without a dependency to build on azsupport/azsupport, or a name there that is no
 #     library of kind static;
-#   - a port a library (aZ, 26.11.2026): a dependency on azsupport/azsupport (the pkg-config of
-#     the shared tree, the trigger of the services) that names a file of a library
-#     (${AZSUPPORT_PREFIX}/lib/..., include/..., libdata/..., share/azsupport/..., bin/*-config)
-#     or of the static tree: the port of that library is azsupport/<lib>, the static tree
-#     azsupport/static; a dependency on azsupport/static that names no file of the static
-#     tree; AZSUPPORT_LIB (a library port: the name of its library) that is no lib line of
+#   - a port a library (aZ, 26.11.2026): a dependency on azsupport/azsupport that names a file
+#     of ${AZSUPPORT_PREFIX} outside the static tree (a file of a library: its port is
+#     azsupport/<lib>; bin/pkg-config: azsupport/pkg-config); AZSUPPORT_LIB (a library port:
+#     the name of its library) that is no lib line of
 #     deps.conf, or the same in two ports; an origin of AZSUPPORT_HASH_OFFICIAL (the official
 #     ports whose files count in its hash) that the official tree has not; and what
 #     tools/azsupport-lib-ports.sh --check finds (the library ports are what it writes from
@@ -44,7 +42,7 @@
 #     AZSUPPORT_HASH_FILES (tools/build.sh hashes all these): it names it in AZSUPPORT_HASH_FILES,
 #     which has to name files or directories of this tree; but the two files of xok
 #     (below), read for nothing that goes into a package, and for a library port the files
-#     of azsupport/static/files (deps.conf, deps/, curl*): its part of them is in its
+#     of azsupport/azsupport/files (deps.conf, deps/, curl*): its part of them is in its
 #     Makefile (AZSUPPORT_LIB_CONF, AZSUPPORT_LIB_FILES), which tools/azsupport-build.sh --lib
 #     checks against them when it builds. A path a script of tools/
 #     makes itself is not seen here (policy.xml next to the conf of
@@ -81,14 +79,14 @@ fi
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/check-tree.XXXXXX")" || { echo "check-tree: no temporary directory" >&2; exit 2; }
 # the files of the directories of other ports that a port reads for nothing of its
 # package (not in its azsupport_hash):
-#   azsupport/static/files/deps.conf: AZSUPPORT_DEPS_CONF of azsupport/static/Makefile.common,
+#   azsupport/azsupport/files/deps.conf: AZSUPPORT_DEPS_CONF of azsupport/azsupport/Makefile.common,
 #     which the ports that include it read for its line "ports" only, the commit of the
 #     official tree that tools/build.sh checks out (in the base of every azsupport_hash)
 #   databases/mariadb1011-client/pkg-plist: databases/mariadb1011-server puts its lines
 #     into its plist as @comment lines, which pkg leaves out of the package
-xok="azsupport/static/files/deps.conf databases/mariadb1011-client/pkg-plist"
-# the confs of the libraries: deps.conf (lib, take and needs lines) of azsupport/static
-dc="$top/azsupport/static/files/deps.conf"
+xok="azsupport/azsupport/files/deps.conf databases/mariadb1011-client/pkg-plist"
+# the confs of the libraries: deps.conf (lib, take and needs lines) of azsupport/azsupport
+dc="$top/azsupport/azsupport/files/deps.conf"
 [ -f "$dc" ] || { echo "check-tree: no $dc (the confs of the libraries of azsupport)" >&2; exit 2; }
 # dc_kind <name> <kind>: a lib line of deps.conf of that library whose kinds have <kind>
 # (empty: any kind)
@@ -167,10 +165,10 @@ for mk in "$top"/*/*/Makefile; do
         done
     done
     [ -n "$unknown" ] && why="$why origins neither of this tree nor of the official one:$unknown"
-    # the static tree of azsupport (azsupport/static): AZSUPPORT_STATIC_LIBS when a dependency
+    # the static tree of azsupport (azsupport/azsupport): AZSUPPORT_STATIC_LIBS when a dependency
     # names a file of it, only then
     if [ -n "$ast" ]; then
-        sfiles="$(for dep in $bd $ld $rd; do case "$dep" in "$ast"/*:azsupport/static|"$ast"/*:azsupport/static:*|"$ast"/*:azsupport/static@*) echo "${dep%%:*}" ;; esac; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
+        sfiles="$(for dep in $bd $ld $rd; do case "$dep" in "$ast"/*:azsupport/azsupport|"$ast"/*:azsupport/azsupport:*|"$ast"/*:azsupport/azsupport@*) echo "${dep%%:*}" ;; esac; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
         if [ -n "$sfiles" ] && [ -z "$asl" ]; then
             why="$why it names the static tree of azsupport ($sfiles) without AZSUPPORT_STATIC_LIBS (the libraries of azsupport whose archives its package takes, or none);"
         elif [ -z "$sfiles" ] && [ -n "$asl" ]; then
@@ -178,43 +176,39 @@ for mk in "$top"/*/*/Makefile; do
         fi
         for l in $asl; do
             [ "$l" = none ] && continue
-            dc_kind "$l" static || why="$why AZSUPPORT_STATIC_LIBS names $l, no library of kind static of azsupport/static/files/deps.conf;"
+            dc_kind "$l" static || why="$why AZSUPPORT_STATIC_LIBS names $l, no library of kind static of azsupport/azsupport/files/deps.conf;"
         done
     fi
     # AZSUPPORT_HASH_LIBS: the static libraries whose interfaces its hash takes, with a dependency
-    # to build on azsupport/static (the shared ones go by the library ports it depends on)
+    # to build on azsupport/azsupport (the shared ones go by the library ports it depends on)
     if [ -n "$ahl" ]; then
         sdep=0
         for dep in $bd $ld; do
-            case "$dep" in *:azsupport/static|*:azsupport/static:*|*:azsupport/static@*) sdep=1; break ;; esac
+            case "$dep" in *:azsupport/azsupport|*:azsupport/azsupport:*|*:azsupport/azsupport@*) sdep=1; break ;; esac
         done
-        [ "$sdep" = 1 ] || why="$why AZSUPPORT_HASH_LIBS ($ahl) without a dependency to build on azsupport/static: it names libraries of the static tree only, a shared library goes by a dependency on its port azsupport/<lib>;"
+        [ "$sdep" = 1 ] || why="$why AZSUPPORT_HASH_LIBS ($ahl) without a dependency to build on azsupport/azsupport: it names libraries of the static tree only, a shared library goes by a dependency on its port azsupport/<lib>;"
         for l in $ahl; do
-            dc_kind "$l" static || why="$why AZSUPPORT_HASH_LIBS names $l, no library of kind static of azsupport/static/files/deps.conf;"
+            dc_kind "$l" static || why="$why AZSUPPORT_HASH_LIBS names $l, no library of kind static of azsupport/azsupport/files/deps.conf;"
         done
     fi
-    # the ports of the libraries: azsupport/azsupport has the files of no library,
-    # azsupport/static the static tree only, each library its port azsupport/<lib>
+    # azsupport/azsupport has the static tree only: each library of the shared tree its port
+    # azsupport/<lib>, the pkg-config of the shared tree azsupport/pkg-config
     if [ -n "$apre" ]; then
         wdeps="$(for dep in $bd $ld $rd; do
             w="${dep%%:*}"; org="$(printf '%s\n' "$dep" | awk -F: '{ print $2 }' | sed 's/@.*//')"
-            case "$org" in
-            azsupport/azsupport)
-                case "$w" in
-                    "$ast"/*) echo "$w (the static tree: azsupport/static)" ;;
-                    "$apre"/bin/pkg-config) ;;
-                    "$apre"/lib/*|"$apre"/include/*|"$apre"/libdata/*|"$apre"/share/azsupport/*|"$apre"/bin/*-config) echo "$w (a file of a library: its port azsupport/<lib>)" ;;
-                esac ;;
-            azsupport/static)
-                case "$w" in "$ast"/*) ;; /*) echo "$w (not of the static tree: azsupport/static has only that)" ;; esac ;;
+            [ "$org" = azsupport/azsupport ] || continue
+            case "$w" in
+                "$ast"/*) ;;
+                "$apre"/bin/pkg-config) echo "$w (the pkg-config of the shared tree: azsupport/pkg-config)" ;;
+                "$apre"/*) echo "$w (not of the static tree: a file of a library is of its port azsupport/<lib>)" ;;
             esac
         done | sort -u | tr '\n' ';' | sed 's/;$//; s/;/; /g')"
-        [ -z "$wdeps" ] || why="$why dependencies on the wrong port of azsupport: $wdeps;"
+        [ -z "$wdeps" ] || why="$why dependencies on azsupport/azsupport, which has the static tree only: $wdeps;"
     fi
     # a library port: its library a lib line of deps.conf; the official ports of
     # AZSUPPORT_HASH_OFFICIAL in the official tree
     if [ -n "$alib" ]; then
-        dc_kind "$alib" "" || why="$why AZSUPPORT_LIB=$alib, no lib line of azsupport/static/files/deps.conf;"
+        dc_kind "$alib" "" || why="$why AZSUPPORT_LIB=$alib, no lib line of azsupport/azsupport/files/deps.conf;"
         printf '%s %s\n' "$alib" "$o" >> "$tmp/libs"
     fi
     for x in $aoff; do
@@ -261,7 +255,7 @@ for mk in "$top"/*/*/Makefile; do
                     case " $xok " in *" ${r#"$topr"/} "*) continue ;; esac
                     # a library port: the confs of the libraries (its part of them in its Makefile)
                     if [ -n "$alib" ]; then
-                        case "$r" in "$topr"/azsupport/static/files | "$topr"/azsupport/static/files/*) continue ;; esac
+                        case "$r" in "$topr"/azsupport/azsupport/files | "$topr"/azsupport/azsupport/files/*) continue ;; esac
                     fi
                     ok=0
                     while read -r c; do
