@@ -1200,9 +1200,10 @@ for o in $(cat "$q/queue.txt"); do
     echo "$o $l" >> "$q/libports"
     echo "$l" > "$q/islib/$k"
 done
-# azsupport/static (the static tree) in the queue: stq
-stq=0
-grep -qxF azsupport/static "$q/queue.txt" && [ ! -f "$q/info/azsupport_static.bad" ] && stq=1
+# azsupport/static (the static tree) in the queue: stin; and make -V worked for it: stq
+stin=0; stq=0
+grep -qxF azsupport/static "$q/queue.txt" && stin=1
+[ "$stin" = 1 ] && [ ! -f "$q/info/azsupport_static.bad" ] && stq=1
 [ -s "$q/libports" ] && say "the library ports of azsupport in the queue: $(wc -l < "$q/libports" | tr -d ' ')$( [ "$stq" = 1 ] && echo ', and azsupport/static')"
 : > "$res/stages.txt"
 i=1
@@ -1685,7 +1686,7 @@ lib_manicheck() {
 # lib_resolve); libwait: 1 while a library port, azsupport/static or a port that waits for
 # their manifests is not done
 libwait=0
-for lo in $( [ "$stq" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q/libports"); do
+for lo in $( [ "$stin" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q/libports"); do
     libwait=1
     lk="$(key "$lo")"
     [ -s "$q/hash/$lk" ] || continue
@@ -1705,7 +1706,7 @@ done
 # the loops of the builds call it
 lib_resolve() {
     [ "$libwait" = 1 ] || return 0
-    for lr_o in $( [ "$stq" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q/libports"); do
+    for lr_o in $( [ "$stin" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q/libports"); do
         lr_k="$(key "$lr_o")"
         [ -f "$q/libdone/$lr_k" ] && continue
         [ -s "$q/state/$lr_k" ] || continue
@@ -1778,7 +1779,7 @@ lib_resolve() {
     [ "$lr_n" = 0 ] ||
         say "the azsupport_hash of $lr_n ports that build against library ports of azsupport or azsupport/static: made with the interfaces of $(grep -c . "$q/azif.hashes") libraries$( [ -s "$q/azst.hashes" ] && echo " and of $(grep -c -v '^common ' "$q/azst.hashes") static ones") (results/hashes.txt)"
     [ "$lr_left" = 0 ] || return 0
-    for lr_o in $( [ "$stq" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q/libports"); do
+    for lr_o in $( [ "$stin" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q/libports"); do
         [ -f "$q/libdone/$(key "$lr_o")" ] || return 0
     done
     # nothing waits any more
@@ -2895,7 +2896,7 @@ if [ -s "$q/libports" ] || [ "$stq" = 1 ]; then
         ntake=0
         for o in $(cat "$q/queue.txt"); do [ -s "$q/azcov/$(key "$o")" ] && ntake=$((ntake + 1)); done
         echo "ports of the queue whose azsupport_hash takes interfaces of azsupport: $ntake; kept by them while a library they use was built again in this run: $nki"
-        [ -s "$q/kept-if" ] && tr '\n' ' ' < "$q/kept-if" | fold -s -w 100 | sed 's/^/  /; s/ *$//'
+        [ -s "$q/kept-if" ] && tr '\n' ' ' < "$q/kept-if" | fold -s -w 100 | awk '{ sub(/ *$/, ""); print "  " $0 }'
         if [ -n "$(ls "$q/uncov")" ]; then
             echo "packages that link libraries of azsupport their azsupport_hash does not take, or that their dependencies to run do not bring:"
             cat "$q"/uncov/* | sed 's/^/  /'
