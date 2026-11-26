@@ -38,7 +38,7 @@
 #   -flto upstream for Linux), the LTO of the Cargo.toml of pinyin; the -O3 and -march of
 #   the level for the C and C++, the target-cpu for Rust, GOAMD64 for Go;
 # - in /usr/local/www/rocketchat8, owned by root; run as the user rocketchat (UID and GID
-#   3000: files/UIDs and files/GIDs, as the Manticore ports had them) by the rc script
+#   3000: files/UIDs and files/GIDs, as textproc/manticore14) by the rc script
 #   rocketchat8 (daemon(8)), with the environment of /usr/local/etc/rocketchat8.conf, the
 #   log /var/log/rocketchat8.log (aZ, 13:44: «а) ... ок»).
 
