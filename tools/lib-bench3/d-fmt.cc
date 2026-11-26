@@ -3,6 +3,7 @@
 #include <fmt/format.h>
 #include <cstdio>
 #include <cstdlib>
+#include <iterator>
 #include <string>
 #include "lb.h"
 

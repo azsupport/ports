@@ -207,7 +207,8 @@ drv() {
 # record <library> <benchmark> <unit> <lower|higher> <variant> <value>: a value of a round
 record() {
     case "$6" in ''|*[!0-9.e+-]*) say "$1 $2 $5: no number ('$6')"; return 0 ;; esac
-    echo "$6" >> "$raw/$1|$2|$3|$4|$5"
+    # a / of the name of a benchmark would be a directory: the division slash
+    echo "$6" >> "$raw/$1|$(printf '%s' "$2" | sed 's#/#∕#g')|$3|$4|$5"
 }
 # T <library> <benchmark> <variant> [tm options] <command>...: its seconds (tm: the clock),
 # on the last CPU; a command that fails is said, not recorded
@@ -219,13 +220,23 @@ T() {
         say "$l_ $b_ $v_: failed: $(cat "$W/tm.err" "$W/cmd.err" 2> /dev/null | tail -n 3 | tr '\n' ' ' | cut -c1-300)"
     fi
 }
+# TN <n> <library> <benchmark> <variant> <command>...: as T, the command <n> times in one
+# measurement (a command of a few hundredths of a second); the name gets " x<n>"
+TN() {
+    n_="$1" l_="$2" b_="$3" v_="$4"; shift 4
+    if x_="$(cpuset -l "$last" "$W/tm" -e "$W/cmd.err" sh -c 'n=$1; shift; i=0; while [ $i -lt $n ]; do "$@" > /dev/null || exit 1; i=$((i + 1)); done' sh "$n_" "$@" 2> "$W/tm.err")"; then
+        record "$l_" "$b_ x$n_" s lower "$v_" "$x_"
+    else
+        say "$l_ $b_ $v_: failed: $(cat "$W/tm.err" "$W/cmd.err" 2> /dev/null | tail -n 3 | tr '\n' ' ' | cut -c1-300)"
+    fi
+}
 # DRV <library> <variant> <program> [<arguments>]: a driver on the last CPU, each line of its
 # output "<benchmark> <seconds>" recorded
 DRV() {
     l_="$1" v_="$2"; shift 2
-    if cpuset -l "$last" "$@" > "$W/drv.out" 2> "$W/drv.err"; then :; else
-        say "$l_ $v_: $1 failed: $(tail -n 3 "$W/drv.err" | tr '\n' ' ' | cut -c1-300)"
-    fi
+    cpuset -l "$last" "$@" > "$W/drv.out" 2> "$W/drv.err"
+    rc_=$?
+    [ "$rc_" = 0 ] || say "$l_ $v_: $1 failed (exit status $rc_): $(tail -n 3 "$W/drv.err" | tr '\n' ' ' | cut -c1-300)"
     while read -r line; do
         val="${line##* }"; nm="${line% *}"
         record "$l_" "$nm" s lower "$v_" "$val"
@@ -295,23 +306,25 @@ m_brotli() {
     T brotli "-q 5 (30 MB)" "$1" "$2/bin/brotli" -q 5 -c "$W/in/corpus"
     T brotli "-q 9 (30 MB)" "$1" "$2/bin/brotli" -q 9 -c "$W/in/corpus"
     T brotli "-q 11 (5 MB)" "$1" "$2/bin/brotli" -q 11 -c "$W/in/corpus5"
-    T brotli "-d (30 MB)" "$1" "$2/bin/brotli" -d -c "$W/in/corpus.br"
+    TN 10 brotli "-d (30 MB)" "$1" "$2/bin/brotli" -d -c "$W/in/corpus.br"
 }
 f_libiconv() { fetch libiconv-1.18.tar.gz 3b08f5f4f9b4eb82f151a7040bfd6fe6c6fb922efe4b1659c66ea933276965e8 \
     https://ftp.gnu.org/gnu/libiconv/libiconv-1.18.tar.gz https://ftpmirror.gnu.org/libiconv/libiconv-1.18.tar.gz "$DC/libiconv-1.18.tar.gz" && V=1.18 A=libiconv-1.18.tar.gz; }
 b_libiconv() { ac "$2" "$3" --disable-nls --enable-extra-encodings am_cv_func_iconv=no; }
 so_libiconv() { echo "lib/libiconv.so.2"; }
 m_libiconv() {
-    for c in UTF-16LE CP1251//TRANSLIT KOI8-R//TRANSLIT ISO-8859-5//TRANSLIT ASCII//TRANSLIT GB18030; do
-        T libiconv "UTF-8 to $c" "$1" "$2/bin/iconv" -f UTF-8 -t "$c" "$W/in/text.txt"
+    for c in UTF-16LE UTF-32 CP1251//TRANSLIT KOI8-R//TRANSLIT ISO-8859-5//TRANSLIT GB18030; do
+        TN 10 libiconv "UTF-8 to $c" "$1" "$2/bin/iconv" -f UTF-8 -t "$c" "$W/in/text.txt"
     done
-    T libiconv "UTF-16LE to UTF-8" "$1" "$2/bin/iconv" -f UTF-16LE -t UTF-8 "$W/in/text.utf16"
-    T libiconv "CP1251 to UTF-8" "$1" "$2/bin/iconv" -f CP1251 -t UTF-8 "$W/in/text.cp1251"
+    TN 10 libiconv "UTF-16LE to UTF-8" "$1" "$2/bin/iconv" -f UTF-16LE -t UTF-8 "$W/in/text.utf16"
+    TN 10 libiconv "CP1251 to UTF-8" "$1" "$2/bin/iconv" -f CP1251 -t UTF-8 "$W/in/text.cp1251"
 }
 f_libmcrypt() { fetch libmcrypt-2.5.8.tar.gz e4eb6c074bbab168ac47b947c195ff8cef9d51a211cdd18ca9c9ef34d27a373e \
     "$DC/libmcrypt-2.5.8.tar.gz" https://downloads.sourceforge.net/project/mcrypt/Libmcrypt/2.5.8/libmcrypt-2.5.8.tar.gz && V=2.5.8 A=libmcrypt-2.5.8.tar.gz; }
 b_libmcrypt() {
     # C of 2007: what newer compilers refuse by default, the same for the three
+    # its libtool 1.5 takes freebsd15 for FreeBSD 1 (no shared libraries): as USES=libtool fixes it
+    for c in "$2/configure" "$2/libltdl/configure"; do [ -f "$c" ] && sed -i '' -e 's/freebsd1\*)/freebsd1.*)/g' "$c"; done
     (CFLAGS="$CFLAGS -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-pointer-types"
         export CFLAGS; ac "$2" "$3" --disable-posix-threads) && drv "$1" "$3" d-mcrypt.c -lmcrypt
 }
@@ -324,7 +337,11 @@ b_luajit() {
         gmake -C "$2" install PREFIX="$3" && { [ -e "$3/bin/luajit" ] || ln -sf "$(ls "$3"/bin/luajit-2.1* | head -n 1)" "$3/bin/luajit"; }
 }
 so_luajit() { echo "lib/libluajit-5.1.so.2"; }
-m_luajit() { for b in strings patterns tables gc numbers; do T luajit "$b" "$1" "$2/bin/luajit" "$D/lua-bench.lua" "$b"; done; }
+m_luajit() {
+    for b in strings:1 patterns:3 tables:1 gc:1 numbers:6; do
+        T luajit "${b%:*} x${b#*:}" "$1" "$2/bin/luajit" "$D/lua-bench.lua" "${b%:*}" "${b#*:}"
+    done
+}
 
 # ---- crypto
 f_libsodium() { fetch libsodium-1.0.22.tar.bz2 51b93737bf62e8549b0e94dce0fba92169e31c8ecc160883460a9bdaa6d2c298 \
@@ -469,15 +486,16 @@ f_mozjpeg() { fetch mozjpeg-4.1.5.tar.gz 9fcbb7171f6ac383f5b391175d6fb3acde5e64c
 b_mozjpeg() {
     cm "$2" "$3" -DENABLE_SHARED=ON -DENABLE_STATIC=OFF -DWITH_JPEG8=ON -DWITH_SIMD=ON -DREQUIRE_SIMD=ON \
         -DWITH_ARITH_DEC=OFF -DWITH_ARITH_ENC=OFF -DWITH_12BIT=OFF -DWITH_JAVA=OFF -DWITH_TURBOJPEG=OFF -DPNG_SUPPORTED=OFF \
-        -DWITH_MEM_SRCDST=ON -DFORCE_INLINE=ON
+        -DWITH_MEM_SRCDST=ON -DFORCE_INLINE=ON -DCMAKE_INSTALL_LIBDIR="$3/lib" -DCMAKE_INSTALL_INCLUDEDIR="$3/include" \
+        -DCMAKE_INSTALL_BINDIR="$3/bin" -DCMAKE_INSTALL_MANDIR="$3/share/man" -DCMAKE_INSTALL_DOCDIR="$3/share/doc/mozjpeg"
 }
 so_mozjpeg() { echo "lib/libjpeg.so.8"; }
 m_mozjpeg() {
-    T mozjpeg "cjpeg -quality 85 (mozjpeg: progressive, trellis; 3 MP)" "$1" "$2/bin/cjpeg" -quality 85 -outfile "$W/o.jpg" "$W/in/small.ppm"
-    T mozjpeg "cjpeg -quality 85 -revert (baseline, libjpeg-turbo; 12 MP)" "$1" "$2/bin/cjpeg" -quality 85 -revert -outfile "$W/o.jpg" "$W/in/in.ppm"
-    T mozjpeg "djpeg progressive (12 MP)" "$1" "$2/bin/djpeg" -outfile /dev/null "$W/in/prog.jpg"
-    T mozjpeg "djpeg baseline (12 MP)" "$1" "$2/bin/djpeg" -outfile /dev/null "$W/in/base.jpg"
-    T mozjpeg "djpeg -scale 1/4 (12 MP)" "$1" "$2/bin/djpeg" -scale 1/4 -outfile /dev/null "$W/in/base.jpg"
+    TN 4 mozjpeg "cjpeg -quality 85 (mozjpeg: progressive, trellis; 3 MP)" "$1" "$2/bin/cjpeg" -quality 85 -outfile "$W/o.jpg" "$W/in/small.ppm"
+    TN 10 mozjpeg "cjpeg -quality 85 -revert (baseline, libjpeg-turbo; 12 MP)" "$1" "$2/bin/cjpeg" -quality 85 -revert -outfile "$W/o.jpg" "$W/in/in.ppm"
+    TN 10 mozjpeg "djpeg progressive (12 MP)" "$1" "$2/bin/djpeg" -outfile /dev/null "$W/in/prog.jpg"
+    TN 10 mozjpeg "djpeg baseline (12 MP)" "$1" "$2/bin/djpeg" -outfile /dev/null "$W/in/base.jpg"
+    TN 20 mozjpeg "djpeg -scale 1/4 (12 MP)" "$1" "$2/bin/djpeg" -scale 1/4 -outfile /dev/null "$W/in/base.jpg"
 }
 f_webp() { fetch libwebp-1.6.0.tar.gz e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564 \
     https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz "$DC/libwebp-1.6.0.tar.gz" && V=1.6.0 A=libwebp-1.6.0.tar.gz; }
@@ -487,11 +505,11 @@ b_webp() {
 }
 so_webp() { echo "lib/libwebp.so.7"; }
 m_webp() {
-    T webp "cwebp -q 75 -m 4 (3 MP)" "$1" "$2/bin/cwebp" -quiet -q 75 -m 4 "$W/in/small.ppm" -o "$W/o.webp"
-    T webp "cwebp -q 75 -m 6 (3 MP)" "$1" "$2/bin/cwebp" -quiet -q 75 -m 6 "$W/in/small.ppm" -o "$W/o.webp"
+    TN 4 webp "cwebp -q 75 -m 4 (3 MP)" "$1" "$2/bin/cwebp" -quiet -q 75 -m 4 "$W/in/small.ppm" -o "$W/o.webp"
+    TN 3 webp "cwebp -q 75 -m 6 (3 MP)" "$1" "$2/bin/cwebp" -quiet -q 75 -m 6 "$W/in/small.ppm" -o "$W/o.webp"
     T webp "cwebp -lossless -q 50 -m 3 (3 MP)" "$1" "$2/bin/cwebp" -quiet -lossless -q 50 -m 3 "$W/in/small.ppm" -o "$W/o.webp"
-    T webp "dwebp lossy (12 MP)" "$1" "$2/bin/dwebp" -quiet "$W/in/lossy.webp" -ppm -o /dev/null
-    T webp "dwebp lossless (3 MP)" "$1" "$2/bin/dwebp" -quiet "$W/in/lossless.webp" -ppm -o /dev/null
+    TN 10 webp "dwebp lossy (12 MP)" "$1" "$2/bin/dwebp" -quiet "$W/in/lossy.webp" -ppm -o /dev/null
+    TN 10 webp "dwebp lossless (3 MP)" "$1" "$2/bin/dwebp" -quiet "$W/in/lossless.webp" -ppm -o /dev/null
 }
 f_gd() { fetch libgd-2.3.3.tar.xz 3fe822ece20796060af63b7c60acb151e5844204d289da0ce08f8fdf131e5a61 \
     https://github.com/libgd/libgd/releases/download/gd-2.3.3/libgd-2.3.3.tar.xz "$DC/libgd-2.3.3.tar.xz" && V=2.3.3 A=libgd-2.3.3.tar.xz; }
@@ -585,7 +603,12 @@ f_x264() { fetch x264-00852f599572.tar.gz b50a394f63fa9d59bb3cb2344444d91ab5d257
     "$DC/meson-ports-x264-00852f599572d10798b2dafd2c5286213d0ce795_GL0.tar.gz" \
     https://gitlab.freedesktop.org/gstreamer/meson-ports/x264/-/archive/00852f599572d10798b2dafd2c5286213d0ce795/x264-00852f599572d10798b2dafd2c5286213d0ce795.tar.gz &&
     V=0.165.3223 A=x264-00852f599572.tar.gz; }
-b_x264() { ms "$2" "$3" -Dcli=true -Dasm=enabled -Db_lto=true; }
+b_x264() {
+    # the version and the commit, not version.py of git (as multimedia/x264/files/patch-meson.build)
+    sed -i '' -e "s|run_command(find_program('version.py'), '--package-version', check: true).stdout().strip()|'0.165.3223'|" \
+        -e "s|run_command(find_program('version.py'), '--commit-hash', check: true).stdout().strip()|'00852f599572d10798b2dafd2c5286213d0ce795'|" \
+        "$2/meson.build" && ! grep -q "version.py" "$2/meson.build" && ms "$2" "$3" -Dcli=true -Dasm=enabled -Db_lto=true
+}
 so_x264() { echo "lib/libx264.so.165"; }
 m_x264() {
     T x264 "--preset medium --threads 1 (720p, 60 frames)" "$1" "$2/bin/x264" --preset medium --threads 1 --no-progress -o /dev/null "$W/in/v720.y4m"
@@ -593,7 +616,8 @@ m_x264() {
     T x264 "--preset slow --crf 20 --threads 1 (720p, 20 frames)" "$1" "$2/bin/x264" --preset slow --crf 20 --frames 20 --threads 1 --no-progress -o /dev/null "$W/in/v720.y4m"
 }
 f_dav1d() { fetch dav1d-1.5.5.tar.bz2 afc5378daba30eafd11d7b4f0ec863270d7b175f38393a2e1e0ff76f3a45c8b9 \
-    "$DC/dav1d-1.5.5.tar.bz2" https://downloads.videolan.org/pub/videolan/dav1d/1.5.5/dav1d-1.5.5.tar.bz2 && V=1.5.5 A=dav1d-1.5.5.tar.bz2; }
+    https://code.videolan.org/videolan/dav1d/-/archive/1.5.5/dav1d-1.5.5.tar.bz2 "$DC/dav1d-1.5.5.tar.bz2" \
+    https://downloads.videolan.org/pub/videolan/dav1d/1.5.5/dav1d-1.5.5.tar.bz2 && V=1.5.5 A=dav1d-1.5.5.tar.bz2; }
 b_dav1d() { ms "$2" "$3" -Denable_tools=true -Denable_tests=false -Denable_examples=false; }
 so_dav1d() { echo "lib/libdav1d.so.7"; }
 m_dav1d() {
@@ -631,7 +655,7 @@ b_libheif() {
         drv "$1" "$3" d-heif.c -lheif
 }
 so_libheif() { echo "lib/libheif.so.1"; }
-m_libheif() { DRV libheif "$1" "$2/bin/d-heif" -n 4 "$W/in/still.heic" "$W/in/still.avif"; }
+m_libheif() { DRV libheif "$1" "$2/bin/d-heif" -n 4 "$W/in/still.heic"; DRV libheif "$1" "$2/bin/d-heif" -n 24 "$W/in/still.avif"; }
 
 # ---- net
 f_curl() { fetch curl-8.23.0.tar.xz 8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5 \
@@ -665,16 +689,9 @@ so_libpsl() { echo "lib/libpsl.so.5"; }
 m_libpsl() { DRV libpsl "$1" "$2/bin/d-psl" "$W/in/domains.txt"; }
 f_libuv() { fetch libuv-v1.53.0-dist.tar.gz 21425fa398be98b51181a1885df31428092d5435c4373a396351e427322e5f1b \
     https://dist.libuv.org/dist/v1.53.0/libuv-v1.53.0-dist.tar.gz && V=1.53.0 A=libuv-v1.53.0-dist.tar.gz; }
-b_libuv() {
-    cm "$2" "$3" -DBUILD_TESTING=ON -DLIBUV_BUILD_TESTS=ON -DLIBUV_BUILD_BENCH=ON &&
-        mkdir -p "$3/bin" && cp "$2/_lb/uv_run_benchmarks_a" "$3/bin/"
-}
+b_libuv() { ac "$2" "$3" --disable-maintainer-mode cc_cv_cflags_werror__g=no && drv "$1" "$3" d-uv.c -luv; }
 so_libuv() { echo "lib/libuv.so.1"; }
-m_libuv() {
-    for b in loop_count loop_alive million_timers fs_stat tcp_write_batch queue_work; do
-        T libuv "$b" "$1" "$2/bin/uv_run_benchmarks_a" "$b"
-    done
-}
+m_libuv() { DRV libuv "$1" "$2/bin/d-uv"; }
 f_apr() { fetch apr-1.7.6.tar.bz2 49030d92d2575da735791b496dc322f3ce5cff9494779ba8cc28c7f46c5deb32 \
     "$DC/apr-1.7.6.tar.bz2" https://archive.apache.org/dist/apr/apr-1.7.6.tar.bz2 && V=1.7.6 A=apr-1.7.6.tar.bz2; }
 b_apr() { ac "$2" "$3" --enable-threads && drv "$1" "$3" d-apr.c -I"$3/include/apr-1" -lapr-1; }
@@ -700,7 +717,7 @@ b_simdjson() {
         cp "$2/jsonexamples/twitter.json" "$2/jsonexamples/citm_catalog.json" "$W/in/"
 }
 so_simdjson() { echo "lib/libsimdjson.so.30"; }
-m_simdjson() { DRV simdjson "$1" "$2/bin/d-simdjson" -n 1000 "$W/in/twitter.json" "$W/in/citm_catalog.json"; }
+m_simdjson() { DRV simdjson "$1" "$2/bin/d-simdjson" -n 3000 "$W/in/twitter.json" "$W/in/citm_catalog.json"; }
 f_libada() { fetch ada-4.1.1.tar.gz ed818cfe260ec063e1f1d93fdafca4d158162ba515369bef085adc366a03a41c \
     "$DC/ada-url-ada-v4.1.1_GH0.tar.gz" https://codeload.github.com/ada-url/ada/tar.gz/v4.1.1 && V=4.1.1 A=ada-4.1.1.tar.gz; }
 b_libada() { cm "$2" "$3" -DADA_TESTING=OFF -DADA_TOOLS=OFF -DADA_BENCHMARKS=OFF && drv "$1" "$3" d-ada.cc -std=c++20 -lada; }
@@ -855,7 +872,14 @@ list) for g in $groups; do eval "echo \"$g: \$libs_$g\""; done; exit 0 ;;
 compress|crypto|text|image|video|net) ;;
 *) echo "unknown group $group ($groups)"; exit 0 ;;
 esac
-eval "libs=\"\${LB_LIBS:-\$libs_$group}\""
+eval "libs=\"\$libs_$group\""
+# LB_LIBS: only those of them (the others of LB_LIBS are of other groups)
+if [ -n "${LB_LIBS:-}" ]; then
+    l0="$libs"; libs=""
+    for l in $l0; do case " $LB_LIBS " in *" $l "*) libs="$libs $l" ;; esac; done
+    libs="${libs# }"
+    [ -n "$libs" ] || { echo "no library of the group $group in LB_LIBS ($LB_LIBS)"; mkdir -p "$R"; echo "# lib-bench3: $group (no library of LB_LIBS)" > "$out"; exit 0; }
+fi
 eval "pk=\"\$pkgs_$group\""
 say "group $group: $libs; $rounds rounds, $ncpu CPUs, variants: $variants"
 say "cc: $(cc --version | head -n 1); clang23: $(clang23 --version 2> /dev/null | head -n 1); gcc16: $("$gcc_bin" --version 2> /dev/null | head -n 1)"

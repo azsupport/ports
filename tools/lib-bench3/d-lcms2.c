@@ -59,13 +59,13 @@ main(int argc, char **argv)
 	t = lb_now();
 	for (i = 0; i < s; i++)
 		cmsDoTransform(x, rgb, f, (cmsUInt32Number)(np / 3));
-	lb_out("sRGB 8 bits to Lab float 1/3", t);
+	lb_out("sRGB 8 bits to Lab float (a third)", t);
 	cmsDeleteTransform(x);
 	x = cmsCreateTransform(lab, TYPE_Lab_FLT, srgb, TYPE_RGB_16, INTENT_PERCEPTUAL, cmsFLAGS_NOOPTIMIZE);
 	t = lb_now();
 	for (i = 0; i < s; i++)
 		cmsDoTransform(x, f, o16, (cmsUInt32Number)(np / 4));
-	lb_out("Lab float to sRGB 16 bits unoptimized 1/4", t);
+	lb_out("Lab float to sRGB 16 bits unoptimized (a quarter)", t);
 	cmsDeleteTransform(x);
 	t = lb_now();
 	for (i = 0; i < 300 * s; i++) {

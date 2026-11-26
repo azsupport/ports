@@ -15,22 +15,22 @@ main(int argc, char **argv)
 	if (p == NULL)
 		return 1;
 	t = lb_now();
-	for (i = 0; i < 4 * s; i++)
+	for (i = 0; i < 16 * s; i++)
 		for (j = 0; j < nl; j++) {
 			const char *r = psl_registrable_domain(p, d[j]);
 
 			LB_KEEP(r != NULL ? r[0] : 0);
 		}
-	lb_out("registrable domain x4", t);
+	lb_out("registrable domain x16", t);
 	t = lb_now();
-	for (i = 0; i < 4 * s; i++)
+	for (i = 0; i < 40 * s; i++)
 		for (j = 0; j < nl; j++)
 			LB_KEEP(psl_is_public_suffix2(p, d[j] + (j % 4), PSL_TYPE_ANY));
-	lb_out("is public suffix x4", t);
+	lb_out("is public suffix x40", t);
 	t = lb_now();
-	for (i = 0; i < 4 * s; i++)
+	for (i = 0; i < 200 * s; i++)
 		for (j = 0; j + 1 < nl; j++)
 			LB_KEEP(psl_is_cookie_domain_acceptable(p, d[j], d[j + 1]));
-	lb_out("cookie domain acceptable x4", t);
+	lb_out("cookie domain acceptable x200", t);
 	return 0;
 }

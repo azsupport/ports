@@ -54,7 +54,7 @@ main(int argc, char **argv)
 	lb_out("URL relative set and append query x4", t);
 	e = curl_easy_init();
 	t = lb_now();
-	for (i = 0; i < 8 * s; i++)
+	for (i = 0; i < 16 * s; i++)
 		for (j = 0; j < nl; j++) {
 			x = curl_easy_escape(e, u[j], 0);
 			y = curl_easy_unescape(e, x, 0, NULL);
@@ -62,7 +62,7 @@ main(int argc, char **argv)
 			curl_free(y);
 			curl_free(x);
 		}
-	lb_out("escape and unescape x8", t);
+	lb_out("escape and unescape x16", t);
 	t = lb_now();
 	for (i = 0; i < 8000000 * s; i++)
 		LB_KEEP(curl_getdate(dates[i % 5], NULL));
@@ -78,7 +78,7 @@ main(int argc, char **argv)
 		curl_easy_perform(e);
 	}
 	LB_KEEP(got);
-	lb_out("file:// transfers of the URL list 1000", t);
+	lb_out("file transfers of the URL list 1000", t);
 	curl_easy_cleanup(e);
 	curl_url_cleanup(h);
 	return 0;

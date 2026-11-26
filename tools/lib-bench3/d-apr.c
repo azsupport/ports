@@ -25,13 +25,13 @@ main(int argc, char **argv)
 	apr_initialize();
 	apr_pool_create(&root, NULL);
 	t = lb_now();
-	for (i = 0; i < 300000 * s; i++) {
+	for (i = 0; i < 3000000 * s; i++) {
 		apr_pool_create(&p, root);
 		for (j = 0; j < 40; j++)
 			LB_KEEP(((char *)apr_palloc(p, 24 + (size_t)(j * 37 % 500)))[0] = 1);
 		apr_pool_destroy(p);
 	}
-	lb_out("pool create palloc destroy 300k", t);
+	lb_out("pool create palloc destroy 3M", t);
 	apr_pool_create(&p, root);
 	t = lb_now();
 	for (i = 0; i < 300000 * s; i++) {
@@ -51,7 +51,7 @@ main(int argc, char **argv)
 	for (j = 0; j < 100000; j++)
 		keys[j] = apr_psprintf(root, "/var/www/site%d/htdocs/index-%d.php", j % 97, j);
 	t = lb_now();
-	for (i = 0; i < 10 * s; i++) {
+	for (i = 0; i < 30 * s; i++) {
 		h = apr_hash_make(p);
 		for (j = 0; j < 100000; j++)
 			apr_hash_set(h, keys[j], APR_HASH_KEY_STRING, keys[j]);
@@ -59,9 +59,9 @@ main(int argc, char **argv)
 			LB_KEEP(apr_hash_get(h, keys[(j * 7) % 100000], APR_HASH_KEY_STRING) != NULL);
 		apr_pool_clear(p);
 	}
-	lb_out("hash set get 10x100k", t);
+	lb_out("hash set get 30x100k", t);
 	t = lb_now();
-	for (i = 0; i < 1000000 * s; i++) {
+	for (i = 0; i < 3000000 * s; i++) {
 		char *x = apr_psprintf(p, "%s %d %" APR_INT64_T_FMT " %pp %.3f", hn[i % 12], i, (apr_int64_t)i * 3, (void *)p,
 		    i * 0.5);
 
@@ -69,7 +69,7 @@ main(int argc, char **argv)
 		if ((i & 4095) == 0)
 			apr_pool_clear(p);
 	}
-	lb_out("psprintf pstrcat 1M", t);
+	lb_out("psprintf pstrcat 3M", t);
 	apr_pool_destroy(root);
 	apr_terminate();
 	return 0;

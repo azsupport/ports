@@ -57,7 +57,7 @@ int
 main(int argc, char **argv)
 {
 	static const struct { const char *n; int c, p, wr, rd; } cs[] = { { "lzw", COMPRESSION_LZW, 0, 1, 2 },
-		{ "lzw predictor", COMPRESSION_LZW, 1, 1, 2 }, { "packbits", COMPRESSION_PACKBITS, 0, 4, 20 },
+		{ "lzw predictor", COMPRESSION_LZW, 1, 1, 2 }, { "packbits", COMPRESSION_PACKBITS, 0, 4, 60 },
 		{ "deflate predictor (zlib 1)", COMPRESSION_ADOBE_DEFLATE, 1, 1, 2 } };
 	int s = argc > 2 ? atoi(argv[2]) : 1, i, k, w, h, mx, off;
 	size_t len;

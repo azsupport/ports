@@ -38,10 +38,10 @@ main(int argc, char **argv)
 	lb_out("secretbox xsalsa20poly1305 10x64MB", t);
 	if (crypto_aead_aes256gcm_is_available()) {
 		t = lb_now();
-		for (i = 0; i < 16 * s; i++)
+		for (i = 0; i < 32 * s; i++)
 			for (off = 0; off < n; off += chunk)
 				crypto_aead_aes256gcm_encrypt(c + off, &cl, m + off, chunk, NULL, 0, NULL, nonce, k);
-		lb_out("aes256gcm encrypt 16x64MB", t);
+		lb_out("aes256gcm encrypt 32x64MB", t);
 	}
 	t = lb_now();
 	for (i = 0; i < 8 * s; i++)

@@ -29,7 +29,7 @@ main(int argc, char **argv)
 	}
 	lb_out("prec 28: mul add div sub 3M", t);
 	t = lb_now();
-	for (i = 0; i < 1000000 * s; i++) {
+	for (i = 0; i < 3000000 * s; i++) {
 		snprintf(num, sizeof(num), "%d.%04d", i, i % 9973);
 		mpd_set_string(c, num, &ctx);
 		mpd_quantize(a, c, d, &ctx);
@@ -37,7 +37,7 @@ main(int argc, char **argv)
 		LB_KEEP(str[0]);
 		mpd_free(str);
 	}
-	lb_out("prec 28: parse quantize format 1M", t);
+	lb_out("prec 28: parse quantize format 3M", t);
 	t = lb_now();
 	for (i = 0; i < 300000 * s; i++) {
 		mpd_set_i32(c, i + 2, &ctx);

@@ -36,7 +36,7 @@ main(int argc, char **argv)
 	t = lb_now();
 	for (i = 0; i < 120 * s; i++)
 		mpz_tdiv_qr(e, m, c, d);
-	lb_out("div 2Mbit/500kbit x120", t);
+	lb_out("div 2Mbit by 500kbit x120", t);
 	mpz_urandomb(a, st, 100000);
 	mpz_urandomb(b, st, 100000);
 	t = lb_now();

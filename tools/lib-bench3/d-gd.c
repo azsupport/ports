@@ -33,21 +33,21 @@ main(int argc, char **argv)
 		LB_KEEP(d->tpixels[1][1]);
 		gdImageDestroy(d);
 	}
-	lb_out("copyresampled to 1/4 x6", t);
+	lb_out("copyresampled to a quarter x6", t);
 	gdImageSetInterpolationMethod(src, GD_BILINEAR_FIXED);
 	t = lb_now();
 	for (i = 0; i < 10 * s; i++) {
 		d = gdImageScale(src, w / 2, h / 2);
 		gdImageDestroy(d);
 	}
-	lb_out("scale bilinear to 1/2 x10", t);
+	lb_out("scale bilinear to a half x10", t);
 	gdImageSetInterpolationMethod(src, GD_BICUBIC);
 	t = lb_now();
 	for (i = 0; i < 3 * s; i++) {
 		d = gdImageScale(src, w / 2, h / 2);
 		gdImageDestroy(d);
 	}
-	lb_out("scale bicubic to 1/2 x3", t);
+	lb_out("scale bicubic to a half x3", t);
 	gdImageSetInterpolationMethod(src, GD_BILINEAR_FIXED);
 	t = lb_now();
 	for (i = 0; i < s; i++) {
@@ -80,7 +80,7 @@ main(int argc, char **argv)
 		LB_KEEP(gdImageColorsTotal(d));
 		gdImageDestroy(d);
 	}
-	lb_out("truecolor to palette (dither, 1/2) x3", t);
+	lb_out("truecolor to palette (dither, a half) x3", t);
 	d = gdImageCreateTrueColor(1600, 1200);
 	t = lb_now();
 	for (i = 0; i < 5000 * s; i++) {

@@ -56,7 +56,7 @@ od(ondemand::value v)
 int
 main(int argc, char **argv)
 {
-	int times = 1000;
+	int times = 3000;
 
 	for (int a = 1; a < argc; a++)
 		if (std::strcmp(argv[a], "-n") == 0 && a + 1 < argc)
