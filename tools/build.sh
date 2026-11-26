@@ -100,7 +100,8 @@
 #   builds again what needs it to build), of one it takes only to run the name of its
 #   package (aZ, 24.11.2026 15:47: "чтобы по каждому чиху все не пересобиралось":
 #   azsupport/services, the trigger of the services, which every library port needs to
-#   run), but of a library port of azsupport (AZSUPPORT_LIB of
+#   run), of the compiler (lang/gcc<N>: USES=azgcc and the library ports that build with
+#   it) the name of its package too, but of a library port of azsupport (AZSUPPORT_LIB of
 #   its Makefile: azsupport/<lib>, package azsupport-<lib>, and x11-fonts/fontconfig) the
 #   interface hashes of its library and of those it needs, and of azsupport/azsupport (the
 #   static tree, package azsupport) those of the static libraries the port builds
@@ -234,9 +235,9 @@ ports_url="https://github.com/freebsd/freebsd-ports"
 # extension for it, ours. The origins as the dependencies name them (lang/python3 the
 # meta port of the default Python, meson needs it); an origin this tree does not have
 # is official anyway. Here only: not taken from the environment.
-# lang/gcc16: the compiler of USES=azgcc (PHP, Redis, Python) and of the libraries of azsupport stays the
-# official package until these move to the gcc16 of this tree with the next full build
-# (aZ, 18.11.2026: «а) ... да, давай так»); our lang/gcc16-libs is not a tool and goes
+# lang/gcc16: the compiler of USES=azgcc (PHP, Redis, Python) and of the libraries of azsupport
+# that build with GCC is the gcc16 of this tree (16.2.0; aZ, 18.11.2026: «а) ... да, давай
+# так»; the official package until 26.11.2026); our lang/gcc16-libs is not a tool and goes
 # to the ports that run with it (sysutils/arcconf)
 # devel/gmake, devel/pkgconf, lang/rust: ours are for the servers, where the native
 # extensions of gems build with them (aZ, 20.11.2026); the builds of this tree keep the
@@ -2955,6 +2956,44 @@ if [ "$dryrun" = 1 ]; then
     exit 0
 fi
 
+# The packages of the repository built before the split of azsupport into a port a library
+# (26.11.2026): they need a shared library of a library port (their shlibs_required meet the
+# SONAMEs of the manifests loaded, azif.sonames) but depend on azsupport/azsupport, the static
+# tree since, and on no library port. The ABI check takes only the packages of a library built
+# in this run, and a package of before passes it once the library port has a package to
+# compare with (the second run of a branch after the split: the cache with the library ports,
+# the release with the packages of before): such a package goes like one that fails it
+# ($q/abifail; away from the repository when its port is not built in this run, the next run
+# with its port builds it). A port of the queue kept by its azsupport_hash is left alone (its
+# package is not of before: the hash of a port on a library port takes the interface of the
+# library, that of before the split azsupport/azsupport)
+presplit_check() {
+    [ -s "$q/azif.sonames" ] || return 0
+    [ -f "$q/repo-shlibs" ] || repo_shlibs
+    ps_n=0
+    while read -r ps_name ps_o ps_h ps_f; do
+        case "$ps_o" in azsupport/*|x11-fonts/fontconfig) continue ;; esac
+        [ "$(st "$ps_o")" = repo ] && continue
+        ps_libs="$(awk -v f="$ps_f" 'NR == FNR { s[$1] = $2; next } $2 == f && ($3 in s) { print s[$3] }' "$q/azif.sonames" "$q/repo-shlibs" | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//')"
+        [ -n "$ps_libs" ] || continue
+        ps_d="$(pkg query -F "$repo/$ps_f" '%do' 2> /dev/null)"
+        printf '%s\n' "$ps_d" | grep -qx 'azsupport/azsupport' || continue
+        printf '%s\n' "$ps_d" | grep -v -x -e azsupport/azsupport -e azsupport/services | grep -q -E '^(azsupport/|x11-fonts/fontconfig$)' && continue
+        echo "azsupport/azsupport: $ps_f was built before the split of azsupport (it needs $ps_libs of the library ports, but depends on azsupport/azsupport, the static tree since)" >> "$q/abifail/$(key "$ps_o")"
+        echo "$ps_o $ps_f $ps_libs" >> "$q/presplit"
+        ps_n=$((ps_n + 1))
+    done < "$q/repo-had"
+    [ "$ps_n" -gt 0 ] || return 0
+    {
+        echo "== the packages of the repository built before the split of azsupport: $ps_n (they need libraries of the library ports, they depend on azsupport/azsupport alone)"
+        awk '{ o = $1; f = $2; $1 = ""; $2 = ""; sub(/^  */, ""); print "presplit " f " (" o "): " $0 }' "$q/presplit"
+    } >> "$res/abi-check.txt"
+    say "the packages of the repository built before the split of azsupport: $ps_n (results/abi-check.txt): away when their ports are not built in this run"
+    echo "before the split: $ps_n packages of the repository need libraries of the library ports but depend on azsupport/azsupport alone: away when their ports are not built in this run (results/abi-check.txt)" >> "$sum"
+}
+: > "$q/presplit"
+presplit_check
+
 # --- the repository --------------------------------------------------------------------
 cat "$q"/made-* 2> /dev/null > "$q/made"
 : > "$q/made-names"
@@ -2982,6 +3021,42 @@ for f in "$repo"/*,*.pkg; do
     t="$(printf '%s' "${f##*/}" | tr ',' '.')"
     mv -f "$f" "$repo/$t" && say "the repository: ${f##*/} as $t (a comma does not reach the release)"
 done
+# A package whose dependency of this tree (its origin a port of this tree) has no package of
+# that name in the repository any more (away above: the ABI check, a port gone; a run of a
+# branch with some of the ports only, 26.11.2026: nginx-devel-stream-lua kept, its
+# nginx-devel-stream away, and pkg refused every package of the servers of the tests, "has a
+# missing dependency", run 45845078349) cannot be installed: away too, and in turn those that
+# need it; a run with their ports builds them again
+: > "$q/rp-pk"; : > "$q/rp-dp"
+for f in "$repo"/*.pkg; do
+    [ -f "$f" ] || continue
+    catalog "${f##*/}" && continue
+    pkg query -F "$f" '%n %o' 2> /dev/null | awk -v f="${f##*/}" 'NF == 2 { print f, $1, $2 }' >> "$q/rp-pk"
+    pkg query -F "$f" '%dn %do' 2> /dev/null | awk -v f="${f##*/}" 'NF == 2 { print f, $1, $2 }' >> "$q/rp-dp"
+done
+awk '{ print $3 }' "$q/rp-dp" | LC_ALL=C sort -u | while read -r o; do ours "$o" && echo "$o"; done > "$q/rp-ours"
+awk 'FILENAME == ARGV[1] { ours[$1] = 1; next }
+     FILENAME == ARGV[2] { have[$2] = $1; name[$1] = $2; next }
+     ($3 in ours) { need[$1] = need[$1] " " $2 }
+     END {
+         do {
+             ch = 0
+             for (f in need) {
+                 if (!(f in name)) continue
+                 n = split(need[f], d, " ")
+                 for (i = 1; i <= n; i++) if (!(d[i] in have)) {
+                     print f, d[i]; delete have[name[f]]; delete name[f]; ch = 1; break
+                 }
+             }
+         } while (ch)
+     }' "$q/rp-ours" "$q/rp-pk" "$q/rp-dp" > "$q/rp-away"
+while read -r f d; do
+    say "the repository: $f away: it needs $d of this tree, which has no package in the repository (a run with their ports builds them again)"
+    rm -f "$repo/$f"
+done < "$q/rp-away"
+if [ -s "$q/rp-away" ]; then
+    echo "dependencies: $(grep -c . "$q/rp-away") packages of the repository away, their dependencies of this tree not in it: $(awk '{ print $1 }' "$q/rp-away" | head -n 12 | tr '\n' ' ')$( [ "$(grep -c . "$q/rp-away")" -gt 12 ] && echo '...')" >> "$sum"
+fi
 # no manual pages, docs or info pages in a package (aZ, 20.11.2026): every package of the
 # repository, built now or kept (tools/docs-check.sh); results/docs-check.txt, of which
 # build.yml makes "docs: OK|FAIL" of the checks (a FAIL keeps the run from being published)

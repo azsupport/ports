@@ -1262,7 +1262,12 @@ Nothing slips by unseen:
   they bind from it is defined there (the symbols the new package lost against that of the
   repository, `nm -D`; the ELF files only of the packages that need a SONAME that lost some,
   `readelf -d`, `nm -D`); a package that fails is built again in the same run, one not built
-  goes from the repository (`results/abi-check.txt`, a part per library);
+  goes from the repository (`results/abi-check.txt`, a part per library); so does a package
+  of before the split of azsupport (it needs a library of a library port but depends on
+  `azsupport/azsupport` alone), whether the library was built again in the run or not;
+- a package of the repository whose dependency of this tree has no package in it any more
+  (gone as above, or of a port gone) goes too, and in turn those that need it: pkg would
+  not install them ("has a missing dependency"); a run with their ports builds them again;
 - the tests of all the programs run in every run (`tools/test-programs.sh`), with the
   packages kept against the new libraries;
 - a package that links a library of azsupport (its `shlibs_required`) whose port is not among
