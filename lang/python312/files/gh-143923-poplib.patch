@@ -1,0 +1,17 @@
+CVE-2025-15367, gh-143923: poplib rejects control characters in a command: a CR
+or LF of an argument (user name, message number ...) ended the command and the
+rest went to the server as another POP3 command. Upstream: main b234a2b67539
+(20.01.2026); no release of 3.12 has it, its backport (python/cpython#162136) is
+open on 26.11.2026. The lines of Lib/poplib.py of b234a2b67539 as they are.
+
+--- a/Lib/poplib.py
++++ b/Lib/poplib.py
+@@ -122,6 +122,8 @@
+     def _putcmd(self, line):
+         if self._debugging: print('*cmd*', repr(line))
+         line = bytes(line, self.encoding)
++        if re.search(b'[\x00-\x1F\x7F]', line):
++            raise ValueError('Control characters not allowed in commands')
+         self._putline(line)
+ 
+ 
