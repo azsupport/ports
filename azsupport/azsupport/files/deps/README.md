@@ -1,5 +1,29 @@
 # Patches of a port, brought up to the release of its take line
 
+## Which ports take these files
+
+Every library of the kind `shared` in `deps.conf` is a port of its own, `azsupport/<name>`
+(the package `azsupport-<name>`; fontconfig: `x11-fonts/fontconfig`), and the libraries of
+the kind `static` are built together by `azsupport/static` (the package `azsupport-static`,
+the static tree `/usr/local/azsupport/static`). The confs and the patches stay here, in
+`azsupport/azsupport/files/` (the port of the package `azsupport`: the `pkg-config` wrapper
+of the shared tree and the trigger of the services). The files of a library are those of
+its port, which [`tools/azsupport-lib-ports.sh`](../../../../tools/azsupport-lib-ports.sh)
+makes from them (`--write <official tree>`):
+
+- its lines of `deps.conf` (`lib`, `take`, `needs`) and of `curl-deps.conf` (with `psl-list`
+  for libpsl), as they are, in `AZSUPPORT_LIB_CONF` of its Makefile;
+- `deps/<name>-*.patch`, `deps/<name>-<version>/` of its active take line,
+  `curl/<name>-<version>.patch` of a library of the bundled curl, `curl/build-libcurl.sh` for
+  libssh2 (its `ssh2_algos`), in `AZSUPPORT_LIB_FILES`, which are in its `azsupport_hash`;
+- the release file of its take line or of `curl-deps.conf`, a distfile of its own.
+
+`tools/azsupport-build.sh --lib <name>` (its `do-build`) stops while its Makefile has other
+lines or files than these: a change here goes with `--write` (`--check` shows what
+differs). `azsupport/static` reads all of them (its `AZSUPPORT_HASH_FILES`).
+
+## Releases ahead of the port
+
 `azsupport/azsupport/files/deps.conf` can build a library of `/usr/local/azsupport` from a new upstream
 release before its FreeBSD port has it (a `take` line). The ports framework applies
 the patches of the port to it; when one of them no longer applies,
