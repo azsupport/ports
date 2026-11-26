@@ -56,7 +56,7 @@
 #   include/php56, share/php56, etc/rc.d/php56_fpm,
 #   libexec/apache24/libphp56.so (www/mod_php56); the modules in
 #   lib/php/20131226 as the ports. No CONFLICTS with other versions.
-# - Libraries: libxml2 of the package azsupport (${AZSUPPORT_PREFIX}), by a file, with its
+# - Libraries: libxml2 of azsupport (azsupport/libxml2, ${AZSUPPORT_PREFIX}), by a file, with its
 #   run path; PCRE the shared library of devel/pcre of this tree (8.45, as the
 #   fork bundles; --with-pcre-regex), not the one the fork bundles (aZ,
 #   10.11.2026).
@@ -139,8 +139,8 @@ AZSUPPORT_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-56.in ${MASTERD
 				${MASTERDIR}/files/pkg-message.in
 
 .if !defined(PKGNAMESUFFIX)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
 
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS+=--with-layout=GNU \

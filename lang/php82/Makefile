@@ -33,7 +33,7 @@
 #   build files of phpize82), include/php82, share/php82, etc/rc.d/php82_fpm,
 #   libexec/apache24/libphp82.so (www/mod_php82); the modules in
 #   lib/php/20220829 as the ports. No CONFLICTS_INSTALL with other versions.
-# - Libraries: libxml2 and argon2 of the package azsupport (${AZSUPPORT_PREFIX}), by a file,
+# - Libraries: libxml2 and argon2 of azsupport (azsupport/libxml2, azsupport/argon2), by a file,
 #   with its run path and pkg-config; PCRE2 the shared library of devel/pcre2
 #   of this tree, not the one the fork bundles (no option PCRE). OpenSSL is
 #   not in the core (the official one has
@@ -105,10 +105,10 @@ AZSUPPORT_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-82.in ${MASTERD
 				${MASTERDIR}/files/pkg-message.in
 
 .if !defined(PKGNAMESUFFIX)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/argon2 \
+		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/argon2 \
+		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
 
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS+=	\
@@ -240,8 +240,9 @@ PLIST_SUB+=	SAPI_INC="@comment "
 CONFIGURE_ENV+=	ac_cv_decimal_fp_supported="no" \
 		lt_cv_path_SED="sed"
 
-# the pkg-config of the package azsupport, after the PKG_CONFIG=pkgconf of
-# USES=pkgconfig (the last one in CONFIGURE_ENV is the one configure gets)
+# the pkg-config of the package azsupport (azsupport/azsupport), after the PKG_CONFIG=pkgconf
+# of USES=pkgconfig (the last one in CONFIGURE_ENV is the one configure gets)
+BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/bin/pkg-config:azsupport/azsupport
 CONFIGURE_ENV+=	PKG_CONFIG=${AZSUPPORT_PREFIX}/bin/pkg-config
 
 post-patch:

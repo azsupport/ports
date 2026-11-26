@@ -116,10 +116,11 @@ DESCR=		${.CURDIR}/pkg-descr
 
 EXTRACT_AFTER_ARGS?=	${EXTSUBDIR}
 
-# AZSUPPORT_LIBS (per module): the libraries of ${AZSUPPORT_PREFIX}/lib the module links
+# AZSUPPORT_LIBS (per module): the libraries of azsupport the module links, <name>:<its file in
+# ${AZSUPPORT_PREFIX}/lib>, each of the port azsupport/<name>
 # (Mk/Uses/php.mk links them with their run path, found by the pkg-config of azsupport)
-BUILD_DEPENDS+=	${AZSUPPORT_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
-RUN_DEPENDS+=	${AZSUPPORT_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
+BUILD_DEPENDS+=	${AZSUPPORT_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
+RUN_DEPENDS+=	${AZSUPPORT_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
 
 # The variants with OpenSSL, as lang/php74/Makefile.ext has them: ftp and
 # mysqlnd without OpenSSL, <module>-openssl with that of the base system;
@@ -197,7 +198,7 @@ PHP_HEADER_DIRS=	libcdb libflatfile libinifile
 .endif
 
 .if ${PHP_MODNAME} == "dom"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 
 CONFIGURE_ARGS+=--enable-dom \
 		--with-libxml-dir=${AZSUPPORT_PREFIX}
@@ -245,7 +246,7 @@ post-patch:
 # with the zlib of the base system) and FreeType (for the TrueType text of PHP,
 # imagettftext) of azsupport, FreeType by its pkg-config (azsupport has no freetype-config:
 # compat-freetype-pkgconfig of the fork). The bundled libgd is not extracted.
-AZSUPPORT_LIBS=	libgd.so libfreetype.so libpng16.so
+AZSUPPORT_LIBS=	gd:libgd.so freetype2:libfreetype.so png:libpng16.so
 
 CONFIGURE_ARGS+=--with-gd=${AZSUPPORT_PREFIX} \
 		--with-freetype-dir=${AZSUPPORT_PREFIX} \
@@ -275,12 +276,12 @@ CONFLICTS_INSTALL=	php56-gd-t1lib
 .endif
 
 .if ${PHP_MODNAME} == "gettext"
-AZSUPPORT_LIBS=	libintl.so
+AZSUPPORT_LIBS=	gettext:libintl.so
 CONFIGURE_ARGS+=--with-gettext=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "gmp"
-AZSUPPORT_LIBS=	libgmp.so
+AZSUPPORT_LIBS=	gmp:libgmp.so
 
 CONFIGURE_ARGS+=--with-gmp=${AZSUPPORT_PREFIX}
 .endif
@@ -292,7 +293,7 @@ CONFIGURE_ARGS+=--enable-hash \
 
 .if ${PHP_MODNAME} == "iconv"
 # GNU libiconv of azsupport, as ext.conf
-AZSUPPORT_LIBS=	libiconv.so
+AZSUPPORT_LIBS=	libiconv:libiconv.so
 CONFIGURE_ARGS+=--with-iconv=${AZSUPPORT_PREFIX}
 .endif
 
@@ -310,7 +311,7 @@ CONFIGURE_ARGS+=--with-iconv=${AZSUPPORT_PREFIX}
 # MessageFormat::getFormats() with its 10 places, which ICU 64 sizes to the
 # arguments (ICU-12584), and with ICU 76 the workaround would only leave the
 # time zone of the formatter out of the dates of such a message
-AZSUPPORT_LIBS=	libicui18n.so
+AZSUPPORT_LIBS=	icu:libicui18n.so
 
 CONFIGURE_ARGS+=--enable-intl \
 		--with-icu-dir=${AZSUPPORT_PREFIX}
@@ -342,7 +343,7 @@ PHP_HEADER_DIRS=libmbfl libmbfl/filters libmbfl/mbfl libmbfl/nls
 
 .if ${PHP_MODNAME} == "mcrypt"
 # libmcrypt of azsupport, without libltdl
-AZSUPPORT_LIBS=	libmcrypt.so
+AZSUPPORT_LIBS=	libmcrypt:libmcrypt.so
 
 CONFIGURE_ARGS+=--with-mcrypt=${AZSUPPORT_PREFIX}
 .endif
@@ -432,7 +433,7 @@ USE_PHP=	pdo:build
 .endif
 
 .if ${PHP_MODNAME} == "pdo_sqlite"
-AZSUPPORT_LIBS=	libsqlite3.so
+AZSUPPORT_LIBS=	sqlite3:libsqlite3.so
 CONFIGURE_ARGS+=--with-pdo-sqlite=${AZSUPPORT_PREFIX}
 
 USE_PHP=	pdo:build
@@ -460,7 +461,7 @@ CONFIGURE_ARGS+=--enable-posix
 .if ${PHP_MODNAME} == "readline"
 # GNU readline of azsupport (files/patch-config.m4 of the port: --with-readline under
 # phpize, where --with-libedit is on too)
-AZSUPPORT_LIBS=	libreadline.so
+AZSUPPORT_LIBS=	readline:libreadline.so
 CONFIGURE_ARGS+=--with-readline=${AZSUPPORT_PREFIX}
 .endif
 
@@ -473,7 +474,7 @@ CONFIGURE_ARGS+=--enable-shmop
 .endif
 
 .if ${PHP_MODNAME} == "simplexml"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-simplexml \
 		--with-libxml-dir=${AZSUPPORT_PREFIX}
 
@@ -481,7 +482,7 @@ USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "soap"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-soap \
 		--with-libxml-dir=${AZSUPPORT_PREFIX}
 # session at build and run time: the official files/patch-soap.c compiles the
@@ -498,7 +499,7 @@ CONFIGURE_ARGS+=--enable-sockets
 .endif
 
 .if ${PHP_MODNAME} == "sqlite3"
-AZSUPPORT_LIBS=	libsqlite3.so
+AZSUPPORT_LIBS=	sqlite3:libsqlite3.so
 CONFIGURE_ARGS+=--with-sqlite3=${AZSUPPORT_PREFIX}
 .endif
 
@@ -519,7 +520,7 @@ CONFIGURE_ARGS+=--enable-sysvshm
 # www/tidy-lib, the tidy of 2009): files/patch-tidybuffio, its header
 CONFIGURE_ARGS+=--with-tidy=${AZSUPPORT_PREFIX}
 
-AZSUPPORT_LIBS=	libtidy.so
+AZSUPPORT_LIBS=	tidy:libtidy.so
 .endif
 
 .if ${PHP_MODNAME} == "tokenizer"
@@ -533,7 +534,7 @@ CONFIGURE_ARGS+=--enable-tokenizer
 # with), not its files/patch-config.m4 of 2004: --with-libxml-dir and
 # PHP_SETUP_LIBXML, which the config.m4 of PHP 5.6 has of its own (the patch
 # does not apply to it)
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-wddx \
 		--with-libxml-dir=${AZSUPPORT_PREFIX}
 
@@ -541,13 +542,13 @@ USE_PHP=	xml:build session:build
 .endif
 
 .if ${PHP_MODNAME} == "xml"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-xml \
 		--with-libxml-dir=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "xmlreader"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-xmlreader \
 		--with-libxml-dir=${AZSUPPORT_PREFIX}
 
@@ -556,7 +557,7 @@ USE_PHP=	dom:build
 
 .if ${PHP_MODNAME} == "xmlrpc"
 # libxml2 and GNU libiconv of azsupport
-AZSUPPORT_LIBS=	libxml2.so libiconv.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so libiconv:libiconv.so
 CONFIGURE_ARGS+=--with-xmlrpc \
 		--with-libxml-dir=${AZSUPPORT_PREFIX} \
 		--with-iconv-dir=${AZSUPPORT_PREFIX}
@@ -567,14 +568,14 @@ USE_PHP=	xml:build
 .endif
 
 .if ${PHP_MODNAME} == "xmlwriter"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-xmlwriter \
                 --with-libxml-dir=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "xsl"
 # libxslt and libexslt of azsupport (its xslt-config)
-AZSUPPORT_LIBS=	libxslt.so libexslt.so
+AZSUPPORT_LIBS=	libxslt:libxslt.so libxslt:libexslt.so
 CONFIGURE_ARGS+=--with-xsl=${AZSUPPORT_PREFIX}
 
 USE_PHP=	dom:build xml:build
@@ -582,7 +583,7 @@ USE_PHP=	dom:build xml:build
 
 .if ${PHP_MODNAME} == "zip"
 # libzip of azsupport, not the one bundled in ext/zip
-AZSUPPORT_LIBS=	libzip.so
+AZSUPPORT_LIBS=	libzip:libzip.so
 
 CONFIGURE_ARGS+=--enable-zip \
 		--with-zlib-dir=/usr \
@@ -740,7 +741,7 @@ WWW=		https://pecl.php.net/package/memcached \
 LICENSE=	PHP30
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-AZSUPPORT_LIBS=	libmemcached.so
+AZSUPPORT_LIBS=	libmemcached:libmemcached.so
 
 USES+=		pkgconfig
 USE_PHP=	json:build session:build
@@ -786,7 +787,7 @@ IGBINARY_USE=			php=igbinary:build
 .endif
 
 .if ${PHP_MODNAME} == "ssh2"
-# security/pecl-ssh2 (1.3.1 at the ports commit of azsupport/azsupport) with the libssh2
+# security/pecl-ssh2 (1.3.1 at the ports commit of azsupport/static) with the libssh2
 # of azsupport (aZ, 10.11.2026) instead of security/libssh2; ext/ssh2 of the
 # tarball is 0.13, the last release for PHP 5 (php-src freebsd/pecl.conf).
 # Not the post-patch of the port, which makes $SSH2_DIR/lib of config.m4
@@ -798,7 +799,7 @@ WWW=		https://pecl.php.net/package/ssh2 \
 LICENSE=	PHP301
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-AZSUPPORT_LIBS=	libssh2.so
+AZSUPPORT_LIBS=	libssh2:libssh2.so
 CONFIGURE_ARGS+=--with-ssh2=${AZSUPPORT_PREFIX}
 .endif
 
@@ -903,7 +904,7 @@ USES+=	mysql
 .	if ${PORT_OPTIONS:MREGEX}
 # oniguruma of azsupport (the official: devel/oniguruma; files/patch-php__mbregex.c
 # for its API of 6.x)
-AZSUPPORT_LIBS+=	libonig.so
+AZSUPPORT_LIBS+=	oniguruma:libonig.so
 CONFIGURE_ARGS+=--with-onig=${AZSUPPORT_PREFIX}
 .	else
 CONFIGURE_ARGS+=--disable-mbregex

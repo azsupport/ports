@@ -51,12 +51,13 @@
 # handlers of the options DB4 GDBM QDBM TOKYO LMDB (off) for the same reason.
 #
 # What differs from the official file, and why:
-# - the libraries: the shared ones of the package azsupport (${AZSUPPORT_PREFIX}/lib, SONAME
-#   and run path ${AZSUPPORT_PREFIX}/lib, its pkg-config; Mk/bsd.overlay.mk) or those
-#   of the base system (OpenSSL, zlib, bzip2), never one of the ports: no
-#   LIB_DEPENDS, USES=gettext iconv localbase readline sqlite or USE_GNOME. A
-#   module depends on azsupport by the files of ${AZSUPPORT_PREFIX}/lib it links (AZSUPPORT_LIBS),
-#   not by LIB_DEPENDS: ldconfig has no hints of ${AZSUPPORT_PREFIX}/lib.
+# - the libraries: the shared ones of azsupport (${AZSUPPORT_PREFIX}/lib, SONAME and run
+#   path ${AZSUPPORT_PREFIX}/lib, a port azsupport/<name> each, the pkg-config of the package
+#   azsupport; Mk/bsd.overlay.mk) or those of the base system (OpenSSL, zlib, bzip2), never
+#   one of the ports: no LIB_DEPENDS, USES=gettext iconv localbase readline sqlite or
+#   USE_GNOME. A module depends on the ports of the libraries of azsupport by the files of
+#   ${AZSUPPORT_PREFIX}/lib it links (AZSUPPORT_LIBS), not by LIB_DEPENDS: ldconfig has no
+#   hints of ${AZSUPPORT_PREFIX}/lib.
 # - the configure options are those of ext.conf: the official ones point at the
 #   libraries of the ports (--with-<x>=${LOCALBASE}) and at the PCRE2 of the
 #   ports, which the official core links (--with-pcre-dir); ours has the PCRE2
@@ -115,10 +116,11 @@ DESCR=		${.CURDIR}/pkg-descr
 
 EXTRACT_AFTER_ARGS?=	${EXTSUBDIR}
 
-# AZSUPPORT_LIBS (per module): the libraries of ${AZSUPPORT_PREFIX}/lib the module links
+# AZSUPPORT_LIBS (per module): the libraries of azsupport the module links, <name>:<its file in
+# ${AZSUPPORT_PREFIX}/lib>, each of the port azsupport/<name>
 # (Mk/Uses/php.mk links them with their run path, found by the pkg-config of azsupport)
-BUILD_DEPENDS+=	${AZSUPPORT_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
-RUN_DEPENDS+=	${AZSUPPORT_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
+BUILD_DEPENDS+=	${AZSUPPORT_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
+RUN_DEPENDS+=	${AZSUPPORT_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
 
 # The variants with OpenSSL (ours; aZ, 10.11.2026): ftp, mysqlnd, swoole and
 # openswoole are built without OpenSSL, each also as <module>-openssl with
@@ -203,7 +205,7 @@ PHP_HEADER_DIRS=	libcdb libflatfile libinifile
 .endif
 
 .if ${PHP_MODNAME} == "dom"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 
 CONFIGURE_ARGS+=--enable-dom
 
@@ -215,7 +217,7 @@ CONFIGURE_ARGS+=--enable-exif
 .endif
 
 .if ${PHP_MODNAME} == "ffi"
-AZSUPPORT_LIBS=	libffi.so
+AZSUPPORT_LIBS=	libffi:libffi.so
 CONFIGURE_ARGS+=--with-ffi
 .endif
 
@@ -252,7 +254,7 @@ USES+=		ssl pkgconfig
 # the bundled one: its formats. No options: TRUETYPE (gone since PHP 7.2), JIS
 # (--enable-gd-jis-conv) and WEBP (--with-webp) of the official port are for the
 # bundled libgd only, X11 (XPM) is gone (aZ 11.11.2026)
-AZSUPPORT_LIBS=	libgd.so
+AZSUPPORT_LIBS=	gd:libgd.so
 
 CONFIGURE_ARGS+=--enable-gd \
 		--with-external-gd
@@ -262,24 +264,24 @@ EXTRACT_AFTER_ARGS=--no-same-owner --no-same-permissions --exclude libgd \
 .endif
 
 .if ${PHP_MODNAME} == "gettext"
-AZSUPPORT_LIBS=	libintl.so
+AZSUPPORT_LIBS=	gettext:libintl.so
 CONFIGURE_ARGS+=--with-gettext=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "gmp"
-AZSUPPORT_LIBS=	libgmp.so
+AZSUPPORT_LIBS=	gmp:libgmp.so
 
 CONFIGURE_ARGS+=--with-gmp=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "iconv"
 # GNU libiconv of azsupport, as ext.conf
-AZSUPPORT_LIBS=	libiconv.so
+AZSUPPORT_LIBS=	libiconv:libiconv.so
 CONFIGURE_ARGS+=--with-iconv=${AZSUPPORT_PREFIX}
 .endif
 
 .if ${PHP_MODNAME} == "intl"
-AZSUPPORT_LIBS=	libicui18n.so
+AZSUPPORT_LIBS=	icu:libicui18n.so
 CONFIGURE_ARGS+=--enable-intl
 USES+=		pkgconfig
 # C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
@@ -377,7 +379,7 @@ USE_PHP=	pdo:build
 .endif
 
 .if ${PHP_MODNAME} == "pdo_sqlite"
-AZSUPPORT_LIBS=	libsqlite3.so
+AZSUPPORT_LIBS=	sqlite3:libsqlite3.so
 CONFIGURE_ARGS+=--with-pdo-sqlite
 
 USE_PHP=	pdo:build
@@ -393,7 +395,7 @@ CONFIGURE_ARGS+=--enable-posix
 
 .if ${PHP_MODNAME} == "readline"
 # GNU readline of azsupport
-AZSUPPORT_LIBS=	libreadline.so
+AZSUPPORT_LIBS=	readline:libreadline.so
 CONFIGURE_ARGS+=--with-readline=${AZSUPPORT_PREFIX}
 .endif
 
@@ -406,14 +408,14 @@ CONFIGURE_ARGS+=--enable-shmop
 .endif
 
 .if ${PHP_MODNAME} == "simplexml"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-simplexml
 
 USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "soap"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-soap
 
 USES+=		pkgconfig
@@ -424,12 +426,12 @@ CONFIGURE_ARGS+=--enable-sockets
 .endif
 
 .if ${PHP_MODNAME} == "sodium"
-AZSUPPORT_LIBS=	libsodium.so
+AZSUPPORT_LIBS=	libsodium:libsodium.so
 CONFIGURE_ARGS+=	--with-sodium
 .endif
 
 .if ${PHP_MODNAME} == "sqlite3"
-AZSUPPORT_LIBS=	libsqlite3.so
+AZSUPPORT_LIBS=	sqlite3:libsqlite3.so
 USES+=		pkgconfig
 CONFIGURE_ARGS+=--with-sqlite3
 .endif
@@ -447,7 +449,7 @@ CONFIGURE_ARGS+=--enable-sysvshm
 .endif
 
 .if ${PHP_MODNAME} == "tidy"
-AZSUPPORT_LIBS=	libtidy.so
+AZSUPPORT_LIBS=	tidy:libtidy.so
 CONFIGURE_ARGS+=--with-tidy=${AZSUPPORT_PREFIX}
 .endif
 
@@ -456,21 +458,21 @@ CONFIGURE_ARGS+=--enable-tokenizer
 .endif
 
 .if ${PHP_MODNAME} == "xml"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-xml
 
 USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "xmlreader"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-xmlreader
 
 USE_PHP=	dom:build
 .endif
 
 .if ${PHP_MODNAME} == "xmlrpc"
-AZSUPPORT_LIBS=	libxml2.so libiconv.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so libiconv:libiconv.so
 CONFIGURE_ARGS+=--with-xmlrpc \
 		--with-iconv-dir=${AZSUPPORT_PREFIX}
 
@@ -482,21 +484,21 @@ USE_PHP=	xml:build
 .endif
 
 .if ${PHP_MODNAME} == "xmlwriter"
-AZSUPPORT_LIBS=	libxml2.so
+AZSUPPORT_LIBS=	libxml2:libxml2.so
 CONFIGURE_ARGS+=--enable-xmlwriter
 
 USES+=		pkgconfig
 .endif
 
 .if ${PHP_MODNAME} == "xsl"
-AZSUPPORT_LIBS=	libxslt.so
+AZSUPPORT_LIBS=	libxslt:libxslt.so
 CONFIGURE_ARGS+=--with-xsl
 
 USE_PHP=	dom:build xml:build
 .endif
 
 .if ${PHP_MODNAME} == "zip"
-AZSUPPORT_LIBS=	libzip.so
+AZSUPPORT_LIBS=	libzip:libzip.so
 
 CONFIGURE_ARGS+=--with-zip
 USES+=		pkgconfig
@@ -644,7 +646,7 @@ WWW=		https://pecl.php.net/package/mcrypt
 
 LICENSE=	PHP301
 
-AZSUPPORT_LIBS=	libmcrypt.so
+AZSUPPORT_LIBS=	libmcrypt:libmcrypt.so
 CONFIGURE_ARGS+=--with-mcrypt=${AZSUPPORT_PREFIX}
 # not the post-patch of the port (1.0.5): 1.0.9 ends RETURN_FALSE/TRUE with ;
 .endif
@@ -673,7 +675,7 @@ WWW=		https://pecl.php.net/package/memcached
 LICENSE=	PHP30
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-AZSUPPORT_LIBS=	libmemcached.so
+AZSUPPORT_LIBS=	libmemcached:libmemcached.so
 
 USE_PHP=	json:build session:build
 
@@ -714,12 +716,12 @@ CONFIGURE_ARGS+=--enable-redis
 .  if ${AZSUPPORT_REDIS:M*-lz4*}
 CONFIGURE_ARGS+=--enable-redis-lz4 \
 		--with-liblz4=${AZSUPPORT_PREFIX}
-AZSUPPORT_LIBS+=	liblz4.so
+AZSUPPORT_LIBS+=	lz4:liblz4.so
 .  endif
 .  if ${AZSUPPORT_REDIS:M*-zstd}
 CONFIGURE_ARGS+=--enable-redis-zstd \
 		--with-libzstd=${AZSUPPORT_PREFIX}
-AZSUPPORT_LIBS+=	libzstd.so
+AZSUPPORT_LIBS+=	zstd:libzstd.so
 .  endif
 CONFLICTS_INSTALL=	${AZSUPPORT_REDIS_PKGS:N${AZSUPPORT_REDIS}:S/^/php${PHP_VER}-/}
 
@@ -732,7 +734,7 @@ IGBINARY_CONFIGURE_ENABLE=	redis-igbinary
 .endif
 
 .if ${PHP_MODNAME} == "ssh2"
-# security/pecl-ssh2 (1.3.1 at the ports commit of azsupport/azsupport) with the libssh2
+# security/pecl-ssh2 (1.3.1 at the ports commit of azsupport/static) with the libssh2
 # of azsupport (aZ, 10.11.2026) instead of security/libssh2; ext/ssh2 of the
 # tarball is 1.4.1, the last release for PHP 7 (php-src freebsd/pecl.conf).
 # Not the post-patch of the port, which makes $SSH2_DIR/lib of config.m4
@@ -744,7 +746,7 @@ WWW=		https://pecl.php.net/package/ssh2 \
 LICENSE=	PHP301
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-AZSUPPORT_LIBS=	libssh2.so
+AZSUPPORT_LIBS=	libssh2:libssh2.so
 CONFIGURE_ARGS+=--with-ssh2=${AZSUPPORT_PREFIX}
 .endif
 
@@ -764,7 +766,7 @@ USES+=		compiler:c11
 # C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
 AZSUPPORT_GCC=		no
 USE_PHP=	hash:build pcre mysqlnd:build
-AZSUPPORT_LIBS=	libbrotlienc.so
+AZSUPPORT_LIBS=	brotli:libbrotlienc.so
 
 CONFIGURE_ARGS+=	--enable-swoole \
 			--enable-mysqlnd \
@@ -813,7 +815,7 @@ USES+=		compiler:c11
 # C++: the base clang, not GCC (Mk/Uses/azgcc.mk)
 AZSUPPORT_GCC=		no
 USE_PHP=	sockets:build mysqlnd:build
-AZSUPPORT_LIBS=	libbrotlienc.so
+AZSUPPORT_LIBS=	brotli:libbrotlienc.so
 # its configure finds brotli by a link test only (AC_CHECK_LIB, through the -L of
 # azsupport in LDFLAGS) and has no option for its directory: the headers of azsupport too
 # (brotli/encode.h was not found; build.yml 42519391339)
@@ -935,7 +937,7 @@ USES+=	mysql
 .if ${PHP_MODNAME} == "mbstring"
 .	if ${PORT_OPTIONS:MREGEX}
 # oniguruma of azsupport, found by its pkg-config
-AZSUPPORT_LIBS+=	libonig.so
+AZSUPPORT_LIBS+=	oniguruma:libonig.so
 .	else
 CONFIGURE_ARGS+=--disable-mbregex
 .	endif

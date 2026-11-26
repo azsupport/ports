@@ -33,7 +33,7 @@
 #   libexec/apache24/libphp74.so (www/mod_php74); the modules in
 #   lib/php/20190902 as the ports. So no CONFLICTS_INSTALL with the other
 #   versions (the modules set theirs in Makefile.ext).
-# - Libraries: libxml2 and argon2 of the package azsupport (${AZSUPPORT_PREFIX}), depended
+# - Libraries: libxml2 and argon2 of azsupport (azsupport/libxml2, azsupport/argon2), depended
 #   on by a file (no ldconfig hints for ${AZSUPPORT_PREFIX}/lib: never LIB_DEPENDS),
 #   linked with its run path and found by its pkg-config; PCRE2 the shared
 #   library of devel/pcre2 of this tree, not the one the fork bundles.
@@ -111,10 +111,10 @@ AZSUPPORT_HASH_NOT_FOR_DEPENDENTS=	${MASTERDIR}/files/php.ini-az-74.in ${MASTERD
 				${MASTERDIR}/files/pkg-message.in
 
 .if !defined(PKGNAMESUFFIX)
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/argon2 \
+		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libargon2.so:azsupport/argon2 \
+		${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2
 
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS+=--with-layout=GNU \
@@ -249,9 +249,10 @@ PLIST_SUB+=	SAPI_INC="@comment "
 CONFIGURE_ENV+=	ac_cv_decimal_fp_supported="no" \
 		lt_cv_path_SED="sed"
 
-# the pkg-config of the package azsupport (it runs pkgconf of USES=pkgconfig with the
-# .pc files of ${AZSUPPORT_PREFIX} first): after USES=pkgconfig added PKG_CONFIG=pkgconf
-# to CONFIGURE_ENV, so that this one, the last, is the one configure gets
+# the pkg-config of the package azsupport (azsupport/azsupport: it runs pkgconf of
+# USES=pkgconfig with the .pc files of ${AZSUPPORT_PREFIX} first): after USES=pkgconfig added
+# PKG_CONFIG=pkgconf to CONFIGURE_ENV, so that this one, the last, is the one configure gets
+BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/bin/pkg-config:azsupport/azsupport
 CONFIGURE_ENV+=	PKG_CONFIG=${AZSUPPORT_PREFIX}/bin/pkg-config
 
 post-patch:
