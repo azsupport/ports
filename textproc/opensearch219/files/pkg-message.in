@@ -1,7 +1,7 @@
 [
 { type: install
   message: <<EOM
-OpenSearch 2.19.7 was installed (of azsupport/ports).
+OpenSearch 2.19.8 was installed (of azsupport/ports).
 
 Please see %%ETCDIR%% for a sample version of
 opensearch.yml.
