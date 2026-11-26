@@ -472,11 +472,19 @@ g_python() {
         _cf="$(echo "$CFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//' -e 's/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1/')"
         _lf="$(echo "$LDFLAGS" | sed -e 's/-pie //')"
         unpack Python-3.12.16.tar.xz "$W/src/py-$v"
-        (cd "$W/src/py-$v" && ./configure --prefix="$W/py-$v" --enable-shared --with-lto --with-ensurepip=install \
+        # and OPT="" (the flags of the environment alone) and no -g, as the port
+        (cd "$W/src/py-$v" && sed -i '' -e 's|^\( *MULTIARCH=\).*--print-multiarch.*|\1|' configure &&
+            env OPT= ac_cv_prog_cc_g=no ./configure --prefix="$W/py-$v" --enable-shared --with-lto --with-ensurepip=install \
             CC="$CC" CFLAGS="$_cf" CPPFLAGS=-I/usr/local/include \
             LDFLAGS="-L/usr/local/lib -Wl,-rpath,$W/py-$v/lib $_lf" && gmake -j"$ncpu" && gmake install) \
             > "$W/b-py-$v.log" 2>&1 || bfail "python $v" "$W/b-py-$v.log"
         say "python $v: $(cc_of "$W/py-$v/lib/libpython3.12.so.1.0")"
+        # the modules pyperformance and pip need (gcc16 of 45894371224: pip could not install wheel)
+        if ! "$W/py-$v/bin/python3.12" -c 'import ssl, zlib, ctypes, hashlib, pyexpat, _json, _decimal, sqlite3' > "$W/pymod-$v.log" 2>&1; then
+            say "python $v: modules: $(tail -n 2 "$W/pymod-$v.log" | tr '\n' ' ')"
+            { echo; echo "python $v: a module does not load: $(tail -n 2 "$W/pymod-$v.log" | tr '\n' ' ')"; echo '```'
+                grep -E -A 12 'necessary bits|Failed to build|could not be imported|_ssl|_hashlib' "$W/b-py-$v.log" | tail -n 40; echo '```'; } >> "$out"
+        fi
     done
     export PATH="$PATH0"
     python3 -m venv "$W/pt" && "$W/pt/bin/pip" -q install pyperformance > "$W/pip.log" 2>&1 || bfail "pip install pyperformance" "$W/pip.log"
