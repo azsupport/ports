@@ -323,8 +323,9 @@ f_libmcrypt() { fetch libmcrypt-2.5.8.tar.gz e4eb6c074bbab168ac47b947c195ff8cef9
     "$DC/libmcrypt-2.5.8.tar.gz" https://downloads.sourceforge.net/project/mcrypt/Libmcrypt/2.5.8/libmcrypt-2.5.8.tar.gz && V=2.5.8 A=libmcrypt-2.5.8.tar.gz; }
 b_libmcrypt() {
     # C of 2007: what newer compilers refuse by default, the same for the three
-    # its libtool 1.5 takes freebsd15 for FreeBSD 1 (no shared libraries): as USES=libtool fixes it
-    for c in "$2/configure" "$2/libltdl/configure"; do [ -f "$c" ] && sed -i '' -e 's/freebsd1\*)/freebsd1.*)/g' "$c"; done
+    # its libtool 1.5 takes freebsd15 for FreeBSD 1: no shared library, the static one (compiled by the
+    # variant) goes into the driver (the replacement of freebsd1* in its configure left no library at
+    # all, run 45901157597)
     (CFLAGS="$CFLAGS -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-pointer-types"
         export CFLAGS; ac "$2" "$3" --disable-posix-threads) && drv "$1" "$3" d-mcrypt.c -lmcrypt
 }
