@@ -26,8 +26,10 @@
 #     library of kind static;
 #   - a port a library (aZ, 26.11.2026): a dependency on azsupport/azsupport that names a file
 #     of ${AZSUPPORT_PREFIX} outside the static tree (a file of a library: its port is
-#     azsupport/<lib>; bin/pkg-config: azsupport/pkg-config); AZSUPPORT_LIB (a library port:
-#     the name of its library) that is no lib line of
+#     azsupport/<lib>); a dependency on ${AZSUPPORT_PREFIX}/bin/pkg-config, of any port (the
+#     wrapper is no package any more: Mk/azsupport-pkg-config.mk writes it into the work
+#     directory of the port); AZSUPPORT_LIB (a library port: the name of its library) that is
+#     no lib line of
 #     deps.conf, or the same in two ports; an origin of AZSUPPORT_HASH_OFFICIAL (the official
 #     ports whose files count in its hash) that the official tree has not; and what
 #     tools/azsupport-lib-ports.sh --check finds (the library ports are what it writes from
@@ -191,15 +193,17 @@ for mk in "$top"/*/*/Makefile; do
             dc_kind "$l" static || why="$why AZSUPPORT_HASH_LIBS names $l, no library of kind static of azsupport/azsupport/files/deps.conf;"
         done
     fi
-    # azsupport/azsupport has the static tree only: each library of the shared tree its port
-    # azsupport/<lib>, the pkg-config of the shared tree azsupport/pkg-config
+    # the pkg-config of the shared tree is no package (Mk/azsupport-pkg-config.mk writes it into
+    # the work directory of the port); azsupport/azsupport has the static tree only, each
+    # library of the shared tree its port azsupport/<lib>
     if [ -n "$apre" ]; then
+        pcd="$(for dep in $bd $ld $rd; do [ "${dep%%:*}" = "$apre/bin/pkg-config" ] && echo "$dep"; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
+        [ -z "$pcd" ] || why="$why $pcd: the wrapper is gone: include Mk/azsupport-pkg-config.mk;"
         wdeps="$(for dep in $bd $ld $rd; do
             w="${dep%%:*}"; org="$(printf '%s\n' "$dep" | awk -F: '{ print $2 }' | sed 's/@.*//')"
             [ "$org" = azsupport/azsupport ] || continue
             case "$w" in
-                "$ast"/*) ;;
-                "$apre"/bin/pkg-config) echo "$w (the pkg-config of the shared tree: azsupport/pkg-config)" ;;
+                "$ast"/* | "$apre"/bin/pkg-config) ;;
                 "$apre"/*) echo "$w (not of the static tree: a file of a library is of its port azsupport/<lib>)" ;;
             esac
         done | sort -u | tr '\n' ';' | sed 's/;$//; s/;/; /g')"
