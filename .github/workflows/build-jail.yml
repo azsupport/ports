@@ -515,6 +515,10 @@ jobs:
           AZSUPPORT_PHP_CHECKS: ${{ inputs.php_checks }}
           AZSUPPORT_COMPARE: ${{ inputs.compare_release && '1' || '' }}
           AZSUPPORT_TESTS_NONBLOCKING: ${{ inputs.tests_nonblocking }}
+          # a run of some of the ports (the input ports not empty): tools/test-programs.sh
+          # skips a test whose packages are not ours, a run of all of them fails it (aZ,
+          # 27.11.2026: no test on an official package in the place of one of ours)
+          AZSUPPORT_TESTS_PARTIAL: ${{ inputs.ports != '' && '1' || '' }}
           PKG_SIGNING_KEY: ${{ secrets.PKG_SIGNING_KEY }}
         run: |
           set +e
@@ -713,7 +717,8 @@ jobs:
           r=0
           if [ -f tools/test-programs.sh ]; then
             mkdir -p results/tests
-            cr_run "sh tools/test-programs.sh --repo '$crepo'" > results/tests/test-programs.out 2>&1 || r=$?
+            # the root of the checks starts with env -i: the mark of a run of some of the ports by name
+            cr_run "AZSUPPORT_TESTS_PARTIAL='${AZSUPPORT_TESTS_PARTIAL:-}' sh tools/test-programs.sh --repo '$crepo'" > results/tests/test-programs.out 2>&1 || r=$?
           else
             echo "programs: SKIP (no tools/test-programs.sh: the tests of azsupport/azsupport were not fetched)" >> results/checks.txt
           fi

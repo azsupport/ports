@@ -479,13 +479,17 @@ jobs:
           AZSUPPORT_PLAN: ${{ inputs.plan && '1' || '' }}
           AZSUPPORT_PHP_CHECKS: ${{ inputs.php_checks }}
           AZSUPPORT_COMPARE: ${{ inputs.compare_release && '1' || '' }}
+          # a run of some of the ports (the input ports not empty): tools/test-programs.sh
+          # skips a test whose packages are not ours, a run of all of them fails it (aZ,
+          # 27.11.2026: no test on an official package in the place of one of ours)
+          AZSUPPORT_TESTS_PARTIAL: ${{ inputs.ports != '' && '1' || '' }}
           AZSUPPORT_PKG_KEY: ${{ steps.key.outputs.b64 }}
         with:
           release: ${{ inputs.release }}
           # the runner has 16 GB and no swap: 12 GB for the VM by default (up to 4 builds at
           # once, each with make -j of the 4 vCPUs), the input vm_mem for less
           mem: ${{ inputs.vm_mem || '12288' }}
-          envs: 'AZSUPPORT_CPUTYPE AZSUPPORT_PORTS AZSUPPORT_FORCE AZSUPPORT_JOBS AZSUPPORT_CONFIGURE_CHECK AZSUPPORT_PLAN AZSUPPORT_PHP_CHECKS AZSUPPORT_COMPARE AZSUPPORT_PKG_KEY AZSUPPORT_TIME_SOFT AZSUPPORT_TIME_HARD'
+          envs: 'AZSUPPORT_CPUTYPE AZSUPPORT_PORTS AZSUPPORT_FORCE AZSUPPORT_JOBS AZSUPPORT_CONFIGURE_CHECK AZSUPPORT_PLAN AZSUPPORT_PHP_CHECKS AZSUPPORT_COMPARE AZSUPPORT_TESTS_PARTIAL AZSUPPORT_PKG_KEY AZSUPPORT_TIME_SOFT AZSUPPORT_TIME_HARD'
           # the package mirror: every address of its names tried, the first that answers in
           # /etc/hosts (tools/pkg-mirror.sh; aZ, 18.11.2026 23:23); 10 minutes a try of pkg,
           # 3 tries 60 s apart, then the job fails instead of waiting for hours. A try where
