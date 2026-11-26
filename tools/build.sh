@@ -1310,7 +1310,7 @@ base_hash_old="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; ec
 mkdir -p "$q/dhash" "$q/hash-old" "$q/dhash-old" "$q/azcov" "$q/uncov" "$q/abifail"
 : > "$q/legacy"
 : > "$res/hashes.txt"
-: > "$q/deferred"
+: > "$q/deferred"; : > "$q/deferred.k"
 # The manifests of the libraries of azsupport, as the run loads them (lib_resolve): $q/azif
 # those of the library ports done so far (the shared ones, <lib>.txt: of the new package
 # when the port was built, of the repository when it was kept; $q/azif.d/<lib> the
@@ -1603,7 +1603,18 @@ for o in $(cat "$q/queue.txt"); do
             if grep -qxF "$d" "$q/deferred"; then wait_az=1; break; fi
         done
     fi
-    if [ "$wait_az" = 1 ]; then echo "$o" >> "$q/deferred"; else hash_port "$o"; fi
+    if [ "$wait_az" = 0 ]; then hash_port "$o"; continue; fi
+    # what it waits for, once: the library ports and azsupport/static among its dependencies to
+    # build ($q/dwait-<key>), its deferred dependencies ($q/ddef-<key>), "<key> <origin>" a line
+    for d in $(cat "$q/bdeps/$k"); do
+        dk="$(key "$d")"
+        if [ "$d" = azsupport/static ] || [ -f "$q/islib/$dk" ]; then echo "$dk $d"; fi
+    done > "$q/dwait-$k"
+    for d in $(cat "$q/deps/$k"); do
+        grep -qxF "$d" "$q/deferred" && echo "$(key "$d") $d"
+    done > "$q/ddef-$k"
+    echo "$o" >> "$q/deferred"
+    echo "$o=$k" >> "$q/deferred.k"
 done
 
 # the packages of the repository before: name origin azsupport_hash file, one per origin: of
@@ -1686,12 +1697,15 @@ lib_manicheck() {
 # lib_resolve); libwait: 1 while a library port, azsupport/static or a port that waits for
 # their manifests is not done
 libwait=0
+: > "$q/libres"
 for lo in $( [ "$stin" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q/libports"); do
     libwait=1
     lk="$(key "$lo")"
+    echo "$lo=$lk" >> "$q/libres"
     [ -s "$q/hash/$lk" ] || continue
     lib_manicheck "$lo" "$lk"
 done
+nlibres="$(grep -c . "$q/libres")"
 # lib_resolve: what the library ports and azsupport/static done since the last call give
 # (built, kept from the repository, failed or skipped): the manifests of their packages
 # ($q/file/<key>: the new one, or that of the repository) loaded (lib_load, static_load;
@@ -1706,11 +1720,13 @@ done
 # the loops of the builds call it
 lib_resolve() {
     [ "$libwait" = 1 ] || return 0
-    for lr_o in $( [ "$stin" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q/libports"); do
-        lr_k="$(key "$lr_o")"
+    lr_new=0
+    for lr_ok in $(cat "$q/libres"); do
+        lr_o="${lr_ok%%=*}"; lr_k="${lr_ok#*=}"
         [ -f "$q/libdone/$lr_k" ] && continue
         [ -s "$q/state/$lr_k" ] || continue
-        lr_s="$(cat "$q/state/$lr_k")"
+        lr_new=1
+        read -r lr_s < "$q/state/$lr_k"
         case "$lr_s" in
             ok|repo) ;;
             *) echo "$lr_s" > "$q/libdone/$lr_k"; continue ;;
@@ -1743,30 +1759,29 @@ lib_resolve() {
             lib_abi "$lr_l" "$lr_o" "$lr_f"
         fi
     done
+    # a deferred port can be hashed only once a library port or azsupport/static is done
+    [ "$lr_new" = 1 ] || return 0
     lr_n=0; lr_left=0
-    for lr_o in $(cat "$q/deferred"); do
-        lr_k="$(key "$lr_o")"
+    for lr_ok in $(cat "$q/deferred.k"); do
+        lr_o="${lr_ok%%=*}"; lr_k="${lr_ok#*=}"
         [ -s "$q/hash/$lr_k" ] && continue
         [ -f "$q/lost/$lr_k" ] && continue
         lr_w=0; lr_why=""
-        for lr_d in $(cat "$q/bdeps/$lr_k"); do
-            lr_dk="$(key "$lr_d")"
-            [ "$lr_d" = azsupport/static ] || [ -f "$q/islib/$lr_dk" ] || continue
+        while read -r lr_dk lr_d; do
             if [ ! -f "$q/libdone/$lr_dk" ]; then lr_w=1; break; fi
-            case "$(cat "$q/libdone/$lr_dk")" in
+            read -r lr_v < "$q/libdone/$lr_dk"
+            case "$lr_v" in
                 loaded|noload) ;;
                 nopkg) lr_why="$lr_d, which this dry run would build,"; break ;;
-                *) lr_why="$lr_d ($(cat "$q/libdone/$lr_dk"))"; break ;;
+                *) lr_why="$lr_d ($lr_v)"; break ;;
             esac
-        done
+        done < "$q/dwait-$lr_k"
         if [ "$lr_w" = 0 ] && [ -z "$lr_why" ]; then
-            for lr_d in $(cat "$q/deps/$lr_k"); do
-                lr_dk="$(key "$lr_d")"
+            while read -r lr_dk lr_d; do
                 [ -s "$q/hash/$lr_dk" ] && continue
-                grep -qxF "$lr_d" "$q/deferred" || continue
-                if [ -f "$q/lost/$lr_dk" ]; then lr_why="$(cat "$q/lost/$lr_dk")"; break; fi
+                if [ -f "$q/lost/$lr_dk" ]; then read -r lr_why < "$q/lost/$lr_dk"; break; fi
                 lr_w=1; break
-            done
+            done < "$q/ddef-$lr_k"
         fi
         if [ -n "$lr_why" ]; then echo "$lr_why" > "$q/lost/$lr_k"; continue; fi
         if [ "$lr_w" = 1 ]; then lr_left=$((lr_left + 1)); continue; fi
@@ -1779,9 +1794,7 @@ lib_resolve() {
     [ "$lr_n" = 0 ] ||
         say "the azsupport_hash of $lr_n ports that build against library ports of azsupport or azsupport/static: made with the interfaces of $(grep -c . "$q/azif.hashes") libraries$( [ -s "$q/azst.hashes" ] && echo " and of $(grep -c -v '^common ' "$q/azst.hashes") static ones") (results/hashes.txt)"
     [ "$lr_left" = 0 ] || return 0
-    for lr_o in $( [ "$stin" = 1 ] && echo azsupport/static ) $(awk '{ print $1 }' "$q/libports"); do
-        [ -f "$q/libdone/$(key "$lr_o")" ] || return 0
-    done
+    [ "$(ls "$q/libdone" | grep -c .)" -ge "$nlibres" ] || return 0
     # nothing waits any more
     libwait=0
     lr_nl="$(ls "$q/lost" | grep -c .)"
