@@ -585,7 +585,7 @@ run_group() {
         } >> "$out"
         return 0
     fi
-    if ls "$P/$group"-*.tar > /dev/null 2>&1; then
+    if [ -n "${PB_SPLIT:-}" ] || ls "$P/$group"-*.tar > /dev/null 2>&1; then
         # the split builds: each variant from its own job
         for v in $variants; do
             if [ -f "$P/$group-$v.tar" ]; then

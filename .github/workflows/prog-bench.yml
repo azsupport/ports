@@ -195,7 +195,8 @@ jobs:
 
   measure:
     needs: [groups, build]
-    if: always() && needs.groups.outputs.split != '[]'
+    # after builds that failed too, not after a cancel
+    if: ${{ !cancelled() && needs.groups.outputs.split != '[]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
@@ -220,10 +221,11 @@ jobs:
         env:
           PB_GROUP: ${{ matrix.group }}
           PB_ROUNDS: ${{ inputs.rounds }}
+          PB_SPLIT: 'yes'
         with:
           release: ${{ inputs.release }}
           mem: 12288
-          envs: 'PB_GROUP PB_ROUNDS'
+          envs: 'PB_GROUP PB_ROUNDS PB_SPLIT'
           prepare: |
             mkdir -p /usr/local/etc/pkg/repos /usr/local/etc/pkg/keys
             echo 'FreeBSD-ports: { url: "https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
