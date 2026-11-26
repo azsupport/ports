@@ -84,9 +84,9 @@ BROKEN_i386=	compilation fails: x86 assembly requires SSE2
 
 # c-ares, brotli, zstd, libidn2 and libpsl of azsupport, to build and to run (by a file: no
 # ldconfig hints for /usr/local/azsupport/lib)
-AZSUPPORT_CI_LIBS=	libbrotlidec.so libcares.so libidn2.so libpsl.so libzstd.so
-BUILD_DEPENDS=	${AZSUPPORT_CI_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
-RUN_DEPENDS=	${AZSUPPORT_CI_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/azsupport@}
+AZSUPPORT_CI_LIBS=	brotli:libbrotlidec.so c-ares:libcares.so libidn2:libidn2.so libpsl:libpsl.so zstd:libzstd.so
+BUILD_DEPENDS=	${AZSUPPORT_CI_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
+RUN_DEPENDS=	${AZSUPPORT_CI_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l:C/^[^:]*://}:azsupport/${l:C/:.*//}@}
 
 # no localbase (no library of /usr/local/lib is linked) and no ssl (the TLS library is
 # the BoringSSL inside; nothing of OpenSSL is linked)

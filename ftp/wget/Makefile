@@ -23,10 +23,11 @@ WWW=		https://www.gnu.org/s/wget/ \
 LICENSE=	GPLv3+
 LICENSE_FILE=	${WRKSRC}/COPYING
 
-BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libpsl.so:azsupport/azsupport
-RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/azsupport \
-		${AZSUPPORT_PREFIX}/lib/libpsl.so:azsupport/azsupport
+BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/libidn2 \
+		${AZSUPPORT_PREFIX}/lib/libpsl.so:azsupport/libpsl \
+		${AZSUPPORT_PREFIX}/bin/pkg-config:azsupport/azsupport
+RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libidn2.so:azsupport/libidn2 \
+		${AZSUPPORT_PREFIX}/lib/libpsl.so:azsupport/libpsl
 LIB_DEPENDS=	libpcre2-8.so:devel/pcre2
 
 USES=		charsetfix cpe iconv pkgconfig ssl tar:lz
@@ -35,9 +36,9 @@ USE_CSTD=	c99
 
 GNU_CONFIGURE=	yes
 GNU_CONFIGURE_MANPREFIX=	${PREFIX}/share
-# pkg-config of the shared tree of azsupport (its .pc files and those of the base
-# system: zlib, OpenSSL; nothing of /usr/local); libidn2 and libpsl of azsupport by hand:
-# idn2.h and libpsl.h alone in a directory of the work (pre-configure: the
+# pkg-config of the package azsupport (azsupport/azsupport: the .pc files of the shared tree
+# and those of the base system: zlib, OpenSSL; nothing of /usr/local); libidn2 and libpsl of
+# azsupport by hand: idn2.h and libpsl.h alone in a directory of the work (pre-configure: the
 # include directory of azsupport has GNU iconv.h, which would take wget's iconv from the
 # libiconv of azsupport), -lidn2 and -lpsl from the -L of azsupport, which has no other library
 # wget links, its run path in LDFLAGS; PCRE2 of devel/pcre2 by hand too: pcre2.h
