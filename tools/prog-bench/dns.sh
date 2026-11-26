@@ -15,7 +15,7 @@
 g_progs="unbound bind"
 
 g_need() {
-    need libevent expat libuv userspace-rcu libnghttp2 libidn2
+    need libevent expat libuv liburcu libnghttp2 libidn2
     if [ "$mode" = bench ]; then need dnsperf; fi
 }
 
