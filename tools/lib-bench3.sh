@@ -435,8 +435,8 @@ f_expat() { fetch expat-2.11.0.tar.xz 61e7614b602201c28a189dafee78f5bceaee192bbd
 b_expat() { ac "$2" "$3" --without-docbook --without-examples --without-tests; }
 so_expat() { echo "lib/libexpat.so.1"; }
 m_expat() {
-    T expat "xmlwf (parse, 40 MB)" "$1" "$2/bin/xmlwf" "$W/in/big.xml"
-    T expat "xmlwf -n (namespaces)" "$1" "$2/bin/xmlwf" -n "$W/in/big.xml"
+    TN 4 expat "xmlwf (parse, 40 MB)" "$1" "$2/bin/xmlwf" "$W/in/big.xml"
+    TN 4 expat "xmlwf -n (namespaces)" "$1" "$2/bin/xmlwf" -n "$W/in/big.xml"
 }
 f_tidy() { fetch tidy-html5-5.8.0.tar.gz 59c86d5b2e452f63c5cdb29c866a12a4c55b1741d7025cf2f3ce0cde99b0660e \
     "$DC/htacg-tidy-html5-5.8.0_GH0.tar.gz" https://codeload.github.com/htacg/tidy-html5/tar.gz/5.8.0 && V=5.8.0 A=tidy-html5-5.8.0.tar.gz; }

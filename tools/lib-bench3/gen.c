@@ -162,7 +162,7 @@ html(long mb)
 			    R(10000), w2, w, w2);
 			break;
 		case 3:
-			out += printf("<div class=\"c%d\" id=d%d><span>%s</span><img src=\"/i/%d.jpg\" alt=%s>\n",
+			out += printf("<div class=\"c%d\" id=d%d><span>%s</span><img src=\"/i/%d.jpg\" alt=%s></div>\n",
 			    R(20), R(100000), w, R(1000), w2);
 			break;
 		case 4:

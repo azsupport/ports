@@ -40,7 +40,7 @@ main(int argc, char **argv)
 			return 1;
 		}
 		t = lb_now();
-		for (i = 0; i < 4 * s; i++) {
+		for (i = 0; i < 12 * s; i++) {
 			p = txt;
 			while (p < end) {
 				r = onig_search(re, txt, end, p, end, rg, ONIG_OPTION_NONE);
@@ -50,7 +50,7 @@ main(int argc, char **argv)
 				p = txt + (rg->end[0] > rg->beg[0] ? rg->end[0] : rg->beg[0] + 1);
 			}
 		}
-		snprintf(name, sizeof(name), "%s (%s) x4", pats[k][0], pats[k][1]);
+		snprintf(name, sizeof(name), "%s (%s) x12", pats[k][0], pats[k][1]);
 		lb_out(name, t);
 		onig_free(re);
 	}
