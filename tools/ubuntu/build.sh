@@ -78,7 +78,7 @@ set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 tree="$(cd "$here/../.." && pwd)"
 sources="$here/sources.conf"
-deps_conf="$tree/azsupport/azsupport/files/deps.conf"
+deps_conf="$tree/azsupport/static/files/deps.conf"
 ffconf="$tree/multimedia/ffmpeg/files/ffmpeg.conf"
 ffnonfree="$tree/multimedia/ffmpeg/files/ffmpeg-nonfree.conf"
 ffnvidia="$here/ffmpeg-nvidia.conf"
@@ -204,7 +204,7 @@ fi
 # a fix of files/deps of azsupport for another version of a library here stops the build, as
 # in tools/azsupport-build.sh: it is to be reviewed
 for n in $names; do
-    for p in "$tree/azsupport/azsupport/files/deps/$n"-*.patch; do
+    for p in "$tree/azsupport/static/files/deps/$n"-*.patch; do
         [ -f "$p" ] || continue
         [ "${p##*/}" = "$n-$(src_ver "$n").patch" ] && continue
         echo "patches FAIL  ${p#"$tree/"} is for another version than $n $(src_ver "$n") of sources.conf" >> "$res/summary.txt"
@@ -508,7 +508,7 @@ build_one() {
             case "$pf" in *.gz) gzip -dc "$dist/$pf" ;; *) cat "$dist/$pf" ;; esac | patch -p1 -N -s -d "$s" ||
                 { echo "== $pf does not apply"; exit 1; }
         done || exit 1
-        p="$tree/azsupport/azsupport/files/deps/$n-$(src_ver "$n").patch"
+        p="$tree/azsupport/static/files/deps/$n-$(src_ver "$n").patch"
         if [ -f "$p" ]; then
             echo "== ${p#"$tree/"}"
             patch -p0 -N -s -d "$s" < "$p" || { echo "== ${p##*/} does not apply"; exit 1; }
@@ -591,7 +591,7 @@ manifest() {
         echo "CFLAGS: $CFLAGS (FFmpeg: $ffcflags, ${fflto_opt:-no LTO}; x264: b_lto=$x264lto); the programs linked with $ldhard"
         echo "The libraries are in the programs (static); they need the libraries of $os_name: $ok_libs"
         echo
-        echo "Sources (tools/ubuntu/sources.conf; the versions of azsupport/azsupport/files/deps.conf, ffmpeg.conf and imagemagick.conf):"
+        echo "Sources (tools/ubuntu/sources.conf; the versions of azsupport/static/files/deps.conf, ffmpeg.conf and imagemagick.conf):"
         for n in $names; do
             printf '  %-12s %-12s %s sha256 %s\n' "$n" "$(src_ver "$n")" "$(src_file "$n")" "$(src_sha "$n")"
         done
@@ -599,9 +599,9 @@ manifest() {
         echo "Patches:"
         awk '$1 == "patch" { printf "  %s of the FreeBSD port, to %s: sha256 %s\n", $3, $2, $4 }' "$sources"
         echo "  the version of x264 in its meson.build and LONG_PCF_NAMES of FreeType, as their ports"
-        for p in "$tree"/azsupport/azsupport/files/deps/*.patch; do
+        for p in "$tree"/azsupport/static/files/deps/*.patch; do
             b="${p##*/}"
-            for n in $names; do [ "$b" = "$n-$(src_ver "$n").patch" ] && echo "  azsupport/azsupport/files/deps/$b: $(head -n 1 "$p" | cut -c 1-150)"; done
+            for n in $names; do [ "$b" = "$n-$(src_ver "$n").patch" ] && echo "  azsupport/static/files/deps/$b: $(head -n 1 "$p" | cut -c 1-150)"; done
         done
         for p in "$tree"/multimedia/ffmpeg/files/ffmpeg/*.patch "$here"/ffmpeg/*.patch "$tree"/graphics/ImageMagick7/files/imagemagick7-*.patch; do
             [ -f "$p" ] && echo "  ${p#"$tree/"}: $(head -n 1 "$p" | cut -c 1-150)"

@@ -1,6 +1,6 @@
 #!/bin/sh
 # azsupport-build.sh - build the libraries of the package azsupport (the port
-# azsupport/azsupport) from the FreeBSD ports listed in azsupport/azsupport/files/deps.conf,
+# azsupport/azsupport) from the FreeBSD ports listed in azsupport/static/files/deps.conf,
 # as the kinds of their lib lines say, into two trees:
 # static and position independent into the static tree
 # /usr/local/azsupport/static (lib/, include/, bin/), shared into the shared tree
@@ -87,7 +87,7 @@ set -u
 unset MAKEFLAGS MFLAGS MAKELEVEL __MKLVL__
 tools="$(cd "$(dirname "$0")" && pwd)"
 # the confs and patches: files/ of the port azsupport/azsupport
-files="${AZSUPPORT_FILESDIR:-$tools/../azsupport/azsupport/files}"
+files="${AZSUPPORT_FILESDIR:-$tools/../azsupport/static/files}"
 conf="$files/deps.conf"
 # A: the root of the package azsupport (VERSIONS, LICENSES/); P: the static tree,
 # S: the shared tree (see the head comment)

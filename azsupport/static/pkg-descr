@@ -1,4 +1,4 @@
-The libraries of /usr/local/azsupport (azsupport/azsupport/files/deps.conf of azsupport/ports) in
+The libraries of /usr/local/azsupport (azsupport/static/files/deps.conf of azsupport/ports) in
 two trees. /usr/local/azsupport/static: static, position independent libraries with
 the curl of PHP (the static libcurl, only what PHP needs) and the OpenSSL of
 the port: PHP built against them and the programs (curl, FFmpeg, ImageMagick)

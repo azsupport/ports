@@ -1,6 +1,6 @@
 name: azsupport take check
 # Do the patches of a port still apply to the upstream release of its take line in
-# azsupport/azsupport/files/deps.conf? tools/deps-take-check.sh on Ubuntu (a minute): the result of
+# azsupport/static/files/deps.conf? tools/deps-take-check.sh on Ubuntu (a minute): the result of
 # each patch, the failed hunks with the files they are for, and the patches written
 # again against the release (artifact deps-take-check).
 # Started by hand: Actions, "azsupport take check", "Run workflow".

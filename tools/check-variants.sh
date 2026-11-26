@@ -12,7 +12,7 @@
 #   - openssl: phpXY-openssl-legacy (the legacy provider of OpenSSL: RC4,
 #     Blowfish, DES, CAST5, MD4), and phpXY-openssl, with ssh2 (phpXY-ssh2) in the
 #     same process: libssh2 of azsupport is built without RC4, 3DES, Blowfish, CAST and
-#     the MD5 MACs of SSH (azsupport/azsupport/files/curl/build-libcurl.sh), which must not take
+#     the MD5 MACs of SSH (azsupport/static/files/curl/build-libcurl.sh), which must not take
 #     them from the openssl of PHP.
 # Each goes in by pkg install -f from the repository azbuild that tools/install-php.sh
 # wrote (the others of its group out first: pkg refuses the same files), then:

@@ -5,11 +5,13 @@
 Every library of the kind `shared` in `deps.conf` is a port of its own, `azsupport/<name>`
 (the package `azsupport-<name>`; fontconfig: `x11-fonts/fontconfig`), and the libraries of
 the kind `static` are built together by `azsupport/static` (the package `azsupport-static`,
-the static tree `/usr/local/azsupport/static`). The confs and the patches stay here, in
-`azsupport/azsupport/files/` (the port of the package `azsupport`: the `pkg-config` wrapper
-of the shared tree and the trigger of the services). The files of a library are those of
-its port, which [`tools/azsupport-lib-ports.sh`](../../../../tools/azsupport-lib-ports.sh)
-makes from them (`--write <official tree>`):
+the static tree `/usr/local/azsupport/static`). The confs and the patches are here, in
+`azsupport/static/files/`, with the port that reads all of them (the package `azsupport`,
+`azsupport/azsupport`, has only the `pkg-config` wrapper of the shared tree and the trigger
+of the services: a port that needs the wrapper takes none of these into its hash). The
+files of a library are those of its port, which
+[`tools/azsupport-lib-ports.sh`](../../../../tools/azsupport-lib-ports.sh) makes from them
+(`--write <official tree>`):
 
 - its lines of `deps.conf` (`lib`, `take`, `needs`) and of `curl-deps.conf` (with `psl-list`
   for libpsl), as they are, in `AZSUPPORT_LIB_CONF` of its Makefile;
@@ -24,10 +26,10 @@ differs). `azsupport/static` reads all of them (its `AZSUPPORT_HASH_FILES`).
 
 ## Releases ahead of the port
 
-`azsupport/azsupport/files/deps.conf` can build a library of `/usr/local/azsupport` from a new upstream
+`azsupport/static/files/deps.conf` can build a library of `/usr/local/azsupport` from a new upstream
 release before its FreeBSD port has it (a `take` line). The ports framework applies
 the patches of the port to it; when one of them no longer applies,
-`azsupport/azsupport/files/deps/<name>-<version>/` holds all the patches of that port, the failing ones
+`azsupport/static/files/deps/<name>-<version>/` holds all the patches of that port, the failing ones
 brought up to the release, and the framework takes them from here instead
 (`PATCHDIR`). [`tools/deps-take-check.sh`](../../../../tools/deps-take-check.sh) (workflow
 [`deps-take-check.yml`](../../../../.github/workflows/deps-take-check.yml), "azsupport take check")
@@ -46,7 +48,7 @@ have that fixes a vulnerability): ready for a security release of libiconv 1.19.
 
 ## Fixes the port lacks
 
-`azsupport/azsupport/files/deps/<name>-<version>.patch` (`-p0`, as the patches of `files/curl`, with
+`azsupport/static/files/deps/<name>-<version>.patch` (`-p0`, as the patches of `files/curl`, with
 `Description:` and `Origin:` on top) is applied by `tools/azsupport-build.sh` after the patches
 of the port (or of the take line) when `<version>` is the version built (`DISTVERSION`
 of the port, or that of the take line); a file for another version stops the build, so

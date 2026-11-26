@@ -1,6 +1,6 @@
 #!/bin/sh
 # deps-take-check.sh - do the patches of a port still apply to the release of its
-# "take" line in azsupport/azsupport/files/deps.conf (a new upstream release that the package azsupport
+# "take" line in azsupport/static/files/deps.conf (a new upstream release that the package azsupport
 # builds before the port has it)? From azsupport/php-src (09.11.2026), with the
 # paths of this tree.
 #
@@ -10,17 +10,17 @@
 #
 # For each take line: fetches the release file, checks its SHA-256, extracts it and
 # applies the patches as the ports framework does (patch -p0 in the source dir),
-# from azsupport/azsupport/files/deps/<name>-<version>/ when there is that directory, else from
+# from azsupport/static/files/deps/<name>-<version>/ when there is that directory, else from
 # files/ of the port at the ports commit of deps.conf. It reports each patch as
 # exact, applied with offset or fuzz, or failed; prints the failed hunks and the
 # files a failed patch is for, so that the patch can be brought up to the release;
 # and writes every patch that applies again against the release, without offset or
-# fuzz, into deps-take-check/<name>-<version>/ (what azsupport/azsupport/files/deps/<name>-<version>/
+# fuzz, into deps-take-check/<name>-<version>/ (what azsupport/static/files/deps/<name>-<version>/
 # would carry). Exit status: 0 every patch applies, 1 one does not, 2 usage.
 
 set -u
 top="$(pwd)"
-conf="$top/azsupport/azsupport/files/deps.conf"
+conf="$top/azsupport/static/files/deps.conf"
 out="$top/deps-take-check"
 work="${DEPS_TAKE_WORK:-${TMPDIR:-/tmp}/deps-take-check.$$}"
 [ -f "$conf" ] || { echo "deps-take-check: no $conf (run from the top of a checkout of azsupport/ports)" >&2; exit 2; }
@@ -78,8 +78,8 @@ for n in $names; do
     esac || { echo "FAIL extract $f"; rc=1; continue; }
     src="$x/$srcdir"; orig="$o/$srcdir"
     [ -d "$src" ] || { echo "FAIL no $srcdir in the release (the top: $(ls "$x"))"; rc=1; continue; }
-    pdir="$top/azsupport/azsupport/files/deps/$n-$ver"
-    if [ -d "$pdir" ]; then echo "patches: azsupport/azsupport/files/deps/$n-$ver/"; else pdir="$ports/$port/files"; echo "patches: files/ of $port"; fi
+    pdir="$top/azsupport/static/files/deps/$n-$ver"
+    if [ -d "$pdir" ]; then echo "patches: azsupport/static/files/deps/$n-$ver/"; else pdir="$ports/$port/files"; echo "patches: files/ of $port"; fi
     new="$out/$n-$ver"
     rm -rf "$new"; mkdir -p "$new"
     for p in "$pdir"/patch-*; do

@@ -7,7 +7,7 @@
 # GitHub release, gpg for a signature (both optional).
 #
 # A release taken before its port (a "take" line of the conf files of azsupport, ffmpeg and
-# ImageMagick: azsupport/azsupport/files/deps.conf, multimedia/ffmpeg/files/ffmpeg.conf,
+# ImageMagick: azsupport/static/files/deps.conf, multimedia/ffmpeg/files/ffmpeg.conf,
 # graphics/ImageMagick7/files/imagemagick.conf) must be the
 # same file from the port's MASTER_SITES (the addresses of the line) and from the
 # release of GitHub. For each name: fetches the file from every address of the
@@ -30,7 +30,7 @@ top="$(pwd)"
 work="${TAKE_SOURCES_WORK:-${TMPDIR:-/tmp}/take-sources.$$}"
 rep="$top/report.md"
 [ "$#" -gt 0 ] || { echo "usage: sh tools/take-sources.sh <name>..." >&2; exit 2; }
-confs="$top/azsupport/azsupport/files/deps.conf $top/multimedia/ffmpeg/files/ffmpeg.conf $top/graphics/ImageMagick7/files/imagemagick.conf"
+confs="$top/azsupport/static/files/deps.conf $top/multimedia/ffmpeg/files/ffmpeg.conf $top/graphics/ImageMagick7/files/imagemagick.conf"
 # shellcheck disable=SC2086
 ls $confs >/dev/null 2>&1 || { echo "take-sources: no conf files of azsupport, ffmpeg and ImageMagick (run from the top of a checkout of azsupport/ports)" >&2; exit 2; }
 for n in "$@"; do
