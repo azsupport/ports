@@ -181,12 +181,17 @@ EOF
         dovecot_check "$v" && continue
         say "dovecot $v: no login: $(tail -n 2 "$W/dovecot-check.log" | tr '\n' ' '); $(grep -i -E 'error|fatal|panic' "$W/dovecot.log" | tail -n 2 | tr '\n' ' ')"
         if [ "$v" = gcc16 ]; then
-            echo "dovecot gcc16: with _FORTIFY_SOURCE=2 its processes do not start ($(grep -i -E 'error|fatal|panic' "$W/dovecot.log" | tail -n 1)); measured the build with _FORTIFY_SOURCE=1" >> "$W/fails/$group-notes.md"
+            _why="$(grep -i -E 'error|fatal|panic|signal' "$W/dovecot.log" | tail -n 1)"
             set_cc gcc16
             export CFLAGS="$(echo "$CFLAGS" | sed 's/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1/')"
             dovecot_build gcc16
             export PATH="$PATH0"
-            dovecot_check gcc16 || { say "dovecot gcc16: no login with _FORTIFY_SOURCE=1 either"; rm -f "$W/ok/$group-dovecot-gcc16"; }
+            if dovecot_check gcc16; then
+                echo "dovecot gcc16: with _FORTIFY_SOURCE=2 its processes do not start ($_why); measured the build with _FORTIFY_SOURCE=1" >> "$W/fails/$group-notes.md"
+            else
+                echo "dovecot gcc16: its processes do not start with _FORTIFY_SOURCE=2 ($_why) nor with 1 ($(grep -i -E 'error|fatal|panic|signal' "$W/dovecot.log" | tail -n 1)): not measured" >> "$W/fails/$group-notes.md"
+                say "dovecot gcc16: no login with _FORTIFY_SOURCE=1 either"; rm -f "$W/ok/$group-dovecot-gcc16"
+            fi
         else
             rm -f "$W/ok/$group-dovecot-$v"
         fi

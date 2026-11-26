@@ -93,7 +93,10 @@ g_build() {
     done
     # its libtcl84.so.1 (tcl.m4 on FreeBSD) and -ltcl84 of the link of tclsh: the link to it, as
     # the port has it in its stage
-    if (cd "$W/src/tcl-$_v/unix" && ./configure --prefix="$W/tcl84-$_v" --enable-shared --enable-threads --enable-64bit &&
+    # the configure of Tcl 8.4 (autoconf 2.13, K&R C in its tests): its config.log into the log
+    # when it fails
+    if (cd "$W/src/tcl-$_v/unix" && { ./configure --prefix="$W/tcl84-$_v" --enable-shared --enable-threads --enable-64bit ||
+        { tail -n 30 config.log; false; }; } &&
         { gmake -j"$ncpu" || { ln -sf libtcl84.so.1 libtcl84.so && gmake -j"$ncpu"; }; } &&
         gmake install-binaries install-libraries) >> "$_b" 2>&1 && [ -n "$(ls "$W/tcl84-$_v"/bin/tclsh* 2> /dev/null)" ]; then
         ln -sf "$(ls "$W/tcl84-$_v"/bin/tclsh* | head -n 1)" "$W/tcl84-$_v/bin/pbtclsh"
