@@ -17,6 +17,8 @@ DISTFILES=
 COMMENT=	Trigger of pkg naming the services of our packages to restart
 WWW=		https://github.com/azsupport/ports
 
+LICENSE=	BSD2CLAUSE
+
 NO_BUILD=	yes
 NO_ARCH=	yes
 NO_WRKSUBDIR=	yes

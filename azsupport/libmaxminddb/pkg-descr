@@ -1,0 +1,7 @@
+libmaxminddb of /usr/local/azsupport: its shared library, headers, pkg-config files and
+*-config scripts, built from the FreeBSD port net/libmaxminddb (its version, distfiles and
+patches at the commit of deps.conf) with the options of the static one,
+with the run path /usr/local/azsupport/lib and the OpenSSL of the base system, for
+the packages of azsupport/ports; its licences in /usr/local/azsupport/LICENSES and its
+manifest share/azsupport/interface/libmaxminddb.txt (the interface the ports that link it take
+into their hash).

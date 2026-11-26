@@ -1,0 +1,92 @@
+# Makefile.lib: what the ports of the libraries of the shared tree share, azsupport/<name>
+# (the packages azsupport-<name>; aZ, 26.11.2026: every library a port of its own), which
+# tools/azsupport-lib-ports.sh makes from files/deps.conf next to this file. The Makefile
+# of such a port gives the version, the distfiles (of a take line or of the bundled curl),
+# the licence of its official port and:
+#   AZSUPPORT_LIB            its name in deps.conf
+#   AZSUPPORT_LIB_PORT       its port of FreeBSD, or bundle (the bundled curl)
+#   AZSUPPORT_LIB_CONF       its lines of the confs (lib, take, needs of deps.conf, its line
+#                            of curl-deps.conf), as they are: in its hash, and its build
+#                            stops when the confs have other lines (tools/azsupport-build.sh
+#                            --lib: conf_lines_of)
+#   AZSUPPORT_LIB_FILES      its files of files/ (deps/<name>-*.patch, the directory of its
+#                            take line, curl/<name>-<version>.patch, curl/build-libcurl.sh
+#                            of libssh2): in its hash (AZSUPPORT_HASH_FILES below), checked
+#                            by its build as its lines
+#   AZSUPPORT_LIB_NEEDS      the libraries of its needs line
+#   AZSUPPORT_HASH_OFFICIAL  the official ports it is built from (their files in its hash,
+#                            tools/build.sh)
+# then includes this file and bsd.port.mk.
+#
+# How it is built (as the static tree, azsupport/azsupport): as root (NEED_ROOT) into the
+# live /usr/local/azsupport of its own chroot or jail, where the packages of the
+# libraries of its needs line are installed (its BUILD_DEPENDS); tools/azsupport-build.sh
+# --lib builds the library with its s_<name>, takes the files its build installed (their
+# status changed after its stamp) into ${WRKDIR}/azsupport-stage with its licences
+# (LICENSES/<name>-*), its manifest (share/azsupport/interface/<name>.txt) and its
+# VERSIONS (share/doc/azsupport-<name>/VERSIONS), and do-install copies that into
+# ${STAGEDIR}. PREFIX stays /usr/local, as for azsupport/azsupport: the plist names
+# azsupport/lib/... (with PREFIX=/usr/local/azsupport the framework would move
+# lib/pkgconfig/*.pc to libdata/pkgconfig).
+#
+# Dependencies: on the other libraries by their manifests, to build and to run, so that
+# the builder folds in their interface hashes, not the hashes of their ports (a fix
+# inside a library builds again only its port; a change of its interface the ports that
+# use it); the trigger of pkg that names the services to restart (azsupport/services) to
+# run only: by the name of its package, not its hash.
+
+# the build tools of tools/azsupport-build.sh --tools (git only checks the commit of
+# PORTSDIR, when it is there); libtool for the autoreconf -fi of gd and APR-util
+# (USES=autoreconf brings autoconf and automake, libtoolize only with USES=libtool)
+BUILD_DEPENDS+=	bison:devel/bison \
+		cmake:devel/cmake-core \
+		gperf:devel/gperf \
+		libtoolize:devel/libtool \
+		lzip:archivers/lzip \
+		meson:devel/meson \
+		msgfmt:devel/gettext-tools \
+		nasm:devel/nasm \
+		ninja:devel/ninja \
+		python3:lang/python3 \
+		tclsh8.6:lang/tcl86
+BUILD_DEPENDS+=	${AZSUPPORT_LIB_NEEDS:@l@${AZSUPPORT_PREFIX}/share/azsupport/interface/${l}.txt:azsupport/${l}@}
+RUN_DEPENDS+=	${AZSUPPORT_LIB_NEEDS:@l@${AZSUPPORT_PREFIX}/share/azsupport/interface/${l}.txt:azsupport/${l}@} \
+		${LOCALBASE}/share/pkg/triggers/azsupport-services.ucl:azsupport/services
+
+USES=		autoreconf:build gmake perl5 pkgconfig
+USE_PERL5=	build
+
+# The build installs into AZSUPPORT_PREFIX of the build machine (see above)
+NEED_ROOT=	yes
+
+# Nothing is extracted by the framework: the official port of the library extracts its
+# own distfiles (make patch of tools/azsupport-build.sh), tools/azsupport-curl-sources.sh
+# the release of the bundled curl.
+NO_WRKSUBDIR=	yes
+EXTRACT_ONLY=
+# no distfiles but those of its Makefile (a take line, the bundled curl)
+DISTFILES?=
+
+# this directory, with the confs (files/) and Makefile.common
+_AZSUPPORT_LIB_DIR:=	${.PARSEDIR}
+AZSUPPORT_HASH_FILES+=	${AZSUPPORT_LIB_FILES:@f@${_AZSUPPORT_LIB_DIR}/files/${f}@}
+
+.include "${_AZSUPPORT_LIB_DIR}/Makefile.common"
+
+post-fetch:
+	@${SETENV} ${AZSUPPORT_ENV} AZSUPPORT_FILESDIR=${AZSUPPORT_DEPS_CONF:H} ${SH} ${AZSUPPORT_TOOLS}/azsupport-build.sh \
+		--fetch ${AZSUPPORT_LIB}
+
+do-build:
+	@cd ${WRKDIR} && ${SETENV} ${AZSUPPORT_ENV} AZSUPPORT_FILESDIR=${AZSUPPORT_DEPS_CONF:H} \
+		AZSUPPORT_LIB_CONF=${AZSUPPORT_LIB_CONF:Q} AZSUPPORT_LIB_FILES=${AZSUPPORT_LIB_FILES:Q} \
+		CURL_DISTFILES=${DISTDIR}/${DIST_SUBDIR} ${SH} ${AZSUPPORT_TOOLS}/azsupport-build.sh --lib ${AZSUPPORT_LIB}
+
+# what the build of the library installed (its stage), its shared libraries stripped (no
+# debug in our packages, aZ 17.11.2026)
+do-install:
+	@${AZSUPPORT_COPY_STAGE}
+	@${SETENV} STRIP_CMD="${STRIP_CMD}" ${SH} ${AZSUPPORT_TOOLS}/strip-elf.sh ${STAGEDIR}${AZSUPPORT_PREFIX}
+
+post-install:
+	@${AZSUPPORT_PLIST}

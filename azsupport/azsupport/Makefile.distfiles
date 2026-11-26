@@ -1,0 +1,32 @@
+# azsupport/azsupport/Makefile.distfiles: made by tools/azsupport-lib-ports.sh (--write) from
+# files/curl.conf, files/curl-deps.conf and the take lines of files/deps.conf of the
+# libraries of the kind static: do not edit. The names are those
+# tools/azsupport-curl-sources.sh keeps them under (the distfile of curl-deps.conf, /
+# made _) and the take lines give (the file of their first address).
+MASTER_SITES=	https://github.com/curl/curl/releases/download/curl-8_23_0/:curl \
+		https://github.com/c-ares/c-ares/releases/download/v1.34.9/:cares \
+		https://github.com/nghttp2/nghttp2/releases/download/v1.71.0/:nghttp2 \
+		https://codeload.github.com/google/brotli/tar.gz/v1.2.1?dummy=/:brotli \
+		https://github.com/facebook/zstd/releases/download/v1.6.0/:zstd \
+		GNU/libidn:libidn2 \
+		https://github.com/rockdaboot/libpsl/releases/download/0.23.3/:libpsl \
+		https://github.com/libssh2/libssh2/releases/download/libssh2-1.11.1/:libssh2 \
+		https://codeload.github.com/publicsuffix/list/tar.gz/73f8cc7?dummy=/:psllist \
+		https://download.savannah.gnu.org/releases/freetype/:freetype2 \
+		https://downloads.sourceforge.net/project/freetype/freetype2/2.15.0/:freetype2 \
+		https://gitlab.freedesktop.org/api/v4/projects/890/packages/generic/fontconfig/2.18.4/:fontconfig \
+		https://github.com/strukturag/libde265/releases/download/v1.1.3/:libde265 \
+		https://github.com/AOMediaCodec/SVT-AV1/archive/v4.3.1/:svtav1
+DISTFILES=	curl-8.23.0.tar.xz:curl \
+		c-ares-1.34.9.tar.gz:cares \
+		nghttp2-1.71.0.tar.xz:nghttp2 \
+		brotli_1.2.1_google-brotli-v1.2.1_GH0.tar.gz:brotli \
+		zstd-1.6.0.tar.zst:zstd \
+		libidn2-2.3.8.tar.gz:libidn2 \
+		libpsl-0.23.3.tar.lz:libpsl \
+		libssh2-1.11.1.tar.xz:libssh2 \
+		publicsuffix-list-20261031-73f8cc7_GH0.tar.gz:psllist \
+		freetype-2.15.0.tar.xz:freetype2 \
+		fontconfig-2.18.4.tar.xz:fontconfig \
+		libde265-1.1.3.tar.gz:libde265 \
+		SVT-AV1-4.3.1.tar.gz:svtav1
