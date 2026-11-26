@@ -1,0 +1,90 @@
+#!/bin/sh
+
+# PROVIDE: manticore
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: shutdown
+#
+# After DAEMON and before LOGIN, as the databases: what uses it (PHP-FPM, nginx)
+# starts after it, with no name of it in their scripts (aZ, 18.11.2026 22:15).
+#
+# Add the following lines to /etc/rc.conf.local or /etc/rc.conf
+# to enable this service:
+#
+# manticore_enable (bool):	Set to NO by default.
+#				Set it to YES to enable searchd of Manticore Search.
+# manticore_config (str):	%%PREFIX%%/etc/manticore.conf by default.
+# manticore_user (str):		%%USERS%% by default.
+# manticore_group (str):	%%GROUPS%% by default.
+# manticore_flags (str):	Other arguments of searchd (searchd --help).
+# manticore_limits (str):	Limits of searchd (limits(1)), "-n 65536" by
+#				default: its tables keep many files open.
+# manticore_profiles (str):	Empty by default: one searchd. A list of names:
+#				one searchd for each, with a config of its own
+#				(manticore_<name>_config,
+#				%%PREFIX%%/etc/manticore-<name>.conf by default),
+#				and its own data, logs, pid file and ports in it.
+#				"service manticore start <name>" starts one.
+#
+# The pid file is read from the config (pid_file of searchd); the directories
+# of the default config (/var/db/manticore, /var/log/manticore,
+# /var/run/manticore) are made for the user.
+
+. /etc/rc.subr
+
+name=manticore
+rcvar=manticore_enable
+
+load_rc_config $name
+
+: ${manticore_enable:="NO"}
+: ${manticore_config:="%%PREFIX%%/etc/manticore.conf"}
+: ${manticore_user:="%%USERS%%"}
+: ${manticore_group:="%%GROUPS%%"}
+: ${manticore_limits:="-n 65536"}
+
+if [ -n "$2" ]; then
+	profile="$2"
+	if [ -n "${manticore_profiles}" ]; then
+		eval manticore_config="\${manticore_${profile}_config:-%%PREFIX%%/etc/manticore-${profile}.conf}"
+		eval manticore_enable="\${manticore_${profile}_enable:-${manticore_enable}}"
+		eval manticore_flags="\${manticore_${profile}_flags:-${manticore_flags}}"
+	else
+		echo "$0: extra argument ignored"
+	fi
+else
+	if [ -n "${manticore_profiles}" ] && [ -n "$1" ]; then
+		for profile in ${manticore_profiles}; do
+			echo "===> manticore profile: ${profile}"
+			%%PREFIX%%/etc/rc.d/manticore "$1" "${profile}"
+			retcode="$?"
+			if [ "${retcode}" -ne 0 ]; then
+				failed="${profile} (${retcode}) ${failed:-}"
+			else
+				success="${profile} ${success:-}"
+			fi
+		done
+		exit 0
+	fi
+fi
+
+command="%%PREFIX%%/bin/searchd"
+command_args="--config ${manticore_config}"
+required_files="${manticore_config}"
+extra_commands="reload"
+sig_reload="HUP"
+start_precmd="manticore_prestart"
+
+# pid_file of the searchd section of the config
+pidfile=$(/usr/bin/awk '/^[[:space:]]*pid_file[[:space:]]*=/ { sub(/^[^=]*=[[:space:]]*/, ""); sub(/[[:space:]]+$/, ""); print; exit }' "${manticore_config}" 2>/dev/null)
+: ${pidfile:="/var/run/manticore/searchd.pid"}
+
+manticore_prestart()
+{
+	local d
+	for d in /var/db/manticore /var/log/manticore "${pidfile%/*}"; do
+		install -d -o "${manticore_user}" -g "${manticore_group}" -m 750 "$d"
+	done
+}
+
+run_rc_command "$1"

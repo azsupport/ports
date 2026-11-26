@@ -1,0 +1,31 @@
+Boost 1.89+: no library and no CMake config of Boost.System (header-only since 1.69):
+the headers of Boost only. The asio 1.10.8 that galera bundles (Boost.Asio of 1.92 is
+too new for it) includes boost/regex/v4/match_flags.hpp for its Boost.Regex overloads,
+which Boost 1.92 has no more: ASIO_DISABLE_BOOST_REGEX (galera parses with the POSIX
+regex of gu_regex, not with asio).
+
+--- freebsd-deps/galera/CMakeLists.txt.orig
++++ freebsd-deps/galera/CMakeLists.txt
+@@ -122,10 +122,10 @@
+ if (WITH_BOOST)
+ 	set ( Boost_USE_MULTITHREADED ON )
+ 	set ( Boost_USE_STATIC_LIBS ON )
+-	find_package(Boost REQUIRED COMPONENTS system)
+-	target_link_libraries ( boost_system INTERFACE Boost::system )
++	find_package(Boost REQUIRED) # Boost.System is header-only since 1.69, its library gone since 1.89
++	target_link_libraries ( boost_system INTERFACE Boost::headers )
+ 	target_compile_definitions ( boost_system INTERFACE BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG=1 )
+-	list (APPEND CMAKE_REQUIRED_LIBRARIES Boost::system)
++	list (APPEND CMAKE_REQUIRED_LIBRARIES Boost::headers)
+ endif ()
+ 
+ #print_properties ( boost_system )
+@@ -160,6 +160,8 @@
+ 	set (HAVE_ASIO_SSL_HPP 1)
+ 	target_compile_definitions ( boost_asio INTERFACE $<$<COMPILE_LANGUAGE:CXX>:HAVE_ASIO_HPP> )
+ 	target_include_directories ( boost_asio INTERFACE "${GALERA_SOURCE_DIR}/asio" )
++	# asio 1.10.8 wants boost/regex/v4/match_flags.hpp, which Boost 1.92 has no more; galera uses no regex of asio
++	target_compile_definitions ( boost_asio INTERFACE $<$<COMPILE_LANGUAGE:CXX>:ASIO_DISABLE_BOOST_REGEX> )
+ endif()
+ 
+ CHECK_INCLUDE_FILE_CXX ( "asio/ssl.hpp" HAVE_ASIO_SSL_HPP )

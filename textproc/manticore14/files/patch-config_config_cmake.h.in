@@ -1,0 +1,14 @@
+The default config of the programs: /usr/local/etc/manticore.conf (aZ, 16.11.2026),
+not /usr/local/etc/manticoresearch/manticore.conf.
+
+--- config/config_cmake.h.in.orig
++++ config/config_cmake.h.in
+@@ -171,7 +171,7 @@
+ #cmakedefine LOCALDATADIR "${LOCALDATADIR}"
+ 
+ /* define to set custom directory for shared files. Absolute as /etc */
+-#define SYSCONFDIR "${CMAKE_INSTALL_FULL_SYSCONFDIR}/manticoresearch"
++#define SYSCONFDIR "${CMAKE_INSTALL_FULL_SYSCONFDIR}"
+ 
+ /* hardcoded default plugin dir */
+ #define HARDCODED_PLUGIN_DIR "${CMAKE_INSTALL_FULL_LOCALLIBDIR}/manticore"

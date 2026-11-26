@@ -1,0 +1,294 @@
+# textproc/opensearch-dashboards217 of azsupport/ports: OpenSearch Dashboards 2.17.1,
+# the last 2.17.x (aZ, 12.11.2026: a legacy project, with textproc/opensearch217;
+# 2.17.2 was never released), named as the official versioned ports
+# (textproc/opensearch-dashboards219). The official port of 2.17.1 is the base:
+# textproc/opensearch-dashboards of the branch 2025Q1 (the bundle with the plugins,
+# Node.js 18, the rc script, pkg-deinstall, pkg-descr), with what follows.
+#
+# Node.js: 2.17.1 is made for Node.js 18 (.nvmrc 18.19.0, engines ">=14.20.1 <19"),
+# which is at its end of life since 30.04.2025: it runs here on the node of our
+# www/node24 (aZ, 12.11.2026: the Node.js this tree keeps up; www/node18 stays, for
+# a legacy project of his own), named by its program (no USES=nodejs: the official
+# Mk/Uses/nodejs.mk of the pin knows 22, 24 and 26 only); bin/use_node of the tarball
+# takes it (files/patch-bin_use__node: its CONFIG_DIR typo fixed too, so node.options
+# of the configuration is read). Its version check needs no change:
+# src/setup_node_env/node_version_validator.js takes the first comparator of
+# engines.node only (">=14.20.1"), so Node.js 24 passes it. The code of its server
+# calls none of the APIs Node.js 22 to 24 took away (util.is* and util.log,
+# crypto.createCipher, tls.createSecurePair, ...: what has those names is bluebird's
+# own util, the ciphers of node-forge and polyfills for the browser), and the
+# linux-x64 tarball answered on Node.js 24 as on 18 (the start, the tools, the
+# routes of the plugins in, reports, imports, a SIGHUP; azsupport/ports,
+# 12.11.2026); Node.js 24 warns only of url.parse() (DEP0169: the opensearch.hosts
+# of the configuration), which bin/opensearch-dashboards and the rc script do not
+# show (--no-warnings). The tarball's node/
+# (Node.js 18.19.0 and 14.21.3 for Linux) is not in the package: they are its only
+# ELF files. Its node_modules have no native module (no *.node; the @node-rs/xxhash
+# of webpack, which a production start does not load, without its platform
+# packages; WebAssembly only): nothing is built, the package is JavaScript.
+#
+# The plugins: the bundle's 14 (the official port's choice), all whose server plugin
+# textproc/opensearch217 has (aZ, 12.11.2026: out of it only the security plugin and
+# what cannot run on FreeBSD, k-NN, neural-search and performance-analyzer, none of
+# which has a plugin in this bundle); so out only securityDashboards (no
+# opensearch-security: connections without SSL and without a password), with the
+# prefix of its settings, opensearch_security, which the rc script refuses. In, each
+# with what it needs of the server: alertingDashboards (alerting),
+# anomalyDetectionDashboards (anomaly-detection), assistantDashboards (ml, skills;
+# assistant.chat.enabled is false by default), customImportMapDashboards (geospatial),
+# indexManagementDashboards (index-management, job-scheduler), mlCommonsDashboards
+# (ml), notificationsDashboards (notifications), observabilityDashboards
+# (observability, sql), queryWorkbenchDashboards (sql), reportsDashboards
+# (reports-scheduler; no Chromium in 2.17.1: CSV and XLSX of saved searches made by
+# the server, PDF and PNG by the browser with html2canvas and jsPDF),
+# securityAnalyticsDashboards (security-analytics), ganttChartDashboards and
+# searchRelevanceDashboards (none).
+# The sample configuration is that of the min tarball: the bundle appends the
+# settings of the security plugin (https, kibanaserver, opensearch_security.*) to it.
+#
+# The commits of the 2.17 branch after 2.17.1 (what 2.17.2 would have been):
+#  - 1b89a739 (#9037): the check for large numerals took every number for one
+#    ("val < Number.MAX_SAFE_INTEGER || val > ...", MIN for the first): in @osd/std on
+#    the server and in the bundles of the browser (each one fixed, its .gz and .br
+#    made again);
+#  - 0c69517e (#9044) and f6b6da1a (#9045): json11 2.0.0 and the client
+#    @opensearch-project/opensearch-next 2.13.0 (the typo fixed there too), in the
+#    place of those of the tarball (on the server; the sha512 of the 2.17 branch's
+#    yarn.lock);
+#  - not taken: d500ecb0 (#9034, a saved search loaded in Discover) changes React
+#    code compiled into the Discover bundle; e9c9983f (#8637) changes only the routes
+#    of data_source.enabled (off here), half of it in a bundle; 159a2df6 (#9043, the
+#    npm package url): the server takes the url of Node.js, the browser has it in the
+#    bundles.
+# Of the plugins in, the 2.17 branches of alerting, anomaly-detection, notifications,
+# reporting and security-analytics have commits after 2.17.1.0, none taken: code of
+# the browser (compiled into their bundles), the routes of data_source.enabled,
+# release notes, alerting 1a665d7 (its server half alone changes no answer a user
+# sees), anomaly-detection f22b65c (_remote/info refused: only by the permissions of
+# the security plugin), and the bumps of their own npm packages (of those the server
+# loads only lodash, 4.17.21 in the yarn.lock of those branches too).
+#
+# A fix of ours, still needed in the main branch of OpenSearch Dashboards: hapi 20
+# exposes the reconfigure() of @elastic/good as server.plugins.good (its expose()
+# takes the scope off the name of a plugin), but src/legacy/server/osd_server.js
+# asks server.plugins['@elastic/good']: at a SIGHUP (reload, newsyslog) it logged
+# "Cannot read properties of undefined (reading 'reconfigure')" and the logging of
+# the legacy server (the responses, the legacy plugins) never opened its file again.
+#
+# Security fixes after 2.17.1 that touch it, the server side (files/patch-*, each
+# with its source): CVE-2026-75897, POST /api/core/capabilities without a bound
+# (cf92fa6d, #12292, 3.8.0); //host/ paths redirected off-site (05be93b, #12193,
+# 2.19.6); __proto__ keys in an import (e4d78b4, #12085, 2.19.6); @hapi/content, the
+# parser of every request's Content-Type, with that of 6.0.3 (GHSA-36hh-x5p5-jgc8,
+# GHSA-8494-f6mr-cjpv, GHSA-jg4p-7fhp-p32p); @hapi/inert, the confinement of
+# 7.1.1 (GHSA-rcvq-m9j9-6f4g); js-yaml 3.15.2 in the place of 3.14.1 (the 3.x line
+# with its security fixes only: GHSA-mh29-5h37-fv8m, GHSA-h67p-54hq-rp68,
+# GHSA-52cp-r559-cp3m, GHSA-5p4m-2wfm-xmqj, GHSA-2883-xcg3-v3hh): the YAML of the
+# rules a request gives securityAnalyticsDashboards goes through its load() (the
+# functions js-yaml 3 load() makes of !!js/function there are never called:
+# safeDump() throws on them before the rule is sent; azsupport/ports, 12.11.2026).
+# Not taken, and why: the fixes of 2.18 to 2.19.6 and 3.x in the code of the browser
+# (CVE-2026-84942 of Vega, the sanitizing of axis labels, URL and image labels,
+# VEGA_DEBUG, less in Markdown panels, field formats in the document table) and
+# CVE-2026-77811 (the integrations of observability): they are in the compiled
+# bundles, and each needs a user who can save objects, which without the security
+# plugin is everyone who reaches Dashboards, who can do anything through its console
+# anyway; but #11252 (a URL format of a field shows its values unsanitized) touches an
+# index pattern with that format on a field of untrusted values. CVE-2026-18420: the
+# mathjs evaluator of TSVB in 3.x; 2.17.1 evaluates with tinymath. #12259 and the
+# data source parts of #12085: data_source.enabled is off. The block of the config
+# type in imports (#12085): no roles here, who imports can change the settings.
+# Advisories of npm packages the server does not reach here: axios, form-data and
+# follow-redirects (the branding URLs of the configuration only), node-forge (PKCS#12
+# keystores: no SSL here), handlebars (the bootstrap template of the package), moment
+# (the locale of the configuration), lodash, minimatch, picomatch, brace-expansion
+# (paths and patterns of the code), decode-uri-component (query-string only
+# stringifies on the server), ip-address (data sources; Timeline's graphite with its
+# default allowlist), joi 14, ajv, uuid, cookie (the APM agent, off), aws-sdk and
+# bn.js (data sources), @babel/runtime, json-2-csv of reporting (preventCsvInjection
+# not set), the jsdom, dompurify, ws and form-data of the assistant (its chat, off
+# by default, with an agent of ml-commons); those of the browser (dompurify, prismjs, jsPDF, canvg and the others) are
+# compiled into the bundles.
+
+PORTNAME=	opensearch-dashboards
+DISTVERSION=	2.17.1
+PORTREVISION=	${AZSUPPORT_STAMP:U0}
+DISTVERSIONSUFFIX=	-linux-x64
+CATEGORIES=	textproc www
+MASTER_SITES=	https://artifacts.opensearch.org/releases/bundle/${PORTNAME}/${DISTVERSION}/ \
+		https://registry.npmjs.org/@opensearch-project/opensearch/-/:client \
+		https://registry.npmjs.org/json11/-/:json11 \
+		https://registry.npmjs.org/js-yaml/-/:jsyaml
+PKGNAMESUFFIX=	217
+DISTFILES=	${DISTNAME}${EXTRACT_SUFX} \
+		opensearch-${CLIENT_VERSION}.tgz:client \
+		json11-${JSON11_VERSION}.tgz:json11 \
+		js-yaml-${JSYAML_VERSION}.tgz:jsyaml
+EXTRACT_ONLY=	${DISTNAME}${EXTRACT_SUFX}
+
+MAINTAINER=	github@azsupport.com
+COMMENT=	Visualization dashboards for OpenSearch (of azsupport/ports)
+WWW=		https://opensearch.org \
+		https://github.com/azsupport/ports
+
+LICENSE=	APACHE20
+LICENSE_FILE=	${WRKSRC}/LICENSE.txt
+
+# node to build too: the checks of the package, the brotli of the bundles fixed
+BUILD_DEPENDS=	node:www/node24
+RUN_DEPENDS=	node:www/node24
+
+USE_RC_SUBR=	${PORTNAME}
+
+CONFLICTS_INSTALL=	opensearch-dashboards opensearch-dashboards[0-9]*
+
+NO_ARCH=	yes
+NO_BUILD=	yes
+
+SUB_FILES=	pkg-deinstall pkg-message
+SUB_LIST=	OSD_CONFIG_OUT="${OSD_PLUGINS_OUT:C/^[^:]*://}" \
+		OSD_PLUGINS_OUT="${OSD_PLUGINS_OUT:C/:.*//}" \
+		PKGNAMESUFFIX="${PKGNAMESUFFIX}" \
+		PORTNAME="${PORTNAME}" \
+		WWWDIR=${WWWDIR}
+
+WRKSRC=		${WRKDIR}/${PORTNAME}-${DISTVERSION}
+
+# sed without a backup: the whole tree goes into the package
+REINPLACE_ARGS=	-i ''
+
+CLIENT_VERSION=	2.13.0
+JSON11_VERSION=	2.0.0
+JSYAML_VERSION=	3.15.2
+
+# <plugin>:<the prefix of its settings> of the plugins left out (see the top)
+OSD_PLUGINS_OUT=	securityDashboards:opensearch_security
+OSD_PLUGINS_IN=		alertingDashboards anomalyDetectionDashboards \
+			assistantDashboards customImportMapDashboards \
+			ganttChartDashboards indexManagementDashboards \
+			mlCommonsDashboards notificationsDashboards \
+			observabilityDashboards queryWorkbenchDashboards \
+			reportsDashboards searchRelevanceDashboards \
+			securityAnalyticsDashboards
+# the files of files/patch-*, whose backups (.orig) patch(1) leaves
+OSD_PATCHED=	bin/use_node \
+		node_modules/@hapi/content/lib/index.js \
+		node_modules/@hapi/inert/lib/file.js \
+		src/core/server/capabilities/resolve_capabilities.js \
+		src/core/server/capabilities/routes/resolve_capabilities.js \
+		src/core/server/http/https_redirect_server.js \
+		src/core/server/saved_objects/routes/utils.js \
+		src/legacy/server/http/index.js
+# npm packages in the place of those of the tarball: <tarball>:<directory>
+OSD_NPM=	opensearch-${CLIENT_VERSION}.tgz:node_modules/@opensearch-project/opensearch-next \
+		json11-${JSON11_VERSION}.tgz:node_modules/json11 \
+		js-yaml-${JSYAML_VERSION}.tgz:node_modules/js-yaml
+# 1b89a739: "x < Number.MAX_SAFE_INTEGER || x > Number.MAX_SAFE_INTEGER", MIN first
+OSD_NUMERALS=	s/\(\([A-Za-z_$$][A-Za-z0-9_$$]*\)[[:space:]]*<[[:space:]]*Number\.\)MAX_SAFE_INTEGER\([[:space:]]*||[[:space:]]*\2[[:space:]]*>[[:space:]]*Number\.MAX_SAFE_INTEGER\)/\1MIN_SAFE_INTEGER\3/g
+OSD_NUMERALS_LEFT=	\([A-Za-z_$$][A-Za-z0-9_$$]*\)[[:space:]]*<[[:space:]]*Number\.MAX_SAFE_INTEGER[[:space:]]*||[[:space:]]*\1[[:space:]]*>
+
+# the packages of OSD_NPM, each in the place of the directory of the tarball (its own
+# node_modules kept: hpagent 1.2.0 of the client)
+post-extract:
+.for n in ${OSD_NPM}
+	@[ -f ${WRKSRC}/${n:C/^[^:]*://}/package.json ] || \
+		{ ${ECHO_MSG} "${n:C/^[^:]*://}: not in the tarball"; ${FALSE}; }
+	${FIND} ${WRKSRC}/${n:C/^[^:]*://} -mindepth 1 -maxdepth 1 ! -name node_modules -exec ${RM} -r {} +
+	${TAR} -xf ${DISTDIR}/${n:C/:.*//} -C ${WRKSRC}/${n:C/^[^:]*://} --strip-components 1
+.endfor
+# the tarball is what this port was made for: no native module, ELF files in node/ only
+	@if ${FIND} ${WRKSRC} -name '*.node' | ${GREP} .; then \
+		${ECHO_MSG} "native modules in the tarball"; ${FALSE}; fi
+
+post-patch:
+	${RM} ${OSD_PATCHED:S|^|${WRKSRC}/|:S|$|.orig|}
+	${REINPLACE_CMD} -e 's|%%LOCALBASE%%|${LOCALBASE}|' ${WRKSRC}/bin/use_node
+	@${GREP} -q '^  NODE="${LOCALBASE}/bin/node"$$' ${WRKSRC}/bin/use_node || \
+		{ ${ECHO_MSG} "bin/use_node: no NODE= line set"; ${FALSE}; }
+# the sample of the min tarball: the bundle's block of the security plugin away
+	${REINPLACE_CMD} -e '/^opensearch\.hosts: \[https:\/\/localhost:9200\]$$/,$$d' \
+		${WRKSRC}/config/opensearch_dashboards.yml
+	@if ${GREP} -n -E '^[^#[:space:]]' ${WRKSRC}/config/opensearch_dashboards.yml | ${GREP} -v -x '1:---'; then \
+		${ECHO_MSG} "config/opensearch_dashboards.yml: settings left in the sample"; ${FALSE}; fi
+	${PRINTF} '%s\n' '' \
+		'# azsupport/ports: this package has no security plugin (securityDashboards):' \
+		'# OpenSearch Dashboards talks to OpenSearch over plain http without credentials' \
+		'# (opensearch.hosts). The rc script refuses to start with a setting of that' \
+		'# plugin (opensearch_security.*): OpenSearch Dashboards would stop at its start' \
+		'# on it.' \
+		>> ${WRKSRC}/config/opensearch_dashboards.yml
+.for p in ${OSD_PLUGINS_OUT:C/:.*//}
+	${RM} -r ${WRKSRC}/plugins/${p}
+.endfor
+	@[ "$$(cd ${WRKSRC}/plugins && ${LS} | ${XARGS})" = "${OSD_PLUGINS_IN:ts }" ] || \
+		{ ${ECHO_MSG} "plugins: $$(cd ${WRKSRC}/plugins && ${LS} | ${XARGS}), not ${OSD_PLUGINS_IN}"; ${FALSE}; }
+# reconfigure() of good at a SIGHUP (see the top)
+	${REINPLACE_CMD} -e "s|this\.server\.plugins\[[\"']@elastic/good[\"']]\.reconfigure(|this.server.plugins.good.reconfigure(|" \
+		${WRKSRC}/src/legacy/server/osd_server.js
+	@${GREP} -q 'this\.server\.plugins\.good\.reconfigure(' ${WRKSRC}/src/legacy/server/osd_server.js || \
+		{ ${ECHO_MSG} "src/legacy/server/osd_server.js: the reconfigure() of good not fixed"; ${FALSE}; }
+# 1b89a739: each file with the check of large numerals, its .gz and .br made again
+	@cd ${WRKSRC} && ${GREP} -rl -E 'Number\.MAX_SAFE_INTEGER[[:space:]]*\|\|' \
+		--include='*.js' node_modules/@osd src plugins > ${WRKDIR}/numerals.txt || ${TRUE}
+	@while read f; do \
+		${CP} -p ${WRKSRC}/$$f ${WRKDIR}/numerals.tmp; \
+		${SED} -i '' -e '${OSD_NUMERALS}' ${WRKSRC}/$$f; \
+		if ! cmp -s ${WRKSRC}/$$f ${WRKDIR}/numerals.tmp; then \
+			${ECHO_MSG} "1b89a739: $$f"; \
+			if [ -f ${WRKSRC}/$$f.gz ]; then gzip -9 -n -c ${WRKSRC}/$$f > ${WRKSRC}/$$f.gz; fi; \
+			if [ -f ${WRKSRC}/$$f.br ]; then ${LOCALBASE}/bin/node -e 'const z = require("zlib"), fs = require("fs"); \
+				fs.writeFileSync(process.argv[2], z.brotliCompressSync(fs.readFileSync(process.argv[1]), \
+				{ params: { [z.constants.BROTLI_PARAM_QUALITY]: 11 } }))' ${WRKSRC}/$$f ${WRKSRC}/$$f.br; fi; \
+		fi; \
+	done < ${WRKDIR}/numerals.txt
+	@${RM} ${WRKDIR}/numerals.tmp
+	@${GREP} -rq -E '<[[:space:]]*Number\.MIN_SAFE_INTEGER[[:space:]]*\|\|' --include='*.js' \
+		${WRKSRC}/node_modules/@osd/std || \
+		{ ${ECHO_MSG} "node_modules/@osd/std: 1b89a739 not applied"; ${FALSE}; }
+	@cd ${WRKSRC} && ${GREP} -rl -E 'Number\.MAX_SAFE_INTEGER[[:space:]]*\|\|' --include='*.js' \
+		node_modules/@osd node_modules/@opensearch-project/opensearch-next src plugins | \
+		while read f; do \
+			if ${SED} -n -e '/${OSD_NUMERALS_LEFT}/p' $$f | ${GREP} -q .; then \
+				${ECHO_MSG} "1b89a739: $$f still has the typo"; exit 1; fi; \
+		done
+
+do-install:
+	${MKDIR} ${STAGEDIR}${WWWDIR} ${STAGEDIR}${ETCDIR} ${STAGEDIR}${PREFIX}/etc/newsyslog.conf.d
+	${INSTALL_DATA} ${WRKSRC}/config/opensearch_dashboards.yml ${STAGEDIR}${ETCDIR}/opensearch_dashboards.yml.sample
+	${INSTALL_DATA} ${WRKSRC}/config/node.options ${STAGEDIR}${ETCDIR}/node.options.sample
+	${INSTALL_DATA} ${FILESDIR}/newsyslog.conf \
+		${STAGEDIR}${PREFIX}/etc/newsyslog.conf.d/opensearch_dashboards.conf.sample
+	(cd ${WRKSRC} && \
+		${COPYTREE_SHARE} ".i18nrc.json NOTICE.txt data node_modules package.json plugins src" ${STAGEDIR}${WWWDIR} && \
+		${COPYTREE_BIN} bin ${STAGEDIR}${WWWDIR})
+	${INSTALL} -lrs ${STAGEDIR}${ETCDIR} ${STAGEDIR}${WWWDIR}/config
+
+# the package: no ELF file, no native module, no backup of a patch, the node of
+# www/node24, the version, the packages of OSD_NPM
+post-install:
+	@if ${FIND} ${STAGEDIR}${WWWDIR} -type f -exec ${FILE} {} + | ${GREP} -E ': .*(ELF|Mach-O|PE32)'; then \
+		${ECHO_MSG} "binaries in the package"; ${FALSE}; fi
+	@if ${FIND} ${STAGEDIR}${WWWDIR} \( -name '*.node' -o -name '*.orig' -o -name '*.rej' -o -path '*/node/bin/*' \) | \
+		${GREP} .; then ${ECHO_MSG} "these files must not be in the package"; ${FALSE}; fi
+# (its configuration: that of the work tree, as the package has the samples only;
+# bin/opensearch-dashboards reads it to set up APM before it parses its arguments;
+# --allow-root: its tools stop as root without it, src/setup_node_env/root, and the
+# build is root)
+	@v="$$(cd /tmp && ${SETENV} HOME=${WRKDIR} OSD_PATH_CONF=${WRKSRC}/config ${STAGEDIR}${WWWDIR}/bin/opensearch-dashboards --version --allow-root 2>&1)"; \
+		[ "$$v" = "${DISTVERSION}" ] || \
+		{ ${ECHO_MSG} "bin/opensearch-dashboards --version does not say ${DISTVERSION}: $$v"; ${FALSE}; }
+.for n in ${OSD_NPM}
+	@[ "$$(${LOCALBASE}/bin/node -p 'require(process.argv[1]).version' ${STAGEDIR}${WWWDIR}/${n:C/^[^:]*://}/package.json)" = \
+		"$$(echo ${n:C/:.*//:R} | ${SED} 's/.*-//')" ] || \
+		{ ${ECHO_MSG} "${n:C/^[^:]*://}: not the version of ${n:C/:.*//}"; ${FALSE}; }
+.endfor
+	${ECHO} "@sample ${ETCDIR}/opensearch_dashboards.yml.sample" >> ${TMPPLIST}
+	${ECHO} "@sample ${ETCDIR}/node.options.sample" >> ${TMPPLIST}
+	${ECHO} "@sample etc/newsyslog.conf.d/opensearch_dashboards.conf.sample" >> ${TMPPLIST}
+	${FIND} -s ${STAGEDIR}${WWWDIR} -not -type d | ${SORT} | \
+		${SED} -e 's#^${STAGEDIR}${PREFIX}/##' >> ${TMPPLIST}
+	${ECHO} "@dir(www,www) ${WWWDIR}/data" >> ${TMPPLIST}
+	${FIND} -s ${STAGEDIR}${WWWDIR} -type d -empty ! -path ${STAGEDIR}${WWWDIR}/data | ${SORT} | \
+		${SED} -e 's#^${STAGEDIR}${PREFIX}/#@dir #' >> ${TMPPLIST}
+
+.include <bsd.port.mk>

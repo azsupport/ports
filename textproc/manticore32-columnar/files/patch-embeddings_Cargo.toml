@@ -1,0 +1,21 @@
+ort optional, under the feature onnx (download-ort turns it on).
+
+--- embeddings/Cargo.toml.orig
++++ embeddings/Cargo.toml
+@@ -24,12 +24,14 @@
+ candle-core = "0.9.2"
+ candle-nn = "0.9.2"
+ candle-transformers = "0.9.2"
+-ort = { version = "2.0.0-rc.9", default-features = false, features = ["std"] }
++ort = { version = "2.0.0-rc.9", default-features = false, features = ["std"], optional = true }
+ rayon = "1.11"
+ 
+ [features]
+ default = []
+-download-ort = ["ort/download-binaries", "ort/tls-rustls"]
++# ONNX Runtime (models with only ONNX weights); cmake turns it on (EMBEDDINGS_ONNX)
++onnx = ["dep:ort"]
++download-ort = ["onnx", "ort/download-binaries", "ort/tls-rustls"]
+ accelerate = ["candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]
+ mkl = ["candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
+ cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]

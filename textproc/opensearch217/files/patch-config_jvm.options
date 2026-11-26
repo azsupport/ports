@@ -1,0 +1,108 @@
+--- config/jvm.options.orig
++++ config/jvm.options
+@@ -19,8 +19,14 @@
+ # Xms represents the initial size of total heap space
+ # Xmx represents the maximum size of total heap space
+ 
+--Xms1g
+--Xmx1g
++# azsupport/ports: one file for every server. Without opensearch_heap in
++# /etc/rc.conf the heap is 31g (aZ, 12.11.2026, as for elasticsearch6: below the
++# cutoff of compressed oops near 32 GB). On a server with less than 64 GB of RAM
++# set opensearch_heap="16g", at most half of the RAM (the rest is the cache of
++# the file system): the rc script passes it as -Xms and -Xmx after this file.
++
++-Xms31g
++-Xmx31g
+ 
+ ################################################################
+ ## Expert settings
+@@ -50,31 +56,66 @@
+ ## JVM temporary directory
+ -Djava.io.tmpdir=${OPENSEARCH_TMPDIR}
+ 
+-## heap dumps
++## out of memory
+ 
+-# generate a heap dump when an allocation from the Java heap fails
+-# heap dumps are created in the working directory of the JVM
+--XX:+HeapDumpOnOutOfMemoryError
+-
+-# specify an alternative path for heap dumps; ensure the directory exists and
+-# has sufficient space
+--XX:HeapDumpPath=data
++# azsupport/ports: no heap dump (aZ, 11.11.2026, as for elasticsearch6): the
++# tarball has -XX:+HeapDumpOnOutOfMemoryError and -XX:HeapDumpPath=data here,
++# and a dump is a file as large as the heap at every OutOfMemoryError.
++# Exit at an OutOfMemoryError: OpenSearch halts on it by itself
++# (OpenSearchUncaughtExceptionHandler) unless some code caught the error; the
++# flag makes it certain, and its bootstrap check of OnOutOfMemoryError names
++# it as the one to use. A node that ran out of heap is not left half alive in
++# the cluster.
++-XX:+ExitOnOutOfMemoryError
+ 
+ # specify an alternative path for JVM fatal error logs
+--XX:ErrorFile=logs/hs_err_pid%p.log
+-
+-## JDK 8 GC logging
+-8:-XX:+PrintGCDetails
+-8:-XX:+PrintGCDateStamps
+-8:-XX:+PrintTenuringDistribution
+-8:-XX:+PrintGCApplicationStoppedTime
+-8:-Xloggc:logs/gc.log
+-8:-XX:+UseGCLogFileRotation
+-8:-XX:NumberOfGCLogFiles=32
+-8:-XX:GCLogFileSize=64m
+-
+-# JDK 9+ GC logging
+-9-:-Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m
++# azsupport/ports: /var/log/opensearch, as the deb and rpm of OpenSearch (the
++# tarball has logs, relative to lib/opensearch; the official port of FreeBSD
++# /hs_err_pid%p.log); this file and the replay file below stay: small text
++# files, written only when the JVM itself crashes (without these options the
++# JVM would write them to its working directory or to /tmp)
++-XX:ErrorFile=/var/log/opensearch/hs_err_pid%p.log
++
++# azsupport/ports: the replay file of a JIT compiler that crashed next to it
++# (as Elasticsearch 8 sets it); the JVM writes it to its working directory
++# otherwise
++-XX:ReplayDataFile=/var/log/opensearch/replay_pid%p.log
++
++## GC logging
++
++# azsupport/ports: no GC log (aZ, 11.11.2026, as for elasticsearch6: writes that
++# were never of use): the tarball has -Xloggc and its options for JDK 8 and
++# -Xlog:gc*,gc+age=trace,safepoint into the file logs/gc.log (up to 32 files of
++# 64 MB) for JDK 9 and later; the official port of FreeBSD puts it into
++# OPENSEARCH_TMPDIR. OpenSearch itself still writes the collections that take
++# long or come often to its own log (JvmGcMonitorService: [gc][young],
++# [gc][old], "overhead, spent").
++
++## the shared memory file of the JVM
++
++# azsupport/ports: no /tmp/hsperfdata_<user>/<pid>, the file of performance
++# counters that the JVM maps and keeps writing (aZ, 11.11.2026: nothing in /tmp).
++# The cost: jps, jstat and jcmd -l do not see the process; jcmd and jstack with
++# its process id still work.
++-XX:+PerfDisableSharedMem
++
++## JNA
++
++# azsupport/ports: the native library of JNA from the file of devel/jna, nothing
++# unpacked or listed in OPENSEARCH_TMPDIR (aZ, 12.11.2026, as for
++# elasticsearch6). The launcher of OpenSearch puts -Djna.nosys=true before
++# these options (its system options, compiled in): with it alone JNA listed its
++# temporary directory for old files at every start and unpacked
++# libjnidispatch.so of jna.jar into a new file there. jna.boot.library.path is
++# tried first, whatever jna.nosys says (Native.loadNativeDispatchLibrary of JNA
++# 5.15); jna.nounpack: no temporary directory at all, and no fallback to the
++# jar. Without the file JNA does not load: OpenSearch logs "unable to load JNA
++# native support library, native methods will be disabled" and runs without
++# the system call filter and mlockall, and a node whose transport listens
++# beyond the loopback does not start (its bootstrap check of the filter); the
++# port depends on the file, not on any jna.
++-Djna.boot.library.path=%%LOCALBASE%%/lib/jna
++-Djna.nounpack=true
+ 
+ # Explicitly allow security manager (https://bugs.openjdk.java.net/browse/JDK-8270380)
+ 18-:-Djava.security.manager=allow

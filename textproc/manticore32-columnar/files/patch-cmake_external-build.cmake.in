@@ -1,0 +1,16 @@
+The dependencies (FastPFOR, streamvbyte) built once, in Release, with no debug:
+upstream builds each twice, RelWithDebInfo (-O2 -g) and Debug (no optimization),
+unless DISTR_BUILD is set, and the Release build of the port linked their Debug
+build. DISTR_BUILD itself turns on more (the packaging of a distribution).
+
+--- cmake/external-build.cmake.in.orig
++++ cmake/external-build.cmake.in
+@@ -4,7 +4,7 @@
+ 
+ include ( ExternalProject )
+ 
+-set ( DEVMODE @DISTR_BUILD@ )
++set ( DEVMODE 1 )
+ 
+ set ( BUILD_TYPE @CMAKE_BUILD_TYPE@ )
+ if (NOT BUILD_TYPE)

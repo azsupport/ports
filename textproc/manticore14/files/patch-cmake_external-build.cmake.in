@@ -1,0 +1,15 @@
+The dependencies built once, of the build type of the port (Release): upstream builds
+each twice (RelWithDebInfo and Debug) when DISTR_BUILD is not set, and DISTR_BUILD
+turns on the PostgreSQL source and more.
+
+--- cmake/external-build.cmake.in.orig
++++ cmake/external-build.cmake.in
+@@ -4,7 +4,7 @@
+ 
+ include ( ExternalProject )
+ 
+-set ( DEVMODE @DISTR_BUILD@ )
++set ( DEVMODE 1 )
+ 
+ set ( BUILD_TYPE @CMAKE_BUILD_TYPE@ )
+ if (NOT BUILD_TYPE)
