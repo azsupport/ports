@@ -205,13 +205,14 @@
 
 set -u
 
-# the official tree the overlay is built over: freebsd-ports main of 25.11.2026 17:35
-# (Prague; aZ, 25.11.2026 18:20: «новости портов прогони прежде чем заново всё
-# пересобирать», before the full rebuild of az as azsupport), the commit of azsupport/azsupport/files/deps.conf too. The rule of aZ: the latest version of a port, or a newer release for its
+# the official tree the overlay is built over: freebsd-ports main of 26.11.2026 17:45
+# (Prague; the commit the ports news of 26.11.2026 17:30 checked up to: libffi 3.8.2,
+# aZ 26.11.2026 18:31: «с полной пересборкой», the one of clang 23), the commit of
+# azsupport/azsupport/files/deps.conf too. The rule of aZ: the latest version of a port, or a newer release for its
 # security or a serious bug (a take line of deps.conf), so before a build this goes to
 # the latest commit of main (it had stayed at 04.11.2026: apache24 2.4.69 for 2.4.70
 # of 07.11.2026, aZ 10.11.2026)
-ports_commit="0530184620597905236e6930eb3e4834d1173390"
+ports_commit="7db71032fc225badb995b5c6026a15e8bdfda147"
 ports_url="https://github.com/freebsd/freebsd-ports"
 
 # The build tools a port gets from the official packages of FreeBSD even when this

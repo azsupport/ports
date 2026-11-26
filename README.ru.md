@@ -17,8 +17,8 @@
 
 - **Оверлей**: только наши порты, поверх официального дерева
   [freebsd-ports](https://github.com/freebsd/freebsd-ports) на закреплённом коммите
-  [`0530184620`](https://github.com/freebsd/freebsd-ports/tree/0530184620597905236e6930eb3e4834d1173390)
-  (main от 25.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh), перед сборкой
+  [`7db71032fc`](https://github.com/freebsd/freebsd-ports/tree/7db71032fc225badb995b5c6026a15e8bdfda147)
+  (main от 26.11.2026; `ports_commit` в [`tools/build.sh`](tools/build.sh), перед сборкой
   переводится на последний main: последние версии портов, aZ). Фреймворк
   портов берёт его как `OVERLAYS`: `bsd.port.mk` включает
   [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk), берёт `Mk/Uses/<имя>.mk` оверлея раньше
