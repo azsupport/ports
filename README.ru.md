@@ -68,7 +68,10 @@
 
 | Пакет | Origin | Что |
 |---|---|---|
-| `azsupport` | `azsupport/azsupport` | библиотеки сборок в `/usr/local/azsupport`: `lib` (разделяемые, с run path `/usr/local/azsupport/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin` (`pkg-config`, `*-config`), с ними линкуется каждый пакет; статические — в `/usr/local/azsupport/static`, только для особых сборок `azsupport-menu.sh`. OpenSSL, zlib и bzip2 — из базовой системы |
+| `azsupport-<библиотека>` | `azsupport/<библиотека>` | разделяемые библиотеки сборок в `/usr/local/azsupport`, по пакету на каждую (aZ, 26.11.2026), 45: apr, argon2, brotli, c-ares, dav1d, expat, fmt, freetype2, gd, gettext, gmp, icu, lcms2, libde265, libevent, libffi, libheif, libiconv, libidn2, libmaxminddb, libmcrypt, libmemcached, libpsl, libsodium, libssh2, liburcu, libuv, libxml2, libxslt, libyaml, libzip, lz4, mozjpeg, nghttp2, oniguruma, png, readline, slang, sqlite3, svtav1, tidy, webp, x264, xxhash, zstd: её `lib` (разделяемые, с run path `/usr/local/azsupport/lib`, без ldconfig), `lib/pkgconfig`, `include`, `bin/*-config`, её манифест `share/azsupport/interface/<библиотека>.txt`, её лицензии в `LICENSES/`, `share/doc/azsupport-<библиотека>/VERSIONS`; пакет зависит от тех, с которыми линкуется, каждая из них — от нужных ей и от `azsupport-services`. OpenSSL, zlib и bzip2 — из базовой системы |
+| `azsupport-services` | `azsupport/services` | триггер служб, `share/pkg/triggers/azsupport-services.ucl` (в конце `pkg upgrade` — команды, которые перезапускают затронутые им службы), от него зависит пакет каждой библиотеки |
+| `azsupport` | `azsupport/azsupport` | статические библиотеки сборок, `/usr/local/azsupport/static` (`lib`, `include`, `bin/pkg-config` с `--static`, их манифесты и лицензии), только для особых сборок `azsupport-ports.sh` из azsupport/php-src (сервер, который не собирает с ним PHP, может удалить его после обновления, `pkg autoremove`); `share/doc/azsupport/VERSIONS` |
+| `fontconfig` | `x11-fonts/fontconfig` | fontconfig 2.18.4 вместо официального пакета, с его именем и файлами в `/usr/local` (aZ, 26.11.2026), на `azsupport-expat` и `azsupport-freetype2`: для ImageMagick, cairo, pango и librsvg2 (`openjdk21` берёт только его заголовки для сборки) |
 | `curl` | `ftp/curl` | `bin/curl` и `libcurl.so.4`, вместо пакета порта, с SCP и SFTP (libssh2 из azsupport, без старых алгоритмов SSH: MAC на MD5, 3DES, RC4, Blowfish, CAST; так же у `ssh2` PHP и SFTP в `mc`); его `libcurl.so.4` — libcurl всех пакетов (модуль curl PHP, git) |
 | `curl-impersonate` | `ftp/curl-impersonate` | curl-impersonate 2.3.2, сборка из исходников: `curl-impersonate` и обёртки `curl_<браузер>` (рукопожатия TLS, HTTP/2 и HTTP/3 Chrome, Edge, Firefox, Safari и Tor Browser), `libcurl-impersonate.so` (для `py-curl-cffi`; не libcurl остальных пакетов); BoringSSL, nghttp2 1.63.0, nghttp3 и ngtcp2 внутри неё (с патчами апстрима под браузеры), c-ares, brotli, zstd, libidn2 (IDN) и libpsl (PSL) из azsupport, zlib базы |
 | `py312-curl-cffi` | `ftp/py-curl-cffi` | curl_cffi 0.17.0 для нашего `python312`, на `libcurl-impersonate.so` из `curl-impersonate`: имперсонация `yt-dlp` (`--impersonate`); официальный порт как есть, с `py312-cffi` и `py312-certifi` этого дерева (ниже) |
@@ -141,7 +144,7 @@
 | `opensearch-dashboards217` | `textproc/opensearch-dashboards217` | OpenSearch Dashboards 2.17.1, последний 2.17.x (2.17.2 так и не вышел), для старого проекта вместе с `opensearch217`: бандл официального порта 2.17.1 (ветка 2025Q1) на нашем `node24`, а не на Node.js 18, для которого он сделан (конец поддержки 30.04.2025; его проверка версии берёт только первое условие `engines.node`, `>=14.20.1`), без его Node.js для Linux — единственных ELF-файлов бандла (нативных модулей нет: ничего не собирается); 13 плагинов, без `securityDashboards` (в `opensearch217` нет плагина безопасности: к OpenSearch — по http без SSL и без учётных данных), `reportsDashboards` есть (Chromium в 2.17.1 нет: CSV и XLSX делает сервер, PDF и PNG — браузер); его rc-скрипт с daemon(8), от пользователя www, не запускает с настройкой плагина, которого нет в пакете (`opensearch_security.*`), читает `node.options`, `reload` для журнала, который newsyslog ротирует на 10 МБ без архивов; коммиты ветки 2.17 после 2.17.1, что подходят для сборки из бинарного архива, и исправления безопасности после 2.17.1, которые его касаются (DoS `/api/core/capabilities`, CVE-2026-75897; редиректы на чужой сайт; `__proto__` при импорте; `@hapi/content`, `@hapi/inert`, js-yaml 3.15.2): список, а также что не взято и почему, — в `textproc/opensearch-dashboards217/Makefile` |
 | `opensearch-dashboards219` | `textproc/opensearch-dashboards219` | OpenSearch Dashboards 2.19.7, на месте официального `textproc/opensearch-dashboards219` и впереди него (во freebsd-ports 2.19.6, 13.11.2026), вместе с `opensearch219` (кластер aZ переходит с 2.17.1 на 2.19, а с ним и его Dashboards; Dashboards 2.19 — только для OpenSearch 2.19; Dashboards 2.19.8 нет, 26.11.2026: 2.19.8 вышел только у OpenSearch, и 2.19.7 работает с `opensearch219` 2.19.8): в 2.19.7 ограничен `/api/core/capabilities` (CVE-2026-75897), который `opensearch-dashboards217` исправляет патчем, и есть остальные исправления из его заметок к выпуску; все решения `opensearch-dashboards217`: бандл на нашем `node24`, а не на Node.js 18, для которого он сделан (его проверка версии берёт только первое условие `engines.node`, `>=14.20.1`), без его Node.js для Linux — единственных ELF-файлов бандла (нативных модулей нет: ничего не собирается); 15 плагинов, без `securityDashboards` (в `opensearch219` нет плагина безопасности: к OpenSearch — по http без SSL и без учётных данных), `flowFrameworkDashboards` и `queryInsightsDashboards` есть (их серверные плагины есть в `opensearch219`; заготовкам Flow Framework для семантического, гибридного, мультимодального и векторного поиска нужны k-NN и Neural Search, которых в `opensearch219` нет); его rc-скрипт с daemon(8), от пользователя www, не запускает с настройкой плагина, которого нет в пакете (`opensearch_security.*`), читает `node.options`, `reload` для журнала, который newsyslog ротирует на 10 МБ без архивов; исправления безопасности из 3.x, которые его касаются (`@hapi/content` 6.0.3; DoS цепочки функций-источников Timeline, подсчёта сохранённых объектов и сжатого импорта): список, а также что не взято и почему, — в `textproc/opensearch-dashboards219/Makefile`; `pkg install opensearch-dashboards219` встаёт на место `opensearch-dashboards217` на его сохранённых объектах (`tools/opensearch-dashboards-upgrade-test.sh`: Dashboards 2.17.1 на OpenSearch 2.17.1, затем OpenSearch 2.19.8 на его данных и Dashboards 2.19.7 с конфигурацией aZ: сохранённые объекты перенесены, читаются и экспортируются, Advanced Settings сохранены) |
 | `perl5` | `lang/perl5.42` | Perl 5.42 под именем пакета FreeBSD (aZ, 11.11.2026), чтобы с ним работали пакеты `p5-*` из репозитория FreeBSD: официальный порт как есть (потоки, MULTIPLICITY, 64-битные целые, разделяемая libperl), без DTrace, как все сборки здесь (его пробы есть только в ядре Perl: XS-модули пакетов FreeBSD с ним загружаются и работают, `tools/perl-test.sh`) |
-| `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | JDK для `elasticsearch6`, `opensearch217` и `opensearch219`, и для OpenSearch 3.x потом, наш (aZ, 11.11.2026: чтобы сервер с Elasticsearch не получал ничего от рабочего стола; 12.11.2026: один JDK для всех: OpenSearch 2.x и Elasticsearch 6 не работают на JDK 24 и новее, где Security Manager отключён насовсем, а OpenSearch 3.x нужен JDK не ниже 21): OpenJDK 21 без графики в `/usr/local/openjdk21`, без X11, звука, шрифтов и javavmwrapper (нет `/usr/local/bin/java`), на libjpeg, FreeType и Little CMS из azsupport; JNA без X11 и JAWT, на libffi из azsupport, его библиотека — ещё и файлом `/usr/local/lib/jna/libjnidispatch.so`, который загружают `elasticsearch6`, `opensearch217` и `opensearch219` (`-Djna.boot.library.path`, `-Djna.nounpack`: при запуске ничего не распаковывается), собран на 21 для Java 8; Ant — официальный порт — на нашем JDK 21, для сборки JNA (aZ, 12.11.2026: JNA и Ant — на 21). `openjdk21` и `jna` зависят только от `azsupport` |
+| `openjdk21`, `jna`, `apache-ant` | `java/openjdk21`, `devel/jna`, `devel/apache-ant` | JDK для `elasticsearch6`, `opensearch217` и `opensearch219`, и для OpenSearch 3.x потом, наш (aZ, 11.11.2026: чтобы сервер с Elasticsearch не получал ничего от рабочего стола; 12.11.2026: один JDK для всех: OpenSearch 2.x и Elasticsearch 6 не работают на JDK 24 и новее, где Security Manager отключён насовсем, а OpenSearch 3.x нужен JDK не ниже 21): OpenJDK 21 без графики в `/usr/local/openjdk21`, без X11, звука, шрифтов и javavmwrapper (нет `/usr/local/bin/java`), на libjpeg, FreeType и Little CMS из azsupport; JNA без X11 и JAWT, на libffi из azsupport, его библиотека — ещё и файлом `/usr/local/lib/jna/libjnidispatch.so`, который загружают `elasticsearch6`, `opensearch217` и `opensearch219` (`-Djna.boot.library.path`, `-Djna.nounpack`: при запуске ничего не распаковывается), собран на 21 для Java 8; Ant — официальный порт — на нашем JDK 21, для сборки JNA (aZ, 12.11.2026: JNA и Ant — на 21). `openjdk21` и `jna` зависят только от библиотек azsupport (`azsupport-freetype2`, `azsupport-lcms2`, `azsupport-mozjpeg`; `azsupport-libffi`) |
 | `bash`, `bsddialog`, `bsnmp-ucd`, `portconfig`, `portmaster`, `rsync`, `screen`, `sudo`, `unzip`, `wget`, `yamdi`, `zip` | их официальные origin | утилиты серверов: официальные порты как есть ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)) с опциями aZ в Makefile каждого порта (`unzip` с ICONV — кириллические имена архивов Windows, и с исправлениями уязвимостей, которых нет в официальном порту, из Fedora: CVE-2014-8141 … CVE-2022-0530, zip-бомбы, и из Debian 6.0-31 и 6.0-32 и OpenBSD (`files/debian/`): CAN-2026-2034442 и CAN-2026-2034443 (переполнения кучи и стека), поле extra Unicode-пути короче 5 байтов (чтение за его край), CVE-2022-1271 в zipgrep, архивы ZIP64 из Windows, время из Unix-полей extra; а также образцы zipgrep с `\|`, ошибка закрытия распакованного файла, обрезанное поле extra, дескрипторы данных Zip64 из Java (madler `af0d07f`), `memmove()` в скользящем окне (OpenBSD, `files/openbsd/`), исправление CVE-2014-8139 в варианте, исправленном Info-ZIP (`unzip -t` на jar давал ошибку), `memmove()` для `\` в `UNZIP` (Fedora) и справка zipinfo (четыре `%c` патча ICONV официального порта без аргументов); `screen` с ncurses базы и сокетами в `~/.screen`, NOSOCKETDIR, и тремя исправлениями Debian (переполнение кучи при изменении размера, отступ в строке статуса, `defflow` после переподключения); `sudo` только с PAM, без AUDIT, LOGSRVD, SSL, NLS, с исправлениями CVE-2026-96512 (три коммита апстрима), CVE-2026-35535 (почтовая программа от root с группами пользователя) и файла `@includedir` с `:` в имени (коммиты апстрима `3e474c2`, `ff0b6be`, как их несёт Debian); `yamdi` с исправлением Debian для `-c`; `zip` с тремя исправлениями: с `-j` образцы `-i` и `-x` теряли пути (openSUSE), `memmove()` для `\` в `ZIP` (RHEL), смещения после имени с флагом UTF-8 (`zipnote` зависал; Gentoo); `bash` без NLS, с тремя исправлениями 5.3, как их несёт Gentoo: `wait` закончившегося фонового задания, подстановки команд при большом окружении, приглашение в однобайтовой локали, и исправлением openSUSE для байта 0x80–0xFF в `${…}` (bash53-019); `portmaster` только с дополнением для bash), `wget` и `rsync` наши, с разделяемыми библиотеками azsupport (`wget`: IDN, PSL, без OPIE (вход S/KEY по FTP), исправления CVE-2026-15146, CVE-2026-58470, CVE-2026-58471 и CVE-2026-58472, как их несёт Ubuntu, CVE-2026-16599 (вход S/KEY, коммит апстрима `e9697d9`, как его несёт Fedora), CVE-2021-31879 (`Authorization:` и `Cookie:` из `--header` после редиректа уходят только на источник первого URL: патч openSUSE, как это делает curl) и обработчика SIGHUP (коммит апстрима `e1f2559`, как его несёт RHEL); `rsync` 3.5.2, раньше официального 3.5.1 ради исправлений безопасности: lz4, zstd, xxhash, без ICONV), PCRE2 из `pcre2` (`wget`) и OpenSSL базы; `portconfig`: диалог опций `make config` и portmaster (DIALOG4PORTS дерева пина), чтобы они не собирали его на сервере (aZ, 19.11.2026) |
 | `tmux`, `keychain` | `sysutils/tmux`, `security/keychain` | tmux 3.8 — официальный порт с libevent из azsupport (без LIBEVENT_STATIC; без UTF8PROC: ширину символов даёт libc FreeBSD, дистрибутивы берут utf8proc только для macOS), ncurses и utempter базы; keychain 2.9.8 — официальный порт как есть (sh перед ssh-agent базы; его 3.x переписан на Python, официальный порт его не берёт) |
 | `tcl84` | `lang/tcl84` | Tcl 8.4.20, последний выпуск 8.4 (2013), для старого приложения aZ (19.11.2026): официальный порт freebsd-ports fc3b56ba75eb до его удаления (7fc25c874cfc, 21.11.2017), с его патчами, на фреймворке дерева пина; THREADS вкл, TCLMAN выкл, как в том порту; рядом с `lang/tcl86` (`tclsh8.4`, `libtcl84.so.1`, `lib/tcl8.4`, `include/tcl8.4`) |
@@ -193,25 +196,47 @@
 - Не собираются: модули, которым нужна библиотека портов (enchant, imap, ldap, odbc,
   pdf, pdo_dblib, pdo_firebird, pdo_odbc, pdo_pgsql, pgsql, pspell, snmp).
 - Особая сборка (статический PHP, опции конкретного сервера) — не порт здесь: её делает
-  `azsupport-menu.sh` из [azsupport/php-src](https://github.com/azsupport/php-src).
+  `azsupport-ports.sh` из [azsupport/php-src](https://github.com/azsupport/php-src).
 
 ## Порты
 
-- **`azsupport/azsupport`**: пакет `azsupport`, библиотеки `/usr/local/azsupport`, собранные из примерно 40
-  официальных портов закреплённого коммита скриптом [`tools/azsupport-build.sh`](tools/azsupport-build.sh)
-  ([`azsupport/azsupport/files/deps.conf`](azsupport/azsupport/files/deps.conf)). Два дерева: `/usr/local/azsupport`
-  (разделяемые, SONAME и run path `/usr/local/azsupport/lib`, без ldconfig), с ними линкуется
-  каждый пакет: наши порты линкуются с разделяемыми библиотеками друг друга, без
-  статических и встроенных копий того, что есть в другом нашем порту (aZ, 10.11.2026);
-  и `/usr/local/azsupport/static` (статические, position independent), только для статических
-  сборок PHP из `azsupport-menu.sh`; у каждого свой
-  `bin/pkg-config`, `VERSIONS` в `share/doc/azsupport`, лицензии в `LICENSES/`. Собирается
-  прямо в `/usr/local/azsupport` своего chroot (от root, `NEED_ROOT`) и пакует это дерево.
-  Зависимостей нет.
+- **`azsupport/<библиотека>`** (aZ, 26.11.2026: каждая библиотека — свой порт): пакет
+  `azsupport-<библиотека>`, одна из 45 разделяемых библиотек `/usr/local/azsupport` (SONAME и run
+  path `/usr/local/azsupport/lib`, без ldconfig), с которыми линкуются наши пакеты: наши порты
+  линкуются с разделяемыми библиотеками друг друга, без статических и встроенных копий того, что
+  есть в другом нашем порту (aZ, 10.11.2026). Собирается из своего официального порта
+  закреплённого коммита (или релиза своей строки take) скриптом
+  [`tools/azsupport-build.sh`](tools/azsupport-build.sh) `--lib <библиотека>` по своим строкам
+  [`azsupport/azsupport/files/deps.conf`](azsupport/azsupport/files/deps.conf) (`lib`, `take` и `needs` — нужные ей
+  библиотеки, её зависимости для сборки и работы); её Makefile пишется из этих строк скриптом
+  [`tools/azsupport-lib-ports.sh`](tools/azsupport-lib-ports.sh) (`--write`; его `--check` запускает
+  [`tools/check-tree.sh`](tools/check-tree.sh)), и сборка останавливается, если они расходятся.
+  Собирается прямо в `/usr/local/azsupport` своего chroot (от root, `NEED_ROOT`), где стоят пакеты
+  нужных ей библиотек, и пакует то, что записала: библиотеку, её заголовки, `.pc` и `*-config`,
+  её манифест (`share/azsupport/interface/<библиотека>.txt`), её лицензии (`LICENSES/`) и
+  `share/doc/azsupport-<библиотека>/VERSIONS`. Для работы зависит от `azsupport/services`.
+- **`azsupport/services`**: пакет `azsupport-services`, триггер служб
+  (`share/pkg/triggers/azsupport-services.ucl`, [`Mk/bsd.overlay.mk`](Mk/bsd.overlay.mk)), от
+  которого для работы зависит порт каждой библиотеки. pkg-config разделяемых библиотек, с
+  которым конфигурируются порты PHP и `ftp/wget`, — не пакет, а скрипт в рабочем каталоге порта
+  ([`Mk/azsupport-pkg-config.mk`](Mk/azsupport-pkg-config.mk)).
+- **`azsupport/azsupport`**: пакет `azsupport`, статическое дерево `/usr/local/azsupport/static` (статические,
+  position independent: библиотеки `deps.conf` вида static, и встроенный curl), только для
+  статических сборок PHP из `azsupport-ports.sh`; его `bin/pkg-config` (`--static`), его манифесты в
+  `static/share/azsupport/interface`, лицензии в `static/LICENSES/`, `VERSIONS` в
+  `share/doc/azsupport`. Собирается `tools/azsupport-build.sh --static` прямо в
+  `/usr/local/azsupport/static` своего chroot (`NEED_ROOT`). Зависимостей нет.
+- **`x11-fonts/fontconfig`** (aZ, 26.11.2026): пакет `fontconfig` вместо официального, с его
+  именем и файлами в `/usr/local`: официальный порт на релизе строки take из `deps.conf`
+  (2.18.4, [`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)), на expat и FreeType из
+  azsupport (`azsupport/expat`, `azsupport/freetype2`); его интерфейс считается как у порта
+  библиотеки (в его манифесте строка `prefix /usr/local`). Статический fontconfig остаётся в
+  статическом дереве.
 - **`ftp/curl`**: пакет `curl` вместо официального: `bin/curl` и `lib/libcurl.so.4`
   (наружу только `curl_*`) — libcurl всех пакетов (модуль curl PHP, git: libcurl одна,
   aZ 10.11.2026), опции официального порта, против разделяемых библиотек azsupport
-  ([`tools/curl-build.sh`](tools/curl-build.sh)). Сборка и работа: azsupport.
+  ([`tools/curl-build.sh`](tools/curl-build.sh)). Сборка и работа: `azsupport-brotli`, `azsupport-libidn2`,
+  `azsupport-libpsl`, `azsupport-libssh2`, `azsupport-nghttp2`, `azsupport-zstd`.
 - **`ftp/curl-impersonate`** (aZ, 16.11.2026): curl-impersonate 2.3.2 от lexiforest вместо
   официального порта, сборка из исходников, программа и библиотека:
   `bin/curl-impersonate`, 47 обёрток `curl_<браузер>` (POSIX sh, без bash),
@@ -224,7 +249,8 @@
   апстрима, nghttp2 1.63.0 (в 1.65 убраны приоритеты, которые шлёт HTTP/2 браузеров),
   nghttp3 1.15.0 и ngtcp2 1.20.0 с патчами апстрима (HTTP/3 браузеров); исправления
   CVE-2026-27135 (nghttp2), CVE-2026-40170 (ngtcp2) и conncache из `ftp/curl`; без
-  статических библиотек; сертификаты CA базы. Сборка и работа: azsupport.
+  статических библиотек; сертификаты CA базы. Сборка и работа: `azsupport-brotli`,
+  `azsupport-c-ares`, `azsupport-libidn2`, `azsupport-libpsl`, `azsupport-zstd`.
 - **`ftp/py-curl-cffi`** (aZ, 16.11.2026): пакет `py312-curl-cffi` нашего `python312`,
   официальный порт как есть ([`Mk/azsupport-official.mk`](Mk/azsupport-official.mk)): curl_cffi 0.17.0,
   его расширение — на `libcurl-impersonate.so` из `ftp/curl-impersonate` (ничего не
@@ -244,7 +270,8 @@
   апстрима, что и зачем: восстановление коэффициентов раскладки 5.1, допустимая цепочка
   масштабных множителей кодера NMR, который в 9.1 по умолчанию, ограниченное число
   повторных кодирований кадра, который не помещается, вместо бесконечного).
-  Сборка и работа: azsupport.
+  Сборка и работа: `azsupport-x264`, `azsupport-dav1d`, `azsupport-svtav1`, `azsupport-webp`,
+  `azsupport-mozjpeg`.
 - **`graphics/libimagemagick6`** и **`graphics/libimagemagick7`** (aZ, 14.11.2026):
   библиотеки ImageMagick 6 и 7 отдельными пакетами, чтобы модулю imagick PHP не нужны были
   программы: `libMagickCore-6`, `libMagickWand-6` и `libMagickCore-7.so`,
@@ -253,7 +280,7 @@
   `/usr/local/azsupport/libexec/ImageMagick-6/bin`: имена те же), `etc/ImageMagick-6` и
   `etc/ImageMagick-7` с нашей policy, которую читают библиотеки; у ImageMagick 7 ещё его
   статические библиотеки и `MagickWand-config` в `/usr/local/azsupport/static`, для статического
-  imagick из `azsupport-menu.sh`. Только JPEG, PNG, WebP, GIF, HEIC и AVIF; ImageMagick 6 с
+  imagick из `azsupport-ports.sh`. Только JPEG, PNG, WebP, GIF, HEIC и AVIF; ImageMagick 6 с
   исправлением, которое несёт OpenBSD, для картинки с испорченным профилем EXIF или
   8BIM: 6.9.13-60 её вовсе не записывал
   ([`files/imagemagick6-write-profiles.patch`](graphics/ImageMagick6/files/imagemagick6-write-profiles.patch),
@@ -262,7 +289,9 @@
   (aZ, 25.11.2026;
   [`ImageMagick7/files/imagemagick7-jpeg-accurate-dct.patch`](graphics/ImageMagick7/files/imagemagick7-jpeg-accurate-dct.patch),
   [`ImageMagick6/files/imagemagick6-jpeg-accurate-dct.patch`](graphics/ImageMagick6/files/imagemagick6-jpeg-accurate-dct.patch));
-  `-define jpeg:dct-method=ifast` по-прежнему берёт быстрый. Сборка и работа: azsupport.
+  `-define jpeg:dct-method=ifast` по-прежнему берёт быстрый. Сборка и работа: `azsupport-freetype2`,
+  `azsupport-lcms2`, `azsupport-libheif`, `azsupport-mozjpeg`, `azsupport-png`, `azsupport-webp`,
+  `fontconfig`; `libimagemagick7` собирается ещё и с `azsupport`.
 - **`graphics/ImageMagick6`**, **`graphics/ImageMagick7`** и
   **`graphics/ImageMagick67`** (aZ, 14.11.2026): программы, друг с другом они
   конфликтуют: в `ImageMagick6` — `bin/convert`, `identify`, `mogrify`, `composite` и
@@ -270,7 +299,8 @@
   ссылками на него, в `ImageMagick67` — оба, ImageMagick 6 с 6 на конце (`convert6`,
   `identify6`, ...); каждый зависит от библиотек своего ImageMagick (`ImageMagick67` — от
   обеих). Модули `phpXY-imagick7` и `phpXY-imagick6` (одинаковый `imagick.so`, поэтому
-  тоже конфликтуют) зависят от `libimagemagick7` и `libimagemagick6`. Сборка и работа: azsupport.
+  тоже конфликтуют) зависят от `libimagemagick7` и `libimagemagick6`. Сборка и работа: библиотеки
+  своего ImageMagick, как у `libimagemagick6` и `libimagemagick7`.
 - **`graphics/GraphicsMagick`**: пакет `GraphicsMagick` вместо официального: `bin/gm`,
   собран как наш ImageMagick, только JPEG, PNG, WebP, GIF, BMP, HEIC и AVIF; файла
   политики у него нет — её заменяют зарегистрированные кодеки и пустой `delegates.mgk`
@@ -278,7 +308,9 @@
   `libGraphicsMagickWand` (префикс символов `Gm`) в `/usr/local/azsupport`, с
   `GraphicsMagick-config`, с ними же линкуется gmagick в PHP
   (`--with-gmagick=/usr/local/azsupport`); статические библиотеки — в `/usr/local/azsupport/static`,
-  для статического gmagick из `azsupport-menu.sh`. Сборка и работа: azsupport.
+  для статического gmagick из `azsupport-ports.sh`. Сборка и работа: `azsupport-freetype2`,
+  `azsupport-lcms2`, `azsupport-libheif`, `azsupport-libzip`, `azsupport-mozjpeg`, `azsupport-png`,
+  `azsupport-webp`; сборка: `azsupport`.
 - **`misc/mc`**: пакет `mc` вместо официального: Midnight Commander с редактором,
   subshell, кодировками и SFTP, без X11, переводов и Aspell
   ([`misc/mc/files/mc.conf`](misc/mc/files/mc.conf): что и почему), собирает его
@@ -610,7 +642,7 @@
   официальный метапорт как есть (aZ, 11.11.2026): `bin/python3`, `bin/pydoc3`,
   `python3.pc` и подобные — ссылки на файлы Python 3.12, зависимость от нашего
   `python312`. Инструменты, которые порту нужны только для сборки (Python, Perl, meson:
-  у `azsupport/azsupport`, `ftp/curl`, `devel/glib20`, `graphics/vips`, `www/node24`), — официальные
+  у портов azsupport, `ftp/curl`, `devel/glib20`, `graphics/vips`, `www/node24`), — официальные
   пакеты, не наши (`tools/build.sh`); порт, который работает с Python или сам его модуль
   (`www/yt-dlp`, `www/npm-node24`, `databases/py-sqlite3`), берёт наш. Смена
   `PYTHON_DEFAULT` или `PERL5_DEFAULT` в `Mk/bsd.default-versions.mk` main freebsd-ports
@@ -643,14 +675,16 @@
   после `$ORIGIN` — в трёх библиотеках, которые их линкуют), zlib базы и встроенном
   HarfBuzz (его нет ни в одном нашем порту); без шрифтов и javavmwrapper (нет
   `/usr/local/bin/java`: Elasticsearch и OpenSearch берут `JAVA_HOME`); CUPS и
-  заголовки fontconfig (из azsupport) — только для сборки. fontconfig не
+  заголовки fontconfig (`x11-fonts/fontconfig`) — только для сборки, для работы зависимости от них
+  нет (aZ, 26.11.2026). fontconfig не
   линкуется: OpenJDK загружает `libfontconfig.so.1` через dlopen по имени, когда ему
   нужны шрифты системы, а rtld FreeBSD ищет её в `LD_LIBRARY_PATH`, пути поиска
-  `bin/java`, подсказках ldconfig и в `/lib`, `/usr/lib`, но не в `/usr/local/azsupport/lib`:
+  `bin/java`, подсказках ldconfig и в `/lib`, `/usr/lib` (ту, что в `/usr/local/lib`, — когда её
+  поставил другой пакет):
   с одними нашими пакетами у Java нет шрифтов совсем (любое обращение к шрифту
   бросает `java.lang.InternalError` из `sun.font.FontManagerFactory`, и с файлом шрифта
-  тоже; Elasticsearch текст не рисует), с установленными официальными `fontconfig` и
-  шрифтами (`pkg install dejavu`) берёт их (в `tools/java-test.sh`:
+  тоже; Elasticsearch текст не рисует), с установленными `fontconfig` и
+  шрифтами (`pkg install dejavu`, с ним приходит `fontconfig`) берёт их (в `tools/java-test.sh`:
   семейства DejaVu, текст нарисован). `jna`: JNA
   официального порта так же, без JAWT (`-DNO_JAWT` на FreeBSD, как JNA собирается для
   Android и macOS) и X11, его `libjnidispatch.so` — на разделяемой libffi из azsupport вместо
@@ -666,8 +700,8 @@
   компилируется для Java 8 (`javac --release 8`; порт проверяет версию class-файлов —
   52). Порты
   проверяют то, что собрали (ни один ELF JDK не линкует библиотеки X11, ALSA, giflib,
-  libpng, HarfBuzz и fontconfig; библиотеки azsupport — по пути поиска; зависимости — только
-  azsupport). Тесты после установки — `tools/java-test.sh` (`openjdk21`:
+  libpng, HarfBuzz и fontconfig; библиотеки azsupport — по пути поиска; зависимости для работы —
+  только библиотеки azsupport). Тесты после установки — `tools/java-test.sh` (`openjdk21`:
   без графики, ImageIO с JPEG и PNG, преобразование ICC, текст, `AudioSystem`, TLS 1.3
   на 127.0.0.1, библиотеки azsupport в процессе, `ldd` каждого ELF-файла JDK (только
   библиотеки самого JDK, базы и `/usr/local/azsupport/lib`, ничего от X11), `getpid()` через
@@ -722,7 +756,7 @@ azsupport/php-src; SHA-256
 `2620217e69f7bf680f4e78d51fd2135bb55dbd8709fa0b78cd217975a801c4e6`).
 
 На сервере от root репозиторий записывает
-[`azsupport-menu.sh`](https://github.com/azsupport/php-src/blob/master/README.ru.md#azsupport-menush-пакеты-и-что-войдёт-в-php)
+[`azsupport-ports.sh`](https://github.com/azsupport/php-src/blob/master/README.ru.md#azsupport-portssh-пакеты-и-что-войдёт-в-php)
 из azsupport/php-src: x86-64-v3, если `cc -march=native` знает у процессора AVX2, BMI2,
 FMA, F16C, LZCNT и MOVBE, иначе x86-64-v2; открытый ключ — в
 `/usr/local/etc/pkg/keys/azsupport.pub`, репозиторий — в `/usr/local/etc/pkg/repos/azsupport.conf`,
@@ -730,8 +764,8 @@ FMA, F16C, LZCNT и MOVBE, иначе x86-64-v2; открытый ключ — �
 что выше):
 
 ```sh
-fetch https://github.com/azsupport/php-src/releases/download/azsupport-menu/azsupport-menu.sh
-sh azsupport-menu.sh --repo
+fetch https://github.com/azsupport/php-src/releases/download/azsupport-ports/azsupport-ports.sh
+sh azsupport-ports.sh --repo
 ```
 
 То же вручную, для x86-64-v3 (для x86-64-v2 — `amd64-v2` в адресе); `sha256` должен
@@ -765,6 +799,80 @@ pkg delete az
 `pkg upgrade` берёт каждый пакет az из azsupport, где он зависит от пакета `azsupport`
 (`/usr/local/azsupport`); `pkg delete az` затем удаляет `/usr/local/az`, который больше ничему
 не нужен (pkg скажет, если он ещё чему-то нужен).
+
+### Сервер после разделения библиотек
+
+После разделения (aZ, 26.11.2026: каждая библиотека azsupport — свой порт) разделяемые
+библиотеки `/usr/local/azsupport` — отдельные пакеты `azsupport-<библиотека>` (`azsupport-libxml2`,
+`azsupport-icu`, ...), в `azsupport-services` — триггер служб, в `azsupport` — только статическое
+дерево, `fontconfig` — из `x11-fonts/fontconfig` этого дерева, а `/usr/local/azsupport/bin/pkg-config`
+больше нет (сборки делают свой).
+
+В пакете `azsupport` остаётся только статическое дерево, которое ни одному пакету не нужно для
+работы: сервер, который собирает PHP через `azsupport-ports.sh` (`phpXY-static`), сначала
+оставляет его от `pkg autoremove`:
+
+```sh
+pkg set -y -A 0 azsupport
+```
+
+Каждый сервер получает их одним обновлением:
+
+```sh
+pkg update -f -r azsupport
+pkg upgrade -r azsupport
+pkg autoremove -n
+```
+
+`pkg upgrade` обновляет наши пакеты и ставит пакеты библиотек, с которыми они линкуются, и
+`azsupport-services`; каждый файл старого пакета `azsupport` (библиотека, её заголовки, `.pc`,
+`*-config`, её манифест и лицензии, триггер) переходит в свой новый пакет в той же транзакции,
+а `bin/pkg-config` уходит. `pkg autoremove -n` только показывает, что больше ничему не нужно.
+
+На сервере, который не собирает PHP через `azsupport-ports.sh`, `pkg autoremove` затем удаляет
+пакет `azsupport` (статическое дерево) вместе с остальным, что он показал:
+
+```sh
+pkg autoremove
+```
+
+Официальный `fontconfig`, если он уже стоит, остаётся официальным (pkg держит репозиторий
+установленного пакета, `CONSERVATIVE_UPGRADE`); наш вместо него:
+
+```sh
+pkg install -y -r azsupport fontconfig
+```
+
+Если pkg откажется обновлять из-за файла старого `azsupport`, который есть в новом пакете,
+старый пакет удаляется первым (пакеты, которые линкуются с его библиотеками, остаются, а
+обновление возвращает библиотеки; сервер с `azsupport-ports.sh` затем снова ставит статическое дерево, `pkg install -y -r azsupport azsupport`):
+
+```sh
+pkg delete -f -y azsupport
+pkg upgrade -y -r azsupport
+```
+
+Затем службы, которые называет триггер (в конце обновления он печатает команды перезапуска
+тех, что включены в rc.conf), и проверки зависимостей и файлов:
+
+```sh
+pkg check -d -a
+pkg check -s -a
+```
+
+Назад на снимок до разделения (имя ниже — пример: взять один из релизов):
+
+```sh
+sed -i '' 's#/releases/download/azsupport-fbsd15-amd64-v3[^"]*"#/releases/download/azsupport-fbsd15-amd64-v3-20261118-0412"#' /usr/local/etc/pkg/repos/azsupport.conf
+pkg delete -f -y `pkg query -g '%n' 'azsupport-*'`
+pkg update -f -r azsupport
+pkg upgrade -f -r azsupport
+```
+
+Обновление проверяется в ВМ FreeBSD workflow [`upgrade-test.yml`](.github/workflows/upgrade-test.yml)
+([`tools/upgrade-check.sh`](tools/upgrade-check.sh)): пакеты сервера, поставленные из релиза,
+обновляются одной транзакцией до репозитория ветки и проверяются; ещё раз — с оставленным
+статическим деревом.
 
 Каждая публикация ещё и сохраняет весь репозиторий — каталог и все пакеты — релизом,
 который потом не меняется: `azsupport-fbsd15-amd64-v3-<ГГГГММДД>-<ЧЧММ>` (UTC, время публикации;
@@ -952,20 +1060,21 @@ env AZSUPPORT_CONFIGURE_CHECK=1 sh tools/build.sh --force
   chroot, со своим логом и своим каталогом пакетов (два пакета с одними файлами,
   `php84-mysqlnd` и `php84-mysqlnd-openssl`, собираются рядом); сводка — в порядке
   очереди; `results/waves.txt`. `AZSUPPORT_JOBS=1` — порт за портом, как раньше; `AZSUPPORT_DRYRUN=1` —
-  только показать волны прогона, ничего не собирая (порты, которым нужен azsupport, решаются
-  после сборки azsupport, если его надо собирать);
+  только показать волны прогона, ничего не собирая (порты, которым нужна библиотека azsupport,
+  решаются после сборки её порта, если его надо собирать);
 - `AZSUPPORT_PLAN=1` (вход `plan` workflow) — план прогона, чтобы дёшево проверить его решения:
-  `azsupport/azsupport` и нужные ему порты собираются, если их надо собирать (порты, которым нужен azsupport,
-  решаются по интерфейсам нового azsupport), все остальные порты только решаются — взять из
+  порты azsupport (`azsupport/*`, `x11-fonts/fontconfig`) и нужные им порты собираются, если их
+  надо собирать (порты, которым нужна библиотека, решаются по интерфейсу её нового пакета), все
+  остальные порты только решаются — взять из
   репозитория или собрать и почему (строки `PLAN` сводки, `results/plan.txt`), не
-  собираясь; собранное попадает в репозиторий (azsupport — чтобы следующий прогон его взял);
+  собираясь; собранное попадает в репозиторий (библиотеки — чтобы следующий прогон их взял);
   без проверок, никогда не публикуется;
-- порт, который в зависимостях не называет ни одного файла статического дерева azsupport
-  (`/usr/local/azsupport/static`), собирается без архивов azsupport (они убираются из его chroot):
-  слинковать их в свой пакет может только порт с `AZSUPPORT_STATIC_LIBS`
-  ([Версии и пересборки](#версии-и-пересборки));
-- порт с `NEED_ROOT` (`azsupport/azsupport`: собирается прямо в `/usr/local/azsupport`): в `/usr/local/azsupport`
-  своего chroot, как любой порт;
+- статическое дерево azsupport (`/usr/local/azsupport/static`) — пакет `azsupport`: оно есть в chroot
+  только у порта, чьи зависимости называют его файл (от `azsupport/azsupport`), а слинковать его архивы в свой
+  пакет может только порт с `AZSUPPORT_STATIC_LIBS` ([Версии и пересборки](#версии-и-пересборки));
+- порт с `NEED_ROOT` (`azsupport/azsupport` и каждый `azsupport/<библиотека>`: собираются прямо в
+  `/usr/local/azsupport`, библиотека — там, где стоят пакеты нужных ей библиотек): в
+  `/usr/local/azsupport` своего chroot, как любой порт;
 - `AZSUPPORT_CONFIGURE_CHECK=1`, проверка configure: после сборки каждого порта PHP (ядра,
   `apache24-phpXY`, все модули, и PECL, и те, что собирает clang), и тогда, когда сборка
   упала после своего configure, — ещё раз `make configure` в своём рабочем каталоге,
@@ -986,7 +1095,7 @@ env AZSUPPORT_CONFIGURE_CHECK=1 sh tools/build.sh --force
 - результаты в `results/`: `summary.txt` (строка на порт, в конце `result: OK` или
   `result: FAIL (...)`), `queue.txt`, `hashes.txt`, `waves.txt`, `logs/`
   (`logs/chroots.log`: каталоги pkg и официальные пакеты, скачанные в начале),
-  `azsupport-interface.txt` и `abi-check.txt` (azsupport), `plan.txt` (`AZSUPPORT_PLAN`),
+  `azsupport-interface.txt` и `abi-check.txt` (библиотеки), `plan.txt` (`AZSUPPORT_PLAN`),
   `configure-check.txt` (`AZSUPPORT_CONFIGURE_CHECK`).
 
 ### Версии и пересборки
@@ -1005,47 +1114,52 @@ env AZSUPPORT_CONFIGURE_CHECK=1 sh tools/build.sh --force
 дерева, который ему нужен (но не инструмента сборки, который он получает официальным,
 `AZSUPPORT_TOOLS_OFFICIAL`: официальный коммит уже в его хеше). Порт, чей пакет в репозитории
 с тем же `azsupport_hash`, заново не собирается; изменение порта пересобирает его и все порты,
-которым он нужен (изменение `azsupport/azsupport` — всё, что его линкует). Файлы, которые порт
+которым он нужен (изменение порта библиотеки — порты, которые её используют, когда изменился
+её интерфейс: ниже). Файлы, которые порт
 перечисляет в `AZSUPPORT_HASH_NOT_FOR_DEPENDENTS` (ставятся и нужны только при работе), входят
 в его собственный `azsupport_hash`, но не в хеш портов, которым он нужен, и не в хеш его
 slave-портов: изменение блока php.ini, скрипта профилей, rc.d-скрипта или pkg-message
 `lang/php74` пересобирает `php74`, а не модули и `apache24-php74` (pkg берёт зависимость по
 имени, не по версии). Ревизии руками не поднимаются.
 
-`azsupport/azsupport` пересобирается, когда в нём меняется что угодно; порт, которому он нужен, берёт
-в свой `azsupport_hash` не хеш azsupport, а интерфейсы библиотек azsupport, которые он использует (aZ,
-12.11.2026: как FreeBSD и Debian, которые не пересобирают зависимых от разделяемой
-библиотеки ради исправления внутри неё). Интерфейс библиотеки берётся из сборки azsupport:
-[`tools/azsupport-build.sh`](tools/azsupport-build.sh) пишет в пакет манифест на каждую библиотеку
-(`/usr/local/azsupport/share/azsupport/interface/<библиотека>.txt`) по тому, что поставили её сборки
-(файлы, чей inode менялся после начала каждой её сборки, в обоих деревьях): её
-заголовки, файлы `.pc`, скрипты `*-config`, файлы cmake и прочие с их SHA-256, SONAME её
-разделяемых библиотек, имена её архивов, её версию, хеш её функций сборки (`b_`, `s_`
-из `tools/azsupport-build.sh`, `lib_` из `files/curl/build-libcurl.sh`: её опции configure и
-cmake) и библиотеки azsupport, которые ей нужны (`NEEDED` её разделяемых библиотек, `Requires`
-и `-l` её файлов `.pc`, строки `#include` её заголовков); в `common.txt` — файлы ничьей
-библиотеки (`bin/pkg-config`). [`tools/azsupport-interface.sh`](tools/azsupport-interface.sh) делает
-из манифеста хеш интерфейса (без хешей архивов) и хеш содержимого, и замыкание того,
-что библиотеке нужно. Порт берёт хеш интерфейса каждой библиотеки из замыкания тех,
-которые он использует (тех, в чьих манифестах есть файлы azsupport из его зависимостей,
-`${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/azsupport` — libxml2, и тех, что названы в его `AZSUPPORT_HASH_LIBS`:
-программа, которая линкует больше, чем называют её зависимости, — `ftp/curl`,
-`multimedia/ffmpeg`, `graphics/ImageMagick*`, `graphics/GraphicsMagick`), и
-`common.txt`. Поэтому исправление внутри кода библиотеки (те же заголовки, файлы `.pc`,
-SONAME, версия и опции) пересобирает только azsupport; новая версия, изменённый заголовок или
-`.pc`, новый SONAME или изменённая опция пересобирают порты, которые используют эту
-библиотеку. Хеши портов, которым нужен azsupport, считаются, когда azsupport готов: сразу, если его
-пакет в репозитории с тем же `azsupport_hash` (по его манифестам), после его сборки, если он
-собирается (azsupport — первый этап); пакет azsupport без манифестов собирается заново.
+Каждая библиотека azsupport — свой порт (aZ, 26.11.2026); он пересобирается, когда в нём меняется
+что угодно: его Makefile (со строками `deps.conf` этой библиотеки как они есть), `Makefile.lib` и
+`Makefile.common` из `azsupport/azsupport`, `Mk/bsd.overlay.mk`, инструменты, которые он называет, его
+`files/deps/<библиотека>-*` и файлы `files/curl` только этой библиотеки, файлы её официального
+порта (`AZSUPPORT_HASH_OFFICIAL`) и хеши интерфейсов нужных ей библиотек. Порт, который зависит
+от порта библиотеки, берёт в свой `azsupport_hash` не хеш этого порта, а интерфейс библиотеки и
+нужных ей (aZ, 12.11.2026: как FreeBSD и Debian, которые не пересобирают зависимых от
+разделяемой библиотеки ради исправления внутри неё). Интерфейс библиотеки берётся из сборки её
+порта: [`tools/azsupport-build.sh`](tools/azsupport-build.sh) `--lib` пишет её манифест в её пакет
+(`/usr/local/azsupport/share/azsupport/interface/<библиотека>.txt`) по тому, что поставила её
+сборка (файлы, чей inode менялся после её начала): её заголовки, файлы `.pc`, скрипты
+`*-config`, файлы cmake и прочие с их SHA-256, SONAME её разделяемых библиотек, её версию, хеш
+её функции сборки (`s_` из `tools/azsupport-build.sh`, `lib_` из `files/curl/build-libcurl.sh`:
+её опции configure и cmake) и библиотеки azsupport, которые ей нужны (`NEEDED` её разделяемых
+библиотек, `Requires` и `-l` её файлов `.pc`, строки `#include` её заголовков), — это должны
+быть библиотеки её строки `needs` и то, что нужно им (иначе её сборка падает); у
+`x11-fonts/fontconfig` в манифесте строка `prefix /usr/local`.
+[`tools/azsupport-interface.sh`](tools/azsupport-interface.sh) делает из манифеста хеш интерфейса
+(без хешей архивов) и хеш содержимого, и замыкание того, что библиотеке нужно. Порт берёт хеш
+интерфейса каждой библиотеки из замыкания тех, от чьих портов он зависит для сборки
+(`${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2` — libxml2 и libiconv, которая нужна
+libxml2); та, что нужна ему только для работы, считается по имени её пакета. Поэтому исправление
+внутри кода библиотеки (те же заголовки, файлы `.pc`, SONAME, версия и опции) пересобирает только
+её порт; новая версия, изменённый заголовок или `.pc`, новый SONAME или изменённая опция
+пересобирают порты, которые используют эту библиотеку. Хеши портов, которым нужна библиотека,
+считаются, когда готов её порт: сразу, если её пакет в репозитории с тем же `azsupport_hash`,
+после его сборки, если он собирается (порты библиотек и `azsupport/azsupport` — первый этап); пакет библиотеки
+без манифеста собирается заново.
 
-Статическое использование: ни один порт этого дерева не линкует архивы azsupport
-(`/usr/local/azsupport/static`) в свой пакет; `graphics/ImageMagick7` и `graphics/GraphicsMagick`
-собирают по этому дереву свои статические библиотеки для PHP, собираемого на сервере
-(`AZSUPPORT_STATIC_LIBS= none`: их заголовки и `.pc` — в интерфейсах, оба дерева). Порт, который
-бы их линковал, называет их в `AZSUPPORT_STATIC_LIBS` (в его `azsupport_hash` идёт хеш содержимого этих
-библиотек, с архивами); [`tools/check-tree.sh`](tools/check-tree.sh) требует
-`AZSUPPORT_STATIC_LIBS` от порта, чьи зависимости называют файл статического дерева, а
-`tools/build.sh` собирает все остальные порты без архивов azsupport в их chroot.
+Статическое использование: статическое дерево (`/usr/local/azsupport/static`) — пакет `azsupport`,
+со своими манифестами (`static/share/azsupport/interface`); ни один порт этого дерева не линкует
+его архивы в свой пакет; `graphics/libimagemagick7` и `graphics/GraphicsMagick` собирают по нему
+свои статические библиотеки для PHP, собираемого на сервере: они зависят от `azsupport/azsupport` для сборки,
+`AZSUPPORT_STATIC_LIBS= none`, а их `AZSUPPORT_HASH_LIBS` называет библиотеки статического дерева,
+чьи интерфейсы берёт их хеш. Порт, который бы их линковал, называет их в `AZSUPPORT_STATIC_LIBS`
+(в его `azsupport_hash` идёт хеш содержимого этих библиотек, с архивами);
+[`tools/check-tree.sh`](tools/check-tree.sh) требует `AZSUPPORT_STATIC_LIBS` от порта, чьи
+зависимости называют файл статического дерева, и только у такого порта это дерево есть в chroot.
 
 Файлы каталога другого порта, которые читает сборка:
 [`tools/check-tree.sh`](tools/check-tree.sh) вычисляет через `make` пути, которые
@@ -1057,28 +1171,31 @@ makefile этого дерева, читаемые портом, называю�
 порт называет его в `AZSUPPORT_HASH_FILES`. Два таких чтения не попадают ни в какой пакет и в хеши
 не входят: `azsupport/azsupport/files/deps.conf` (`AZSUPPORT_DEPS_CONF` из `azsupport/azsupport/Makefile.common`: только его
 строка `ports`, официальный коммит, — он в основе каждого хеша) и `pkg-plist` порта
-`databases/mariadb1011-client`, который сервер берёт строками `@comment`. Путь, который
+`databases/mariadb1011-client`, который сервер берёт строками `@comment`; а файлы `azsupport/azsupport/files`,
+которые читает порт библиотеки (её строки `deps.conf`, её патчи), есть в его Makefile
+(`AZSUPPORT_LIB_CONF`, `AZSUPPORT_LIB_FILES`), и его сборка их сверяет. Путь, который
 скрипт из `tools/` строит сам, там не виден (`policy.xml` рядом с конфигом у
 `imagemagick-build.sh`): его порт называет тоже.
 
 Ничего не проходит незамеченным:
 
-- после сборки azsupport в прогоне, до тестов — проверка ABI каждого пакета репозитория,
-  которому нужен azsupport ([`tools/azsupport-abi-check.sh`](tools/azsupport-abi-check.sh)): каждый SONAME azsupport,
-  нужный его файлам (`shlibs_required` pkg), есть в новом azsupport, и каждый неопределённый
-  динамический символ, который они берут из библиотеки azsupport, там определён (символы,
-  которые новый azsupport потерял против azsupport репозитория, `nm -D`; ELF-файлы — только пакетов,
-  которым нужен SONAME, потерявший символы, `readelf -d`, `nm -D`); пакет, не прошедший
-  проверку, пересобирается в том же прогоне, а не собранный — убирается из репозитория
-  (`results/abi-check.txt`);
+- после сборки порта библиотеки в прогоне, до тестов — проверка ABI каждого пакета репозитория,
+  которому нужна эта библиотека ([`tools/azsupport-abi-check.sh`](tools/azsupport-abi-check.sh)):
+  каждый её SONAME, нужный их файлам (`shlibs_required` pkg), есть в её новом пакете, и каждый
+  неопределённый динамический символ, который они из неё берут, там определён (символы, которые
+  новый пакет потерял против пакета репозитория, `nm -D`; ELF-файлы — только пакетов, которым
+  нужен SONAME, потерявший символы, `readelf -d`, `nm -D`); пакет, не прошедший проверку,
+  пересобирается в том же прогоне, а не собранный — убирается из репозитория
+  (`results/abi-check.txt`, по части на библиотеку);
 - тесты всех программ идут в каждом прогоне (`tools/test-programs.sh`) — с оставленными
-  пакетами против нового azsupport;
-- пакет, который линкует библиотеку azsupport, не входящую в его `azsupport_hash` (его
-  `shlibs_required` против замыканий его библиотек и портов, которые ему нужны), валит
-  прогон: в `AZSUPPORT_HASH_LIBS` его Makefile чего-то не хватает;
-- `results/azsupport-interface.txt` (раздел отчёта): интерфейсы библиотек azsupport, какие из них
-  изменились против azsupport репозитория, проверка ABI и порты, оставленные по интерфейсу,
-  когда azsupport пересобран (строка `azsupport:` сводки).
+  пакетами против новых библиотек;
+- пакет, который линкует библиотеку azsupport (его `shlibs_required`), чьего порта нет среди его
+  зависимостей для работы и того, что нужно им, валит прогон: pkg 2 его не поставит (нет
+  shlib), его Makefile должен зависеть от порта этой библиотеки;
+- `results/azsupport-interface.txt` (раздел отчёта): строка на библиотеку (её порт, собран или
+  оставлен, хеш её интерфейса и замыкание), интерфейсы, изменившиеся против пакетов
+  репозитория, проверка ABI и порты, оставленные по интерфейсу, когда библиотека пересобрана
+  (строка `libraries:` сводки).
 
 [`tools/install-php.sh`](tools/install-php.sh) `<версия>` ставит пакеты PHP версии из
 этого репозитория, как сервер (ядро, `apache24-php74` и модули, с `php74-openssl`), а
@@ -1103,17 +1220,18 @@ https://github.com/azsupport/ports/actions/workflows/build.yml, кнопка
 | `force` | собирать их и тогда, когда их пакет с тем же `azsupport_hash` уже есть в релизе |
 | `jobs` | сколько портов собирать одновременно (`AZSUPPORT_JOBS`, по умолчанию 4; `1` — порт за портом) |
 | `configure_check` | проверка configure (`AZSUPPORT_CONFIGURE_CHECK`, по умолчанию выключена): каждый собранный порт PHP конфигурируется ещё раз, нестрого, и сравнивается; с `force` — все порты PHP |
-| `plan` | только план (`AZSUPPORT_PLAN`, по умолчанию выключен): `azsupport/azsupport` и нужные ему порты собираются, если их надо собирать, все остальные порты решаются — взять или собрать и почему (`results/plan.txt`, раздел отчёта), не собираясь; без проверок, никогда не публикуется |
-| `fork_ref` | ветка azsupport/php-src, с которой сверяется curl пакета azsupport (`FORK_REF` у `tools/curl-sync-check.sh`, по умолчанию `master`): правка curl и его библиотек сначала идёт в ветку форка, прогон ветки здесь, которая её несёт, называет эту ветку, и обе входят в свои основные ветки в один момент |
+| `plan` | только план (`AZSUPPORT_PLAN`, по умолчанию выключен): порты azsupport (`azsupport/*`, `x11-fonts/fontconfig`) и нужные им порты собираются, если их надо собирать, все остальные порты решаются — взять или собрать и почему (`results/plan.txt`, раздел отчёта), не собираясь; без проверок, никогда не публикуется |
+| `compare_release` | сравнить пакеты azsupport релиза с пакетами прогона (по умолчанию выключен; [`tools/split-compare.sh`](tools/split-compare.sh): `results/split-compare.txt`, проверка прогона): те же файлы разделяемого и статического деревьев в новых пакетах, те же заголовки, `.pc` и скрипты `*-config` (SHA-256), у каждой разделяемой библиотеки те же SONAME, NEEDED, run path и экспортируемые символы, у каждого пересобранного порта те же `shlibs_required` |
+| `fork_ref` | ветка azsupport/php-src, с которой сверяется curl из azsupport (`FORK_REF` у `tools/curl-sync-check.sh`, по умолчанию `master`): правка curl и его библиотек сначала идёт в ветку форка, прогон ветки здесь, которая её несёт, называет эту ветку, и обе входят в свои основные ветки в один момент |
 | `publish` | опубликовать репозиторий, когда всё собралось и все проверки прошли (по умолчанию выключено: репозиторий, который читают серверы, публикуется по слову aZ) |
 | `publish_only` | вместе с `publish`: публиковать, только когда репозиторий отличается от релиза лишь пакетами этих портов (`категория/порт` через пробел: прогоны [yt-dlp из GitHub](#yt-dlp-из-github)), иначе ничего; пусто — что бы ни отличалось |
 | `continuation` | ставит прогон, у которого кончилось время, для прогона, который он запускает (его номер подряд; вручную — `0`). У задачи 350 минут: после ~245 новые порты не начинаются, идущие сборки останавливаются на ~285 (`AZSUPPORT_TIME_SOFT`, `AZSUPPORT_TIME_HARD` у `tools/build.sh`); собранное остаётся в кэше, как и кэш порта с `AZSUPPORT_PORT_CACHE`, чья сборка остановлена (MongoDB — дисковый кэш Bazel; черновой релиз `portcache-<уровень>-<ключ>-<прогон>`, его следующий прогон распаковывает в `portcache/`, и сборка продолжается с уже сделанного), проверки и публикация ждут, последний шаг запускает следующий прогон с теми же входами (без `force`), не больше 6 подряд; при `both` `x86-64-v2` начинается только после готового `x86-64-v3` |
 
 Он берёт репозиторий прошлого прогона (actions/cache, сохраняется и тогда, когда прогон
-упал, чтобы прогон, упавший на PHP, оставил `azsupport` и библиотеки) и файлы релиза
+упал, чтобы прогон, упавший на PHP, оставил библиотеки) и файлы релиза
 `azsupport-fbsd15-amd64-<уровень>`, проверяет порты `make -V` против разреженного официального
 дерева на раннере ([`tools/check-tree.sh`](tools/check-tree.sh), bmake: FAIL
-останавливает прогон там), сверяет curl пакета azsupport с curl PHP из azsupport/php-src
+останавливает прогон там), сверяет curl из azsupport с curl PHP из azsupport/php-src
 ([`tools/curl-sync-check.sh`](tools/curl-sync-check.sh): строки данных
 `azsupport/azsupport/files/curl.conf` и `curl-deps.conf` и патчи `curl/` — с теми, что в `freebsd/` на
 его master или на ветке форка из входа `fork_ref`; отличие тоже останавливает прогон там), запускает `tools/build.sh` в ВМ FreeBSD
@@ -1227,9 +1345,14 @@ main — это релиз с кэшем прошлого прогона, опу
   что нужно; Makefile говорит, чем он отличается от официального и почему.
 - Makefile в стиле дерева портов (табы, порядок переменных, как хочет portlint);
   скрипты для FreeBSD `/bin/sh` с утилитами базы.
-- Зависимость от пакета `azsupport` — по файлу, никогда не `LIB_DEPENDS` (для
+- Зависимость от библиотеки azsupport — от её порта, по файлу, никогда не `LIB_DEPENDS` (для
   `/usr/local/azsupport/lib` нет подсказок ldconfig):
-  `BUILD_DEPENDS+= ${LOCALBASE}/azsupport/lib/libxml2.so:azsupport/azsupport`, и то же в `RUN_DEPENDS`.
+  `BUILD_DEPENDS+= ${AZSUPPORT_PREFIX}/lib/libxml2.so:azsupport/libxml2`, и то же в `RUN_DEPENDS`
+  (fontconfig: `${LOCALBASE}/lib/libfontconfig.so:x11-fonts/fontconfig`); с
+  [`Mk/azsupport-libs.mk`](Mk/azsupport-libs.mk) — `AZSUPPORT_LIBS= libxml2:libxml2.so`. От
+  статического дерева — по его файлу от `azsupport/azsupport`; pkg-config разделяемых библиотек — через
+  [`Mk/azsupport-pkg-config.mk`](Mk/azsupport-pkg-config.mk) (`PKG_CONFIG=${AZSUPPORT_PKG_CONFIG}`,
+  скрипт в рабочем каталоге порта).
 - Наши порты берут `PORTREVISION= ${AZSUPPORT_STAMP}`: изменение порта само по себе — новая
   сборка ([Версии и пересборки](#версии-и-пересборки)).
 - Пакеты сейчас собираются `make package` в ВМ;
