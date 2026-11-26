@@ -72,7 +72,7 @@ on:
         type: boolean
         default: false
       plan:
-        description: 'The plan only: azsupport/azsupport and the ports it needs built when they are to be, every other port decided (kept or to be built, and why: results/plan.txt), not built; no checks, never published'
+        description: 'The plan only: the ports of azsupport (azsupport/*, x11-fonts/fontconfig) and the ports they need built when they are to be, every other port decided (kept or to be built, and why: results/plan.txt), not built; no checks, never published'
         type: boolean
         default: false
       fork_ref:
@@ -103,6 +103,10 @@ on:
         description: 'PHP versions to install and check (tools/install-php.sh, tools/check-php.sh) also when this run neither built nor took from a draft a package of theirs (separated by spaces, e.g. "7.4 8.1"; all: every core phpXY of the repository)'
         required: false
         default: ''
+      compare_release:
+        description: 'Compare the packages of azsupport of the release with those of this run (tools/split-compare.sh: results/split-compare.txt, a check of the run)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -230,12 +234,14 @@ jobs:
           echo "AZSUPPORT_PORTSDIR=$P" >> "$GITHUB_ENV"
           echo "the official ports tree at $commit"
 
-      # with the files of the release (tools/build.sh keeps the newer package of an origin)
+      # with the files of the release (tools/build.sh keeps the newer package of an origin);
+      # compare_release: the names of its files, as in build.yml
       - name: The repository of the release, if there is one
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE: ${{ inputs.release }}
           CPUTYPE: ${{ matrix.cputype }}
+          COMPARE: ${{ inputs.compare_release }}
         run: |
           major="${RELEASE%%.*}"
           tag="azsupport-fbsd$major-amd64-${CPUTYPE#x86-64-}"
@@ -245,6 +251,15 @@ jobs:
             echo "no release $tag yet"
           fi
           echo "repo/: $(ls repo | wc -l | tr -d ' ') files"
+          rm -f "$AZSUPPORT_RUNS_STATE/release-before.list"
+          if [ "$COMPARE" = true ]; then
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' > "$AZSUPPORT_RUNS_STATE/release-before.list" 2> /dev/null; then
+              echo "compare_release: the $(grep -c '\.pkg$' "$AZSUPPORT_RUNS_STATE/release-before.list") packages of $tag, compared with those of this run after the build"
+            else
+              : > "$AZSUPPORT_RUNS_STATE/release-before.list"
+              echo "::warning title=compare_release::no list of the files of $tag: nothing to compare"
+            fi
+          fi
 
       # the packages that runs elsewhere saved as they were built (tools/runs-save.sh of
       # build.yml: draft releases wip-<level>-<branch>-<run>-<attempt>) and that no publish
@@ -498,6 +513,7 @@ jobs:
           AZSUPPORT_CONFIGURE_CHECK: ${{ inputs.configure_check && '1' || '' }}
           AZSUPPORT_PLAN: ${{ inputs.plan && '1' || '' }}
           AZSUPPORT_PHP_CHECKS: ${{ inputs.php_checks }}
+          AZSUPPORT_COMPARE: ${{ inputs.compare_release && '1' || '' }}
           AZSUPPORT_TESTS_NONBLOCKING: ${{ inputs.tests_nonblocking }}
           PKG_SIGNING_KEY: ${{ secrets.PKG_SIGNING_KEY }}
         run: |
@@ -558,6 +574,17 @@ jobs:
           unset PKG_SIGNING_KEY
           export AZSUPPORT_WORLD AZSUPPORT_PORTSDIR
           rc=0
+          # compare_release: the packages of the release as they are before the build, hard links
+          # next to the repository (the same file system), compared after it (tools/split-compare.sh)
+          rb=""
+          if [ -n "${AZSUPPORT_COMPARE:-}" ] && [ -s "$AZSUPPORT_RUNS_STATE/release-before.list" ]; then
+            rb="$(realpath repo).before"
+            rm -rf "$rb" && mkdir -p "$rb"
+            while read -r f; do
+              case "$f" in *.pkg) [ -f "repo/$f" ] && ln "repo/$f" "$rb/" ;; esac
+            done < "$AZSUPPORT_RUNS_STATE/release-before.list"
+            echo "compare_release: $(ls "$rb" | wc -l | tr -d ' ') packages of the release"
+          fi
           sh tools/build.sh ${AZSUPPORT_FORCE:+--force} --repo repo $AZSUPPORT_PORTS || rc=$?
           mkdir -p results
           echo "$rc" > results/rc
@@ -604,6 +631,20 @@ jobs:
           if [ ! -f repo/meta.conf ] && [ -f work/repo-unsigned/meta.conf ]; then
             crepo=work/repo-unsigned
             echo "unsigned catalog: checks only, not published (work/repo-unsigned; $(tail -n 1 results/pkg-repo.log 2> /dev/null || echo 'no pkg-repo.log'))" >> results/checks.txt
+          fi
+          # compare_release: the packages of azsupport of the release and of this run
+          # (tools/split-compare.sh: results/split-compare.txt; its work on the disk of the
+          # caches, next to the repository); a FAIL fails the run
+          if [ -n "$rb" ] && [ -d "$rb" ]; then
+            r=0
+            SPLIT_WORK="$(realpath repo).compare" sh tools/split-compare.sh "$rb" repo > results/split-compare.txt 2>&1 || r=$?
+            rm -rf "$(realpath repo).compare"
+            if [ "$r" = 0 ]; then
+              echo "split-compare: OK (the packages of azsupport of the release and of this run: $(grep -c '^OK ' results/split-compare.txt) checks; results/split-compare.txt)" >> results/checks.txt
+            else
+              echo "split-compare: FAIL ($(sed -n 's/^result: *//p' results/split-compare.txt | tail -n 1), exit $r; results/split-compare.txt)" >> results/checks.txt
+              rc=1
+            fi
           fi
           pv="$({ awk '$1 ~ /\// && $2 == "OK" { print $3 }' results/summary.txt 2> /dev/null; cat drafts-packages.txt 2> /dev/null; } | sed -n -E 's/^(mod_)?php([0-9])([0-9])-.*/\2.\3/p')"
           case " ${AZSUPPORT_PHP_CHECKS:-} " in
@@ -715,8 +756,10 @@ jobs:
           echo "$rc" > results/rc
           echo "results/rc: $rc"
           # the work directories of the ports and the chroots away (tmpfs: the memory of
-          # the jail); packages/ and the queue stay for the start of the next job
+          # the jail); packages/ and the queue stay for the start of the next job; the links
+          # of compare_release away
           rm -rfx work/wrk work/ccw 2> /dev/null
+          [ -z "$rb" ] || rm -rf "$rb"
           exit 0
 
       - name: The outcome of the build and of the checks
@@ -834,7 +877,7 @@ jobs:
           url="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
           commit="$(sed -n 's/^ports_commit="\([0-9a-f]*\)".*/\1/p' tools/build.sh)"
           php="$(ls "$dir" | sed -n 's/^php\([0-9]\)\([0-9]\)-[0-9][^/]*\.pkg$/\1.\2/p' | sort -u | tr '\n' ' ' | sed 's/ $//; s/ /, /g')"
-          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: azsupport (the libraries of /usr/local/azsupport), curl (with SCP and SFTP), ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc, yt-dlp and PHP $php (phpXY with phpXY-apache and the modules phpXY-<module>, phpXY-ssh2 among them). On a server, /usr/local/etc/pkg/repos/azsupport.conf: azsupport: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/azsupport.pub\", priority: 100, enabled: yes } with the key keys/azsupport.pub of $GITHUB_REPOSITORY, then: pkg update -r azsupport, pkg install -r azsupport php84 php84-apache php84-gd ... (yt-dlp: pkg install -r azsupport yt-dlp, its Python packages and node24 are in it too; README.md). Each publish is kept also as a release of its own that does not change, $tag-<YYYYMMDD>-<HHMM> (UTC, the newest $AZSUPPORT_SNAPSHOTS): its url in azsupport.conf takes a server back to it (README.md, A server and the repository azsupport)."
+          notes="A repository of pkg for FreeBSD $major (amd64, CPUTYPE $CPUTYPE) of the packages of $GITHUB_REPOSITORY: the ports of this overlay built over freebsd-ports $commit with the make.conf of tools/make.conf.in: the libraries of /usr/local/azsupport (a package each, azsupport-<library>, and the static tree for the PHP a server builds), fontconfig, curl (with SCP and SFTP), ffmpeg, ImageMagick6, ImageMagick7, GraphicsMagick, mc, yt-dlp and PHP $php (phpXY with phpXY-apache and the modules phpXY-<module>, phpXY-ssh2 among them). On a server, /usr/local/etc/pkg/repos/azsupport.conf: azsupport: { url: \"$url\", signature_type: \"pubkey\", pubkey: \"/usr/local/etc/pkg/keys/azsupport.pub\", priority: 100, enabled: yes } with the key keys/azsupport.pub of $GITHUB_REPOSITORY, then: pkg update -r azsupport, pkg install -r azsupport php84 php84-apache php84-gd ... (yt-dlp: pkg install -r azsupport yt-dlp, its Python packages and node24 are in it too; README.md). Each publish is kept also as a release of its own that does not change, $tag-<YYYYMMDD>-<HHMM> (UTC, the newest $AZSUPPORT_SNAPSHOTS): its url in azsupport.conf takes a server back to it (README.md, A server and the repository azsupport)."
           if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "$tag" --notes "$notes" --target main ||
               gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null
@@ -937,7 +980,7 @@ jobs:
         continue-on-error: true
         env:
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} runner=${{ inputs.runner }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} make_jobs=${{ inputs.make_jobs }} configure_check=${{ inputs.configure_check }} plan=${{ inputs.plan }} fork_ref=${{ inputs.fork_ref }} publish=${{ inputs.publish }} publish_only=${{ inputs.publish_only }} drafts=${{ inputs.drafts }}
+          RUNS_INPUTS: release=${{ inputs.release }} cputype=${{ matrix.cputype }} runner=${{ inputs.runner }} ports=${{ inputs.ports }} force=${{ inputs.force }} jobs=${{ inputs.jobs }} make_jobs=${{ inputs.make_jobs }} configure_check=${{ inputs.configure_check }} plan=${{ inputs.plan }} fork_ref=${{ inputs.fork_ref }} publish=${{ inputs.publish }} publish_only=${{ inputs.publish_only }} drafts=${{ inputs.drafts }} compare_release=${{ inputs.compare_release }}
           RUNS_STEPS: build=${{ steps.build.outcome }} outcome=${{ steps.outcome.outcome }} report=${{ steps.report.outcome }} publish=${{ steps.publish.outcome }}
           PART: ${{ matrix.cputype }}
         run: sh tools/runs-report.sh report.md "$PART"
@@ -961,6 +1004,7 @@ jobs:
           IN_PUBLISH_ONLY: ${{ inputs.publish_only }}
           IN_CONT: ${{ inputs.continuation }}
           IN_DRAFTS: ${{ inputs.drafts }}
+          IN_COMPARE: ${{ inputs.compare_release }}
           LEVEL: ${{ matrix.cputype }}
         run: |
           [ -f results/time-limit ] || { echo "the time of this run was enough: no next run"; exit 0; }
@@ -982,7 +1026,8 @@ jobs:
           gh workflow run build-jail.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" \
             -f release="$IN_RELEASE" -f cputype="$cp" -f runner="$IN_RUNNER" -f ports="$IN_PORTS" -f force=false \
             -f jobs="$IN_JOBS" -f make_jobs="$IN_MAKE_JOBS" -f configure_check="$IN_CCHECK" -f plan=false -f fork_ref="$IN_FORK_REF" \
-            -f publish="$IN_PUBLISH" -f publish_only="$IN_PUBLISH_ONLY" -f drafts="$IN_DRAFTS" -f continuation="$((n + 1))"
+            -f publish="$IN_PUBLISH" -f publish_only="$IN_PUBLISH_ONLY" -f drafts="$IN_DRAFTS" -f continuation="$((n + 1))" \
+            -f compare_release="$IN_COMPARE"
           echo "the next run: build-jail.yml, cputype $cp, continuation $((n + 1))" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"
           if [ "$IN_CPUTYPE" = both ] && [ "$LEVEL" = x86-64-v3 ]; then
             echo "x86-64-v3 goes on in the next run: this run stops, so that x86-64-v2 does not start before it"
