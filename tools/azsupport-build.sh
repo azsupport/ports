@@ -1,36 +1,49 @@
 #!/bin/sh
-# azsupport-build.sh - build the libraries of the package azsupport (the port
-# azsupport/azsupport) from the FreeBSD ports listed in azsupport/azsupport/files/deps.conf,
-# as the kinds of their lib lines say, into two trees:
-# static and position independent into the static tree
-# /usr/local/azsupport/static (lib/, include/, bin/), shared into the shared tree
+# azsupport-build.sh - build the libraries of /usr/local/azsupport from the FreeBSD
+# ports listed in azsupport/azsupport/files/deps.conf, as the kinds of their lib lines
+# say, into two trees, each by ports of its own (aZ, 26.11.2026):
+# --static: every library of the kind static, static and position independent, into
+# the static tree /usr/local/azsupport/static (lib/, include/, bin/), in one build: the
+# port azsupport/azsupport (the package azsupport), for PHP built on a server;
+# --lib <name>: one library of the kind shared into the shared tree
 # /usr/local/azsupport (lib/*.so with their SONAME and the run path
-# /usr/local/azsupport/lib, include/, lib/pkgconfig/, bin/pkg-config without
-# --static, the *-config scripts; no ldconfig), for the packages: PHP and its
-# modules, Apache and the modules it loads, and the programs (curl, FFmpeg,
+# /usr/local/azsupport/lib, include/, lib/pkgconfig/, the *-config scripts; no
+# ldconfig): the port azsupport/<name> (the package azsupport-<name>), against the
+# packages of the libraries of its needs line in deps.conf, for the packages: PHP and
+# its modules, Apache and the modules it loads, and the programs (curl, FFmpeg,
 # ImageMagick, GraphicsMagick, mc, ...), which link it with that run path: one copy
 # of every library for all of them (aZ, 10.11.2026: our ports link each other's
-# shared libraries). The shared builds take the patched source of
-# the static one (a copy of the work directory of the port, or out of the tree of
-# the bundled curl), the same options, the OpenSSL of the base system and the
+# shared libraries). A shared build takes the patched source of the port of its
+# library, the options of the static one, the OpenSSL of the base system and the
 # other libraries of the shared tree; nothing of the static tree (its headers of
 # the OpenSSL of the port, its archives, which the linker would take as they are
-# or leave for a .so of the same name) is seen by them. VERSIONS and LICENSES/
-# are one for both, at the root. PHP built against the static tree on a server
-# (tools/azsupport-menu.sh of azsupport/php-src: php, php-fpm, php-cgi, libphp.so) needs no
-# library of /usr/local/lib: a pkg upgrade or packages of another FreeBSD version
-# cannot break it, and in Apache the copies of the libraries in PHP do not mix
-# with those of other modules (their symbols stay hidden). Moved from
-# tools/build-deps.sh of https://github.com/azsupport/php-src (08.11.2026).
+# or leave for a .so of the same name) is seen by it. PHP built against the static
+# tree on a server (tools/azsupport-menu.sh of azsupport/php-src: php, php-fpm,
+# php-cgi, libphp.so) needs no library of /usr/local/lib: a pkg upgrade or packages
+# of another FreeBSD version cannot break it, and in Apache the copies of the
+# libraries in PHP do not mix with those of other modules (their symbols stay
+# hidden). Moved from tools/build-deps.sh of https://github.com/azsupport/php-src
+# (08.11.2026).
 #
-# Usage (FreeBSD, as root; the port azsupport/azsupport runs it in its do-build, see the
-# head of its Makefile):
-#   sh tools/azsupport-build.sh --tools     install the build tools (pkg)
-#   sh tools/azsupport-build.sh --fetch     fetch the distfiles of the ports of
-#                                           deps.conf into AZSUPPORT_DISTDIR (make fetch
-#                                           of each; the port's post-fetch)
-#   sh tools/azsupport-build.sh             build everything (into an empty AZSUPPORT_PREFIX)
-#   sh tools/azsupport-build.sh icu curl    rebuild only these (the rest must be there)
+# Usage (FreeBSD, as root; the ports run it in their post-fetch and do-build, see the
+# heads of azsupport/azsupport/Makefile and azsupport/azsupport/Makefile.lib):
+#   sh tools/azsupport-build.sh --static [<name>...]
+#                         the static tree: every library of the kind static (into an
+#                         empty AZSUPPORT_PREFIX), or only these again (the rest must
+#                         be there); the port azsupport/azsupport
+#   sh tools/azsupport-build.sh --lib <name>
+#                         the shared library <name> into AZSUPPORT_PREFIX, where the
+#                         packages of the libraries it needs are installed, then what
+#                         it installed into the stage AZSUPPORT_STAGEDIR; the port
+#                         azsupport/<name>, which gives its lines of the confs and its
+#                         files (AZSUPPORT_LIB_CONF, AZSUPPORT_LIB_FILES: conf_lines_of)
+#   sh tools/azsupport-build.sh --fetch [<name>...]
+#                         fetch the distfiles of the official ports of these libraries
+#                         (default: those of the kind static) into AZSUPPORT_DISTDIR
+#                         (make fetch of each; the post-fetch of the ports)
+#   sh tools/azsupport-build.sh --tools
+#                         install the build tools (pkg)
+# Without one of them: this usage, exit 2.
 #
 # For every library the ports framework fetches the distfiles of the port at the
 # commit of deps.conf, checks them against its distinfo, extracts them and
@@ -38,31 +51,40 @@
 # has to be at that commit); this script then configures and builds
 # the source tree that way with its own options. A "take" line of deps.conf (a
 # new upstream release the port does not have yet) gives the release file
-# instead: taken from AZSUPPORT_TAKE_DISTFILES (the distfiles of the port azsupport/azsupport),
-# else fetched here, checked against the SHA-256 of the line, handed to the
-# framework with a distinfo of its own, with the port's patches or those of
+# instead: taken from AZSUPPORT_TAKE_DISTFILES (the distfiles of the port that
+# builds it), else fetched here, checked against the SHA-256 of the line, handed to
+# the framework with a distinfo of its own, with the port's patches or those of
 # files/deps/<name>-<version>/. curl and the libraries it needs
 # ("bundle" in deps.conf) are the ones of --with-curl=bundled instead: the
 # release files of files/curl.conf and files/curl-deps.conf
-# (tools/azsupport-curl-sources.sh), built by files/curl/build-libcurl.sh, with
-# only what PHP needs (curl itself static only: the libcurl.a of PHP built on a
-# server); the curl program and libcurl.so.4 of the package curl, the libcurl of
-# every package (aZ, 10.11.2026), are a build of their own, with the options of the
-# port ftp/curl, against the shared tree (the port ftp/curl, tools/curl-build.sh).
-# The static libraries: -fPIC, into AZSUPPORT_PREFIX/static
-# (AZSUPPORT_PREFIX: default /usr/local/azsupport); the shared ones into AZSUPPORT_PREFIX; in
-# AZSUPPORT_WORK/deps (default /var/tmp/azsupport-work/deps); the licences go to
-# AZSUPPORT_PREFIX/LICENSES/. AZSUPPORT_PREFIX is the place the libraries have on the servers
-# (their .pc files, *-config scripts and run paths name it): a full build installs
-# into it, on a build machine (the port copies it into its stage). It does not
-# start while a package has files there, or files are there that are neither of a
-# package nor of an unfinished build of this script (AZSUPPORT_PREFIX/.az-build marks
-# one, which is then removed). Results go to AZSUPPORT_RESULTS (default azsupport-results/
-# of the current directory: summary.txt with the status of
-# the static and of the shared build of every library, one log per library,
-# shared.txt and shared-bad.txt of the checks of the shared tree, see finish_so;
-# VERSIONS, also installed as AZSUPPORT_PREFIX/share/doc/azsupport/VERSIONS); the summary
-# is printed at the end.
+# (tools/azsupport-curl-sources.sh), built by files/curl/build-libcurl.sh for the
+# static tree, with only what PHP needs (curl itself static only: the libcurl.a of
+# PHP built on a server), and by their s_<name> for the shared one; the curl program
+# and libcurl.so.4 of the package curl, the libcurl of every package (aZ,
+# 10.11.2026), are a build of their own, with the options of the port ftp/curl,
+# against the shared tree (the port ftp/curl and its build script, curl-build.sh).
+# The static libraries: -fPIC, into AZSUPPORT_PREFIX/static (AZSUPPORT_PREFIX:
+# default /usr/local/azsupport), their licences into AZSUPPORT_PREFIX/static/LICENSES/,
+# their manifests (see interfaces) into AZSUPPORT_PREFIX/static/share/azsupport/interface/,
+# their VERSIONS into AZSUPPORT_PREFIX/share/doc/azsupport/VERSIONS (the path the
+# fork reads); the shared library of --lib into AZSUPPORT_PREFIX, then what it
+# installed there, its licences (LICENSES/<name>-*), its manifest
+# (share/azsupport/interface/<name>.txt) and its VERSIONS
+# (share/doc/azsupport-<name>/VERSIONS) under AZSUPPORT_PREFIX of the stage
+# AZSUPPORT_STAGEDIR (default AZSUPPORT_WORK/stage), which the port copies into its
+# own; the work in AZSUPPORT_WORK/deps (default /var/tmp/azsupport-work/deps).
+# AZSUPPORT_PREFIX is the place the libraries have on the servers (their .pc files,
+# *-config scripts and run paths name it): the builds install into it, on a build
+# machine, a jail or a chroot of their own. --static does not start while a package
+# has files there, or files are there that are neither of a package nor of an
+# unfinished build of this script (AZSUPPORT_PREFIX/.az-build marks one, which is
+# then removed); --lib not while its library is there (its manifest or its
+# package), and it removes nothing there but what its own build put there for no
+# package (archives, programs, manual pages: finish_so). Results go to
+# AZSUPPORT_RESULTS (default azsupport-results/ of the current directory:
+# summary.txt with the status of the builds of every library, one log per library,
+# shared.txt and shared-bad.txt of the checks of the shared library, see finish_so;
+# VERSIONS); the summary is printed at the end.
 #
 # Compiler flags as on the servers: CPUTYPE and CFLAGS of /etc/make.conf (such as
 # CPUTYPE?=x86-64-v3 and CFLAGS=-O3 -pipe) with the protections of tools/make.conf.in
@@ -74,8 +96,10 @@
 # cannot run code of that level; PHP built against the bundle needs it too.
 #
 # Exit status: 0 everything built, 1 a library failed (the others are still
-# built where they can be) or this CPU cannot run the level, 2 usage, or
-# AZSUPPORT_PREFIX is not free for a full build.
+# built where they can be) or this CPU cannot run the level, 2 usage,
+# AZSUPPORT_PREFIX is not free for the build, or the lines of the confs and the files
+# the port of --lib gives are not those of deps.conf (azsupport-lib-ports.sh, next to
+# this script, makes the ports from it).
 
 set -u
 # A build as from a shell. The make of the port that runs this script leaves its
@@ -89,13 +113,16 @@ tools="$(cd "$(dirname "$0")" && pwd)"
 # the confs and patches: files/ of the port azsupport/azsupport
 files="${AZSUPPORT_FILESDIR:-$tools/../azsupport/azsupport/files}"
 conf="$files/deps.conf"
-# A: the root of the package azsupport (VERSIONS, LICENSES/); P: the static tree,
+# A: AZSUPPORT_PREFIX, where the libraries are on the servers; P: the static tree,
 # S: the shared tree (see the head comment)
 A="${AZSUPPORT_PREFIX:-/usr/local/azsupport}"
 P="$A/static"
 S="$A"
 work="${AZSUPPORT_WORK:-/var/tmp/azsupport-work}/deps"
 res="${AZSUPPORT_RESULTS:-$(pwd)/azsupport-results}"
+# the stage of --lib: what its library installed, under AZSUPPORT_PREFIX as on the
+# servers (its port copies it into its STAGEDIR)
+stage="${AZSUPPORT_STAGEDIR:-${AZSUPPORT_WORK:-/var/tmp/azsupport-work}/stage}"
 # the official tree at the commit of deps.conf
 ports="${PORTSDIR:-/usr/ports}"
 # the distfiles of the ports (their make fetch, make patch) and those of the take lines
@@ -104,17 +131,37 @@ takedist="${AZSUPPORT_TAKE_DISTFILES:-$(pwd)/distfiles}"
 ncpu="$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 major="$(uname -r | cut -d. -f1)"
 
-if [ "${1:-}" = "--tools" ]; then
-    # Build tools only; none of their libraries is linked into the bundle (the
-    # compiler does not search /usr/local, pkg-config only the bundle and base).
-    pkgs="git cmake ninja meson python3 gmake nasm perl5 pkgconf lzip bison autoconf automake libtool gettext-tools m4 gperf tcl86"
-    # shellcheck disable=SC2086
-    env ASSUME_ALWAYS_YES=yes pkg install -y $pkgs
-    rc=$?
-    for t in $pkgs; do pkg info -e "$t" || echo "azsupport-build: package $t is not installed"; done
-    exit $rc
-fi
+usage() {
+    printf '%s\n' \
+        'usage: sh tools/azsupport-build.sh --static [<name>...]   the static tree (the port azsupport/azsupport)' \
+        '       sh tools/azsupport-build.sh --lib <name>           one shared library (the port azsupport/<name>)' \
+        '       sh tools/azsupport-build.sh --fetch [<name>...]    the distfiles of their official ports' \
+        '       sh tools/azsupport-build.sh --tools                the build tools (pkg)' >&2
+}
+# the mode: static, lib (its library in $lib) or fetch
+mode="" lib=""
+case "${1:-}" in
+    --tools)
+        # Build tools only; none of their libraries is linked into the bundle (the
+        # compiler does not search /usr/local, pkg-config only the bundle and base).
+        pkgs="git cmake ninja meson python3 gmake nasm perl5 pkgconf lzip bison autoconf automake libtool gettext-tools m4 gperf tcl86"
+        # shellcheck disable=SC2086
+        env ASSUME_ALWAYS_YES=yes pkg install -y $pkgs
+        rc=$?
+        for t in $pkgs; do pkg info -e "$t" || echo "azsupport-build: package $t is not installed"; done
+        exit $rc ;;
+    --static) mode=static; shift ;;
+    --lib)
+        [ $# -eq 2 ] && [ -n "$2" ] || { usage; exit 2; }
+        mode=lib lib="$2"; shift 2 ;;
+    --fetch) mode=fetch; shift ;;
+    *) usage; exit 2 ;;
+esac
 [ -f "$conf" ] || { echo "azsupport-build: no $conf (AZSUPPORT_FILESDIR: files/ of the port azsupport/azsupport)" >&2; exit 2; }
+# the stage is a directory of its own (its LICENSES/ and the files of the library go there)
+case "$stage" in /|//) echo "azsupport-build: AZSUPPORT_STAGEDIR is /: no stage of its own" >&2; exit 2 ;; esac
+# the licences: of the static tree, or of the library in the stage
+if [ "$mode" = lib ]; then licd="$stage$A/LICENSES"; else licd="$P/LICENSES"; fi
 
 say() { printf '[azsupport-build %s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 
@@ -160,7 +207,7 @@ path0="$PATH"
 # that tools/lib-bench.sh found at least 2% faster with it, the whole interval of
 # about 95% below zero (aZ, 09.11.2026; lib-bench run 42619158312: expat -12.6%,
 # lcms2 -6.7%, sqlite3 -3.7%; the others the same or slower with GCC, so clang), and
-# xxhash, which tools/prog-bench.sh measured (aZ, 17.11.2026; prog-bench run
+# xxhash, which prog-bench.sh of this tree measured (aZ, 17.11.2026; prog-bench run
 # 44048576099, xxhsum -b: XXH3_64b -30.3%, XXH128 -31.2%, XXH32 -0.8%, XXH64 0; the
 # checksums of rsync are XXH3 and XXH128).
 # Their static builds (b_*, for PHP built on a server) stay with clang: not measured.
@@ -173,7 +220,7 @@ path0="$PATH"
 gcc_so="${AZSUPPORT_GCC_SO-sqlite3 expat lcms2 xxhash}"
 gcc_bin="${AZSUPPORT_GCC_BIN:-gcc16}"
 gcc_env() {
-    g="$(command -v "$gcc_bin")" || { echo "== $1: no $gcc_bin (lang/${gcc_bin}, a BUILD_DEPENDS of azsupport/azsupport)"; return 1; }
+    g="$(command -v "$gcc_bin")" || { echo "== $1: no $gcc_bin (lang/${gcc_bin}, a BUILD_DEPENDS of the port azsupport/$1)"; return 1; }
     export CC="$g -static-libgcc"
     export CFLAGS="$CFLAGS -std=gnu17 -fno-semantic-interposition"
     echo "== $1: shared build with $("$g" --version | head -n 1) (lib-bench: >= 2% faster than clang), CC=$CC, CFLAGS=$CFLAGS"
@@ -193,6 +240,62 @@ port_of() { awk -v n="$1" '$1 == "lib" && $2 == n { print $3 }' "$conf"; }
 has_kind() { awk -v n="$1" -v k="$2" '$1 == "lib" && $2 == n { m = split($4, t, ","); for (i = 1; i <= m; i++) if (t[i] == k) f = 1 } END { exit !f }' "$conf"; }
 # take_of <name>: "version release-file SHA-256 source-dir" of its take line, if any
 take_of() { awk -v n="$1" '$1 == "take" && $2 == n { print $3, $4, $5, $6 }' "$conf"; }
+# libs_of_kind <static|shared>: the libraries of that kind, in the order of deps.conf
+libs_of_kind() { for _l in $libs_all; do if has_kind "$_l" "$1"; then echo "$_l"; fi; done; }
+# needs_of <name>: the libraries of its needs line (none without one)
+needs_of() { awk -v n="$1" '$1 == "needs" && $2 == n { for (i = 3; i <= NF; i++) print $i }' "$conf"; }
+# needs_closure <name>: those, the libraries they need, and so on, each once
+needs_closure() {
+    _todo="$(needs_of "$1")" _seen=""
+    while :; do
+        # shellcheck disable=SC2086
+        set -- $_todo
+        [ $# -gt 0 ] || break
+        _x="$1"; shift; _todo="$*"
+        case " $_seen " in *" $_x "*) continue ;; esac
+        _seen="$_seen $_x"
+        _todo="$_todo $(needs_of "$_x" | tr '\n' ' ')"
+    done
+    echo "${_seen# }"
+}
+# conf_lines_of <name>: the lines of a library in the confs, its lib, take and needs
+# lines of deps.conf and, for a library of the bundled curl, its line of
+# curl-deps.conf (libpsl: with that of psl-list, its list), in this order, each with
+# its fields one space apart, joined by "; ": AZSUPPORT_LIB_CONF of its port
+# azsupport/<name>, which has them so in its hash. lib_files_of <name>: the files of
+# files/ (relative to it) its build reads besides the confs, sorted, one space apart:
+# deps/<name>-*.patch and deps/<name>-<version> of its take line (when there is that
+# directory; a port of FreeBSD), curl/<name>-<version>.patch and, for libssh2 (its
+# ssh2_algos), curl/build-libcurl.sh (a library of the bundled curl):
+# AZSUPPORT_LIB_FILES of the port, which takes them into its hash. --lib checks both
+# against what the port gives; azsupport-lib-ports.sh, next to this script, writes the
+# ports with the same.
+conf_lines_of() {
+    {
+        for _k in lib take needs; do
+            awk -v k="$_k" -v n="$1" '$1 == k && $2 == n { $1 = $1; print }' "$conf"
+        done
+        if [ "$(port_of "$1")" = bundle ]; then
+            awk -v n="$1" '!/^#/ && NF >= 7 && $1 == n { $1 = $1; print }' "$files/curl-deps.conf"
+            [ "$1" != libpsl ] || awk '!/^#/ && NF >= 7 && $1 == "psl-list" { $1 = $1; print }' "$files/curl-deps.conf"
+        fi
+    } | awk '{ printf "%s%s", (NR > 1 ? "; " : ""), $0 } END { if (NR > 0) printf "\n" }'
+}
+lib_files_of() {
+    {
+        if [ "$(port_of "$1")" = bundle ]; then
+            _v="$(awk -v n="$1" '!/^#/ && NF >= 7 && $1 == n { print $2 }' "$files/curl-deps.conf")"
+            if [ -n "$_v" ] && [ -f "$files/curl/$1-$_v.patch" ]; then echo "curl/$1-$_v.patch"; fi
+            if [ "$1" = libssh2 ]; then echo curl/build-libcurl.sh; fi
+        else
+            for _f in "$files/deps/$1"-*.patch; do
+                if [ -f "$_f" ]; then echo "deps/${_f##*/}"; fi
+            done
+            _v="$(take_of "$1" | awk '{ print $1 }')"
+            if [ -n "$_v" ] && [ -d "$files/deps/$1-$_v" ]; then echo "deps/$1-$_v"; fi
+        fi
+    } | LC_ALL=C sort | tr '\n' ' ' | sed 's/ $//'
+}
 
 # The official tree PORTSDIR has to be at the commit of deps.conf (the builder
 # checks it out there; a tree that is not a git checkout is taken for it, with a
@@ -394,10 +497,11 @@ b_libheif() {
         -DWITH_VVDEC=OFF -DWITH_VVENC=OFF -DWITH_UNCOMPRESSED_CODEC=OFF
 }
 
-# The shared builds (s_<name>, into S): the patched source of the static build, a
-# copy of the work directory (or out of the tree, the libraries of the bundled
-# curl), with the options of b_<name>, so that the headers and the behaviour are
-# the same; the OpenSSL of the base system and the other libraries of S. so_env
+# The shared builds (s_<name>, into S; --lib): the patched source of the port of the
+# library, as the static build has it (or out of the tree, the libraries of the
+# bundled curl), with the options of b_<name>, so that the headers and the behaviour
+# are the same; the OpenSSL of the base system and the other libraries of S (the
+# packages of its needs line). so_env
 # (in the subshell of the build) leaves nothing of the static tree P to be seen:
 # no -I or -L of it, not its pkgconfig, not its bin/. Every library and what links
 # it gets the run path S/lib (no ldconfig), RELRO and BIND_NOW.
@@ -595,18 +699,6 @@ s_gettext() {
         --disable-acl --with-libiconv-prefix="$S" --without-emacs ac_cv_lib_rt_sched_yield=no
 }
 s_expat() { at_so "$1" --without-docbook --without-examples --without-tests --without-xmlwf; }
-s_fontconfig() {
-    st="$work/stage-fontconfig-so"
-    rm -rf "$st"
-    (cd "$1" && meson setup _az --prefix="$S" --libdir=lib --sysconfdir=/usr/local/etc --localstatedir=/var \
-        --buildtype=release -Doptimization=plain --default-library=shared \
-        --wrap-mode=nodownload -Ddoc=disabled -Dtests=disabled -Dtools=disabled -Dnls=disabled \
-        -Dcache-build=disabled -Dcache-dir=/var/db/fontconfig -Ddefault-fonts-dirs=/usr/local/share/fonts \
-        -Dadditional-fonts-dirs=/usr/local/lib/X11/fonts -Dtemplate-dir=/usr/local/etc/fonts/conf.avail \
-        -Dxml-dir=/usr/local/etc/fonts &&
-        ninja -C _az -j "$ncpu" && DESTDIR="$st" ninja -C _az install) &&
-        cp -R "$st$S/." "$S/"
-}
 s_lcms2() { at_so "$1" --with-fastfloat --with-threaded --without-jpeg --without-tiff; }
 s_dav1d() { ms_so "$1" -Denable_tools=false -Denable_tests=false -Denable_examples=false; }
 s_libde265() {
@@ -747,12 +839,13 @@ s_tidy() {
         ln -sf "$(readlink "$S/lib/libtidy.so")" "$S/lib/libtidy5.so"
 }
 
-# lic <name> <source>: the licence files of a library into LICENSES/ (libpng
-# 1.6.59 has a directory LICENSES too)
+# lic <name> <source> <directory>: the licence files of a library into the directory
+# (licd: LICENSES/ of the static tree, or of the stage of --lib; libpng 1.6.59 has a
+# directory LICENSES too)
 lic() {
-    mkdir -p "$A/LICENSES"
+    mkdir -p "$3"
     for f in "$2"/COPYING* "$2"/LICENSE* "$2"/LICENCE* "$2"/PATENTS* "$2"/COPYRIGHT*; do
-        [ -e "$f" ] && cp -R "$f" "$A/LICENSES/$1-${f##*/}"
+        [ -e "$f" ] && cp -R "$f" "$3/$1-${f##*/}"
     done
     return 0
 }
@@ -805,11 +898,9 @@ take_args() {
 }
 
 # One library: fetch, check, extract and patch with the ports framework, then build
-# it as its kinds in deps.conf say: static into P (b_<name>), shared into S
-# (s_<name>, in a copy of the work directory made right after the patches, so that
-# both build the same patched source and the static build leaves nothing in it);
-# one log for both, one line of the summary with the status of each ("-": not of
-# that kind).
+# it as the mode says, when its kinds in deps.conf have it: --static into P
+# (b_<name>), --lib into S (s_<name>), in the work directory of its port; one log,
+# one line of the summary with the status of each ("-": not built here).
 build_one() {
     n="$1"
     port="$(port_of "$n")"
@@ -836,7 +927,6 @@ build_one() {
         # shellcheck disable=SC2086
         pmake "$port" $targs clean >/dev/null 2>&1
         [ -n "$wd" ] && [ -n "$src" ] || { echo "== no WRKDIR or WRKSRC of $port (make -V)"; exit 1; }
-        rm -rf "$wd.so"
         # shellcheck disable=SC2086
         pmake "$port" $targs patch || { echo "make patch failed"; exit 1; }
         # a fix the port lacks (a vulnerability that touches us, or a bug we have; rule
@@ -862,16 +952,11 @@ build_one() {
             pmake "$port" $targs "$fx" 2> /dev/null || true
         done
         echo "== source: $src"
-        if has_kind "$n" shared; then
-            # the whole work directory: relative paths out of WRKSRC (gettext-runtime/../build-aux, icu/source/..)
-            cp -Rp "$wd" "$wd.so" || { echo "== cannot copy $wd to $wd.so"; exit 1; }
-            echo "== source of the shared build: $wd.so${src#"$wd"}"
-        fi
-        lic "$n" "$src"
+        lic "$n" "$src" "$licd"
     ) > "$log" 2>&1
     prc=$?
     st_s=-; st_d=-
-    if has_kind "$n" static; then
+    if [ "$mode" = static ] && has_kind "$n" static; then
         st_s=FAIL
         if [ "$prc" = 0 ] && (
             echo "== static build into $P"
@@ -883,14 +968,14 @@ build_one() {
             fi
         ) >> "$log" 2>&1; then st_s=OK; fi
     fi
-    if has_kind "$n" shared; then
+    if [ "$mode" = lib ] && has_kind "$n" shared; then
         st_d=FAIL
         if [ "$prc" = 0 ] && (
             echo "== shared build into $S"
             so_env
             case " $gcc_so " in *" $n "*) gcc_env "$n" || exit 1 ;; esac
             : > "$work/stamp-so-$n"
-            "s_$n" "$wd.so${src#"$wd"}" || exit 1
+            "s_$n" "$src" || exit 1
             if [ -z "$(find "$S/lib" -maxdepth 1 -name '*.so*' -newer "$work/stamp-so-$n" | head -n 1)" ]; then
                 echo "== no new shared library of $n in $S/lib"; exit 1
             fi
@@ -926,10 +1011,11 @@ summ() {
 }
 
 # One library of the bundled curl (port "bundle" in deps.conf): the sources of
-# tools/azsupport-curl-sources.sh (once per run), built by files/curl/build-libcurl.sh as
-# for --with-curl=bundled; curl takes its libraries into libcurl.a with their
-# symbols local (swoole carries a copy of nghttp2, libzip links zstd). The shared
-# build (s_<name>) runs out of the source tree, which stays as it is.
+# tools/azsupport-curl-sources.sh (--static: all of them, once per run; --lib: its own,
+# --only), built by files/curl/build-libcurl.sh as for --with-curl=bundled (--static;
+# curl takes its libraries into libcurl.a with their symbols local: swoole carries a
+# copy of nghttp2, libzip links zstd), or by s_<name> (--lib), out of the source tree,
+# which stays as it is.
 bundle_ver() {
     if [ "$1" = curl ]; then
         sed -n 's/^#define LIBCURL_VERSION "\(.*\)"$/\1/p' "$work/curl-src/libcurl/include/curl/curlver.h"
@@ -942,16 +1028,20 @@ build_bundle() {
     if [ "$n" = curl ]; then bs="$work/curl-src/libcurl"; else bs="$work/curl-src/deps/$n"; fi
     (
         echo "== $n: the bundled curl (files/curl.conf, files/curl-deps.conf)"
-        if [ ! -f "$work/curl-src/deps/VERSIONS" ]; then
+        if [ "$mode" = lib ]; then
+            # its release file (libpsl: and psl-list), a distfile of its port azsupport/<name>
+            CURL_DISTFILES="${CURL_DISTFILES:-$takedist}" AZSUPPORT_FILESDIR="$files" \
+                sh "$tools/azsupport-curl-sources.sh" --only "$n" "$work/curl-src" || { echo "tools/azsupport-curl-sources.sh --only $n failed"; exit 1; }
+        elif [ ! -f "$work/curl-src/deps/VERSIONS" ]; then
             # the release files: distfiles of the port azsupport/azsupport (AZSUPPORT_TAKE_DISTFILES)
             CURL_DISTFILES="${CURL_DISTFILES:-$takedist}" AZSUPPORT_FILESDIR="$files" \
                 sh "$tools/azsupport-curl-sources.sh" "$work/curl-src" || { echo "tools/azsupport-curl-sources.sh failed"; exit 1; }
         fi
-        lic "$n" "$bs"
+        lic "$n" "$bs" "$licd"
     ) > "$log" 2>&1
     prc=$?
     st_s=-; st_d=-
-    if has_kind "$n" static; then
+    if [ "$mode" = static ] && has_kind "$n" static; then
         st_s=FAIL
         if [ "$prc" = 0 ] && (
             echo "== static build into $P"
@@ -967,7 +1057,7 @@ build_bundle() {
             fi
         ) >> "$log" 2>&1; then st_s=OK; fi
     fi
-    if has_kind "$n" shared; then
+    if [ "$mode" = lib ] && has_kind "$n" shared; then
         st_d=FAIL
         if [ "$prc" = 0 ] && (
             echo "== shared build into $S"
@@ -1075,33 +1165,39 @@ finish() {
     fi
 }
 
-# After the builds, the shared tree: only shared libraries in lib/ (with their .pc
-# in lib/pkgconfig, the cmake files), the *-config scripts and bin/pkg-config, the
-# headers; no programs, sbin, manual pages, documentation or translations. Then the
-# checks (azsupport-results/shared.txt: every library with SONAME, size, DT_NEEDED and run
-# path; a finding goes to shared-bad.txt and fails the build): every library has a
-# SONAME and RELRO, every DT_NEEDED resolves (ldd) from S/lib or the base system
-# (/lib, /usr/lib), never from /usr/local/lib or the static tree, with the run path
-# S/lib where it needs a library of S; libcurl and libzip take libssl and libcrypto
-# of the base system; the .pc files and *-config scripts name neither /usr/local
-# outside S nor the static tree.
+# After the build of the library of --lib, in what it installed (its paths of
+# owners.txt): only shared libraries in lib/ (with their .pc in lib/pkgconfig, the
+# cmake files), the *-config scripts and the headers; its static and libtool
+# archives, programs, sbin, manual and info pages and translations are removed (its
+# documents are not taken: owned leaves share/doc out), nothing else. No pkg-config
+# wrapper of the shared tree (the ports that need one write it, aZ 26.11.2026). Then the
+# checks of its files (azsupport-results/shared.txt: every library with SONAME,
+# size, DT_NEEDED and run path; a finding goes to shared-bad.txt and fails the
+# build): every library has a SONAME and RELRO, every DT_NEEDED resolves (ldd) from
+# S/lib (its own and those of the packages of its needs) or the base system (/lib,
+# /usr/lib), never from /usr/local/lib or the static tree, with the run path S/lib
+# where it needs a library of S; libcurl and libzip take libssl and libcrypto of the
+# base system; its .pc files and *-config scripts name neither /usr/local outside S
+# nor the static tree.
 finish_so() {
-    rm -f "$S"/lib/*.a "$S"/lib/*.la
-    if [ -d "$S/libdata/pkgconfig" ]; then
-        mkdir -p "$S/lib/pkgconfig" && mv "$S"/libdata/pkgconfig/*.pc "$S/lib/pkgconfig/" 2>/dev/null
-        rm -rf "$S/libdata"
-    fi
-    mkdir -p "$S/bin"
-    find "$S/bin" -maxdepth 1 ! -type d ! -name '*-config' -delete
-    rm -rf "$S/sbin" "$S/share/man" "$S/share/doc" "$S/share/info" "$S/share/gtk-doc" "$S/share/locale" "$S/share/emacs"
-    # pkg-config for the builds against the shared tree (the PHP modules of pkg mode):
-    # its libraries and the base system, no static link lines
-    printf '%s\n' '#!/bin/sh' "# pkg-config of $S: its shared libraries and the base system." \
-        "PKG_CONFIG_LIBDIR='$S/lib/pkgconfig:/usr/libdata/pkgconfig'" \
-        'export PKG_CONFIG_LIBDIR' 'unset PKG_CONFIG_PATH' 'exec /usr/local/bin/pkgconf "$@"' > "$S/bin/pkg-config"
-    chmod +x "$S/bin/pkg-config"
+    fs_n="$1"
+    awk -v n="$fs_n" '$1 == n { print $2 }' "$work/owners.txt" | LC_ALL=C sort -u > "$work/so-own"
+    while read -r p; do
+        case "$p" in
+            lib/*.a | lib/*.la) rm -f "$S/$p" ;;
+            libdata/pkgconfig/*.pc) mkdir -p "$S/lib/pkgconfig" && mv -f "$S/$p" "$S/lib/pkgconfig/" ;;
+            bin/*/*) ;;
+            bin/*-config) ;;
+            bin/* | sbin/* | share/man/* | share/info/* | share/gtk-doc/* | share/locale/* | share/emacs/*) rm -f "$S/$p" ;;
+        esac
+    done < "$work/so-own"
+    for d in libdata sbin share/man share/info share/gtk-doc share/locale share/emacs; do
+        if [ -d "$S/$d" ]; then find "$S/$d" -depth -type d -empty -delete; fi
+    done
     : > "$res/shared.txt"; : > "$res/shared-bad.txt"
-    for f in "$S"/lib/*.so*; do
+    # its files after the move of its .pc files
+    sed 's#^libdata/pkgconfig/#lib/pkgconfig/#' "$work/so-own" | LC_ALL=C sort -u > "$work/so-own2"
+    for f in $(awk -v s="$S" '/^lib\/[^\/]*\.so(\.[^\/]*)?$/ { print s "/" $0 }' "$work/so-own2"); do
         [ -f "$f" ] && [ ! -L "$f" ] || continue
         b="${f##*/}"
         readelf -d "$f" > "$work/so-dyn.txt" 2>&1
@@ -1149,19 +1245,21 @@ finish_so() {
                 done ;;
         esac
     done
-    [ -s "$res/shared.txt" ] || echo "no shared library in $S/lib" >> "$res/shared-bad.txt"
-    # the libraries of AZSUPPORT_GCC_SO are those of GCC
-    for n in $gcc_so; do
-        f="$(ls "$S/lib/lib$n.so."* 2>/dev/null | head -n 1)"
-        [ -n "$f" ] || continue
-        readelf -p .comment "$f" 2>/dev/null | grep -q 'GCC:' ||
-            echo "${f##*/}: of AZSUPPORT_GCC_SO, but its .comment names no GCC" >> "$res/shared-bad.txt"
-    done
-    # the .pc files and *-config scripts (not the pkg-config wrapper): nothing of the
-    # static tree, nothing of /usr/local outside S but the configuration and fonts of
-    # the system that fontconfig reads
-    for f in "$S"/lib/pkgconfig/*.pc "$S"/bin/*-config; do
-        [ -f "$f" ] && [ "$f" != "$S/bin/pkg-config" ] || continue
+    [ -s "$res/shared.txt" ] || echo "no shared library of $fs_n in $S/lib" >> "$res/shared-bad.txt"
+    # a library of AZSUPPORT_GCC_SO is one of GCC
+    case " $gcc_so " in
+        *" $fs_n "*)
+            f="$(ls "$S/lib/lib$fs_n.so."* 2>/dev/null | head -n 1)"
+            if [ -n "$f" ]; then
+                readelf -p .comment "$f" 2>/dev/null | grep -q 'GCC:' ||
+                    echo "${f##*/}: of AZSUPPORT_GCC_SO, but its .comment names no GCC" >> "$res/shared-bad.txt"
+            fi ;;
+    esac
+    # its .pc files and *-config scripts: nothing of the static tree, nothing of
+    # /usr/local outside S but the configuration and fonts of the system that
+    # fontconfig reads
+    for f in $(awk -v s="$S" '/^lib\/pkgconfig\/[^\/]*\.pc$/ || /^bin\/[^\/]*-config$/ { print s "/" $0 }' "$work/so-own2"); do
+        [ -f "$f" ] || continue
         grep -n "$P" "$f" | sed "s#^#${f##*/}: the static tree: #" >> "$res/shared-bad.txt"
         sed -e "s#$S##g" -e 's#/usr/local/etc/fonts##g' -e 's#/usr/local/share/fonts##g' \
             -e 's#/usr/local/lib/X11/fonts##g' -e 's#sysconfdir=/usr/local/etc$##' -e '/Print PREFIX to icu install/d' "$f" |
@@ -1169,42 +1267,56 @@ finish_so() {
     done
 }
 
-# The interface of each library (aZ, 12.11.2026), for the builder: a port that needs
-# azsupport takes into its azsupport_hash the interfaces of the libraries of azsupport it uses and of those
-# these need (azsupport-interface.sh of the builder), not the hash of all of azsupport, so that a fix
-# inside a library (the same headers, .pc files and SONAMEs) builds again only azsupport, as
-# FreeBSD and Debian do not build again the dependents of a shared library for such a
-# fix. Made from what the build installed, nothing guessed: the files of a library are
-# those whose status changed after the stamp of its build, in both trees (find -cnewer:
-# the time of the change of an inode, which no install keeps from the source, as CMake
-# and meson keep the time of the modification); a file a later library writes again is
-# that one's; the .pc files finish and finish_so move from libdata/pkgconfig and
-# curl-config.orig of finish with their files. AZSUPPORT_PREFIX/share/azsupport/interface/<name>.txt:
+# The interface of each library (aZ, 12.11.2026), for the builder: a port that needs a
+# library takes into its azsupport_hash the interfaces of the libraries it uses and of
+# those these need (azsupport-interface.sh of the builder), not the hash of their
+# ports, so that a fix inside a library (the same headers, .pc files and SONAMEs)
+# builds again only its port, as FreeBSD and Debian do not build again the dependents
+# of a shared library for such a fix. Made from what the build installed, nothing
+# guessed: the files of a library are those whose status changed after the stamp of
+# its build, in its tree (find -cnewer: the time of the change of an inode, which no
+# install keeps from the source, as CMake and meson keep the time of the
+# modification); a file a later library writes again is that one's; the .pc files
+# finish and finish_so move from libdata/pkgconfig and curl-config.orig of finish with
+# their files. The manifest of a library, <name>.txt, in share/azsupport/interface/ of
+# its package (--lib; that of fontconfig, in x11-fonts/fontconfig, has a prefix line)
+# or in static/share/azsupport/interface/ of the package azsupport (--static:
+# its paths are static/...):
 #   library <name>
 #   version <version>       the release built (of the take line, the port or the bundle)
-#   options <SHA-256>       its build functions, b_ and s_ here and lib_ (curl: build_curl,
-#                           curl_features) of files/curl/build-libcurl.sh, without comments
-#   requires <name>         a library of azsupport it needs: the NEEDED of its shared libraries,
-#                           the Requires and -l of its .pc files, the headers of another
-#                           that its headers include
+#   options <SHA-256>       its build functions of the mode: b_ (--static) or s_ (--lib)
+#                           here, lib_ of files/curl/build-libcurl.sh for the static
+#                           bundled curl (curl: build_curl, curl_features), ssh2_algos
+#                           of it for the shared libssh2; without comments
+#   requires <name>         a library it needs: the NEEDED of its shared libraries, the
+#                           Requires and -l of its .pc files, the headers of another
+#                           that its headers include (--lib: one outside its needs line
+#                           and theirs is a finding)
 #   file <path> <SHA-256>   its headers, .pc files, *-config scripts, cmake and other files
 #   link <path> <target>    its symbolic links
 #   soname <path> <SONAME>  its shared libraries (their SONAME, not their code)
 #   archive <path> <SHA-256>  its static archives (their code counts only for a port that
 #                           links them into its package, AZSUPPORT_STATIC_LIBS)
-# (paths relative to AZSUPPORT_PREFIX), and common.txt: the files of no library (bin/pkg-config
-# of both trees). azsupport-results/interface.txt: what each library has.
-ifd="$A/share/azsupport/interface"
-# owned <name> <version>: the files the static and the shared build of a library
-# installed, "<name> <path>" into $work/owners.txt, and its version into
+# (paths relative to AZSUPPORT_PREFIX), and with --static common.txt: the files of the
+# static tree of no library (static/bin/pkg-config). azsupport-results/interface.txt:
+# what each library has.
+# ifa: the manifests of the installed packages of the libraries (--lib: those of its
+# needs, whose files the checks take for theirs); ifd: where interfaces writes
+ifa="$A/share/azsupport/interface"
+if [ "$mode" = static ]; then ifd="$P/share/azsupport/interface"; else ifd="$work/ifout"; fi
+# owned <name> <version>: the files the build of a library installed (--static: in
+# the static tree but its LICENSES/ and manifests; --lib: in the shared tree but the
+# static tree, LICENSES/, share/doc/, the manifests of the packages and the mark of a
+# build), "<name> <path>" into $work/owners.txt, and its version into
 # $work/ifver.txt (after its builds; prc, st_s and st_d are those of build_one or
 # build_bundle)
 owned() {
     if [ "$prc" = 0 ] && [ "$st_s" != - ] && [ -f "$work/stamp-$1" ]; then
-        find "$P" -cnewer "$work/stamp-$1" ! -type d | sed -e "s#^$A/##" -e "s#^#$1 #" >> "$work/owners.txt"
+        find "$P" \( -path "$P/LICENSES" -o -path "$P/share/azsupport/interface" \) -prune -o \
+            -cnewer "$work/stamp-$1" ! -type d -print | sed -e "s#^$A/##" -e "s#^#$1 #" >> "$work/owners.txt"
     fi
     if [ "$prc" = 0 ] && [ "$st_d" != - ] && [ -f "$work/stamp-so-$1" ]; then
-        find "$A" \( -path "$P" -o -path "$A/LICENSES" -o -path "$A/share/doc" -o -path "$ifd" -o -path "$A/.az-build" \) \
+        find "$A" \( -path "$P" -o -path "$A/LICENSES" -o -path "$A/share/doc" -o -path "$ifa" -o -path "$A/.az-build" \) \
             -prune -o -cnewer "$work/stamp-so-$1" ! -type d -print | sed -e "s#^$A/##" -e "s#^#$1 #" >> "$work/owners.txt"
     fi
     echo "$1 ${2:-?}" >> "$work/ifver.txt"
@@ -1245,9 +1357,28 @@ if_entry() {
     esac
     echo "$1 file $2 $(sha256 -q "$_f")"
 }
+# lib_options <name>: the hash of its build functions of the mode (see above)
+lib_options() {
+    _id="$(printf '%s' "$1" | tr - _)"
+    if [ "$mode" = static ]; then
+        fn_text "$tools/azsupport-build.sh" "b_$_id"
+        if [ "$(port_of "$1")" = bundle ]; then
+            # shellcheck disable=SC2046
+            fn_text "$files/curl/build-libcurl.sh" "lib_$_id" $( [ "$1" = curl ] && echo build_curl curl_features )
+        fi
+    else
+        fn_text "$tools/azsupport-build.sh" "s_$_id"
+        if [ "$1" = libssh2 ]; then grep '^ssh2_algos=' "$files/curl/build-libcurl.sh"; fi
+    fi | sha256
+}
+# interfaces <directory> <name>...: the manifests of these libraries into the directory
+# (ifd), and with --static common.txt; never the manifests of the packages (ifa)
 interfaces() {
+    ifo="$1"; shift
     il="$work/if"
-    rm -rf "$il" "$ifd" && mkdir -p "$il" "$ifd" || { echo "azsupport-build: cannot make $ifd" >&2; return 1; }
+    rm -rf "$il" && mkdir -p "$il" || { echo "azsupport-build: cannot make $il" >&2; return 1; }
+    if [ "$ifo" != "$ifa" ]; then rm -rf "$ifo"; fi
+    mkdir -p "$ifo" || { echo "azsupport-build: cannot make $ifo" >&2; return 1; }
     : > "$il/needs"
     # the owner of each path now (the last library that wrote it)
     awk '{ p = $2
@@ -1306,49 +1437,65 @@ interfaces() {
                 }
                 close(f)
             }' "$il/own" - >> "$il/req"
-    # a manifest a library, in the order of deps.conf (the version: its last build)
-    for n in $libs_all; do
-        awk -v n="$n" '$2 == n' "$il/own" | grep -q . || continue
-        id="$(printf '%s' "$n" | tr - _)"
+    # a manifest a library, in the order given (the version: its last build)
+    for _n in "$@"; do
+        awk -v n="$_n" '$2 == n' "$il/own" | grep -q . || continue
         {
-            echo "library $n"
-            echo "version $(awk -v n="$n" '$1 == n { v = $2 } END { print (v == "" ? "?" : v) }' "$work/ifver.txt")"
-            if [ "$(port_of "$n")" = bundle ]; then
-                # shellcheck disable=SC2046
-                { fn_text "$tools/azsupport-build.sh" "b_$id" "s_$id"
-                    fn_text "$files/curl/build-libcurl.sh" "lib_$id" $( [ "$n" = curl ] && echo build_curl curl_features ); } | sha256
-            else
-                fn_text "$tools/azsupport-build.sh" "b_$id" "s_$id" | sha256
-            fi | sed 's/^/options /'
-            awk -v n="$n" '$1 == n { print "requires", $2 }' "$il/req" | LC_ALL=C sort -u
-            awk -v n="$n" '$1 == n { $1 = ""; sub(/^ /, ""); print }' "$il/entries" | LC_ALL=C sort -k 2,2
-        } > "$ifd/$n.txt"
+            echo "library $_n"
+            echo "version $(awk -v n="$_n" '$1 == n { v = $2 } END { print (v == "" ? "?" : v) }' "$work/ifver.txt")"
+            lib_options "$_n" | sed 's/^/options /'
+            awk -v n="$_n" '$1 == n { print "requires", $2 }' "$il/req" | LC_ALL=C sort -u
+            awk -v n="$_n" '$1 == n { $1 = ""; sub(/^ /, ""); print }' "$il/entries" | LC_ALL=C sort -k 2,2
+        } > "$ifo/$_n.txt"
     done
-    # the files of no library
-    find "$A" \( -path "$A/LICENSES" -o -path "$A/share/doc" -o -path "$ifd" -o -path "$A/.az-build" \) -prune -o \
-        ! -type d -print | sed "s#^$A/##" | LC_ALL=C sort > "$il/all"
+    if [ "$mode" = static ]; then
+        # the files of the static tree of no library
+        find "$P" \( -path "$P/LICENSES" -o -path "$P/share/doc" -o -path "$ifo" \) -prune -o \
+            ! -type d -print | sed "s#^$A/##" | LC_ALL=C sort > "$il/all"
+        {
+            echo "library common"
+            awk 'NR == FNR { own[$1] = 1; next } !($1 in own)' "$il/own" "$il/all" |
+                while read -r p; do if_entry - "$p"; done | sed 's/^- //' | LC_ALL=C sort -k 2,2
+        } > "$ifo/common.txt"
+    fi
     {
-        echo "library common"
-        awk 'NR == FNR { own[$1] = 1; next } !($1 in own)' "$il/own" "$il/all" |
-            while read -r p; do if_entry - "$p"; done | sed 's/^- //' | LC_ALL=C sort -k 2,2
-    } > "$ifd/common.txt"
-    {
-        echo "The interfaces of the libraries ($ifd): files, links, shared"
-        echo "libraries, archives, what each needs; the files of no library in common.txt"
-        for m in "$ifd"/*.txt; do
+        echo "The interfaces of the libraries ($ifo): files, links, shared"
+        echo "libraries, archives, what each needs$( [ "$mode" = static ] && echo '; the files of no library in common.txt')"
+        for m in "$ifo"/*.txt; do
+            [ -f "$m" ] || continue
             awk -v b="${m##*/}" '$1 == "library" { n = $2 } $1 == "version" { v = $2 } $1 == "requires" { r = r " " $2 }
                 $1 == "file" { f++ } $1 == "link" { l++ } $1 == "soname" { s = s " " $3 } $1 == "archive" { a++ }
                 END { printf "%-14s %-10s %4d files, %3d links, %2d archives; SONAME%s; requires%s\n", n, v, f, l, a,
                       (s == "" ? " none" : s), (r == "" ? " none" : r) }' "$m"
         done
-        echo "common: $(grep -c -v '^library ' "$ifd/common.txt") files: $(grep -v '^library ' "$ifd/common.txt" | awk '{ print $2 }' | tr '\n' ' ')"
+        if [ -f "$ifo/common.txt" ]; then
+            echo "common: $(grep -c -v '^library ' "$ifo/common.txt") files: $(grep -v '^library ' "$ifo/common.txt" | awk '{ print $2 }' | tr '\n' ' ')"
+        fi
     } > "$res/interface.txt"
 }
 
+# manifest: VERSIONS of the libraries built (the table of built.txt), of the static
+# tree into AZSUPPORT_PREFIX/share/doc/azsupport/VERSIONS (its first line as before: the
+# fork reads it), of the library of --lib into share/doc/azsupport-<name>/VERSIONS of
+# the stage (the same lines of the table: mc-build.sh reads that of its libraries)
 manifest() {
+    if [ "$mode" = lib ]; then
+        vf="$stage$A/share/doc/azsupport-$lib/VERSIONS"
+        case " $gcc_so " in
+            *" $lib "*) cc_note="GCC of the packages (lib-bench.sh: at least 2% faster with it)" ;;
+            *) cc_note="the base clang" ;;
+        esac
+    else
+        vf="$A/share/doc/azsupport/VERSIONS"
+    fi
     {
-        echo "azsupport libraries for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
-        echo "freebsd-ports $ports_commit; static libraries in $P, shared libraries in $S; CFLAGS: $CFLAGS"
+        if [ "$mode" = lib ]; then
+            echo "azsupport-$lib for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
+            echo "freebsd-ports $ports_commit; the shared library in $S; CFLAGS: $CFLAGS"
+        else
+            echo "azsupport libraries for FreeBSD $major (amd64, $cputype), built $(date '+%Y-%m-%d %H:%M %Z') on $(uname -sr)"
+            echo "freebsd-ports $ports_commit; static libraries in $P; CFLAGS: $CFLAGS"
+        fi
         echo
         while read -r n pkgname port; do
             printf '%-14s %-28s %-24s %s\n' "$n" "$pkgname" "$port" "$(awk -v n="$n" '$1 == "lib" && $2 == n { print $4 }' "$conf")"
@@ -1379,20 +1526,23 @@ manifest() {
             [ "$np" -gt 0 ] && echo "    $np patches of the port"
         done < "$res/built.txt"
         echo
-        echo "curl above: the static libcurl.a in $P for the builds of PHP, with only what PHP needs. The package"
-        echo "curl (the port ftp/curl of azsupport/ports): bin/curl and lib/libcurl.so.4 of /usr/local, a build of its own of the same"
-        echo "release with the options of the port ftp/curl, against the static libraries above."
-        echo
-        echo "The shared tree $S (lib/, include/, lib/pkgconfig/, bin/pkg-config and the *-config"
-        echo "scripts), for the PHP modules of pkg mode: the libraries of the kind shared above, built"
-        echo "from the same patched sources with the same options, with the run path $S/lib and the"
-        echo "OpenSSL of the base system (libcurl, libzip); built with the base clang, but ${gcc_so:-none} with"
-        echo "GCC of the packages (tools/lib-bench.sh: at least 2% faster with it); SONAME, DT_NEEDED,"
-        echo "run path and compiler of each:"
-        sed 's/^/    /' "$res/shared.txt" 2>/dev/null
+        if [ "$mode" = lib ]; then
+            echo "The shared library of $lib in $S (lib/, include/, lib/pkgconfig/ and the *-config scripts),"
+            echo "for the packages: built from the patched source of its port with the options of its static"
+            echo "build, with the run path $S/lib and the OpenSSL of the base system, against the packages of"
+            echo "the libraries it needs ($(needs_closure "$lib" | sed 's/^$/none/')); with $cc_note; SONAME,"
+            echo "DT_NEEDED, run path and compiler of each:"
+            sed 's/^/    /' "$res/shared.txt" 2>/dev/null
+        else
+            echo "curl above: the static libcurl.a in $P for the builds of PHP, with only what PHP needs. The package"
+            echo "curl (the port ftp/curl of azsupport/ports): bin/curl and lib/libcurl.so.4 of /usr/local, a build of its own of the same"
+            echo "release with the options of the port ftp/curl, against the static libraries above."
+            echo
+            echo "The shared libraries of $S: the packages$(for l in $(libs_of_kind shared); do printf ' azsupport-%s' "$l"; done) (the ports azsupport/<name>, each with share/doc/azsupport-<name>/VERSIONS) and fontconfig (x11-fonts/fontconfig, in /usr/local)."
+        fi
     } > "$res/VERSIONS"
-    mkdir -p "$A/share/doc/azsupport"
-    cp "$res/VERSIONS" "$A/share/doc/azsupport/VERSIONS"
+    mkdir -p "${vf%/*}"
+    cp "$res/VERSIONS" "$vf"
 }
 
 mkdir -p "$res" "$work"
@@ -1409,19 +1559,28 @@ report() {
     done
 }
 
-# --fetch: the distfiles of the ports of deps.conf, by their own make fetch into
+# --fetch [<name>...]: the distfiles of the official ports of these libraries (default:
+# those of the kind static, which --static builds), by their own make fetch into
 # AZSUPPORT_DISTDIR (checked against their distinfo when make patch extracts them), so
-# that the build needs no network: the post-fetch of the port azsupport/azsupport. Not those of
-# a port with a take line, nor the bundled curl: their release files are
-# distfiles of the port azsupport/azsupport itself.
-if [ "${1:-}" = "--fetch" ]; then
+# that the build needs no network: the post-fetch of the ports. Not those of a library
+# with a take line, nor of the bundled curl: their release files are distfiles of the
+# ports that build them.
+if [ "$mode" = fetch ]; then
     ports_check || exit 1
+    # shellcheck disable=SC2046
+    [ $# -gt 0 ] || set -- $(libs_of_kind static)
+    for n in "$@"; do
+        [ -n "$(port_of "$n")" ] || { echo "azsupport-build: $n is not in $conf" >&2; exit 2; }
+    done
     rc=0
-    for n in $libs_all; do
+    for n in "$@"; do
         port="$(port_of "$n")"
-        [ "$port" != bundle ] || continue
+        if [ "$port" = bundle ]; then
+            echo "azsupport-build: $n: nothing fetched: a library of the bundled curl, its release file is a distfile of its port"
+            continue
+        fi
         if [ -n "$(take_of "$n")" ]; then
-            echo "azsupport-build: $n: not fetched from $port: the release of its take line is a distfile of azsupport/azsupport"
+            echo "azsupport-build: $n: not fetched from $port: the release of its take line is a distfile of its port"
             continue
         fi
         say "fetch $n ($port)"
@@ -1430,10 +1589,17 @@ if [ "${1:-}" = "--fetch" ]; then
     exit "$rc"
 fi
 
-if [ $# -eq 0 ]; then
-    set -- $libs_all
+if [ "$mode" = static ]; then
+    for n in "$@"; do
+        [ -n "$(port_of "$n")" ] || { echo "azsupport-build: $n is not in $conf" >&2; exit 2; }
+        has_kind "$n" static || { echo "azsupport-build: $n is not of the kind static in $conf: not in the static tree" >&2; exit 2; }
+    done
+fi
+if [ "$mode" = static ] && [ $# -eq 0 ]; then
+    # shellcheck disable=SC2046
+    set -- $(libs_of_kind static)
     # a full build starts from an empty tree; never one with files of a package
-    # (azsupport, and ImageMagick7 and the PHP packages put files into it) or the PHP
+    # (the packages of the libraries, ImageMagick7 and the PHP packages put files into it) or the PHP
     # builds of a server (phpXY directories, bin/phpXY); a tree left by an
     # unfinished build of this script (its mark .az-build) is removed
     if [ -n "$(ls -A "$A" 2>/dev/null | head -n 1)" ]; then
@@ -1458,7 +1624,7 @@ if [ $# -eq 0 ]; then
     : > "$res/summary.txt"; : > "$res/built.txt"
     printf 'flags:    %s\ncpu:      %s\n' "$CFLAGS" "${cpu_model:-?}" >> "$res/summary.txt"
     : > "$work/owners.txt"; : > "$work/ifver.txt"
-else
+elif [ "$mode" = static ]; then
     # some libraries again: the files and versions of the others from their manifests
     : > "$work/owners.txt"; : > "$work/ifver.txt"
     for m in "$ifd"/*.txt; do
@@ -1466,6 +1632,47 @@ else
         awk -v v="$work/ifver.txt" '$1 == "library" { n = $2 } $1 == "version" { print n, $2 >> v }
             n != "common" && ($1 == "file" || $1 == "link" || $1 == "soname" || $1 == "archive") { print n, $2 }' "$m" >> "$work/owners.txt"
     done
+else
+    # --lib <name>: a library of the kind shared, with the lines and files its port gives
+    [ -n "$(port_of "$lib")" ] || { echo "azsupport-build: $lib is not a library of $conf" >&2; exit 2; }
+    if ! has_kind "$lib" shared; then
+        echo "azsupport-build: $lib is not of the kind shared in $conf ($(awk -v n="$lib" '$1 == "lib" && $2 == n { print $4 }' "$conf")): no port of its own; the shared curl is the package curl (ftp/curl), the shared fontconfig the package fontconfig (x11-fonts/fontconfig)" >&2
+        exit 2
+    fi
+    c_want="$(conf_lines_of "$lib")"
+    f_want="$(lib_files_of "$lib")"
+    if [ "${AZSUPPORT_LIB_CONF:-}" != "$c_want" ] || [ "${AZSUPPORT_LIB_FILES:-}" != "$f_want" ]; then
+        echo "azsupport-build: the port azsupport/$lib does not have the lines and files of its library now: make the ports again (azsupport-lib-ports.sh --write <official tree>, next to this script)" >&2
+        printf '  AZSUPPORT_LIB_CONF of the port:  %s\n  its lines of the confs:          %s\n' "${AZSUPPORT_LIB_CONF:-(none)}" "${c_want:-(none)}" >&2
+        printf '  AZSUPPORT_LIB_FILES of the port: %s\n  its files of %s: %s\n' "${AZSUPPORT_LIB_FILES:-(none)}" "$files" "${f_want:-(none)}" >&2
+        exit 2
+    fi
+    # never over the library installed (its manifest, its package): nothing of
+    # AZSUPPORT_PREFIX is removed here
+    if [ -f "$ifa/$lib.txt" ] || { command -v pkg > /dev/null 2>&1 && pkg info -e "azsupport-$lib"; }; then
+        echo "azsupport-build: $lib is installed in $A ($ifa/$lib.txt or the package azsupport-$lib): build it where it is not (the chroot or jail of its port)" >&2
+        exit 2
+    fi
+    rm -rf "$stage$A" "$ifd" && mkdir -p "$stage$A" || { echo "azsupport-build: cannot make the stage $stage$A" >&2; exit 2; }
+    rm -f "$res"/*.tail "$res/bins-bad.txt" "$res/pic.txt" "$res/links.txt"
+    : > "$res/summary.txt"; : > "$res/built.txt"
+    printf 'flags:    %s\ncpu:      %s\n' "$CFLAGS" "${cpu_model:-?}" >> "$res/summary.txt"
+    # the files and versions of the libraries of the installed packages (those it
+    # needs) from their manifests: the owners of what its build finds there
+    : > "$work/owners-seed.txt"; : > "$work/ifver.txt"
+    for m in "$ifa"/*.txt; do
+        [ -f "$m" ] || continue
+        mp="$(awk '$1 == "prefix" { print $2; exit }' "$m")"
+        if [ -n "$mp" ] && [ "$mp" != "$A" ]; then
+            echo "azsupport-build: ${m##*/}: a library in $mp (its prefix line), not among the owners of $A"
+            continue
+        fi
+        awk -v v="$work/ifver.txt" '$1 == "library" { n = $2 } $1 == "version" { print n, $2 >> v }
+            n != "common" && ($1 == "file" || $1 == "link" || $1 == "soname" || $1 == "archive") { print n, $2 }' "$m" >> "$work/owners-seed.txt"
+    done
+    cp "$work/owners-seed.txt" "$work/owners.txt"
+    say "$lib: needs $(needs_closure "$lib" | sed 's/^$/none/'); the libraries installed in $A: $(ls "$ifa" 2> /dev/null | sed -n 's/\.txt$//p' | tr '\n' ' ')"
+    set -- "$lib"
 fi
 # This CPU has to run code of the level (configure tests, the data tools of ICU):
 # where it cannot, configure decides wrong without a word and ICU stops.
@@ -1488,7 +1695,7 @@ for n in "$@"; do
     [ -n "$(port_of "$n")" ] || { echo "azsupport-build: $n is not in $conf" >&2; exit 2; }
 done
 ports_check || { echo "ports tree     FAIL  $ports is not freebsd-ports $ports_commit of deps.conf" >> "$res/summary.txt"; report; exit 1; }
-mkdir -p "$P" "$S"
+if [ "$mode" = static ]; then mkdir -p "$P"; else mkdir -p "$S"; fi
 # build_one and build_bundle set rc for the line of their library: the libraries
 # that failed are kept apart, so that one built after them does not hide them
 failed=""
@@ -1501,22 +1708,70 @@ if [ -n "$failed" ]; then
     rc=1
     say "failed:$failed"
 fi
-finish
-finish_so
-# the interface of each library (see interfaces)
-if ! interfaces; then
-    printf '%-14s FAIL  %s\n' interfaces "no manifests of the libraries in $ifd" >> "$res/summary.txt"
-    rc=1
+if [ "$mode" = static ]; then
+    finish
+    : > "$res/shared-bad.txt"
+    # the interface of each library (see interfaces)
+    # shellcheck disable=SC2046
+    if ! interfaces "$ifd" $(libs_of_kind static); then
+        printf '%-14s FAIL  %s\n' interfaces "no manifests of the libraries in $ifd" >> "$res/summary.txt"
+        rc=1
+    else
+        nif=0
+        for n in $(awk '{ print $1 }' "$res/built.txt"); do
+            [ -s "$ifd/$n.txt" ] && grep -q '^archive ' "$ifd/$n.txt" && continue
+            nif=$((nif + 1)); echo "$n: no archive in its manifest ($ifd/$n.txt)" >> "$res/shared-bad.txt"
+        done
+        [ "$nif" = 0 ] || printf '%-14s FAIL  %s\n' interfaces "$nif libraries without their files in $ifd (shared-bad.txt)" >> "$res/summary.txt"
+    fi
 else
-    nif=0
-    for n in $(awk '{ print $1 }' "$res/built.txt"); do
-        [ -s "$ifd/$n.txt" ] && grep -q -E '^(soname|archive) ' "$ifd/$n.txt" && continue
-        nif=$((nif + 1)); echo "$n: no shared library or archive in its manifest ($ifd/$n.txt)" >> "$res/shared-bad.txt"
-    done
-    [ "$nif" = 0 ] || printf '%-14s FAIL  %s\n' interfaces "$nif libraries without their files in $ifd (shared-bad.txt)" >> "$res/summary.txt"
+    finish_so "$lib"
+    # a file of another library (its manifest) or of a package (pkg) that the build
+    # wrote again: its port is not to change them
+    {
+        awk '{ print "the-library-" $1, $2 }' "$work/owners-seed.txt"
+        if command -v pkg > /dev/null 2>&1; then
+            pkg query -a '%n %Fp' 2> /dev/null | awk -v a="$A/" 'index($2, a) == 1 { print "the-package-" $1, substr($2, length(a) + 1) }'
+        fi
+    } > "$work/others.txt"
+    awk -v n="$lib" 'function key(p) { sub(/^libdata\/pkgconfig\//, "lib/pkgconfig/", p); return p }
+        FILENAME == ARGV[1] { k = key($2); if (!(k in o)) o[k] = $1; next }
+        $1 == n && (key($2) in o) { w = o[key($2)]; sub(/^the-library-/, "the library ", w); sub(/^the-package-/, "the package ", w)
+            print key($2) ": a file of " w ", written again by the build of " n }' "$work/others.txt" "$work/owners.txt" |
+        LC_ALL=C sort -u >> "$res/shared-bad.txt"
+    # the interface of the library (see interfaces)
+    if ! interfaces "$ifd" "$lib"; then
+        printf '%-14s FAIL  %s\n' interfaces "no manifest of $lib in $ifd" >> "$res/summary.txt"
+        rc=1
+    elif [ -s "$ifd/$lib.txt" ] && grep -q '^soname ' "$ifd/$lib.txt"; then
+        # what it requires: among the libraries of its needs line and theirs
+        cl=" $(needs_closure "$lib") "
+        for r in $(awk '$1 == "requires" { print $2 }' "$ifd/$lib.txt"); do
+            case "$cl" in
+                *" $r "*) ;;
+                *) echo "$lib: requires $r (its manifest), which is not among the libraries it needs ($(needs_closure "$lib" | sed 's/^$/none/')): add it to the needs line of $lib in deps.conf" >> "$res/shared-bad.txt" ;;
+            esac
+        done
+    else
+        echo "$lib: no shared library in its manifest ($ifd/$lib.txt)" >> "$res/shared-bad.txt"
+        printf '%-14s FAIL  %s\n' interfaces "no shared library of $lib in its manifest (shared-bad.txt)" >> "$res/summary.txt"
+    fi
+    # into the stage: the files it installed and its manifest (its LICENSES/ are there;
+    # its VERSIONS below)
+    awk -v n="$lib" '$2 == n { print $1 }' "$work/if/own" > "$work/stage-list" 2> /dev/null
+    nst="$(wc -l < "$work/stage-list" | tr -d ' ')"
+    if [ "$nst" -gt 0 ]; then
+        (cd "$A" && tar -cf - -T "$work/stage-list") | (cd "$stage$A" && tar -xpf -) ||
+            echo "$lib: its files not copied into the stage $stage$A" >> "$res/shared-bad.txt"
+    fi
+    if [ -s "$ifd/$lib.txt" ]; then
+        mkdir -p "$stage$ifa" && cp "$ifd/$lib.txt" "$stage$ifa/$lib.txt" ||
+            echo "$lib: its manifest not copied into the stage $stage$ifa" >> "$res/shared-bad.txt"
+    fi
 fi
 if [ -s "$res/shared-bad.txt" ]; then
-    printf '%-14s FAIL  %s\n' "shared tree" "$(wc -l < "$res/shared-bad.txt" | tr -d ' ') findings (shared-bad.txt): $(head -n 3 "$res/shared-bad.txt" | tr '\n' ' ')" >> "$res/summary.txt"
+    if [ "$mode" = lib ]; then bad="shared tree"; else bad="static tree"; fi
+    printf '%-14s FAIL  %s\n' "$bad" "$(wc -l < "$res/shared-bad.txt" | tr -d ' ') findings (shared-bad.txt): $(head -n 3 "$res/shared-bad.txt" | tr '\n' ' ')" >> "$res/summary.txt"
     rc=1
 fi
 manifest
@@ -1524,7 +1779,11 @@ manifest
 # without network: the build of a port has none in poudriere).
 pkg audit -F -q $(awk '{ print $2 }' "$res/built.txt") > "$res/audit.txt" 2>&1 || true
 if [ "$rc" = 0 ] && [ ! -s "$res/pic.txt" ] && [ ! -s "$res/links.txt" ] && [ ! -s "$res/bins-bad.txt" ]; then
-    echo "installed: $A (static tree $P: $(du -Ask "$P" | cut -f1) KB, all: $(du -Ask "$A" | cut -f1) KB)" >> "$res/summary.txt"
+    if [ "$mode" = lib ]; then
+        echo "installed: $lib ($nst files) into $stage" >> "$res/summary.txt"
+    else
+        echo "installed: the static tree $P ($(du -Ask "$P" | cut -f1) KB) and $A/share/doc/azsupport/VERSIONS" >> "$res/summary.txt"
+    fi
     # the work directories of the ports, for the space of what is built after
     rm -rf "$work/wrk"
 else
