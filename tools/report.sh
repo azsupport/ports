@@ -86,23 +86,30 @@ trap 'rm -rf "$tmp"' EXIT
         echo "..."
         tail -n 15 "$l" | cut -c1-240
     done
-    # the libraries of azsupport/azsupport, a line each (tools/azsupport-build.sh), when it was built, with
-    # their interfaces (azsupport-results/azsupport_azsupport/interface.txt)
-    if [ -s "$res/azsupport-results/azsupport_azsupport/summary.txt" ]; then
-        echo
-        echo "== azsupport/azsupport: the libraries (azsupport-results/azsupport_azsupport/summary.txt)"
-        cut -c1-200 "$res/azsupport-results/azsupport_azsupport/summary.txt"
-    fi
-    if [ -s "$res/azsupport-results/azsupport_azsupport/interface.txt" ]; then
-        echo
-        echo "== azsupport/azsupport: the interfaces of its libraries (azsupport-results/azsupport_azsupport/interface.txt)"
-        cut -c1-240 "$res/azsupport-results/azsupport_azsupport/interface.txt"
-    fi
-    # the interfaces of azsupport in this run: what changed, the ABI check, the ports kept by
-    # interface (tools/build.sh, results/azsupport-interface.txt)
+    # the libraries of azsupport built in this run, a line each (tools/azsupport-build.sh: the
+    # summary.txt of each port of azsupport it built, azsupport-results/azsupport_<port>/), the
+    # flags and the CPU once; with what failed in their checks (shared-bad.txt)
+    fl=""
+    for f in "$res"/azsupport-results/azsupport_*/summary.txt; do
+        [ -s "$f" ] || continue
+        if [ -z "$fl" ]; then
+            echo
+            echo "== the libraries of azsupport built in this run (azsupport-results/azsupport_*/summary.txt)"
+            grep -E '^(flags|cpu): ' "$f" | cut -c1-200
+            fl=1
+        fi
+        d="${f%/summary.txt}"
+        grep -v -E '^(flags|cpu): ' "$f" | cut -c1-200
+        if [ -s "$d/shared-bad.txt" ]; then
+            echo "  ${d##*/}/shared-bad.txt:"
+            head -n 20 "$d/shared-bad.txt" | cut -c1-200 | sed 's/^/    /'
+        fi
+    done
+    # the library ports of azsupport in this run: built or kept, what changed, the ABI check,
+    # the ports kept by interface (tools/build.sh, results/azsupport-interface.txt)
     if [ -s "$res/azsupport-interface.txt" ]; then
         echo
-        echo "== azsupport: the interfaces of its libraries in the hashes of the ports (results/azsupport-interface.txt)"
+        echo "== azsupport: the library ports and their interfaces in the hashes of the ports (results/azsupport-interface.txt)"
         cut -c1-400 "$res/azsupport-interface.txt"
     fi
 } > "$tmp/build.txt"
@@ -164,12 +171,32 @@ if [ -s "$res/configure-check.txt" ]; then
     } >> "$summary"
 fi
 
+# the split of azsupport compared (tools/split-compare.sh, build.yml with compare_release:
+# results/split-compare.txt): a section, its FAIL lines in an annotation (the line
+# "split-compare: ..." of results/checks.txt fails the run)
+if [ -s "$res/split-compare.txt" ]; then
+    echo "==================== the split of azsupport compared"
+    cat "$res/split-compare.txt"
+    sr="$(sed -n 's/^result: *//p' "$res/split-compare.txt" | tail -n 1)"
+    case "$sr" in OK) slevel=notice ;; *) slevel=error ;; esac
+    grep -v '^INFO ' "$res/split-compare.txt" | head -n 80 | cut -c1-300 > "$tmp/sc.txt"
+    annot "$slevel" "$title: the split of azsupport compared (${sr:-no result line})" "$tmp/sc.txt"
+    {
+        echo "### $title: the packages of azsupport before and after (tools/split-compare.sh)"
+        echo
+        echo '```'
+        head -n 600 "$res/split-compare.txt" | cut -c1-400
+        echo '```'
+        echo
+    } >> "$summary"
+fi
+
 # the checks of PHP: results/checks.txt (a line per version, written by the workflow)
 # and the output of tools/check-php.sh, results/check-php-<version>.txt
 if [ -s "$res/checks.txt" ]; then
     {
         cat "$res/checks.txt"
-        for f in "$res"/debug-check.txt "$res"/docs-check.txt "$res"/check-php-*.txt "$res"/check-variants-*.txt "$res"/*-results/tests.txt; do
+        for f in "$res"/debug-check.txt "$res"/docs-check.txt "$res"/split-compare.txt "$res"/check-php-*.txt "$res"/check-variants-*.txt "$res"/*-results/tests.txt; do
             [ -f "$f" ] || continue
             grep -q '^FAIL' "$f" || continue
             echo
