@@ -25,7 +25,7 @@ g_build() {
     set_cc "$_v"
     fetch "mariadb-$mv.tar.gz" ac5c003f725950a4cbf9829bd9b191b73f8ab0f2630d6dbc6292fc5244d3c7cb \
         "https://archive.mariadb.org/mariadb-$mv/source/mariadb-$mv.tar.gz" \
-        "https://downloads.mariadb.org/rest-api/mariadb/$mv/mariadb-$mv.tar.gz"
+        "https://ftp.nluug.nl/db/mariadb/mariadb-$mv/source/mariadb-$mv.tar.gz"
     unpack "mariadb-$mv.tar.gz" "$W/src/mdb-$_v"
     _b="$W/b-mariadb-$_v.log"
     _off=""

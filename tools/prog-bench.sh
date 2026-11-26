@@ -44,7 +44,8 @@
 #   redis     Redis 8.2.11: redis-server of each, redis-benchmark of clang19 (-P 16)
 #   postgresql PostgreSQL 18.7: pgbench -S and the TPC-B of pgbench (fsync off), and
 #             a query of generate_series, against the server of each
-#   python    Python 3.12.16: benchmarks of pyperformance (pure Python, --fast)
+#   python    Python 3.12.16 as lang/python312 (libpython3.12.so, LTO, no PIE,
+#             _FORTIFY_SOURCE=1): benchmarks of pyperformance (pure Python, --fast)
 #   magick    ImageMagick 7.1.2-35, ImageMagick 6.9.13-60, GraphicsMagick 1.3.49
 #             (Q16, no OpenMP, no modules): resize, blur, sharpen, rotate and colour
 #             operations on a picture of 4000x3000, timed
@@ -113,6 +114,19 @@ case " $variants " in *" gcc16 "*)
     [ -n "$gcc_bin" ] || die "no gcc16 (pkg install -r azsupport gcc16)"
     "$gcc_bin" --version | head -n 1 | grep -q ' 16\.2\.0' || die "gcc16 is not our 16.2.0: $("$gcc_bin" --version | head -n 1)" ;;
 esac
+case " $variants " in *" gcc16 "*)
+    # -pie for programs only: GCC takes the -pie of LDFLAGS after -shared and links a shared
+    # object as a program (lang/python312: "Scrt1.o: undefined reference to `main'"); clang
+    # leaves it out with -shared (IsPIE of its FreeBSD.cpp), and the libtool of PHP does not
+    # pass it to a shared library: a wrapper of gcc16 and g++16 drops it there
+    mkdir -p "$W/bin-gcc16"
+    for t in gcc16 g++16; do
+        printf '%s\n' '#!/bin/sh' 'case " $* " in *" -shared "*)' '    for a do shift; [ "$a" = -pie ] || set -- "$@" "$a"; done ;;' 'esac' \
+            "exec $(command -v "$t") \"\$@\"" > "$W/bin-gcc16/$t"
+        chmod 755 "$W/bin-gcc16/$t"
+    done
+    gcc_bin="$W/bin-gcc16/gcc16" gxx_bin="$W/bin-gcc16/g++16" ;;
+esac
 case " $variants " in *" clang23 "*)
     [ -x "$LLVM23/clang" ] || die "no clang23 (pkg install llvm23)"
     # the BINARY_ALIAS of Mk/bsd.overlay.mk
@@ -125,11 +139,15 @@ esac
 set_cc() {
     case "$1" in
     clang19)
+        unset AR NM RANLIB
         export PATH="$PATH0" CC=cc CXX=c++ CPP=cpp CFLAGS="$F" CXXFLAGS="$F" LDFLAGS="$LF" ;;
     clang23)
         export PATH="$W/bin-clang23:$PATH0" CC=/usr/local/bin/clang23 CXX=/usr/local/bin/clang++23 \
-            CPP=/usr/local/bin/clang-cpp23 CFLAGS="$F" CXXFLAGS="$F" LDFLAGS="$LF" ;;
+            CPP=/usr/local/bin/clang-cpp23 CFLAGS="$F" CXXFLAGS="$F" LDFLAGS="$LF"
+        export AR="$LLVM23/llvm-ar" NM="$LLVM23/llvm-nm" RANLIB="$LLVM23/llvm-ranlib" ;;
     gcc16)
+        # the archiver of GCC for the LTO of a build that has it (unbound, ffmpeg)
+        export AR=gcc-ar16 NM=gcc-nm16 RANLIB=gcc-ranlib16
         export PATH="$PATH0" CC="$gcc_bin -static-libgcc" CXX="$gxx_bin -static-libgcc -static-libstdc++" CPP=cpp16
         export CFLAGS="$F -std=gnu17 -fno-semantic-interposition"
         export CXXFLAGS="$F -fno-semantic-interposition" LDFLAGS="$LF" ;;
@@ -137,8 +155,9 @@ set_cc() {
     esac
 }
 # the compilers a file was built with, from its .comment (the C runtime of the base
-# system, crt1.o and the like, adds the base clang to every program)
-cc_of() { readelf -p .comment "$1" 2> /dev/null | grep -o -E '((FreeBSD )?clang version|GCC: \([^)]*\)) [0-9.]+' | sort -u | tr '\n' ' '; }
+# system, crt1.o and the like, adds the base clang to every program), and lld (it writes
+# "Linker: LLD <version>" there; GNU ld nothing)
+cc_of() { readelf -p .comment "$1" 2> /dev/null | grep -o -E '((FreeBSD )?clang version|GCC: \([^)]*\)|Linker: LLD) [0-9.]+' | sort -u | tr '\n' ' '; }
 
 # need <package>...: packages of FreeBSD (the repository FreeBSD-ports) the group needs
 need() {
@@ -249,7 +268,7 @@ report() {
         echo
         echo "FreeBSD $(uname -r), $(sysctl -n hw.model), $ncpu CPUs; rounds $rounds, medians;"
         echo "variants: $variants_all; the base of the comparison: clang19."
-        echo "flags: $F; LDFLAGS $LF (gcc16: and -std=gnu17 for C, -fno-semantic-interposition, -static-libgcc, -static-libstdc++ for C++)"
+        echo "flags: $F; LDFLAGS $LF (gcc16: and -std=gnu17 for C, -fno-semantic-interposition, -static-libgcc, -static-libstdc++ for C++; -pie left out of a link with -shared, as clang does); a group or a program with flags of its own (as its port) says so"
         echo
         echo "compiler clang19: $(cc --version | head -n 1) — the cc of the base system; its linker: ${_ld19:-?}"
         case " $variants_all " in *" clang23 "*)
@@ -439,11 +458,18 @@ g_python() {
         https://www.python.org/ftp/python/3.12.16/Python-3.12.16.tar.xz
     for v in $variants; do
         set_cc "$v"
+        # as lang/python312: libpython3.12.so (--enable-shared) and LTO (the options of the
+        # official package), no PIE (PIE_UNSAFE: GCC links the modules as programs with
+        # -shared -pie), _FORTIFY_SOURCE=1 (level 2: __chk_fail of the getsockname of
+        # <ssp/socket.h> with GCC, the port)
+        _cf="$(echo "$CFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//' -e 's/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1/')"
+        _lf="$(echo "$LDFLAGS" | sed -e 's/-pie //')"
         unpack Python-3.12.16.tar.xz "$W/src/py-$v"
-        (cd "$W/src/py-$v" && ./configure --prefix="$W/py-$v" --with-ensurepip=install CC="$CC" CFLAGS="$CFLAGS" \
-            CPPFLAGS=-I/usr/local/include LDFLAGS="-L/usr/local/lib $LDFLAGS" && gmake -j"$ncpu" && gmake install) \
+        (cd "$W/src/py-$v" && ./configure --prefix="$W/py-$v" --enable-shared --with-lto --with-ensurepip=install \
+            CC="$CC" CFLAGS="$_cf" CPPFLAGS=-I/usr/local/include \
+            LDFLAGS="-L/usr/local/lib -Wl,-rpath,$W/py-$v/lib $_lf" && gmake -j"$ncpu" && gmake install) \
             > "$W/b-py-$v.log" 2>&1 || bfail "python $v" "$W/b-py-$v.log"
-        say "python $v: $(cc_of "$W/py-$v/bin/python3.12")"
+        say "python $v: $(cc_of "$W/py-$v/lib/libpython3.12.so.1.0")"
     done
     export PATH="$PATH0"
     python3 -m venv "$W/pt" && "$W/pt/bin/pip" -q install pyperformance > "$W/pip.log" 2>&1 || bfail "pip install pyperformance" "$W/pip.log"
@@ -475,10 +501,14 @@ for b in d["benchmarks"]:
 g_magick() {
     fetch ImageMagick-7.1.2-35.tar.xz fce4636c81a3a4670ece47927f7ff924b94f09f8c7a92e6443579899713fd564 \
         https://download.imagemagick.org/archive/releases/ImageMagick-7.1.2-35.tar.xz \
-        https://ftp.acc.umu.se/mirror/imagemagick.org/ftp/releases/ImageMagick-7.1.2-35.tar.xz
+        https://ftp.acc.umu.se/mirror/imagemagick.org/ftp/releases/ImageMagick-7.1.2-35.tar.xz \
+        https://mirror.dogado.de/imagemagick/releases/ImageMagick-7.1.2-35.tar.xz \
+        https://imagemagick.org/archive/releases/ImageMagick-7.1.2-35.tar.xz
     fetch ImageMagick-6.9.13-60.tar.xz 8e25148ca3c0bc66bb5aa78c7e7a272b61d0d4a00f337e82dfbfeda28c845239 \
         https://download.imagemagick.org/archive/releases/ImageMagick-6.9.13-60.tar.xz \
-        https://ftp.acc.umu.se/mirror/imagemagick.org/ftp/releases/ImageMagick-6.9.13-60.tar.xz
+        https://ftp.acc.umu.se/mirror/imagemagick.org/ftp/releases/ImageMagick-6.9.13-60.tar.xz \
+        https://mirror.dogado.de/imagemagick/releases/ImageMagick-6.9.13-60.tar.xz \
+        https://imagemagick.org/archive/releases/ImageMagick-6.9.13-60.tar.xz
     fetch GraphicsMagick-1.3.49.tar.xz 7efa070dc31116b4315061b39f84bc7181e8b060bf61214ec9af851131af9c81 \
         https://downloads.sourceforge.net/project/graphicsmagick/graphicsmagick/1.3.49/GraphicsMagick-1.3.49.tar.xz
     for v in $variants; do
