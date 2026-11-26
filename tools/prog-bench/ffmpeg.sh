@@ -55,7 +55,8 @@ g_build() {
         --enable-encoder=libx264,libsvtav1,aac,mjpeg,png,libwebp,wrapped_avframe,pcm_s16le \
         --enable-muxer=mp4,mov,matroska,webm,avif,image2,mjpeg,webp,null \
         --enable-filters && gmake -j"$ncpu" && gmake install) > "$_b" 2>&1; then
-        bok ffmpeg "$_v" "$W/ffmpeg-$_v/bin/ffmpeg"
+        # the program installed is stripped (no .comment): the compilers of ffmpeg_g
+        bok ffmpeg "$_v" "$W/src/ffmpeg-$_v/ffmpeg_g"
     else
         bno ffmpeg "$_v" "$_b"
     fi
@@ -75,24 +76,24 @@ g_bench() {
     need ffmpeg
     I=/mnt/pbrd
     src="testsrc2=size=1920x1080:rate=25"
-    ffmpeg -nostdin -loglevel error -y -f lavfi -i "$src" -f lavfi -i sine=frequency=440:sample_rate=48000 -t 20 \
+    ffmpeg -nostdin -loglevel error -y -f lavfi -i "$src" -f lavfi -i sine=frequency=440:sample_rate=48000 -t 60 \
         -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart "$I/h264.mp4" > "$W/ffin.log" 2>&1 ||
         die "ffmpeg of the packages: no input H.264 ($(tail -n 3 "$W/ffin.log" | tr '\n' ' '))"
     ins="h264"
-    ffmpeg -nostdin -loglevel error -y -f lavfi -i "$src" -t 10 -c:v libx265 -preset fast -crf 26 -pix_fmt yuv420p "$I/hevc.mp4" >> "$W/ffin.log" 2>&1 && ins="$ins hevc"
-    ffmpeg -nostdin -loglevel error -y -f lavfi -i "$src" -t 10 -c:v libvpx-vp9 -deadline realtime -cpu-used 8 -b:v 3M -pix_fmt yuv420p "$I/vp9.webm" >> "$W/ffin.log" 2>&1 && ins="$ins vp9"
-    { ffmpeg -nostdin -loglevel error -y -f lavfi -i "$src" -t 10 -c:v libsvtav1 -preset 10 -crf 35 -pix_fmt yuv420p "$I/av1.mkv" ||
-        ffmpeg -nostdin -loglevel error -y -f lavfi -i "$src" -t 10 -c:v libaom-av1 -cpu-used 8 -crf 35 -pix_fmt yuv420p "$I/av1.mkv"; } >> "$W/ffin.log" 2>&1 && ins="$ins av1"
+    ffmpeg -nostdin -loglevel error -y -f lavfi -i "$src" -t 30 -c:v libx265 -preset fast -crf 26 -pix_fmt yuv420p "$I/hevc.mp4" >> "$W/ffin.log" 2>&1 && ins="$ins hevc"
+    ffmpeg -nostdin -loglevel error -y -f lavfi -i "$src" -t 30 -c:v libvpx-vp9 -deadline realtime -cpu-used 8 -b:v 3M -pix_fmt yuv420p "$I/vp9.webm" >> "$W/ffin.log" 2>&1 && ins="$ins vp9"
+    { ffmpeg -nostdin -loglevel error -y -f lavfi -i "$src" -t 30 -c:v libsvtav1 -preset 10 -crf 35 -pix_fmt yuv420p "$I/av1.mkv" ||
+        ffmpeg -nostdin -loglevel error -y -f lavfi -i "$src" -t 30 -c:v libaom-av1 -cpu-used 8 -crf 35 -pix_fmt yuv420p "$I/av1.mkv"; } >> "$W/ffin.log" 2>&1 && ins="$ins av1"
     say "ffmpeg: the inputs: $ins"
     case " $ins " in *" hevc "*) ;; *) echo "no input HEVC (the ffmpeg of the packages has no libx265?): $(grep -i -m 1 -E 'unknown encoder|libx265' "$W/ffin.log")" >> "$W/fails/$group-notes.md" ;; esac
     for r in $(seq 1 "$rounds"); do
         say "ffmpeg: round $r of $rounds"
         for v in $(order "$r"); do
             have ffmpeg "$v" || continue
-            ff "$v" "decode H.264 1080p (20 s)" -threads 1 -i "$I/h264.mp4" -an -f null -
-            case " $ins " in *" hevc "*) ff "$v" "decode HEVC 1080p (10 s)" -threads 1 -i "$I/hevc.mp4" -an -f null - ;; esac
-            case " $ins " in *" vp9 "*) ff "$v" "decode VP9 1080p (10 s)" -threads 1 -i "$I/vp9.webm" -an -f null - ;; esac
-            case " $ins " in *" av1 "*) ff "$v" "decode AV1 1080p, libdav1d (10 s)" -threads 1 -c:v libdav1d -i "$I/av1.mkv" -an -f null - ;; esac
+            ff "$v" "decode H.264 1080p (60 s)" -threads 1 -i "$I/h264.mp4" -an -f null -
+            case " $ins " in *" hevc "*) ff "$v" "decode HEVC 1080p (30 s)" -threads 1 -i "$I/hevc.mp4" -an -f null - ;; esac
+            case " $ins " in *" vp9 "*) ff "$v" "decode VP9 1080p (30 s)" -threads 1 -i "$I/vp9.webm" -an -f null - ;; esac
+            case " $ins " in *" av1 "*) ff "$v" "decode AV1 1080p, libdav1d (30 s)" -threads 1 -c:v libdav1d -i "$I/av1.mkv" -an -f null - ;; esac
             ff "$v" "x264 medium 720p (10 s: decode, scale, the encoder of x264)" -threads 1 -i "$I/h264.mp4" -t 10 -an \
                 -vf scale=1280:720 -c:v libx264 -preset medium -crf 23 -x264-params threads=1 -f null -
             ff "$v" "scale 1080p to 720p, bicubic (testsrc2, 10 s)" -f lavfi -i "$src:duration=10" -vf scale=1280:720:flags=bicubic -f null -
@@ -104,7 +105,9 @@ g_bench() {
                     cpuset -l "$1" "$2" -nostdin -loglevel error -y -threads 1 -ss "$t" -i "$3" -frames:v 1 -vf scale=320:-2 -q:v 3 "$4/shot.jpg" || exit 1
                 done' sh "$last" "$W/ffmpeg-$v/bin/ffmpeg" "$I/h264.mp4" "$I"
             ff "$v" "PNG frames, 640 wide (2 s)" -threads 1 -i "$I/h264.mp4" -t 2 -an -vf scale=640:-2 -c:v png -f image2 "$I/f%03d.png"
-            ff "$v" "remux to MP4, faststart (20 s)" -i "$I/h264.mp4" -c copy -movflags +faststart "$I/remux.mp4"
+            timed "$v" ffmpeg "remux to MP4 with faststart, 60 s of video, 10 times" sh -c '
+                for i in 1 2 3 4 5 6 7 8 9 10; do cpuset -l "$1" "$2" -nostdin -loglevel error -y -i "$3" -c copy -movflags +faststart "$4" || exit 1; done' \
+                sh "$last" "$W/ffmpeg-$v/bin/ffmpeg" "$I/h264.mp4" "$I/remux.mp4"
         done
     done
 }
