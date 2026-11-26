@@ -24,20 +24,16 @@ g_need() {
     need zstd pcre2
 }
 
-g_build() {
+# dovecot_build <variant>: Dovecot by the variant (CFLAGS of the environment)
+dovecot_build() {
     _v="$1"
-    set_cc "$_v"
-    fetch dovecot-2.3.21.1.tar.gz 2d90a178c4297611088bf7daae5492a3bc3d5ab6328c3a032eb425d2c249097e \
-        https://www.dovecot.org/releases/2.3/dovecot-2.3.21.1.tar.gz
-    fetch postfix-3.11.8.tar.gz 244bca208c86f678ad0a72ff1f744ec8ef922ccf3310851f6c992ff44bb5b4ff \
-        https://de.postfix.org/ftpmirror/official/postfix-3.11.8.tar.gz https://archive.mgm51.com/mirrors/postfix-source/official/postfix-3.11.8.tar.gz \
-        https://ftp.porcupine.org/mirrors/postfix-release/official/postfix-3.11.8.tar.gz
     unpack dovecot-2.3.21.1.tar.gz "$W/src/dovecot-$_v"
     _b="$W/b-dovecot-$_v.log"
     : > "$_b"
     for p in "$top"/mail/dovecot/files/patch-*; do
         (cd "$W/src/dovecot-$_v" && patch -s -p0 < "$p") >> "$_b" 2>&1 || echo "FAIL: ${p##*/}" >> "$_b"
     done
+    rm -rf "$W/dovecot-$_v"
     if (cd "$W/src/dovecot-$_v" && ./configure --prefix="$W/dovecot-$_v" --with-ssl=openssl --with-shadow=no \
         --with-systemd=no --with-zstd --without-gssapi --without-ldap --without-lucene --without-solr \
         --without-icu --without-lz4 --without-sodium --without-libunwind --without-lua --without-docs \
@@ -48,6 +44,33 @@ g_build() {
         bno dovecot "$_v" "$_b"
     fi
     rm -rf "$W/src/dovecot-$_v"
+}
+
+# dovecot_check <variant>: a login and a SELECT through the dovecot of the variant
+dovecot_check() {
+    dovecot_conf "$1"
+    : > "$W/dovecot.log"
+    cpuset -l "$last" "$W/dovecot-$1/sbin/dovecot" -c "$W/dovecot-$1.conf" > "$W/dovecot-start.log" 2>&1
+    _ok=1
+    if waitport 1143; then
+        python3 -c 'import imaplib; m = imaplib.IMAP4("127.0.0.1", 1143); m.login("u1", "pass"); m.select("INBOX"); m.logout()' > "$W/dovecot-check.log" 2>&1 || _ok=0
+    else
+        _ok=0
+    fi
+    "$W/dovecot-$1/bin/doveadm" -c "$W/dovecot-$1.conf" stop > /dev/null 2>&1 || pkill -f "$W/dovecot-$1/sbin/dovecot"
+    sleep 2
+    [ "$_ok" = 1 ]
+}
+
+g_build() {
+    _v="$1"
+    set_cc "$_v"
+    fetch dovecot-2.3.21.1.tar.gz 2d90a178c4297611088bf7daae5492a3bc3d5ab6328c3a032eb425d2c249097e \
+        https://www.dovecot.org/releases/2.3/dovecot-2.3.21.1.tar.gz
+    fetch postfix-3.11.8.tar.gz 244bca208c86f678ad0a72ff1f744ec8ef922ccf3310851f6c992ff44bb5b4ff \
+        https://de.postfix.org/ftpmirror/official/postfix-3.11.8.tar.gz https://archive.mgm51.com/mirrors/postfix-source/official/postfix-3.11.8.tar.gz \
+        https://ftp.porcupine.org/mirrors/postfix-release/official/postfix-3.11.8.tar.gz
+    dovecot_build "$_v"
     unpack postfix-3.11.8.tar.gz "$W/src/postfix-$_v"
     _b="$W/b-postfix-$_v.log"
     : > "$_b"
@@ -61,7 +84,7 @@ g_build() {
         AUXLIBS="$LDFLAGS -lssl -lcrypto" AUXLIBS_PCRE="$(pcre2-config --libs8)" shared=no dynamicmaps=no &&
         gmake) >> "$_b" 2>&1 && [ -x "$W/src/postfix-$_v/libexec/master" ]; then
         mkdir -p "$W/postfix-$_v"
-        cp -R "$W/src/postfix-$_v/bin" "$W/src/postfix-$_v/libexec" "$W/src/postfix-$_v/conf" "$W/postfix-$_v/"
+        cp -R "$W/src/postfix-$_v/bin" "$W/src/postfix-$_v/libexec" "$W/src/postfix-$_v/conf" "$W/src/postfix-$_v/man" "$W/postfix-$_v/"
         [ -x "$W/postfix-$_v/bin/smtp-source" ] || cp "$W/src/postfix-$_v/src/smtpstone/smtp-source" "$W/postfix-$_v/bin/"
         cp "$W/src/postfix-$_v/postfix-install" "$W/postfix-$_v/"
         bok postfix "$_v" "$W/postfix-$_v/libexec/smtpd"
@@ -149,6 +172,24 @@ elif mode == 'bodies':
             assert t == 'OK'
 m.logout()
 EOF
+    # each dovecot answers a login; one of gcc16 that does not (45907280252: "service(imap-login):
+    # command startup failed", the processes aborted at their start, as the __chk_fail of
+    # _FORTIFY_SOURCE=2 with GCC: lang/python312, erlang here) built again with _FORTIFY_SOURCE=1
+    for v in $variants; do
+        have dovecot "$v" || continue
+        dovecot_check "$v" && continue
+        say "dovecot $v: no login: $(tail -n 2 "$W/dovecot-check.log" | tr '\n' ' '); $(grep -i -E 'error|fatal|panic' "$W/dovecot.log" | tail -n 2 | tr '\n' ' ')"
+        if [ "$v" = gcc16 ]; then
+            echo "dovecot gcc16: with _FORTIFY_SOURCE=2 its processes do not start ($(grep -i -E 'error|fatal|panic' "$W/dovecot.log" | tail -n 1)); measured the build with _FORTIFY_SOURCE=1" >> "$W/fails/$group-notes.md"
+            set_cc gcc16
+            export CFLAGS="$(echo "$CFLAGS" | sed 's/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1/')"
+            dovecot_build gcc16
+            export PATH="$PATH0"
+            dovecot_check gcc16 || { say "dovecot gcc16: no login with _FORTIFY_SOURCE=1 either"; rm -f "$W/ok/$group-dovecot-gcc16"; }
+        else
+            rm -f "$W/ok/$group-dovecot-$v"
+        fi
+    done
     # Postfix: the main.cf of the benchmark (made once by postfix-install of clang19)
     Q=/mnt/pbrd/pfq
     ss="$(ls "$W"/postfix-clang19/bin/smtp-source "$W"/postfix-clang19/libexec/smtp-source 2> /dev/null | head -n 1)"
@@ -165,7 +206,8 @@ EOF
                     timed "$v" dovecot "FETCH of the envelopes of 20000 with the index, 5 times" cpuset -l "$others" $py "$W/imapb.py" envelopes 5
                     timed "$v" dovecot "SEARCH BODY of a word in 20000, 3 times (no FTS)" cpuset -l "$others" $py "$W/imapb.py" search
                     timed "$v" dovecot "4 clients: 1000 whole messages each" sh -c '
-                        for i in 1 2 3 4; do cpuset -l "$1" python3 "$2" bodies "$i" & done; wait' sh "$others" "$W/imapb.py"
+                        p=""; for i in 1 2 3 4; do cpuset -l "$1" python3 "$2" bodies "$i" & p="$p $!"; done
+                        s=0; for i in $p; do wait "$i" || s=1; done; exit "$s"' sh "$others" "$W/imapb.py"
                 else
                     say "dovecot $v: did not start: $(tail -n 3 "$W/dovecot-start.log" "$W/dovecot.log" 2> /dev/null | tr '\n' ' ')"
                 fi
@@ -180,7 +222,7 @@ EOF
                 cp "$W/postfix-$v/conf"/* "$P/etc/" 2> /dev/null
                 (cd "$W/postfix-$v" && sh postfix-install -non-interactive install_root=/ tempdir="$W" config_directory="$P/etc" \
                     command_directory="$P/sbin" daemon_directory="$P/libexec" data_directory="$P/data" queue_directory="$Q" \
-                    meta_directory="$P/etc" shlib_directory=no html_directory=no manpage_directory=no readme_directory=no \
+                    meta_directory="$P/etc" shlib_directory=no html_directory=no manpage_directory="$P/man" readme_directory=no \
                     sendmail_path="$P/sbin/sendmail" newaliases_path="$P/bin/newaliases" mailq_path="$P/bin/mailq" \
                     mail_owner=postfix setgid_group=maildrop) > "$W/pf-install-$v.log" 2>&1 ||
                     { say "postfix $v: postfix-install: $(tail -n 3 "$W/pf-install-$v.log" | tr '\n' ' ')"; continue; }
