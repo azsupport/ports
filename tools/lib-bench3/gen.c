@@ -151,7 +151,7 @@ html(long mb)
 		word(w2, sizeof(w2));
 		switch (k) {
 		case 0:
-			out += printf("<P>%s <b>%s <i>%s</b></i> &copy; &nbsp;%s\n", w, w2, w, w2);
+			out += printf("<P>%s <b>%s <i>%s</i></b> &copy; &nbsp;%s\n", w, w2, w, w2);
 			break;
 		case 1:
 			out += printf("<TABLE border=1 width=100%%><tr><td>%s<td>%s<tr><TD align=center>%d</TD></table>\n",
@@ -175,7 +175,8 @@ html(long mb)
 			out += printf("</font><br>\n");
 			break;
 		default:
-			out += printf("<h%d>%s</h%d>\n<p>%s & %s <%s\n", 1 + R(4), w, 1 + R(4), w2, w, "br");
+			k = 1 + R(4);
+			out += printf("<h%d>%s</h%d>\n<p>%s & %s <br>\n", k, w, k, w2, w);
 			break;
 		}
 	}
