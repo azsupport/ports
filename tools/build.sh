@@ -3025,8 +3025,11 @@ done
 # that name in the repository any more (away above: the ABI check, a port gone; a run of a
 # branch with some of the ports only, 26.11.2026: nginx-devel-stream-lua kept, its
 # nginx-devel-stream away, and pkg refused every package of the servers of the tests, "has a
-# missing dependency", run 45845078349) cannot be installed: away too, and in turn those that
-# need it; a run with their ports builds them again
+# missing dependency", run 45845078349), or whose dependency is of a port of neither tree
+# (a port renamed: python312, mc, glib and py312-sqlite3 kept on "az" after it became
+# azsupport, and the tests of build-jail.yml 45734425567 had none of them), cannot be
+# installed: away too, and in turn those that need it; a run with their ports builds them
+# again
 : > "$q/rp-pk"; : > "$q/rp-dp"
 for f in "$repo"/*.pkg; do
     [ -f "$f" ] || continue
@@ -3034,7 +3037,9 @@ for f in "$repo"/*.pkg; do
     pkg query -F "$f" '%n %o' 2> /dev/null | awk -v f="${f##*/}" 'NF == 2 { print f, $1, $2 }' >> "$q/rp-pk"
     pkg query -F "$f" '%dn %do' 2> /dev/null | awk -v f="${f##*/}" 'NF == 2 { print f, $1, $2 }' >> "$q/rp-dp"
 done
-awk '{ print $3 }' "$q/rp-dp" | LC_ALL=C sort -u | while read -r o; do ours "$o" && echo "$o"; done > "$q/rp-ours"
+awk '{ print $3 }' "$q/rp-dp" | LC_ALL=C sort -u | while read -r o; do
+    if ours "$o" || [ ! -f "$portsr/${o%%@*}/Makefile" ]; then echo "$o"; fi
+done > "$q/rp-ours"
 awk 'FILENAME == ARGV[1] { ours[$1] = 1; next }
      FILENAME == ARGV[2] { have[$2] = $1; name[$1] = $2; next }
      ($3 in ours) { need[$1] = need[$1] " " $2 }
@@ -3051,11 +3056,11 @@ awk 'FILENAME == ARGV[1] { ours[$1] = 1; next }
          } while (ch)
      }' "$q/rp-ours" "$q/rp-pk" "$q/rp-dp" > "$q/rp-away"
 while read -r f d; do
-    say "the repository: $f away: it needs $d of this tree, which has no package in the repository (a run with their ports builds them again)"
+    say "the repository: $f away: it needs $d, a port of this tree (or of neither tree) with no package in the repository (a run with their ports builds them again)"
     rm -f "$repo/$f"
 done < "$q/rp-away"
 if [ -s "$q/rp-away" ]; then
-    echo "dependencies: $(grep -c . "$q/rp-away") packages of the repository away, their dependencies of this tree not in it: $(awk '{ print $1 }' "$q/rp-away" | head -n 12 | tr '\n' ' ')$( [ "$(grep -c . "$q/rp-away")" -gt 12 ] && echo '...')" >> "$sum"
+    echo "dependencies: $(grep -c . "$q/rp-away") packages of the repository away, their dependencies of this tree (or of neither tree) not in it: $(awk '{ print $1 }' "$q/rp-away" | head -n 12 | tr '\n' ' ')$( [ "$(grep -c . "$q/rp-away")" -gt 12 ] && echo '...')" >> "$sum"
 fi
 # no manual pages, docs or info pages in a package (aZ, 20.11.2026): every package of the
 # repository, built now or kept (tools/docs-check.sh); results/docs-check.txt, of which
