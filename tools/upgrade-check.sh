@@ -10,7 +10,7 @@
 # libraries (ldd), the same modules of PHP (php84 -m), the smoke tests of gd, intl (the time
 # zone data), xsl, curl and ssh2, what pkg autoremove would take; with --keep-static the
 # package of the static tree is marked as installed by hand first (a server that builds
-# PHP against the static tree: tools/azsupport-menu.sh of azsupport/php-src), and the static
+# PHP against the static tree: tools/azsupport-ports.sh of azsupport/php-src), and the static
 # tree has to stay.
 #
 # Usage (as root on FreeBSD, a machine without packages of azsupport: the VM of

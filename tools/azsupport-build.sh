@@ -18,7 +18,7 @@
 # other libraries of the shared tree; nothing of the static tree (its headers of
 # the OpenSSL of the port, its archives, which the linker would take as they are
 # or leave for a .so of the same name) is seen by it. PHP built against the static
-# tree on a server (tools/azsupport-menu.sh of azsupport/php-src: php, php-fpm,
+# tree on a server (tools/azsupport-ports.sh of azsupport/php-src: php, php-fpm,
 # php-cgi, libphp.so) needs no library of /usr/local/lib: a pkg upgrade or packages
 # of another FreeBSD version cannot break it, and in Apache the copies of the
 # libraries in PHP do not mix with those of other modules (their symbols stay

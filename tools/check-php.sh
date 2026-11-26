@@ -497,10 +497,10 @@ tls_check() {
     tls_pid=""
 }
 
-# the packages: the core, not the static PHP of azsupport-menu.sh in its place
+# the packages: the core, not the static PHP of azsupport-ports.sh in its place
 pkg info -e "php$short" || fail "package php$short" "not installed"
 if pkg info -e "php$short-static"; then
-    fail "package php$short-static" "installed (the static PHP of azsupport-menu.sh has the files of php$short)"
+    fail "package php$short-static" "installed (the static PHP of azsupport-ports.sh has the files of php$short)"
 fi
 if ! runs "php$short -v" "$php" -v; then
     say "result: $nok ok, $nfail failed, $nskip skipped ($sum)"

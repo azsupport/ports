@@ -11,7 +11,7 @@
 #   package       origin                 files
 #   azsupport     azsupport/azsupport    /usr/local/azsupport/static: the static tree
 #                                        static/{lib,include,bin}, for PHP built on a
-#                                        server (tools/azsupport-menu.sh of
+#                                        server (tools/azsupport-ports.sh of
 #                                        azsupport/php-src), its manifests in
 #                                        static/share/azsupport/interface/, its
 #                                        licences in static/LICENSES/;
@@ -69,7 +69,7 @@
 # ports (with the run path /usr/local/azsupport/lib), of devel/pcre2 and devel/pcre,
 # the libcurl.so.4 of ftp/curl; never a static or bundled copy of a library another of
 # our ports has. The static tree is for PHP built on a server only
-# (tools/azsupport-menu.sh of azsupport/php-src).
+# (tools/azsupport-ports.sh of azsupport/php-src).
 #
 # The same packages as build-az.sh (the library package named az on 08.11.2026, azsupport
 # since 25.11.2026, aZ: «надо бренд продвигать»): names, origins, epochs, files, comments, descriptions,
