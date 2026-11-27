@@ -22,15 +22,22 @@
 #   no other package of the build machine gets into a module;
 # - after the install: libpython and the modules link the libraries of azsupport by their
 #   run path, _decimal libmpdec, _ssl and _hashlib the OpenSSL of the base system;
-# - the C compiled by GCC 16 of the ports instead of the base clang (USES=azgcc,
-#   Mk/Uses/azgcc.mk; a build dependency only), aZ 17.11.2026 («а) Python, Redis и
-#   xxhash в azsupport»): tools/prog-bench.sh measured Python 3.12.16 built with GCC 16
-#   against the base clang 19 (pyperformance --fast, 25 benchmarks, prog-bench run
-#   44043639827): faster in all of them, by 1.3% to 22.3%, the median 14.9%. After the
-#   install sysconfig names the compilers of the base system (cc, c++ and cpp in its
-#   _sysconfigdata and in the Makefile of config-3.12), so that an extension built
-#   with this Python (pip, setuptools) takes the base clang, not GCC, which a server
-#   has not.
+# - the C compiled by clang 23 of devel/llvm23 (Mk/bsd.overlay.mk: the compiler of the
+#   ports GCC does not build; a build dependency only), with ThinLTO (LTO: configure
+#   takes the flags of LTO for a compiler with clang or gcc in its name), aZ 27.11.2026
+#   08:39 («ну так на цланг23 его, а чем проблема?»): tools/prog-bench.sh measured Python
+#   3.12.16 (pyperformance --fast, 25 benchmarks, prog-bench run 45943733579, the three
+#   with LTO) against the base clang 19: clang 23 -4.7%, GCC 16 -5.4% by the median, the
+#   two within the spread (0.8%; clear wins of clang 23 in 10, of GCC 16 in 7). GCC 16
+#   takes _FORTIFY_SOURCE=1 only (with 2 the getsockname() of _socket called __chk_fail:
+#   pip in a venv aborted, run 45935459608) and no PIE (it links the modules as programs
+#   with -shared -pie); clang 23 builds with the level 2 and the PIE of
+#   tools/make.conf.in, as the other ports. GCC 16 from 17.11.2026 to 27.11.2026 (aZ: «а)
+#   Python, Redis и xxhash в azsupport», run 44043639827, LTO for neither).
+#   After the install sysconfig names the compilers of the base system (cc, c++, cpp and
+#   the ar of LTO in its _sysconfigdata and in the Makefile of config-3.12), so that an
+#   extension built with this Python (pip, setuptools) takes the base clang, not clang 23,
+#   which a server has not.
 # As in the official port: no _gdbm, _tkinter and _sqlite3 (aZ: gdbm and tkinter
 # not needed; py312-sqlite3 is our databases/py-sqlite3, on the SQLite of azsupport). The
 # flags of the build go into sysconfig as there: an extension built with this
@@ -81,23 +88,6 @@ RUN_DEPENDS=	${AZSUPPORT_PYTHON_LIBS:@l@${AZSUPPORT_PREFIX}/lib/${l}:azsupport/a
 
 USES=		compiler:c11 cpe ncurses pathfix pkgconfig \
 		python:${PYTHON_DISTVERSION:R},env shebangfix ssl tar:xz
-# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
-USES+=		azgcc
-# no PIE of the framework (WITH_PIE of tools/make.conf.in): GCC takes the -pie of LDFLAGS
-# after the -shared of LDSHARED, and the modules of lib-dynload were linked as programs
-# ("Scrt1.o: undefined reference to `main'", run 45702768445); python3.12 is a small
-# program over libpython3.12.so (--enable-shared), which is position independent anyway
-PIE_UNSAFE=	GCC links the modules as programs with -shared -pie
-# _FORTIFY_SOURCE=1, not the 2 of tools/make.conf.in: level 2 checks with
-# __builtin_object_size(ptr, 1), the size of the subobject, and GCC knows that
-# SAS2SA(&addrbuf) of socketmodule.c is &addrbuf.sa, a struct sockaddr of 16
-# bytes in a union, while the length is that of the union; the getsockname,
-# getpeername and recvfrom of <ssp/socket.h> of FreeBSD 15.1 called __chk_fail
-# for AF_UNIX and AF_INET6. The forkserver of multiprocessing aborted at its
-# getsockname, and compileall -j0 of the install with it ("EOFError: unexpected
-# EOF", no .pyc, run 45734425567). Level 1 takes the whole object (the union);
-# clang does not see the subobject through the inline function either.
-FORTIFY_SOURCE=	1
 PATHFIX_MAKEFILEIN=	Makefile.pre.in
 USE_LDCONFIG=	yes
 GNU_CONFIGURE=	yes
@@ -115,6 +105,10 @@ CONFIGURE_ENV+=		OPT="" # Null out OPT to respect user CFLAGS and remove optimiz
 # compile too: libpython3.12.a came with debug information (debug-check, build run
 # 44059209484); no debug in our builds (aZ, 17.11.2026)
 CONFIGURE_ENV+=		ac_cv_prog_cc_g=no
+# the llvm-ar of clang 23 for libpython3.12.a of objects of ThinLTO: configure looks for
+# llvm-ar in the PATH (llvm_path), where the base system has that of LLVM 19
+# (/usr/bin/llvm-ar), which does not read the bitcode of LLVM 23
+CONFIGURE_ENV+=		LLVM_AR=${LOCALBASE}/bin/llvm-ar${AZSUPPORT_CLANG}
 # azsupport and the base system: the include directory and the libraries of azsupport (expat.h
 # and -lexpat of --with-system-expat, libintl), with their run path; pkg-config
 # (libffi, readline) sees the .pc files of azsupport and of the base system only
@@ -129,13 +123,6 @@ TEST_ARGS=		TESTOPTS=-j${MAKE_JOBS_NUMBER}
 
 MAKE_ARGS+=		COMPILEALL_OPTS=-j${MAKE_JOBS_NUMBER} \
 			INSTALL_SHARED="${INSTALL_LIB}"				# Strip shared library
-# the strip of the binutils of the ports for the install -s of the make of CPython
-# too: the STRIPBIN that Mk/Uses/azgcc.mk exports did not reach it, and the strip of
-# the base system left libpython, python3.12 and lib-dynload without .comment
-# (17.11.2026: run 44149788389; with this, run 44180456352: GCC 16 there); only
-# here, not in Mk/Uses/azgcc.mk, whose change would build every port of PHP again
-# for the same files
-MAKE_ENV+=		STRIPBIN=${STRIP_CMD}
 
 SUB_FILES=		pkg-message
 SUB_LIST=		PYTHON_SUFFIX=${PYTHON_SUFFIX}
@@ -268,38 +255,19 @@ post-install:
 	@${REINPLACE_CMD} -e 's=/nxb-bin==' \
 		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/config-${PYTHON_VER}${ABIFLAGS}/Makefile
 .endif
-# the compilers of the build in sysconfig (GCC of USES=azgcc, its CC with -static-libgcc):
-# those of the base system instead, which an extension built on a server takes (pip,
-# setuptools); the bytecode of _sysconfigdata again
-.if ${AZSUPPORT_GCC} != no
-	@${SED} -i '' -e 's|gcc${AZSUPPORT_GCC} -static-libgcc|cc|g' -e 's|g++${AZSUPPORT_GCC}|c++|g' -e 's|cpp${AZSUPPORT_GCC}|cpp|g' \
+# the compilers of the build in sysconfig (clang 23 of devel/llvm23: CC, CXX, CPP, LDSHARED,
+# the llvm-ar of LTO, CONFIG_ARGS): those of the base system instead, which an extension
+# built on a server takes (pip, setuptools), by Mk/azsupport-cc-names.sh (it fails when one
+# is left); the bytecode of _sysconfigdata again (the azsupport-cc-names of POST_PLIST after
+# the install finds nothing more there)
+	@${SETENV} AZSUPPORT_CLANG=${LLVM_DEFAULT} LOCALBASE=${LOCALBASE} ${SH} ${AZSUPPORT_OVERLAY}/Mk/azsupport-cc-names.sh \
 		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/_sysconfigdata_${ABIFLAGS}_freebsd${OSREL:R}_.py \
 		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/config-${PYTHON_VER}${ABIFLAGS}/Makefile
-	@if ${GREP} -E -n 'gcc${AZSUPPORT_GCC}|g\+\+${AZSUPPORT_GCC}|cpp${AZSUPPORT_GCC}' \
-		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/_sysconfigdata_${ABIFLAGS}_freebsd${OSREL:R}_.py \
-		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/config-${PYTHON_VER}${ABIFLAGS}/Makefile; then \
-		${ECHO_MSG} "sysconfig still names GCC (above)"; ${FALSE}; fi
 	@cd ${WRKSRC} && ${SETENV} LD_LIBRARY_PATH=${WRKSRC} \
 		./python -E -m compileall -q -f -o 0 -o 1 -o 2 -d ${PREFIX}/lib/python${PYTHON_VER} \
 		${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/_sysconfigdata_${ABIFLAGS}_freebsd${OSREL:R}_.py
-.endif
 	for i in ${STAGEDIR}${PREFIX}/lib/python${PYTHON_VER}/lib-dynload/*.so; do \
 		${STRIP_CMD} $$i; done								# Strip shared extensions
-.if ${AZSUPPORT_GCC} != no
-# GCC 16 in the section .comment of libpython and python3.12, as python-test.sh of
-# azsupport/azsupport checks it: the strip of the base system removes the section,
-# that of the binutils of the ports keeps it (17.11.2026: the package of run
-# 44149788389 had no .comment at all); the files of the build next to the staged
-# ones, and the strip the environment named, when it is not there
-	@for f in ${STAGEDIR}${PREFIX}/lib/libpython${PYTHON_VER}${ABIFLAGS}.so.1.0 \
-		${STAGEDIR}${PREFIX}/bin/python${PYTHON_VER}${ABIFLAGS}; do \
-		if ! ${READELF:Ureadelf} -p .comment $$f 2>/dev/null | ${GREP} -q 'GCC: '; then \
-			${ECHO_MSG} "$$f: no GCC in its .comment (STRIPBIN=$${STRIPBIN:-unset}, STRIP_CMD=${STRIP_CMD})"; \
-			${ECHO_MSG} "the build: $$(${READELF:Ureadelf} -p .comment ${WRKSRC}/libpython${PYTHON_VER}${ABIFLAGS}.so.1.0 2>&1 | ${GREP} -c 'GCC: ') GCC line(s) in .comment of libpython of ${WRKSRC}"; \
-			${FALSE}; \
-		fi; \
-	done
-.endif
 	${INSTALL_DATA} ${WRKSRC}/Tools/gdb/libpython.py \
 		${STAGEDIR}${PREFIX}/lib/libpython${PYTHON_VER}${ABIFLAGS}.so.1.0-gdb.py
 # the libraries of azsupport by the run path of libpython and of the modules, libmpdec of
