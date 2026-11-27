@@ -100,10 +100,19 @@ g_bench() {
                 if waitport 4731; then
                     wpids=""
                     for i in 1 2 3 4; do
-                        cpuset -l "$others" "$gb/blobslap_worker" -h 127.0.0.1 -p 4731 > /dev/null 2>&1 &
+                        cpuset -l "$others" "$gb/blobslap_worker" -h 127.0.0.1 -p 4731 > "$W/blobslap-worker-$i.log" 2>&1 &
                         wpids="$wpids $!"
                     done
                     sleep 1
+                    # a probe of one job: a client whose jobs no worker takes would wait for ever
+                    if ! timeout 20 "$gb/blobslap_client" -h 127.0.0.1 -p 4731 -c 1 -n 1 > "$W/blobslap-probe.log" 2>&1; then
+                        say "gearmand $v: one job of blobslap did not complete in 20 s: $(tail -n 2 "$W/blobslap-probe.log" "$W/blobslap-worker-1.log" | tr '\n' ' ')"
+                        echo "gearmand $v: one job of blobslap did not complete in 20 s ($(tail -n 1 "$W/blobslap-worker-1.log")): not measured in this round" >> "$W/fails/$group-notes.md"
+                        # shellcheck disable=SC2086
+                        kill $wpids 2> /dev/null; wait $wpids 2> /dev/null
+                        kill "$pid"; wait "$pid" 2> /dev/null
+                        continue
+                    fi
                     # at most 300 s (a client whose jobs no worker takes waits for ever: 45905628133 stood 90 minutes)
                     timed "$v" gearmand "100000 jobs of 64-512 bytes, 100 at once (blobslap, 4 workers)" \
                         timeout 300 cpuset -l "$others" "$gb/blobslap_client" -h 127.0.0.1 -p 4731 -c 1000 -n 100 -m 64 -M 512
