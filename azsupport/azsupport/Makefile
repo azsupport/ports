@@ -200,8 +200,9 @@ BUILD_DEPENDS=	bison:devel/bison \
 # static tree links to its archive), to build and to run. GPLv3 or later.
 LIB_DEPENDS=	libimagequant.so:graphics/libimagequant
 # GCC of the packages for the shared libraries of AZSUPPORT_GCC_SO of tools/azsupport-build.sh
-# (sqlite3, expat, lcms2: at least 2% faster with it, tools/lib-bench.sh); a build
-# dependency only, nothing of it at run time (-static-libgcc)
+# (gcc_so there: the C libraries it builds clearly faster, by lib-bench.sh and
+# lib-bench3.sh, with the numbers); a build dependency only, nothing of it at run time
+# (-static-libgcc). zstd and lz4 by the cc of the base system (cc_base there).
 BUILD_DEPENDS+=	gcc16:lang/gcc16
 
 USES=		autoreconf:build gmake perl5 pkgconfig

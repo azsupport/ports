@@ -158,13 +158,21 @@ export PKG_CONFIG_LIBDIR="$P/lib/pkgconfig:$P/libdata/pkgconfig:/usr/libdata/pkg
 unset PKG_CONFIG_PATH
 # the PATH without the static tree, for the shared builds (so_env)
 path0="$PATH"
-# The shared libraries built with GCC of the packages instead of the base clang: those
-# that tools/lib-bench.sh found at least 2% faster with it, the whole interval of
-# about 95% below zero (aZ, 09.11.2026; lib-bench run 42619158312: expat -12.6%,
-# lcms2 -6.7%, sqlite3 -3.7%; the others the same or slower with GCC, so clang), and
+# The shared libraries built with GCC of the packages instead of clang (that of the port:
+# clang of devel/llvm<N>, AZSUPPORT_CC of Mk/bsd.overlay.mk): those that tools/lib-bench.sh
+# found at least 2% faster with it, the whole interval of about 95% below zero (aZ,
+# 09.11.2026; lib-bench run 42619158312: expat -12.6%, lcms2 -6.7%, sqlite3 -3.7%), and
 # xxhash, which tools/prog-bench.sh measured (aZ, 17.11.2026; prog-bench run
 # 44048576099, xxhsum -b: XXH3_64b -30.3%, XXH128 -31.2%, XXH32 -0.8%, XXH64 0; the
-# checksums of rsync are XXH3 and XXH128).
+# checksums of rsync are XXH3 and XXH128); since 27.11.2026 the C libraries it builds
+# clearly faster than clang 23 and the base clang 19 (aZ 08:43: «окей, следуем инфе с
+# тестов»; lib-bench3.sh of 26.11.2026, the geometric mean of the benchmarks of each against
+# clang 23, GCC 16 the clear winner of its run): libffi -16.9%, c-ares -13.8%, libiconv
+# -10.7%, libyaml -10.4%, libmaxminddb -7.8%, libxml2 -5.4%, tidy -4.1%, libmcrypt -2.9%,
+# libidn2 -2.8% (docs/compiler-choice/decision.md of azsupport/azsupport). Not the C++ ones
+# (icu, libheif, libde265, libmemcached, fmt: libstdc++ of GCC beside the libc++ of clang
+# in one process), not those of pictures but lcms2 (cairo, freetype2, webp: clang 23, the
+# rule of aZ), not zstd and lz4 (cc_base below).
 # Their static builds (b_*, for PHP built on a server) stay with clang: not measured.
 # GCC as lib-bench measured it and as the PHP ports have it (Mk/Uses/azgcc.mk):
 # -std=gnu17 (the C of clang 19; GCC 15 and later default to C23),
@@ -172,7 +180,7 @@ path0="$PATH"
 # a library to its own exported functions), -static-libgcc in CC (libgcc linked into
 # each library: no NEEDED libgcc_s.so.1; in CC because libtool passes no
 # -static-libgcc of LDFLAGS to the link of a shared library). AZSUPPORT_GCC_SO="": none.
-gcc_so="${AZSUPPORT_GCC_SO-sqlite3 expat lcms2 xxhash}"
+gcc_so="${AZSUPPORT_GCC_SO-sqlite3 expat lcms2 xxhash libffi c-ares libiconv libyaml libmaxminddb libxml2 tidy libmcrypt libidn2}"
 gcc_bin="${AZSUPPORT_GCC_BIN:-gcc16}"
 gcc_env() {
     g="$(command -v "$gcc_bin")" || { echo "== $1: no $gcc_bin (lang/${gcc_bin}, a BUILD_DEPENDS of azsupport/azsupport)"; return 1; }
@@ -344,7 +352,11 @@ b_gd() {
         { echo "== gd: configure found no libimagequant (src/config.h)"; return 1; }
     pc_add "$P/lib/pkgconfig/gdlib.pc" Requires.private imagequant
 }
-b_libmcrypt() { at "$1"; }
+# libmcrypt: C of 2007, what GCC 14 and later and clang 16 and later refuse (implicit int and
+# declarations, int-conversion, incompatible pointer types) warnings, as the base clang 19
+# has them (lib-bench3.sh built it so with the three)
+mcrypt_cflags="-Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-pointer-types"
+b_libmcrypt() { (CFLAGS="$CFLAGS $mcrypt_cflags"; export CFLAGS; at "$1"); }
 b_libevent() { at "$1" --enable-openssl --enable-thread-support --disable-samples --disable-libevent-regress; }
 b_libmemcached() {
     # no SASL (cyrus-sasl loads its mechanisms as modules); the hashes of the port
@@ -588,7 +600,7 @@ s_gd() {
     done
     return 0
 }
-s_libmcrypt() { at_so "$1"; }
+s_libmcrypt() { (CFLAGS="$CFLAGS $mcrypt_cflags"; export CFLAGS; at_so "$1"); }
 s_libmemcached() {
     cm_so "$1" -DENABLE_SASL=OFF -DBUILD_TESTING=OFF -DBUILD_DOCS=OFF -DBUILD_DOCSONLY=OFF \
         -DENABLE_HASH_FNV64=ON -DENABLE_HASH_HSIEH=ON -DENABLE_HASH_MURMUR=ON -DENABLE_MEMASLAP=OFF
@@ -678,8 +690,11 @@ s_sqlite3() {
 # of the servers); with INFO on the port removes doc/gmp.info and needs makeinfo
 s_gmp() { sed -i '' -e '/^SUBDIRS/ s|doc||' "$1/Makefile.in" && at_so "$1" --disable-cxx --enable-fat; }
 s_libxslt() { at_so "$1" --without-python --without-crypto --without-plugins; }
+# libffi: --undefined-version for lld (the base and LLVM 23: the version script names
+# symbols a target does not have, which lld 16 and later refuse); GCC links with the ld of
+# the binutils, which takes them (lib-bench3.sh: the flag for the two clangs only)
 s_libffi() {
-    (LDFLAGS="$LDFLAGS -Wl,--undefined-version"; export LDFLAGS
+    (case "$CC" in *gcc[0-9]*) ;; *) LDFLAGS="$LDFLAGS -Wl,--undefined-version"; export LDFLAGS ;; esac
         at_so "$1" --disable-multi-os-directory --disable-docs)
 }
 # libevent: as the static one (b_libevent), with the OpenSSL of the base system
@@ -1179,19 +1194,19 @@ finish_so() {
         esac
     done
     [ -s "$res/shared.txt" ] || echo "no shared library in $S/lib" >> "$res/shared-bad.txt"
-    # the libraries of AZSUPPORT_GCC_SO are those of GCC (lib<name> without a lib of the
-    # name and its -: libffi, c-ares)
+    # the libraries of AZSUPPORT_GCC_SO are those of GCC: the file of the link lib<name>.so
+    # (lib<name> without a lib of the name and its -: libffi, c-ares; libyaml-0.so.2)
     for n in $gcc_so; do
-        f="$(ls "$S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so."* 2>/dev/null | head -n 1)"
-        [ -n "$f" ] || continue
+        f="$(realpath "$S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so" 2>/dev/null)"
+        [ -f "$f" ] || { echo "$n of AZSUPPORT_GCC_SO: no $S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so, its compiler not checked"; continue; }
         readelf -p .comment "$f" 2>/dev/null | grep -q 'GCC:' ||
             echo "${f##*/}: of AZSUPPORT_GCC_SO, but its .comment names no GCC" >> "$res/shared-bad.txt"
     done
     # those of AZSUPPORT_CC_BASE of the clang of the base system alone (its crt files are of it
     # in every library): neither another clang nor GCC
     for n in $cc_base; do
-        f="$(ls "$S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so."* 2>/dev/null | head -n 1)"
-        [ -n "$f" ] || continue
+        f="$(realpath "$S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so" 2>/dev/null)"
+        [ -f "$f" ] || { echo "$n of AZSUPPORT_CC_BASE: no $S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so, its compiler not checked"; continue; }
         o="$(readelf -p .comment "$f" 2>/dev/null | grep -o -E 'GCC: \([^)]*\) [0-9.]+|clang version [0-9.]+' | sort -u)"
         b="$(/usr/bin/cc --version 2>/dev/null | grep -o -E 'clang version [0-9.]+' | head -n 1)"
         [ "$o" = "$b" ] ||
