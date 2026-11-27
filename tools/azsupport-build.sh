@@ -1507,6 +1507,18 @@ if [ -n "$failed" ]; then
     rc=1
     say "failed:$failed"
 fi
+# The compilers of the build named in the text files of the trees (the *-config scripts of
+# APR, ICU and curl, the libtool and apr_rules.mk of APR, the Makefile.inc of ICU) as those
+# of the base system, cc, c++ and cpp (Mk/azsupport-cc-names.sh, 27.11.2026): clang of
+# devel/llvm<N> (AZSUPPORT_CC) and GCC of lang/gcc<N> (gcc_so) are build dependencies of the
+# port only, and what a server builds against the trees (the PHP of azsupport-ports.sh of
+# azsupport/php-src, the modules of apxs) takes the compiler they name; before the checks
+# of finish_so, which fail a path of /usr/local outside the shared tree in a *-config script
+if ! sh "$tools/../Mk/azsupport-cc-names.sh" "$A" > "$res/cc-names.txt" 2>&1; then
+    printf '%-14s FAIL  %s\n' "cc names" "Mk/azsupport-cc-names.sh: $(tail -n 1 "$res/cc-names.txt")" >> "$res/summary.txt"
+    rc=1
+fi
+sed 's/^/    /' "$res/cc-names.txt"
 finish
 finish_so
 # the interface of each library (see interfaces)

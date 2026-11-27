@@ -196,7 +196,9 @@
 # hashes.txt, azsupport-interface.txt and abi-check.txt (azsupport), plan.txt (AZSUPPORT_PLAN), waves.txt
 # (AZSUPPORT_JOBS above 1, AZSUPPORT_DRYRUN), progress.log
 # (the screen lines as they come), logs/<category>_<port>.log, logs/chroots.log (the
-# catalogs and the official packages fetched at the start), pkg-repo.log; with AZSUPPORT_CONFIGURE_CHECK=1
+# catalogs and the official packages fetched at the start), pkg-repo.log, cc-path-check.txt
+# (tools/cc-path-check.sh on the packages built: the compilers of the build named in their
+# files, a line "compiler path:" each in the summary, the run fails); with AZSUPPORT_CONFIGURE_CHECK=1
 # configure-check.txt (each port with differences, the checks with their diagnostic,
 # then the others) and configure-check/ (a file per port, the two config.log files of
 # a port with differences).
@@ -1226,7 +1228,8 @@ base_hash="$({ echo "freebsd-ports files $off_hash"; echo "cputype $cputype"; ec
     printf '%s\n' "$off_repos" | awk 'NF { printf "%s%s %s", (n++ ? ", " : "official "), $1, $2 } END { if (n) print "" }'
     cat "$top/tools/make.conf.in"; } | hin)"
 base_hash_old="$({ echo "freebsd-ports $ports_head"; echo "cputype $cputype"; echo "builder chroot"; cat "$top/tools/make.conf.in"; } | hin)"
-mkdir -p "$q/dhash" "$q/hash-old" "$q/dhash-old" "$q/azcov" "$q/uncov" "$q/abifail"
+mkdir -p "$q/dhash" "$q/hash-old" "$q/dhash-old" "$q/azcov" "$q/uncov" "$q/abifail" "$q/ccpath"
+: > "$res/cc-path-check.txt"
 : > "$q/legacy"
 : > "$res/hashes.txt"
 : > "$q/deferred"
@@ -2075,6 +2078,22 @@ make_port() {
             note="; debug: $(grep -c '^FAIL' "$q/debug-$k") of its packages with debug information or not stripped (results/debug-check.txt)"
         cat "$q/debug-$k" >> "$res/debug-check.txt"
     fi
+    # the compilers of the build (clang of devel/llvm<N>, GCC of lang/gcc<N>: build dependencies
+    # only) named in text files of the packages of the port (tools/cc-path-check.sh, in the
+    # hash of no port; Mk/azsupport-cc-names.sh rewrites them in the stage), 27.11.2026: a line
+    # each in results/cc-path-check.txt and in the summary ($q/ccpath/<key>), the run fails and
+    # the packages of the port do not go into the repository, so that the next run builds it
+    # again; its own packages (devel/llvm*, lang/gcc*) said SKIP
+    if [ -f "$top/tools/cc-path-check.sh" ]; then
+        # shellcheck disable=SC2046
+        TMPDIR="$work" sh "$top/tools/cc-path-check.sh" $(cat "$q/made-$k") > "$q/ccp-$k" 2>&1
+        _ccr=$?
+        cat "$q/ccp-$k" >> "$res/cc-path-check.txt"
+        if [ "$_ccr" != 0 ]; then
+            grep '^FAIL ' "$q/ccp-$k" > "$q/ccpath/$k" || echo "FAIL $pn: tools/cc-path-check.sh exit $_ccr: $(tail -n 1 "$q/ccp-$k")" > "$q/ccpath/$k"
+            note="$note; compiler path: $(grep -c . "$q/ccpath/$k") files of its packages name the compilers of the build (results/cc-path-check.txt): not into the repository"
+        fi
+    fi
     # shellcheck disable=SC2046
     if _kb="$(krb_needs $(cat "$q/made-$k"))"; then
         # shellcheck disable=SC2046
@@ -2541,6 +2560,14 @@ while read -r n og hh f; do
     fi
 done < "$q/repo-had"
 for f in $(cat "$q/made"); do cp -p "$f" "$repo/" || say "cannot copy ${f##*/} into $repo"; done
+# the packages of a port whose files name the compilers of the build (make_port,
+# tools/cc-path-check.sh): not in the repository, the next run builds the port again
+for cf in "$q"/ccpath/*; do
+    [ -f "$cf" ] || continue
+    for f in $(cat "$q/made-${cf##*/}" 2> /dev/null); do
+        rm -f "$repo/${f##*/}" && say "the repository: ${f##*/} away: its port names the compilers of the build in its files (results/cc-path-check.txt)"
+    done
+done
 # no comma in the file names: GitHub renames an asset whose name has one (the epoch of
 # a version: ffmpeg-9.0.2_1,1.pkg), so the release would not have the file the catalog
 # names. A dot instead: pkg takes the name and the version from the package, and the
@@ -2628,8 +2655,11 @@ if [ -s "$res/hash-legacy.txt" ]; then
 fi
 # the packages that link libraries of azsupport their azsupport_hash does not take (azsupport_cover_check)
 uncov="$(cd "$q/uncov" && ls | sed 's/_/\//' | tr '\n' ' ' | sed 's/ $//')"
+# the files of packages built now that name the compilers of the build (make_port): a line each
+ccpath="$(cd "$q/ccpath" && ls | sed 's/_/\//' | tr '\n' ' ' | sed 's/ $//')"
+[ -z "$ccpath" ] || cat "$q"/ccpath/* | sed 's/^FAIL /compiler path: /' >> "$sum"
 echo "built:    $nok, kept from the repository: $nkept$( [ "$plan" = 1 ] && echo ", to be built (AZSUPPORT_PLAN): $nplan")${failed:+, failed:$failed}${skipped:+, not built:$skipped}" >> "$sum"
-if [ -z "$failed" ] && [ -z "$skipped" ] && [ "$repo_ok" = 1 ] && [ -z "$uncov" ]; then
+if [ -z "$failed" ] && [ -z "$skipped" ] && [ "$repo_ok" = 1 ] && [ -z "$uncov" ] && [ -z "$ccpath" ]; then
     echo "result:   OK" >> "$sum"
     say "OK: $nok built, $nkept kept from the repository ($repo)"
     exit 0
@@ -2639,6 +2669,7 @@ r=""
 [ -n "$skipped" ] && r="${r:+$r; }not built:$skipped"
 [ "$repo_ok" = 1 ] || r="${r:+$r; }pkg repo failed"
 [ -n "$uncov" ] && r="${r:+$r; }libraries of azsupport not in the azsupport_hash (AZSUPPORT_HASH_LIBS, results/azsupport-interface.txt): $uncov"
+[ -n "$ccpath" ] && r="${r:+$r; }the compilers of the build named in files of packages (results/cc-path-check.txt, not in the repository): $ccpath"
 echo "result:   FAIL ($r)" >> "$sum"
 say "FAIL ($r)"
 exit 1

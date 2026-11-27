@@ -172,3 +172,31 @@ azsupport-services:
 		${ECHO_CMD} "@dir share/azsupport/services/$$s" >> ${TMPPLIST}; \
 	done
 .endif
+
+# The compilers of the build named in the files of the package as those of the base system
+# (27.11.2026): clang of devel/llvm<N> (above) and GCC of lang/gcc<N> (Mk/Uses/azgcc.mk) are
+# build dependencies only, and what a server builds against a package takes the compiler the
+# package names (sysconfig of Python, Config of Perl, rbconfig.rb of Ruby, PGXS of
+# PostgreSQL, apxs and apr-1-config of Apache and APR, tclConfig.sh, the loadable builtins of
+# bash, curl-config, net-snmp-config, configure.xml of ImageMagick), a server has neither.
+# azsupport-cc-names, a target of POST_PLIST (after the install), rewrites with
+# Mk/azsupport-cc-names.sh the text files of the stage that name them: cc, c++ and cpp, ar,
+# nm, ranlib and ld for clang${LLVM_DEFAULT}, clang++${LLVM_DEFAULT}, clang-cpp${LLVM_DEFAULT}
+# and the tools of their LLVM, for gcc<N> (with -static-libgcc), g++<N>, cpp<N> and the gcc-ar,
+# gcc-nm and gcc-ranlib of GCC; inside the build the cc of the BINARY_ALIAS above is clang of
+# devel/llvm<N> again. Not for the compilers themselves (devel/llvm*, lang/gcc*).
+# tools/cc-path-check.sh (tools/build.sh) fails a run with a package that names them still.
+.if !(${.CURDIR:H:T} == devel && !empty(.CURDIR:T:Mllvm[0-9]*)) && \
+	!(${.CURDIR:H:T} == lang && !empty(.CURDIR:T:Mgcc[0-9]*))
+.  if empty(POST_PLIST:Mazsupport-cc-names)
+POST_PLIST+=	azsupport-cc-names
+.  endif
+.endif
+.if empty(AZSUPPORT_HASH_FILES:M${AZSUPPORT_OVERLAY}/Mk/azsupport-cc-names.sh)
+AZSUPPORT_HASH_FILES+=	${AZSUPPORT_OVERLAY}/Mk/azsupport-cc-names.sh
+.endif
+.if !target(azsupport-cc-names)
+azsupport-cc-names:
+	@${SETENV} AZSUPPORT_CLANG=${LLVM_DEFAULT} AZSUPPORT_GCC=${AZSUPPORT_GCC:U:M[0-9]*} LOCALBASE=${LOCALBASE} \
+		${SH} ${AZSUPPORT_OVERLAY}/Mk/azsupport-cc-names.sh ${STAGEDIR}
+.endif
