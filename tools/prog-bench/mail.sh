@@ -87,6 +87,10 @@ g_build() {
         cp -R "$W/src/postfix-$_v/bin" "$W/src/postfix-$_v/libexec" "$W/src/postfix-$_v/conf" "$W/src/postfix-$_v/man" \
             "$W/src/postfix-$_v/meta" "$W/postfix-$_v/"
         [ -x "$W/postfix-$_v/bin/smtp-source" ] || cp "$W/src/postfix-$_v/src/smtpstone/smtp-source" "$W/postfix-$_v/bin/"
+        # the files postfix-install takes from conf/ that make leaves at the top
+        for f in LICENSE TLS_LICENSE makedefs.out; do
+            [ -f "$W/postfix-$_v/conf/$f" ] || [ ! -f "$W/src/postfix-$_v/$f" ] || cp "$W/src/postfix-$_v/$f" "$W/postfix-$_v/conf/"
+        done
         cp "$W/src/postfix-$_v/postfix-install" "$W/postfix-$_v/"
         bok postfix "$_v" "$W/postfix-$_v/libexec/smtpd"
     else

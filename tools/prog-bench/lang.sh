@@ -93,13 +93,21 @@ g_build() {
     done
     # its libtcl84.so.1 (tcl.m4 on FreeBSD) and -ltcl84 of the link of tclsh: the link to it, as
     # the port has it in its stage
-    # the configure of Tcl 8.4 (autoconf 2.13, K&R C in its tests): its config.log into the log
-    # when it fails
+    # the configure of Tcl 8.4 (autoconf 2.13, K&R C and implicit int in its tests): its config.log
+    # into the log when it fails; with clang23 and gcc16 (45913465743: "C compiler cannot create
+    # executables", as clang19 did not) once more with these errors as warnings (the base clang 19
+    # of FreeBSD keeps implicit int and implicit declarations warnings), said in the report
     if (cd "$W/src/tcl-$_v/unix" && { ./configure --prefix="$W/tcl84-$_v" --enable-shared --enable-threads --enable-64bit ||
-        { tail -n 30 config.log; false; }; } &&
+        { tail -n 30 config.log; [ "$_v" != clang19 ] &&
+            echo "tcl84 $_v: its configure failed (above); again with -Wno-error=implicit-int -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-error=incompatible-pointer-types" &&
+            env CFLAGS="$CFLAGS -Wno-error=implicit-int -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-error=incompatible-pointer-types" \
+                ./configure --prefix="$W/tcl84-$_v" --enable-shared --enable-threads --enable-64bit; }; } &&
         { gmake -j"$ncpu" || { ln -sf libtcl84.so.1 libtcl84.so && gmake -j"$ncpu"; }; } &&
         gmake install-binaries install-libraries) >> "$_b" 2>&1 && [ -n "$(ls "$W/tcl84-$_v"/bin/tclsh* 2> /dev/null)" ]; then
         ln -sf "$(ls "$W/tcl84-$_v"/bin/tclsh* | head -n 1)" "$W/tcl84-$_v/bin/pbtclsh"
+        if grep -q '^tcl84 .*: its configure failed' "$_b"; then
+            echo "tcl84 $_v: its configure (autoconf 2.13) does not take this compiler with the errors of implicit int and implicit declarations (those of clang 23 and of GCC 14 and later; the base clang 19 keeps them warnings): measured with -Wno-error=implicit-int -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-error=incompatible-pointer-types" >> "$W/fails/$group-notes.md"
+        fi
         bok tcl84 "$_v" "$(ls "$W/tcl84-$_v"/lib/libtcl8* | head -n 1)"
     else
         bno tcl84 "$_v" "$_b"
@@ -273,11 +281,11 @@ g_bench() {
             fi
             if have calc "$v"; then
                 c="$W/calc-$v/calc"
-                for t in "fact(30000) mod a Mersenne prime|x = fact(30000); print x % (2^127 - 1);" \
-                    "the decimal digits of fact(8000)|print strlen(str(fact(8000)));" \
-                    "pi to 2000 digits|print pi(1e-2000) > 3;" \
-                    "ptest of 100000 numbers near 2^40|c = 0; for (i = 2^40; i < 2^40 + 100000; i++) if (ptest(i, 1)) c++; print c;" \
-                    "sin of 20000 numbers|x = 0; for (i = 1; i <= 20000; i++) x += sin(i / 1000); print x > 0;"; do
+                for t in "fact(300000) mod a Mersenne prime|x = fact(300000); print x % (2^127 - 1);" \
+                    "the decimal digits of fact(40000)|print strlen(str(fact(40000)));" \
+                    "pi to 20000 digits|print pi(1e-20000) > 3;" \
+                    "ptest of 2000000 numbers near 2^40|c = 0; for (i = 2^40; i < 2^40 + 2000000; i++) if (ptest(i, 1)) c++; print c;" \
+                    "sin of 400000 numbers|x = 0; for (i = 1; i <= 400000; i++) x += sin(i / 1000); print x > 0;"; do
                     timed "$v" calc "${t%%|*}" env LD_LIBRARY_PATH="$W/calc-$v" CALCPATH="$W/calc-$v/cal" cpuset -l "$last" "$c" -q -- "${t#*|}"
                 done
             fi
