@@ -516,6 +516,63 @@ g_postgresql() {
 }
 
 # ---------------------------------------------------------------- python
+# py_one <variant> <CFLAGS>: Python of the variant into $W/py-<variant>, as the port; then the
+# modules and pip in a venv of it (as pyperformance makes one for each benchmark); 1 when pip
+# does not install wheel there, its error in the notes of the report
+py_one() {
+    _v="$1" _cf="$2"
+    _lf="$(echo "$LDFLAGS" | sed -e 's/-pie //')"
+    # LTO: the configure of Python 3.12 sets its flags for a $CC of *clang* (ThinLTO, and
+    # llvm-ar as AR) or *gcc* (-flto -fuse-linker-plugin -ffat-lto-objects
+    # -flto-partition=none) alone; with cc (the default of the ports, the official package
+    # too) it builds without LTO, and so did clang19 in the runs up to 45907096652 (against
+    # the LTO of clang23 and gcc16). clang19 as clang (of the base system), the llvm-ar of
+    # each clang named; what configure took is said in the report
+    _pycc="$CC" _pyar=""
+    case "$_v" in
+    clang19) _pycc=clang; for _pyar in /usr/bin/llvm-ar /usr/bin/ar; do [ ! -x "$_pyar" ] || break; done ;;
+    clang23) _pyar="$LLVM23/llvm-ar" ;;
+    esac
+    unpack Python-3.12.16.tar.xz "$W/src/py-$_v"
+    rm -rf "$W/py-$_v" "$W/pyv-$_v"
+    # and OPT="" (the flags of the environment alone) and no -g, as the port
+    (cd "$W/src/py-$_v" && sed -i '' -e 's|^\( *MULTIARCH=\).*--print-multiarch.*|\1|' configure &&
+        env OPT= ac_cv_prog_cc_g=no LLVM_AR="$_pyar" ./configure --prefix="$W/py-$_v" --enable-shared --with-lto --with-ensurepip=install \
+        CC="$_pycc" CFLAGS="$_cf" CPPFLAGS=-I/usr/local/include \
+        LDFLAGS="-L/usr/local/lib -Wl,-rpath,$W/py-$_v/lib $_lf" && gmake -j"$ncpu" && gmake install) \
+        > "$W/b-py-$_v.log" 2>&1 || bfail "python $_v" "$W/b-py-$_v.log"
+    echo "python $_v: CC=$_pycc; $(grep -E '^(AR|CONFIGURE_CFLAGS_NODIST|CONFIGURE_LDFLAGS_NODIST)=' "$W/src/py-$_v/Makefile" | sed -e 's/[[:space:]]\{1,\}/ /g' | tr '\n' ';')" >> "$W/fails/python-notes.md"
+    say "python $_v: $(cc_of "$W/py-$_v/lib/libpython3.12.so.1.0"); $(tail -n 1 "$W/fails/python-notes.md")"
+    # the modules pyperformance and pip need (_sqlite3 is the port databases/py-sqlite3, not built here)
+    if ! "$W/py-$_v/bin/python3.12" -c 'import ssl, zlib, ctypes, hashlib, pyexpat, _json, _decimal' > "$W/pymod-$_v.log" 2>&1; then
+        say "python $_v: modules: $(tail -n 2 "$W/pymod-$_v.log" | tr '\n' ' ')"
+        { echo; echo "python $_v: a module does not load: $(tail -n 2 "$W/pymod-$_v.log" | tr '\n' ' ')"; echo '```'
+            grep -E -A 12 'necessary bits|Failed to build|could not be imported|_ssl|_hashlib' "$W/b-py-$_v.log" | tail -n 40; echo '```'; } >> "$W/fails/python-notes.md"
+    fi
+    # pip in a venv of it (gcc16 of 45894371224, 45921274917 and 45929193188: RequirementsInstallationFailedError:
+    # wheel in every benchmark; pip "Abort trap (core dumped)", exit 134, no traceback of faulthandler: the
+    # abort2(2) of the checks of libc, which says why in the messages of the kernel); in a directory of its own
+    # for its core: the reason of dmesg and the backtrace of lldb (of the base system) into the report
+    mkdir -p "$W/pycore-$_v" && rm -f "$W/pycore-$_v"/*.core
+    if (cd "$W/pycore-$_v" && "$W/py-$_v/bin/python3.12" -m venv "$W/pyv-$_v" && "$W/pyv-$_v/bin/python" -m pip install --no-cache-dir wheel) > "$W/pyv-$_v.log" 2>&1; then
+        return 0
+    fi
+    say "python $_v: pip in a venv: $(tail -n 3 "$W/pyv-$_v.log" | tr '\n' ' ' | cut -c1-300)"
+    {
+        echo; echo "python $_v (CFLAGS $_cf): pip in a venv of it does not install wheel; its last lines, the kernel, the backtrace of its core:"; echo '```'
+        tail -n 15 "$W/pyv-$_v.log"; echo '---'
+        dmesg | grep -i -E 'abort2|detected|signal 6|python' | tail -n 6; echo '---'
+        _core="$(ls "$W/pycore-$_v"/*.core 2> /dev/null | head -n 1)"
+        if [ -n "$_core" ] && command -v lldb > /dev/null; then
+            lldb --batch -o 'bt 40' -c "$_core" "$W/pyv-$_v/bin/python" 2>&1 | grep -v '^(lldb)' | tail -n 45
+        else
+            echo "no core ($(ls "$W/pycore-$_v" | tr '\n' ' ')) or no lldb"
+        fi
+        echo '```'
+    } >> "$W/fails/python-notes.md"
+    return 1
+}
+
 g_python() {
     fetch Python-3.12.16.tar.xz b5796915dc45ff745cfb4e990a7e7c93d6f546328a102ce31448d69ebc37575c \
         https://www.python.org/ftp/python/3.12.16/Python-3.12.16.tar.xz
@@ -525,43 +582,15 @@ g_python() {
         # official package), no PIE (PIE_UNSAFE: GCC links the modules as programs with
         # -shared -pie), _FORTIFY_SOURCE=1 (level 2: __chk_fail of the getsockname of
         # <ssp/socket.h> with GCC, the port)
-        _cf="$(echo "$CFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//' -e 's/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1/')"
-        _lf="$(echo "$LDFLAGS" | sed -e 's/-pie //')"
-        # LTO: the configure of Python 3.12 sets its flags for a $CC of *clang* (ThinLTO, and
-        # llvm-ar as AR) or *gcc* (-flto -fuse-linker-plugin -ffat-lto-objects
-        # -flto-partition=none) alone; with cc (the default of the ports, the official package
-        # too) it builds without LTO, and so did clang19 in the runs up to 45907096652 (against
-        # the LTO of clang23 and gcc16). clang19 as clang (of the base system), the llvm-ar of
-        # each clang named; what configure took is said in the report
-        _pycc="$CC" _pyar=""
-        case "$v" in
-        clang19) _pycc=clang; for _pyar in /usr/bin/llvm-ar /usr/bin/ar; do [ ! -x "$_pyar" ] || break; done ;;
-        clang23) _pyar="$LLVM23/llvm-ar" ;;
-        esac
-        unpack Python-3.12.16.tar.xz "$W/src/py-$v"
-        # and OPT="" (the flags of the environment alone) and no -g, as the port
-        (cd "$W/src/py-$v" && sed -i '' -e 's|^\( *MULTIARCH=\).*--print-multiarch.*|\1|' configure &&
-            env OPT= ac_cv_prog_cc_g=no LLVM_AR="$_pyar" ./configure --prefix="$W/py-$v" --enable-shared --with-lto --with-ensurepip=install \
-            CC="$_pycc" CFLAGS="$_cf" CPPFLAGS=-I/usr/local/include \
-            LDFLAGS="-L/usr/local/lib -Wl,-rpath,$W/py-$v/lib $_lf" && gmake -j"$ncpu" && gmake install) \
-            > "$W/b-py-$v.log" 2>&1 || bfail "python $v" "$W/b-py-$v.log"
-        echo "python $v: CC=$_pycc; $(grep -E '^(AR|CONFIGURE_CFLAGS_NODIST|CONFIGURE_LDFLAGS_NODIST)=' "$W/src/py-$v/Makefile" | sed -e 's/[[:space:]]\{1,\}/ /g' | tr '\n' ';')" >> "$W/fails/python-notes.md"
-        say "python $v: $(cc_of "$W/py-$v/lib/libpython3.12.so.1.0"); $(tail -n 1 "$W/fails/python-notes.md")"
-        # the modules pyperformance and pip need (gcc16 of 45894371224: pip could not install wheel;
-        # _sqlite3 is the port databases/py-sqlite3, not built here)
-        if ! "$W/py-$v/bin/python3.12" -c 'import ssl, zlib, ctypes, hashlib, pyexpat, _json, _decimal' > "$W/pymod-$v.log" 2>&1; then
-            say "python $v: modules: $(tail -n 2 "$W/pymod-$v.log" | tr '\n' ' ')"
-            { echo; echo "python $v: a module does not load: $(tail -n 2 "$W/pymod-$v.log" | tr '\n' ' ')"; echo '```'
-                grep -E -A 12 'necessary bits|Failed to build|could not be imported|_ssl|_hashlib' "$W/b-py-$v.log" | tail -n 40; echo '```'; } >> "$W/fails/python-notes.md"
-        fi
-        # pip in a venv of this Python, as pyperformance makes one for each benchmark (gcc16 of
-        # 45894371224 and 45921274917: RequirementsInstallationFailedError: wheel, in every one)
-        if ! { "$W/py-$v/bin/python3.12" -m venv "$W/pyv-$v" && "$W/pyv-$v/bin/python" -m pip install --no-cache-dir wheel; } > "$W/pyv-$v.log" 2>&1; then
-            say "python $v: pip in a venv: $(tail -n 3 "$W/pyv-$v.log" | tr '\n' ' ' | cut -c1-300)"
-            { echo; echo "python $v: pip in a venv of it does not install wheel (its last lines):"; echo '```'; tail -n 40 "$W/pyv-$v.log"; echo '```'
-                echo "python $v: the same with -X faulthandler -v, its last lines:"; echo '```'
-                "$W/pyv-$v/bin/python" -X faulthandler -m pip -v install --no-cache-dir wheel > "$W/pyv2-$v.log" 2>&1
-                echo "exit $?"; tail -n 40 "$W/pyv2-$v.log"; echo '```'; } >> "$W/fails/python-notes.md"
+        _pyf="$(echo "$CFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//' -e 's/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1/')"
+        if ! py_one "$v" "$_pyf" && [ "$v" = gcc16 ]; then
+            # gcc16 once more without _FORTIFY_SOURCE: measured if its pip works so, said
+            say "python gcc16: again without _FORTIFY_SOURCE"
+            if py_one gcc16 "$(echo "$_pyf" | sed -e 's/ -D_FORTIFY_SOURCE=1//')"; then
+                echo "python gcc16: its pip aborts with _FORTIFY_SOURCE=1 (above); measured the build without _FORTIFY_SOURCE" >> "$W/fails/python-notes.md"
+            else
+                echo "python gcc16: its pip aborts with _FORTIFY_SOURCE=1 and without it (above): not measured" >> "$W/fails/python-notes.md"
+            fi
         fi
     done
     export PATH="$PATH0"
