@@ -115,7 +115,8 @@ g_build() {
     # "Benchmarking your system's strstr() implementation" until the timeout); the same findings
     # for the three
     if [ "$_v" != clang19 ] && [ -f "$W/procmail-autoconf.h" ]; then
-        cp "$W/procmail-autoconf.h" "$W/src/procmail-$_v/autoconf.h" && touch "$W/src/procmail-$_v/autoconf.h"
+        # a time ahead of the Makefiles initmake writes, so that make does not make it again
+        cp "$W/procmail-autoconf.h" "$W/src/procmail-$_v/autoconf.h" && touch -t 203001010000 "$W/src/procmail-$_v/autoconf.h"
         echo "procmail $_v: the autoconf.h of the build of clang19 (its autoconf times strstr() in a loop that gcc16 -O3 makes endless)" >> "$W/fails/$group-notes-$_v.md"
     fi
     # gcc16: -fpermissive (its autoconf and its code of K&R C: the errors of GCC 14 and later,
