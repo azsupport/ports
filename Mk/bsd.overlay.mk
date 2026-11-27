@@ -71,10 +71,27 @@ AZSUPPORT_OVERLAY:=	${.PARSEDIR:H}
 #   before llvm${AZSUPPORT_CLANG} is installed: the builder reads the dependencies of every
 #   port before it builds one, and compiler.mk without the compiler would take it
 #   for GCC.
+# AZSUPPORT_CLANG=base in the Makefile of a port (before bsd.port.pre.mk): the clang of the
+# base system instead, the clang 19 of FreeBSD 15.1 (CC, CXX and CPP of sys.mk; its ar, nm,
+# ranlib and lld), for what it builds faster than clang 23 and GCC 16 (aZ, 27.11.2026
+# 08:43: zstd and lz4, docs/compiler-choice/decision.md of azsupport/azsupport): none of
+# the above, no dependency on devel/llvm<N>, AZSUPPORT_TOOLCHAIN_ENV empty (tools/*-build.sh
+# take cc), the annotation azsupport_cc clang<N> with N the major version of its cc. The
+# libraries of the package azsupport have their list of their own (cc_base of
+# tools/azsupport-build.sh). The bitcode of LLVM 19 (LTO) in an archive the lld of LLVM 23
+# reads, the converse not.
 AZSUPPORT_CLANG?=	${LLVM_DEFAULT}
 .if defined(_PREMKINCLUDED) && !defined(_POSTMKINCLUDED) && !defined(_AZSUPPORT_CLANG_DONE)
 _AZSUPPORT_CLANG_DONE=	yes
 .  if !(${.CURDIR:H:T} == devel && !empty(.CURDIR:T:Mllvm[0-9]*)) && !defined(USE_GCC) && \
+	(empty(USES:Mazgcc) || ${AZSUPPORT_GCC:U} == no) && ${AZSUPPORT_CLANG} == base
+AZSUPPORT_TOOLCHAIN_ENV=
+.    if empty(USES:Mazgcc)
+_AZSUPPORT_BASE_CLANG!=	${CC:Ucc} --version 2> /dev/null | sed -n '1s/.*clang version \([0-9][0-9]*\).*/\1/p'
+PKG_NOTES+=	azsupport_cc
+PKG_NOTE_azsupport_cc=	clang${_AZSUPPORT_BASE_CLANG}
+.    endif
+.  elif !(${.CURDIR:H:T} == devel && !empty(.CURDIR:T:Mllvm[0-9]*)) && !defined(USE_GCC) && \
 	(empty(USES:Mazgcc) || ${AZSUPPORT_GCC:U} == no)
 CC=	${LOCALBASE}/bin/clang${AZSUPPORT_CLANG}
 CXX=	${LOCALBASE}/bin/clang++${AZSUPPORT_CLANG}

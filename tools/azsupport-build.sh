@@ -180,6 +180,24 @@ gcc_env() {
     export CFLAGS="$CFLAGS -std=gnu17 -fno-semantic-interposition"
     echo "== $1: shared build with $("$g" --version | head -n 1) (lib-bench: >= 2% faster than clang), CC=$CC, CFLAGS=$CFLAGS"
 }
+# The libraries built with the cc of the base system, the clang 19 of FreeBSD 15.1, the
+# static and the shared one, whatever the compiler of the port (AZSUPPORT_CC of
+# Mk/bsd.overlay.mk: clang of devel/llvm<N>): zstd and lz4, which it builds faster than
+# clang 23 (aZ, 27.11.2026 08:43: «окей, следуем инфе с тестов»; the decompression of zstd
+# 10-14% and of lz4 2-3% slower with clang 23 and GCC 16, prog-bench run 45894859965; the
+# compression of zstd and lz4 within the spread; docs/compiler-choice/decision.md of
+# azsupport/azsupport). Its tools by their paths: cc in the PATH of the port is clang of
+# devel/llvm<N> (BINARY_ALIAS of Mk/bsd.overlay.mk). No LTO in their builds: the bitcode of
+# LLVM 19 in an archive the lld of LLVM 23 would read, the converse not.
+# AZSUPPORT_CC_BASE="": none. A library in both lists stops the build.
+cc_base="${AZSUPPORT_CC_BASE-zstd lz4}"
+base_env() {
+    export CC=/usr/bin/cc CXX=/usr/bin/c++ AR=/usr/bin/ar NM=/usr/bin/nm RANLIB=/usr/bin/ranlib
+    echo "== $1: $2 build with the cc of the base system ($(/usr/bin/cc --version 2>&1 | head -n 1)), CC=$CC, AR=$AR"
+}
+for n in $cc_base; do
+    case " $gcc_so " in *" $n "*) echo "azsupport-build: $n is in both AZSUPPORT_GCC_SO and AZSUPPORT_CC_BASE" >&2; exit 2 ;; esac
+done
 export PATH="$P/bin:$PATH"
 # LTO (x264, as its port) puts LLVM bitcode into static archives: their index
 # needs the ar of LLVM, taken by name when ar of the base system is another one.
@@ -881,6 +899,7 @@ build_one() {
         st_s=FAIL
         if [ "$prc" = 0 ] && (
             echo "== static build into $P"
+            case " $cc_base " in *" $n "*) base_env "$n" static ;; esac
             : > "$work/stamp-$n"
             "b_$n" "$src" || exit 1
             # every library leaves a static archive of its own in lib/ (mozjpeg did not)
@@ -895,6 +914,7 @@ build_one() {
             echo "== shared build into $S"
             so_env
             case " $gcc_so " in *" $n "*) gcc_env "$n" || exit 1 ;; esac
+            case " $cc_base " in *" $n "*) base_env "$n" shared ;; esac
             : > "$work/stamp-so-$n"
             "s_$n" "$wd.so${src#"$wd"}" || exit 1
             if [ -z "$(find "$S/lib" -maxdepth 1 -name '*.so*' -newer "$work/stamp-so-$n" | head -n 1)" ]; then
@@ -961,6 +981,7 @@ build_bundle() {
         st_s=FAIL
         if [ "$prc" = 0 ] && (
             echo "== static build into $P"
+            case " $cc_base " in *" $n "*) base_env "$n" static ;; esac
             : > "$work/stamp-$n"
             b="$files/curl/build-libcurl.sh"
             case "$n" in
@@ -978,6 +999,8 @@ build_bundle() {
         if [ "$prc" = 0 ] && (
             echo "== shared build into $S"
             so_env
+            case " $gcc_so " in *" $n "*) gcc_env "$n" || exit 1 ;; esac
+            case " $cc_base " in *" $n "*) base_env "$n" shared ;; esac
             : > "$work/stamp-so-$n"
             "s_$(printf '%s' "$n" | tr - _)" "$bs" || exit 1
             if [ -z "$(find "$S/lib" -maxdepth 1 -name '*.so*' -newer "$work/stamp-so-$n" | head -n 1)" ]; then
@@ -1156,12 +1179,23 @@ finish_so() {
         esac
     done
     [ -s "$res/shared.txt" ] || echo "no shared library in $S/lib" >> "$res/shared-bad.txt"
-    # the libraries of AZSUPPORT_GCC_SO are those of GCC
+    # the libraries of AZSUPPORT_GCC_SO are those of GCC (lib<name> without a lib of the
+    # name and its -: libffi, c-ares)
     for n in $gcc_so; do
-        f="$(ls "$S/lib/lib$n.so."* 2>/dev/null | head -n 1)"
+        f="$(ls "$S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so."* 2>/dev/null | head -n 1)"
         [ -n "$f" ] || continue
         readelf -p .comment "$f" 2>/dev/null | grep -q 'GCC:' ||
             echo "${f##*/}: of AZSUPPORT_GCC_SO, but its .comment names no GCC" >> "$res/shared-bad.txt"
+    done
+    # those of AZSUPPORT_CC_BASE of the clang of the base system alone (its crt files are of it
+    # in every library): neither another clang nor GCC
+    for n in $cc_base; do
+        f="$(ls "$S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so."* 2>/dev/null | head -n 1)"
+        [ -n "$f" ] || continue
+        o="$(readelf -p .comment "$f" 2>/dev/null | grep -o -E 'GCC: \([^)]*\) [0-9.]+|clang version [0-9.]+' | sort -u)"
+        b="$(/usr/bin/cc --version 2>/dev/null | grep -o -E 'clang version [0-9.]+' | head -n 1)"
+        [ "$o" = "$b" ] ||
+            echo "${f##*/}: of AZSUPPORT_CC_BASE, but its .comment names $(printf '%s' "$o" | tr '\n' ';') (the cc of the base system: ${b:-?})" >> "$res/shared-bad.txt"
     done
     # the .pc files and *-config scripts (not the pkg-config wrapper): nothing of the
     # static tree, nothing of /usr/local outside S but the configuration and fonts of

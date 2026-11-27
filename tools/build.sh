@@ -67,7 +67,7 @@
 #                    the summary); the repository gets what was built
 #   AZSUPPORT_CONFIGURE_CHECK  1: the configure check of the PHP ports the run configures
 #                    (tools/configure-check.sh; results/configure-check.txt)
-#   AZSUPPORT_CFLAGS, AZSUPPORT_GCC_SO, AZSUPPORT_GCC_BIN, MAKE_CONF  given to the builds (the scripts of
+#   AZSUPPORT_CFLAGS, AZSUPPORT_GCC_SO, AZSUPPORT_CC_BASE, AZSUPPORT_GCC_BIN, MAKE_CONF  given to the builds (the scripts of
 #                    tools/ read them); a build sees no other variable of the caller
 #   MAKE_JOBS_NUMBER given to the builds too: the make -j of each port (bsd.port.mk;
 #                    none: kern.smp.cpus, all the CPUs of the machine), so that AZSUPPORT_JOBS
@@ -705,7 +705,7 @@ port_cache() {
 }
 # ch_run [-l <lock file>] <command>...: a command in the chroot $c (under lockf(1) of
 # the machine with -l), with the environment of a login of root, the make.conf of the
-# run, the level, and AZSUPPORT_CFLAGS, AZSUPPORT_GCC_SO, AZSUPPORT_GCC_BIN and MAKE_CONF of the caller
+# run, the level, and AZSUPPORT_CFLAGS, AZSUPPORT_GCC_SO, AZSUPPORT_CC_BASE, AZSUPPORT_GCC_BIN and MAKE_CONF of the caller
 # when set (nothing else of the caller: no key, no token). NOCLEANDEPENDS: make clean
 # of a port leaves the ports it depends on alone: they may build at that moment in
 # another chroot, with the same WRKDIRPREFIX (11.11.2026: make clean of
@@ -718,6 +718,7 @@ ch_run() {
         PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin \
         __MAKE_CONF="$__MAKE_CONF" ASSUME_ALWAYS_YES=yes NOCLEANDEPENDS=yes AZSUPPORT_CPUTYPE="$cputype" \
         ${AZSUPPORT_CFLAGS+"AZSUPPORT_CFLAGS=$AZSUPPORT_CFLAGS"} ${AZSUPPORT_GCC_SO+"AZSUPPORT_GCC_SO=$AZSUPPORT_GCC_SO"} \
+        ${AZSUPPORT_CC_BASE+"AZSUPPORT_CC_BASE=$AZSUPPORT_CC_BASE"} \
         ${AZSUPPORT_GCC_BIN+"AZSUPPORT_GCC_BIN=$AZSUPPORT_GCC_BIN"} ${MAKE_CONF+"MAKE_CONF=$MAKE_CONF"} \
         ${MAKE_JOBS_NUMBER+"MAKE_JOBS_NUMBER=$MAKE_JOBS_NUMBER"} "$@"
     if [ -n "$_lk" ]; then lockf -k "$_lk" "$@"; else "$@"; fi
