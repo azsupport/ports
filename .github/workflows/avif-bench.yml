@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# avif-bench: the encoders of AVIF for the AVIF of the resize script of nginx (lua-vips, libvips
+# heifsave, libheif with SVT-AV1) against other settings of SVT-AV1 and against libaom, and the
+# lossless formats (AVIF, WebP, PNG, JPEG XL): tools/avif-bench.sh, a job per part in a FreeBSD VM.
+# The report of each job (the tables and the raw data) goes only into the branch runs of
+# azsupport/azsupport (tools/runs-report.sh: ports-avif-bench/<date>/<run>-<part>.md); the log of
+# the job and its summary get the progress and OK or FAIL (aZ, 27.11.2026: the measurements go into
+# the private repository). A push to bench-avif runs a short test (2 photos, 3 Q, 1 round); the
+# measurement: Actions, "avif-bench", "Run workflow" (ref bench-avif), or gh api.
+name: avif-bench
+
+on:
+  push:
+    branches: [bench-avif]
+    paths:
+      - '.github/workflows/avif-bench.yml'
+      - 'tools/avif-bench.sh'
+      - 'tools/avif-bench/**'
+  workflow_dispatch:
+    inputs:
+      parts:
+        description: 'Parts (lossy-360 lossy-full lossless), separated by spaces'
+        required: true
+        default: 'lossy-360 lossy-full lossless'
+      images:
+        description: 'Photos of the Kodak suite (1-24)'
+        required: true
+        default: '24'
+      qs:
+        description: 'Q of the lossy curves, separated by commas'
+        required: true
+        default: '30,40,50,60,70,75,80,85,90'
+      configs:
+        description: 'Lossy configurations (tools/avif-bench.sh, cfg), separated by commas; empty: all'
+        required: false
+        default: ''
+      rounds:
+        description: 'Rounds of each time (their median)'
+        required: true
+        default: '3'
+      release:
+        description: 'FreeBSD release'
+        required: true
+        default: '15.1'
+
+permissions:
+  contents: read
+
+jobs:
+  parts:
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.list.outputs.json }}
+    steps:
+      - id: list
+        env:
+          AB_PARTS: ${{ github.event_name == 'push' && 'lossy-360 lossless' || inputs.parts }}
+        run: |
+          for p in $AB_PARTS; do
+            case " lossy-360 lossy-full lossless " in *" $p "*) ;; *) echo "unknown part $p"; exit 1 ;; esac
+          done
+          # shellcheck disable=SC2086
+          printf 'json=%s\n' "$(printf '%s\n' $AB_PARTS | jq -R . | jq -sc 'map(select(length > 0))')" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+  bench:
+    needs: parts
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ${{ fromJSON(needs.parts.outputs.list) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # the disk of the VM grows on that of the runner
+      - name: Free space on the runner
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+
+      - name: The measurements in FreeBSD
+        id: bench
+        uses: vmactions/freebsd-vm@v1
+        env:
+          AB_PART: ${{ matrix.part }}
+          AB_IMAGES: ${{ github.event_name == 'push' && '2' || inputs.images }}
+          AB_QS: ${{ github.event_name == 'push' && '50,75,90' || inputs.qs }}
+          AB_CONFIGS: ${{ github.event_name == 'push' && '' || inputs.configs }}
+          AB_ROUNDS: ${{ github.event_name == 'push' && '1' || inputs.rounds }}
+          AB_COMMIT: ${{ github.sha }}
+        with:
+          release: ${{ github.event_name == 'push' && '15.1' || inputs.release }}
+          mem: 12288
+          envs: 'AB_PART AB_IMAGES AB_QS AB_CONFIGS AB_ROUNDS AB_COMMIT'
+          # the packages of latest (latest for the repository FreeBSD-ports of the base,
+          # /etc/pkg/FreeBSD.conf of 15.1: a repository "FreeBSD" of its own next to it made pkg
+          # upgrade itself again and again, prog-bench run 45856622649)
+          prepare: |
+            mkdir -p /usr/local/etc/pkg/repos
+            echo 'FreeBSD-ports: { url: "https://pkg.FreeBSD.org/${ABI}/latest" }' > /usr/local/etc/pkg/repos/FreeBSD.conf
+            env ASSUME_ALWAYS_YES=yes pkg update -f
+            env ASSUME_ALWAYS_YES=yes pkg install -y aom svt-av1 dav1d libheif vips webp libjxl highway brotli lcms2 png cmake-core ninja nasm pkgconf curl python3
+          # the script ends well (vmactions copies results/ back only then); what failed is in
+          # its report
+          run: |
+            sh tools/avif-bench.sh "$AB_PART" || echo "avif-bench $AB_PART: exit $?"
+
+      - name: Report
+        if: always()
+        env:
+          AB_PART: ${{ matrix.part }}
+          RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
+          RUNS_INPUTS: event=${{ github.event_name }} parts=${{ inputs.parts }} images=${{ inputs.images }} qs=${{ inputs.qs }} configs=${{ inputs.configs }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
+          RUNS_STEPS: bench=${{ steps.bench.outcome }}
+        run: |
+          d=results/avif-bench
+          f="$d/$AB_PART.md"
+          mkdir -p "$d"
+          if [ ! -s "$f" ]; then
+            { echo "no report of $AB_PART (the step of the VM: ${{ steps.bench.outcome }})"; echo; echo '```'; tail -n 100 "$d/$AB_PART.log" 2> /dev/null; echo '```'; } > "$f"
+          fi
+          # into the branch runs of azsupport/azsupport only: not into the log or the summary
+          sh tools/runs-report.sh "$f" "$AB_PART"
+          if grep -q "avif-bench $AB_PART: OK" "$d/$AB_PART.log" 2> /dev/null; then
+            echo "avif-bench $AB_PART: OK" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "avif-bench $AB_PART: FAIL" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
