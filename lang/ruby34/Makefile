@@ -31,7 +31,10 @@
 # to main; clang leaves -pie out with -shared), as lang/python312 had it with GCC 16;
 # ruby34 is a small program over libruby34.so (--enable-shared), which is position
 # independent anyway. rbconfig.rb names cc, c++ and cpp (Mk/azsupport-cc-names.sh), so
-# that mkmf builds an extension with the cc of a server.
+# that mkmf builds an extension with the cc of a server. files/patch-ext_socket-union_sockaddr:
+# getsockname(), getpeername(), recvfrom() and recvmsg() of ext/socket given the whole
+# union_sockaddr, which _FORTIFY_SOURCE=2 of the base system checks, with GCC, by the 16 bytes
+# of its member struct sockaddr: each of these calls would end in __chk_fail() (27.11.2026).
 
 PORTNAME=	ruby
 PORTVERSION=	${RUBY_DISTVERSION}

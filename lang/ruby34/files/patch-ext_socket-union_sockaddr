@@ -1,0 +1,116 @@
+The whole union_sockaddr to getsockname(), getpeername(), recvfrom() and recvmsg(),
+not its member struct sockaddr (azsupport/ports, 27.11.2026): with _FORTIFY_SOURCE=2
+the <ssp/socket.h> of FreeBSD checks the length of the address against
+__builtin_object_size(address, 1), which GCC takes for the 16 bytes of that member
+(clang, through the inline functions of <ssp/socket.h>, for the whole object or
+nothing), so that built by GCC 16 (Mk/Uses/azgcc.mk) each of these calls ends in
+__chk_fail(), as getsockname() of the _socket module of Python 3.12 did (prog-bench
+run 45935459608). The same address, so the same calls for clang.
+
+--- ext/socket/ancdata.c.orig	2026-11-18 23:09:58 UTC
++++ ext/socket/ancdata.c
+@@ -1548,7 +1548,7 @@
+     memset(&mh, 0, sizeof(mh));
+ 
+     memset(&namebuf, 0, sizeof(namebuf));
+-    mh.msg_name = &namebuf.addr;
++    mh.msg_name = &namebuf;
+     mh.msg_namelen = (socklen_t)sizeof(namebuf);
+ 
+     mh.msg_iov = &iov;
+--- ext/socket/basicsocket.c.orig	2026-11-18 23:09:58 UTC
++++ ext/socket/basicsocket.c
+@@ -384,7 +384,7 @@
+     rb_io_t *fptr;
+ 
+     GetOpenFile(sock, fptr);
+-    if (getsockname(fptr->fd, &buf.addr, &len) < 0)
++    if (getsockname(fptr->fd, (struct sockaddr *)&buf, &len) < 0)
+         rb_sys_fail("getsockname(2)");
+     if (len0 < len) len = len0;
+     return rb_str_new((char*)&buf, len);
+@@ -415,7 +415,7 @@
+     rb_io_t *fptr;
+ 
+     GetOpenFile(sock, fptr);
+-    if (getpeername(fptr->fd, &buf.addr, &len) < 0)
++    if (getpeername(fptr->fd, (struct sockaddr *)&buf, &len) < 0)
+         rb_sys_fail("getpeername(2)");
+     if (len0 < len) len = len0;
+     return rb_str_new((char*)&buf, len);
+@@ -505,7 +505,7 @@
+     rb_io_t *fptr;
+ 
+     GetOpenFile(sock, fptr);
+-    if (getsockname(fptr->fd, &buf.addr, &len) < 0)
++    if (getsockname(fptr->fd, (struct sockaddr *)&buf, &len) < 0)
+         rb_sys_fail("getsockname(2)");
+     if (len0 < len) len = len0;
+     return rsock_fd_socket_addrinfo(fptr->fd, &buf.addr, len);
+@@ -539,7 +539,7 @@
+     rb_io_t *fptr;
+ 
+     GetOpenFile(sock, fptr);
+-    if (getpeername(fptr->fd, &buf.addr, &len) < 0)
++    if (getpeername(fptr->fd, (struct sockaddr *)&buf, &len) < 0)
+         rb_sys_fail("getpeername(2)");
+     if (len0 < len) len = len0;
+     return rsock_fd_socket_addrinfo(fptr->fd, &buf.addr, len);
+--- ext/socket/init.c.orig	2026-11-18 23:09:58 UTC
++++ ext/socket/init.c
+@@ -122,7 +122,7 @@
+     socklen_t len0 = arg->alen;
+     ssize_t ret;
+     ret = recvfrom(arg->fd, RSTRING_PTR(arg->str), arg->length,
+-                   arg->flags, &arg->buf.addr, &arg->alen);
++                   arg->flags, (struct sockaddr *)&arg->buf, &arg->alen);
+ 
+     if (ret != -1 && len0 < arg->alen)
+         arg->alen = len0;
+@@ -280,7 +280,7 @@
+         rb_io_set_nonblock(fptr);
+ 
+     len0 = alen;
+-    slen = recvfrom(fd, RSTRING_PTR(str), buflen, flags, &buf.addr, &alen);
++    slen = recvfrom(fd, RSTRING_PTR(str), buflen, flags, (struct sockaddr *)&buf, &alen);
+     if (slen != -1 && len0 < alen)
+         alen = len0;
+ 
+@@ -768,7 +768,7 @@
+     }
+ 
+     ss.addr.sa_family = AF_UNSPEC;
+-    if (getsockname(fptr->fd, &ss.addr, &sslen) < 0)
++    if (getsockname(fptr->fd, (struct sockaddr *)&ss, &sslen) < 0)
+         return AF_UNSPEC;
+ 
+     switch (ss.addr.sa_family) {
+--- ext/socket/ipsocket.c.orig	2026-11-18 23:09:58 UTC
++++ ext/socket/ipsocket.c
+@@ -1351,7 +1351,7 @@
+     socklen_t len = (socklen_t)sizeof addr;
+     ID id;
+     if (fptr && fptr->fd >= 0 &&
+-        getsockname(fptr->fd, &addr.addr, &len) >= 0 &&
++        getsockname(fptr->fd, (struct sockaddr *)&addr, &len) >= 0 &&
+         (id = rsock_intern_family(addr.addr.sa_family)) != 0) {
+         VALUE family = rb_id2str(id);
+         char hbuf[1024], pbuf[1024];
+@@ -1405,7 +1405,7 @@
+ 
+     if (argc < 1 || !rsock_revlookup_flag(argv[0], &norevlookup))
+         norevlookup = rb_io_mode(sock) & FMODE_NOREVLOOKUP;
+-    if (getsockname(rb_io_descriptor(sock), &addr.addr, &len) < 0)
++    if (getsockname(rb_io_descriptor(sock), (struct sockaddr *)&addr, &len) < 0)
+         rb_sys_fail("getsockname(2)");
+     return rsock_ipaddr(&addr.addr, len, norevlookup);
+ }
+@@ -1443,7 +1443,7 @@
+ 
+     if (argc < 1 || !rsock_revlookup_flag(argv[0], &norevlookup))
+         norevlookup = rb_io_mode(sock) & FMODE_NOREVLOOKUP;
+-    if (getpeername(rb_io_descriptor(sock), &addr.addr, &len) < 0)
++    if (getpeername(rb_io_descriptor(sock), (struct sockaddr *)&addr, &len) < 0)
+         rb_sys_fail("getpeername(2)");
+     return rsock_ipaddr(&addr.addr, len, norevlookup);
+ }

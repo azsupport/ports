@@ -9,7 +9,16 @@
 # 27.11.2026 08:43: «окей, следуем инфе с тестов»; docs/compiler-choice/decision.md of
 # azsupport/azsupport): databases/redis82, mail/procmail, lang/tcl84, sysutils/tmux,
 # dns/unbound, lang/ruby34, and shells/bash and lang/perl5.42 (ports of
-# Mk/azsupport-official.mk: AZSUPPORT_USES=azgcc, Mk/bsd.overlay.mk).
+# Mk/azsupport-official.mk: AZSUPPORT_USES=azgcc, Mk/bsd.overlay.mk); and so the C
+# libraries (aZ, 27.11.2026 10:07: «да»): devel/glib20, graphics/cairo, ftp/curl, and
+# converters/fribidi and math/mpdecimal (its libmpdec; AZSUPPORT_USES=azgcc).
+# Mk/azsupport-gcc-pie.mk for a build that hands the -pie of LDFLAGS to the link of a shared
+# library (meson): GCC would make it a program. With _FORTIFY_SOURCE=2 the <ssp/socket.h> of
+# the base system checks the length of an address by __builtin_object_size(address, 1), which
+# GCC takes for the member of a union (struct sockaddr, 16 bytes), clang through the inline
+# functions of the header for the whole object: getsockname() and the like given a member of
+# a union end in __chk_fail() with GCC (the _socket of Python 3.12; the patches of
+# devel/glib20 and lang/ruby34).
 #
 # Why: the Zend VM of PHP 7 and later keeps its frame and its instruction
 # pointer in global register variables, which GCC has and clang has not
