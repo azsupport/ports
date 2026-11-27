@@ -34,6 +34,10 @@ on:
         description: 'The variants of the split groups built in this run (clang19 clang23 gcc16; default: all three, none with from_run); with from_run, over its builds'
         required: false
         default: ''
+      measure:
+        description: 'The split groups measured in this run (no: their builds alone, for a later run with from_run)'
+        required: false
+        default: 'yes'
       rounds:
         description: 'Rounds of each benchmark (their median)'
         required: true
@@ -212,7 +216,7 @@ jobs:
   measure:
     needs: [groups, build]
     # after builds that failed too, not after a cancel
-    if: ${{ !cancelled() && needs.groups.outputs.split != '[]' }}
+    if: ${{ !cancelled() && needs.groups.outputs.split != '[]' && inputs.measure != 'no' }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
