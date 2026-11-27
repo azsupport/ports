@@ -95,11 +95,19 @@ g_build() {
         bno unzip "$_v" "$_b"
     fi
     grep '^FAIL' "$W/b-zip-$_v.log" "$_b" | head -n 10 >&3
-    # procmail: the post-patch of the port (cd x; $(MAKE) as $(MAKE) -C x), its make
+    # procmail: the patches of the port (files/patch-*: LOCKINGTEST "/tmp ." with BATCH, the
+    # autoconf without its read of the terminal, config.h and the flags of initmake), its
+    # post-patch (cd x; $(MAKE) as $(MAKE) -C x), its make with BATCH and the input of /dev/null
+    # as the ports build, 25 minutes at most (without the patches and with yes '' into it,
+    # 45907096652 and 45930853611 stood for hours in this build)
     unpack BuGlessRB-procmail-3.24.20260812-8b379c4f536320abafd524fd4ccfedaf3f387f54_GH0.tar.gz "$W/src/procmail-$_v"
     _b="$W/b-procmail-$_v.log"
+    : > "$_b"
+    for p in "$top"/mail/procmail/files/patch-*; do
+        (cd "$W/src/procmail-$_v" && patch -s -p0 < "$p") >> "$_b" 2>&1 || echo "FAIL: ${p##*/}" >> "$_b"
+    done
     find "$W/src/procmail-$_v" -name 'Makefile*' -exec sed -i '' -E -e 's|cd (.+); (\$\(MAKE\))|\2 -C \1|' {} +
-    if (cd "$W/src/procmail-$_v" && yes '' | make CC="$CC" CFLAGS0="$CFLAGS" LDFLAGS0="$LDFLAGS" BASENAME="$W/procmail-$_v") > "$_b" 2>&1 &&
+    if (cd "$W/src/procmail-$_v" && timeout -k 30 1500 make BATCH=yes CC="$CC" CFLAGS0="$CFLAGS" LDFLAGS0="$LDFLAGS" BASENAME="$W/procmail-$_v" < /dev/null) >> "$_b" 2>&1 &&
         [ -x "$W/src/procmail-$_v/src/procmail" ]; then
         mkdir -p "$W/procmail-$_v" && cp "$W/src/procmail-$_v/src/procmail" "$W/procmail-$_v/"
         bok procmail "$_v" "$W/procmail-$_v/procmail"
@@ -154,25 +162,25 @@ g_bench() {
         for v in $(order "$r"); do
             if have zip "$v"; then
                 rm -f "$T/o.zip"
-                timed "$v" zip "zip -r -6 of the tree" sh -c 'cd "$1" && cpuset -l "$2" "$3" -q -r -6 "$4" .' sh "$T/src" "$last" "$W/zip-$v/zip" "$T/o.zip"
+                timed "$v" zip "zip -r -6 of the tree" timeout -k 10 900 sh -c 'cd "$1" && cpuset -l "$2" "$3" -q -r -6 "$4" .' sh "$T/src" "$last" "$W/zip-$v/zip" "$T/o.zip"
                 rm -f "$T/o.zip"
-                timed "$v" zip "zip -r -9 of the tree" sh -c 'cd "$1" && cpuset -l "$2" "$3" -q -r -9 "$4" .' sh "$T/src" "$last" "$W/zip-$v/zip" "$T/o.zip"
+                timed "$v" zip "zip -r -9 of the tree" timeout -k 10 900 sh -c 'cd "$1" && cpuset -l "$2" "$3" -q -r -9 "$4" .' sh "$T/src" "$last" "$W/zip-$v/zip" "$T/o.zip"
                 rm -f "$T/o.zip"
             fi
             if have unzip "$v"; then
-                timed "$v" unzip "unzip -t of the zip of the tree" cpuset -l "$last" "$W/unzip-$v/unzip" -qq -t "$T/ref.zip"
+                timed "$v" unzip "unzip -t of the zip of the tree" timeout -k 10 900 cpuset -l "$last" "$W/unzip-$v/unzip" -qq -t "$T/ref.zip"
                 rm -rf "$T/x"
-                timed "$v" unzip "unzip into an empty directory" cpuset -l "$last" "$W/unzip-$v/unzip" -qq -o "$T/ref.zip" -d "$T/x"
+                timed "$v" unzip "unzip into an empty directory" timeout -k 10 900 cpuset -l "$last" "$W/unzip-$v/unzip" -qq -o "$T/ref.zip" -d "$T/x"
                 rm -rf "$T/x"
             fi
             if have procmail "$v"; then
-                timed "$v" procmail "2000 deliveries of 20 KB, 30 recipes" sh -c '
+                timed "$v" procmail "2000 deliveries of 20 KB, 30 recipes" timeout -k 10 900 sh -c '
                     i=0; while [ "$i" -lt 2000 ]; do cpuset -l "$1" "$2" -m "$3" < "$4" || exit 1; i=$((i + 1)); done' \
                     sh "$last" "$W/procmail-$v/procmail" "$W/procmailrc" "$W/msg.eml"
                 rm -rf "$T/maildir"; mkdir -p "$T/maildir"
             fi
             if have tmux "$v"; then
-                timed "$v" tmux "a session cats 150 MB of text (200x50)" env TERM=xterm sh -c '
+                timed "$v" tmux "a session cats 150 MB of text (200x50)" timeout -k 10 900 env TERM=xterm sh -c '
                     cpuset -l "$1" "$2" -L pb -f /dev/null new-session -d -x 200 -y 50 "cat $3; $2 -L pb wait-for -S done" &&
                     "$2" -L pb wait-for done; "$2" -L pb kill-server 2> /dev/null; exit 0' sh "$last" "$W/tmux-$v/bin/tmux" "$T/tmux.txt"
             fi
