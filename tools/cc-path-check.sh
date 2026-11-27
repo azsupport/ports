@@ -3,7 +3,8 @@
 #
 # tools/cc-path-check.sh <package>...: the packages whose text files name the compilers of
 # the build (27.11.2026): clang of devel/llvm<N> (Mk/bsd.overlay.mk: <LOCALBASE>/bin/clang<N>,
-# clang++<N>, clang-cpp<N>, and llvm-ar<N>, llvm-nm<N>, llvm-ranlib<N>, ld.lld<N>) and GCC of
+# clang++<N>, clang-cpp<N>, and llvm-ar<N>, llvm-nm<N>, llvm-ranlib<N>, ld.lld<N>; the same
+# tools without <N> in <LOCALBASE>/llvm<N>/bin, the CC of USES=llvm) and GCC of
 # lang/gcc<G> (Mk/Uses/azgcc.mk: gcc<G>, g++<G>, cpp<G>, as a word: not lib/gcc<G>/ nor
 # gcc<G>-libs). Both are build dependencies only, and what a server builds against a
 # package (the extensions of Python, Perl, Ruby, the modules of apxs, PGXS, the *-config
@@ -40,6 +41,7 @@ versions() {
     lbre="$(printf '%s' "$lb" | sed 's/[].[^$*+?(){}|\\]/\\&/g')"
     re=""
     [ -z "$ccv" ] || re="$lbre/bin/(clang|clang\\+\\+|clang-cpp|llvm-ar|llvm-nm|llvm-ranlib|ld\\.lld)$ccv([^[:alnum:]_.+-]|\$)"
+    [ -z "$ccv" ] || re="$re|$lbre/llvm$ccv/bin/(clang|clang\\+\\+|clang-cpp|llvm-ar|llvm-nm|llvm-ranlib|ld\\.lld)([^[:alnum:]_.+-]|\$)"
     [ -z "$gccv" ] || re="${re:+$re|}(^|[^[:alnum:]_./+-])(gcc|g\\+\\+|cpp)$gccv([^[:alnum:]_./+-]|\$)"
 }
 
@@ -125,6 +127,8 @@ selftest() {
     case_ "GCC of lang/gcc16" tcl "FAIL tcl.pkg: /usr/local/lib/tcl8.4/tclConfig.sh: cpp16 gcc16;"
     mkpkg apr devel/apr "/usr/local/bin/apr-1-config=CPP=\"/usr/local/bin/clang-cpp23\"" "/usr/local/share/apr/libtool=AR=\"/usr/local/bin/llvm-ar23\""
     case_ "two files" apr "FAIL apr.pkg: /usr/local/bin/apr-1-config: /usr/local/bin/clang-cpp23;FAIL apr.pkg: /usr/local/share/apr/libtool: /usr/local/bin/llvm-ar23;"
+    mkpkg pg databases/postgresql18-server "/usr/local/include/postgresql/server/pg_config.h=#define CONFIGURE_ARGS \" 'CC=/usr/local/llvm23/bin/clang' 'CXX=/usr/local/llvm23/bin/clang++' 'LLVM_CONFIG=/usr/local/llvm23/bin/llvm-config'\""
+    case_ "the prefix of devel/llvm23 (USES=llvm)" pg "FAIL pg.pkg: /usr/local/include/postgresql/server/pg_config.h: /usr/local/llvm23/bin/clang /usr/local/llvm23/bin/clang++;"
     mkpkg llvm23 devel/llvm23 "/usr/local/llvm23/bin/scan=/usr/local/bin/clang23"
     case_ "the compiler itself" llvm23 "SKIP llvm23.pkg: devel/llvm23, the compiler itself;"
     mkpkg gcclibs lang/gcc16-libs "/usr/local/lib/gcc16/x.py=gcc16"
@@ -142,7 +146,7 @@ selftest() {
     if [ $? = 1 ]; then echo "ok    exit 1"; else echo "FAIL  exit of a failing package"; bad=1; fi
     # the rewriting of Mk/azsupport-cc-names.sh: the same packages pass after it
     if [ -f "$top/Mk/azsupport-cc-names.sh" ]; then
-        for n in py tcl apr; do
+        for n in py tcl apr pg; do
             sh "$top/Mk/azsupport-cc-names.sh" "$tt/src/$n/usr" > /dev/null 2>&1
             (cd "$tt/src/$n" && tar -cf "$tt/$n.pkg" +COMPACT_MANIFEST usr)
             case_ "$n after Mk/azsupport-cc-names.sh" "$n" "OK $n.pkg;"

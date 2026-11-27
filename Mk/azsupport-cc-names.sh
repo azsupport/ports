@@ -16,6 +16,9 @@
 #   <LOCALBASE>/bin/clang<N>, clang++<N>, clang-cpp<N>          cc, c++, cpp
 #   <LOCALBASE>/bin/llvm-ar<N>, llvm-nm<N>, llvm-ranlib<N>       ar, nm, ranlib
 #   <LOCALBASE>/bin/ld.lld<N>                                    ld
+#   <LOCALBASE>/llvm<N>/bin/clang, clang++, clang-cpp, llvm-ar,  cc, c++, cpp, ar,
+#     llvm-nm, llvm-ranlib, ld.lld (the prefix of devel/llvm<N>,  nm, ranlib, ld
+#     the CC of USES=llvm: databases/postgresql18-server)
 #   gcc<G> -static-libgcc, gcc<G>, g++<G>, cpp<G>                cc, cc, c++, cpp
 #   gcc-ar<G>, gcc-nm<G>, gcc-ranlib<G>                          ar, nm, ranlib
 # (those of GCC bare, as bsd.gcc.mk names them, or under <LOCALBASE>/bin, as
@@ -53,7 +56,10 @@ exprs() {
     if [ -n "$ccv" ]; then
         printf '%s\n' "s#$B$lbre/bin/clang$ccv$A#\\1cc\\2#g" "s#$B$lbre/bin/clang\\+\\+$ccv$A#\\1c++\\2#g" \
             "s#$B$lbre/bin/clang-cpp$ccv$A#\\1cpp\\2#g" "s#$B$lbre/bin/llvm-(ar|nm|ranlib)$ccv$A#\\1\\2\\3#g" \
-            "s#$B$lbre/bin/ld\\.lld$ccv$A#\\1ld\\2#g"
+            "s#$B$lbre/bin/ld\\.lld$ccv$A#\\1ld\\2#g" \
+            "s#$B$lbre/llvm$ccv/bin/clang$A#\\1cc\\2#g" "s#$B$lbre/llvm$ccv/bin/clang\\+\\+$A#\\1c++\\2#g" \
+            "s#$B$lbre/llvm$ccv/bin/clang-cpp$A#\\1cpp\\2#g" "s#$B$lbre/llvm$ccv/bin/llvm-(ar|nm|ranlib)$A#\\1\\2\\3#g" \
+            "s#$B$lbre/llvm$ccv/bin/ld\\.lld$A#\\1ld\\2#g"
     fi
     if [ -n "$gccv" ]; then
         printf '%s\n' "s#$B($lbre/bin/)?gcc$gccv -static-libgcc$A#\\1cc\\3#g" "s#$B($lbre/bin/)?gcc$gccv$A#\\1cc\\3#g" \
@@ -65,6 +71,7 @@ exprs() {
 names_re() {
     r=""
     [ -z "$ccv" ] || r="$B$lbre/bin/(clang|clang\\+\\+|clang-cpp|llvm-ar|llvm-nm|llvm-ranlib|ld\\.lld)$ccv$A"
+    [ -z "$ccv" ] || r="$r|$B$lbre/llvm$ccv/bin/(clang|clang\\+\\+|clang-cpp|llvm-ar|llvm-nm|llvm-ranlib|ld\\.lld)$A"
     [ -z "$gccv" ] || r="${r:+$r|}$B($lbre/bin/)?(gcc|g\\+\\+|cpp|gcc-ar|gcc-nm|gcc-ranlib)$gccv$A"
     printf '%s\n' "$r"
 }
@@ -162,6 +169,10 @@ selftest() {
     case_ "other versions kept" "/usr/local/bin/clang19 /usr/local/bin/clang230 gcc15 gcc161 /opt/bin/clang23" \
         "/usr/local/bin/clang19 /usr/local/bin/clang230 gcc15 gcc161 /opt/bin/clang23"
     case_ "the base kept" "CC=cc CXX=c++ CPP=cpp clang" "CC=cc CXX=c++ CPP=cpp clang"
+    case_ "the prefix of llvm" "'CC=/usr/local/llvm23/bin/clang' 'CXX=/usr/local/llvm23/bin/clang++' 'CPP=/usr/local/llvm23/bin/clang-cpp' AR=/usr/local/llvm23/bin/llvm-ar LD=/usr/local/llvm23/bin/ld.lld" \
+        "'CC=cc' 'CXX=c++' 'CPP=cpp' AR=ar LD=ld"
+    case_ "the rest of the prefix kept" "/usr/local/llvm23/bin/llvm-config /usr/local/llvm23/lib/libLLVM.so /usr/local/llvm19/bin/clang /usr/local/llvm23/bin/clang-23" \
+        "/usr/local/llvm23/bin/llvm-config /usr/local/llvm23/lib/libLLVM.so /usr/local/llvm19/bin/clang /usr/local/llvm23/bin/clang-23"
     # a binary file: not rewritten
     printf 'CC=gcc16\000\001' > "$tt/bin"
     run fix "$tt/bin" > /dev/null 2>&1
