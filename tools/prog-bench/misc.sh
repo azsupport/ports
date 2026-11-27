@@ -86,8 +86,11 @@ g_build() {
         patch -d "$W/src/unzip-$_v" -p1 -s -f < "$U/zipinfo-usage.patch" || echo "FAIL: zipinfo-usage.patch"
         sed -i '' -e '/^[LSF][FL] = -o /s|$(LFLAGS1)$|$(LFLAGS1) $(LDFLAGS)|' "$W/src/unzip-$_v/unix/Makefile"
     } > "$_b" 2>&1
-    if (cd "$W/src/unzip-$_v" && env LOCAL_UNZIP="$CFLAGS -I/usr/local/include -DNATIVE -DACORN_FTYPE_NFS -DWILD_STOP_AT_DIR -DUNICODE_SUPPORT -DUTF8_MAYBE_NATIVE -D_MBCS -DLARGE_FILE_SUPPORT" \
-        D_USE_BZ2=-DUSE_BZIP2 L_BZ2=-lbz2 make -f unix/Makefile bsd CC="$CC" LF2= LFLAGS1=-L/usr/local/lib LDFLAGS="$LDFLAGS") >> "$_b" 2>&1 &&
+    # iconv(3) and bzip2 of the base system (ICONV of the port: ICONV_LIB empty), not -I and -L of
+    # /usr/local: its iconv.h of libiconv (here a package) makes iconv_open libiconv_open, which
+    # the link does not find (45938357673)
+    if (cd "$W/src/unzip-$_v" && env LOCAL_UNZIP="$CFLAGS -DNATIVE -DACORN_FTYPE_NFS -DWILD_STOP_AT_DIR -DUNICODE_SUPPORT -DUTF8_MAYBE_NATIVE -D_MBCS -DLARGE_FILE_SUPPORT" \
+        D_USE_BZ2=-DUSE_BZIP2 L_BZ2=-lbz2 make -f unix/Makefile bsd CC="$CC" LF2= LFLAGS1= LDFLAGS="$LDFLAGS") >> "$_b" 2>&1 &&
         [ -x "$W/src/unzip-$_v/unzip" ]; then
         mkdir -p "$W/unzip-$_v" && cp "$W/src/unzip-$_v/unzip" "$W/unzip-$_v/"
         bok unzip "$_v" "$W/unzip-$_v/unzip"
@@ -107,6 +110,14 @@ g_build() {
         (cd "$W/src/procmail-$_v" && patch -s -p0 < "$p") >> "$_b" 2>&1 || echo "FAIL: ${p##*/}" >> "$_b"
     done
     find "$W/src/procmail-$_v" -name 'Makefile*' -exec sed -i '' -E -e 's|cd (.+); (\$\(MAKE\))|\2 -C \1|' {} +
+    # clang23 and gcc16: the autoconf.h of the build of clang19 (the base compiler, as the port
+    # builds): its autoconf times strstr() in a loop that gcc16 -O3 makes endless (45938357673:
+    # "Benchmarking your system's strstr() implementation" until the timeout); the same findings
+    # for the three
+    if [ "$_v" != clang19 ] && [ -f "$W/procmail-autoconf.h" ]; then
+        cp "$W/procmail-autoconf.h" "$W/src/procmail-$_v/autoconf.h" && touch "$W/src/procmail-$_v/autoconf.h"
+        echo "procmail $_v: the autoconf.h of the build of clang19 (its autoconf times strstr() in a loop that gcc16 -O3 makes endless)" >> "$W/fails/$group-notes-$_v.md"
+    fi
     # gcc16: -fpermissive (its autoconf and its code of K&R C: the errors of GCC 14 and later,
     # implicit declarations, implicit int, int-conversion, incompatible pointer types, warnings
     # as with the base clang 19; 45930853611 stood in this build of gcc16 alone), said
@@ -118,6 +129,7 @@ g_build() {
     if (cd "$W/src/procmail-$_v" && timeout -k 30 1500 make BATCH=yes CC="$CC" CFLAGS0="$_pcf" LDFLAGS0="$LDFLAGS" BASENAME="$W/procmail-$_v" < /dev/null) >> "$_b" 2>&1 &&
         [ -x "$W/src/procmail-$_v/src/procmail" ]; then
         mkdir -p "$W/procmail-$_v" && cp "$W/src/procmail-$_v/src/procmail" "$W/procmail-$_v/"
+        [ "$_v" != clang19 ] || cp "$W/src/procmail-$_v/autoconf.h" "$W/procmail-autoconf.h"
         bok procmail "$_v" "$W/procmail-$_v/procmail"
     else
         bno procmail "$_v" "$_b"
