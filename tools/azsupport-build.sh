@@ -960,7 +960,7 @@ build_one() {
         st_s=FAIL
         if [ "$prc" = 0 ] && (
             echo "== static build into $P"
-            : > "$work/stamp-$n"
+            stamp "$work/stamp-$n" "$P"
             "b_$n" "$src" || exit 1
             # every library leaves a static archive of its own in lib/ (mozjpeg did not)
             if [ -z "$(find "$P/lib" -maxdepth 1 -name '*.a' -newer "$work/stamp-$n" | head -n 1)" ]; then
@@ -974,7 +974,7 @@ build_one() {
             echo "== shared build into $S"
             so_env
             case " $gcc_so " in *" $n "*) gcc_env "$n" || exit 1 ;; esac
-            : > "$work/stamp-so-$n"
+            stamp "$work/stamp-so-$n" "$A"
             "s_$n" "$src" || exit 1
             if [ -z "$(find "$S/lib" -maxdepth 1 -name '*.so*' -newer "$work/stamp-so-$n" | head -n 1)" ]; then
                 echo "== no new shared library of $n in $S/lib"; exit 1
@@ -1045,7 +1045,7 @@ build_bundle() {
         st_s=FAIL
         if [ "$prc" = 0 ] && (
             echo "== static build into $P"
-            : > "$work/stamp-$n"
+            stamp "$work/stamp-$n" "$P"
             b="$files/curl/build-libcurl.sh"
             case "$n" in
                 curl) LIBICONV_PREFIX="$P" OBJDIR="$work/obj-curl" sh "$b" --curl "$bs" "$P" "$P" ;;
@@ -1062,7 +1062,7 @@ build_bundle() {
         if [ "$prc" = 0 ] && (
             echo "== shared build into $S"
             so_env
-            : > "$work/stamp-so-$n"
+            stamp "$work/stamp-so-$n" "$A"
             "s_$(printf '%s' "$n" | tr - _)" "$bs" || exit 1
             if [ -z "$(find "$S/lib" -maxdepth 1 -name '*.so*' -newer "$work/stamp-so-$n" | head -n 1)" ]; then
                 echo "== no new shared library of $n in $S/lib"; exit 1
@@ -1276,7 +1276,8 @@ finish_so() {
 # guessed: the files of a library are those whose status changed after the stamp of
 # its build, in its tree (find -cnewer: the time of the change of an inode, which no
 # install keeps from the source, as CMake and meson keep the time of the
-# modification); a file a later library writes again is that one's; the .pc files
+# modification; every file of the tree read before the stamp, see stamp); a file a
+# later library writes again is that one's; the .pc files
 # finish and finish_so move from libdata/pkgconfig and curl-config.orig of finish with
 # their files. The manifest of a library, <name>.txt, in share/azsupport/interface/ of
 # its package (--lib; that of fontconfig, in x11-fonts/fontconfig, has a prefix line)
@@ -1304,6 +1305,17 @@ finish_so() {
 # needs, whose files the checks take for theirs); ifd: where interfaces writes
 ifa="$A/share/azsupport/interface"
 if [ "$mode" = static ]; then ifd="$P/share/azsupport/interface"; else ifd="$work/ifout"; fi
+# stamp <file> <tree>: the stamp of a build, once every file and link of the tree that
+# owned looks at again was read (find -ls: lstat). tmpfs (the work directory of a jail of
+# ours) sets the change time of a node when it is next read or written, not when it
+# changed: a file pkg add renames into place (a directory that was there already) kept
+# it pending, and the find of owned, after the stamp, gave it the time of that find and
+# so to the build of the library (27.11.2026: the files of svtav1 and libde265 for
+# libheif, of libxml2 for libxslt, of libiconv for APR); UFS and ZFS set it at the rename
+stamp() {
+    find "$2" -ls > /dev/null 2>&1 || :
+    : > "$1"
+}
 # owned <name> <version>: the files the build of a library installed (--static: in
 # the static tree but its LICENSES/ and manifests; --lib: in the shared tree but the
 # static tree, LICENSES/, share/doc/, the manifests of the packages and the mark of a
