@@ -24,6 +24,6 @@ post-stage:
 
 .include "${.CURDIR:H:H}/Mk/azsupport-official.mk"
 
-BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport
-RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport
+BUILD_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/libffi
+RUN_DEPENDS+=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/libffi
 LIB_DEPENDS:=	${LIB_DEPENDS:Nlibffi.so\:devel/libffi}

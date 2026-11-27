@@ -28,6 +28,6 @@ post-stage:
 .include "${.CURDIR:H:H}/Mk/azsupport-official.mk"
 
 BUILD_DEPENDS:=	${BUILD_DEPENDS:N*\:archivers/brotli} \
-		${AZSUPPORT_PREFIX}/lib/libbrotlicommon.so:azsupport/azsupport
+		${AZSUPPORT_PREFIX}/lib/libbrotlicommon.so:azsupport/brotli
 LIB_DEPENDS:=	${LIB_DEPENDS:N*\:archivers/brotli}
 MAKE_ENV+=	PKG_CONFIG_LIBDIR=${AZSUPPORT_LIBS_PKG_CONFIG_LIBDIR}
