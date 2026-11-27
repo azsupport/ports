@@ -544,11 +544,21 @@ g_python() {
             > "$W/b-py-$v.log" 2>&1 || bfail "python $v" "$W/b-py-$v.log"
         echo "python $v: CC=$_pycc; $(grep -E '^(AR|CONFIGURE_CFLAGS_NODIST|CONFIGURE_LDFLAGS_NODIST)=' "$W/src/py-$v/Makefile" | sed -e 's/[[:space:]]\{1,\}/ /g' | tr '\n' ';')" >> "$W/fails/python-notes.md"
         say "python $v: $(cc_of "$W/py-$v/lib/libpython3.12.so.1.0"); $(tail -n 1 "$W/fails/python-notes.md")"
-        # the modules pyperformance and pip need (gcc16 of 45894371224: pip could not install wheel)
-        if ! "$W/py-$v/bin/python3.12" -c 'import ssl, zlib, ctypes, hashlib, pyexpat, _json, _decimal, sqlite3' > "$W/pymod-$v.log" 2>&1; then
+        # the modules pyperformance and pip need (gcc16 of 45894371224: pip could not install wheel;
+        # _sqlite3 is the port databases/py-sqlite3, not built here)
+        if ! "$W/py-$v/bin/python3.12" -c 'import ssl, zlib, ctypes, hashlib, pyexpat, _json, _decimal' > "$W/pymod-$v.log" 2>&1; then
             say "python $v: modules: $(tail -n 2 "$W/pymod-$v.log" | tr '\n' ' ')"
             { echo; echo "python $v: a module does not load: $(tail -n 2 "$W/pymod-$v.log" | tr '\n' ' ')"; echo '```'
-                grep -E -A 12 'necessary bits|Failed to build|could not be imported|_ssl|_hashlib' "$W/b-py-$v.log" | tail -n 40; echo '```'; } >> "$out"
+                grep -E -A 12 'necessary bits|Failed to build|could not be imported|_ssl|_hashlib' "$W/b-py-$v.log" | tail -n 40; echo '```'; } >> "$W/fails/python-notes.md"
+        fi
+        # pip in a venv of this Python, as pyperformance makes one for each benchmark (gcc16 of
+        # 45894371224 and 45921274917: RequirementsInstallationFailedError: wheel, in every one)
+        if ! { "$W/py-$v/bin/python3.12" -m venv "$W/pyv-$v" && "$W/pyv-$v/bin/python" -m pip install --no-cache-dir wheel; } > "$W/pyv-$v.log" 2>&1; then
+            say "python $v: pip in a venv: $(tail -n 3 "$W/pyv-$v.log" | tr '\n' ' ' | cut -c1-300)"
+            { echo; echo "python $v: pip in a venv of it does not install wheel (its last lines):"; echo '```'; tail -n 40 "$W/pyv-$v.log"; echo '```'
+                echo "python $v: the same with -X faulthandler -v, its last lines:"; echo '```'
+                "$W/pyv-$v/bin/python" -X faulthandler -m pip -v install --no-cache-dir wheel > "$W/pyv2-$v.log" 2>&1
+                echo "exit $?"; tail -n 40 "$W/pyv2-$v.log"; echo '```'; } >> "$W/fails/python-notes.md"
         fi
     done
     export PATH="$PATH0"
