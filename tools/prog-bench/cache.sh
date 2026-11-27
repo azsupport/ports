@@ -104,8 +104,9 @@ g_bench() {
                         wpids="$wpids $!"
                     done
                     sleep 1
+                    # at most 300 s (a client whose jobs no worker takes waits for ever: 45905628133 stood 90 minutes)
                     timed "$v" gearmand "100000 jobs of 64-512 bytes, 100 at once (blobslap, 4 workers)" \
-                        cpuset -l "$others" "$gb/blobslap_client" -h 127.0.0.1 -p 4731 -c 1000 -n 100 -m 64 -M 512
+                        timeout 300 cpuset -l "$others" "$gb/blobslap_client" -h 127.0.0.1 -p 4731 -c 1000 -n 100 -m 64 -M 512
                     # shellcheck disable=SC2086
                     kill $wpids 2> /dev/null; wait $wpids 2> /dev/null
                 else
