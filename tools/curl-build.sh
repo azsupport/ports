@@ -74,11 +74,18 @@ cputype="${cputype:-x86-64-v3}"
 opt="${AZSUPPORT_CFLAGS:-$(mc_get CFLAGS)}"
 # shellcheck disable=SC2086
 opt="$(printf '%s\n' ${opt:--O3 -pipe} | grep -v -e '^-march=' -e '^-fPIC$' | tr '\n' ' ' | sed 's/ *$//')"
-# the compiler of the port (Mk/bsd.overlay.mk: clang of devel/llvm<N>, AZSUPPORT_TOOLCHAIN_ENV),
-# the cc of the base system without it
+# the compiler of the port (Mk/bsd.overlay.mk: clang of devel/llvm<N>, AZSUPPORT_TOOLCHAIN_ENV;
+# ftp/curl: GCC of lang/gcc<N> with -static-libgcc, USES=azgcc, since 27.11.2026), the cc of the
+# base system without it
 export CC="${AZSUPPORT_CC:-cc}" CXX="${AZSUPPORT_CXX:-c++}"
 export CFLAGS="$opt -march=$cputype -fstack-protector-strong -fstack-clash-protection -D_FORTIFY_SOURCE=2 -fno-strict-aliasing -fPIC"
 export CXXFLAGS="$CFLAGS"
+# GCC as gcc_env of tools/azsupport-build.sh and Mk/Uses/azgcc.mk have it: -std=gnu17 (the C of
+# clang 19; GCC 15 and later default to C23), -fno-semantic-interposition (with -fPIC GCC would
+# not inline or bind the calls of libcurl.so to its own exported functions)
+case "${CC%% *}" in
+    *gcc[0-9]*) CFLAGS="$CFLAGS -std=gnu17 -fno-semantic-interposition" ;;
+esac
 export CPPFLAGS="-I$A/include"
 export LDFLAGS="-L$A/lib -Wl,-rpath,$A/lib -Wl,--as-needed -Wl,-z,relro,-z,now"
 mkdir -p "$res"

@@ -11,7 +11,13 @@
 # libraries of azsupport do not have it). The release is the bundled curl of azsupport
 # (azsupport/azsupport/files/curl.conf), with the same patch of the official port
 # (azsupport/azsupport/files/curl/curl-<version>.patch, one copy for both), extracted and
-# patched by the framework.
+# patched by the framework. Compiled by GCC 16 (USES=azgcc; aZ, 27.11.2026 10:07: «да»):
+# lib-bench3.sh of 26.11.2026 found libcurl 4.0% faster with it than with clang 23
+# (docs/compiler-choice/decision.md of azsupport/azsupport; the program curl within the
+# spread): tools/curl-build.sh takes AZSUPPORT_CC, gcc<N> of Mk/Uses/azgcc.mk with
+# -static-libgcc, as the CC of its configure, and the flags of GCC of tools/azsupport-build.sh
+# (libtool hands no -pie to the link of libcurl.so: bin/curl alone is PIE). The static
+# libcurl.a of azsupport/azsupport, for the PHP of the servers, keeps the compiler of that port.
 
 PORTNAME=	curl
 PORTVERSION=	8.23.0
@@ -34,7 +40,7 @@ BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libnghttp2.so:azsupport/azsupport \
 		python3:lang/python3
 RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libnghttp2.so:azsupport/azsupport
 
-USES=		gmake perl5 pkgconfig tar:xz
+USES=		azgcc gmake perl5 pkgconfig tar:xz
 USE_PERL5=	build
 
 EXTRA_PATCHES=	${.CURDIR:H:H}/azsupport/azsupport/files/curl/curl-${PORTVERSION}.patch
@@ -42,7 +48,8 @@ EXTRA_PATCHES=	${.CURDIR:H:H}/azsupport/azsupport/files/curl/curl-${PORTVERSION}
 .include "${.CURDIR:H:H}/azsupport/azsupport/Makefile.common"
 
 do-build:
-	@cd ${WRKDIR} && ${SETENV} ${AZSUPPORT_ENV} ${SH} ${AZSUPPORT_TOOLS}/curl-build.sh ${WRKSRC}
+	@cd ${WRKDIR} && ${SETENV} ${AZSUPPORT_ENV} AZSUPPORT_CC="${CC} -static-libgcc" \
+		${SH} ${AZSUPPORT_TOOLS}/curl-build.sh ${WRKSRC}
 
 do-install:
 	@${AZSUPPORT_COPY_STAGE}
