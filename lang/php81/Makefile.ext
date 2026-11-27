@@ -17,8 +17,8 @@
 #   (8.1 gets its lines when it is worked out there), so the modules and their
 #   options are those of 7.4 but these two;
 # - the PECL extensions are those of ext/<name> of the 8.1 tarball, their
-#   versions those of php-src freebsd/pecl.conf for 8.1 (memcache 8.2, swoole
-#   6.1.13; the others as for 7.4); package php81-<name>, origin
+#   versions those of php-src freebsd/pecl.conf for 8.1 (memcache 8.6, swoole
+#   6.1.14; the others as for 7.4); package php81-<name>, origin
 #   <category>/php81-<name>, as every module (Mk/php-modules.mk). Their rules:
 #   converters/pecl-igbinary, databases/pecl-memcache, databases/pecl-memcached,
 #   databases/pecl-redis, devel/pecl-excimer, devel/pecl-swoole,

@@ -1,6 +1,6 @@
 # PECL swoole of ext/swoole of the release tarball of azsupport/php-src:
 # its version there (php-src freebsd/pecl.conf)
-DISTVERSION=	6.1.13
+DISTVERSION=	6.1.14
 CATEGORIES=	devel net
 
 MASTERDIR=	${.CURDIR}/../../lang/php81
