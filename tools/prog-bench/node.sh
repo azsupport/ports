@@ -32,11 +32,27 @@ g_build() {
     fetch "node-v$nv.tar.xz" "$nsum" "https://nodejs.org/dist/v$nv/node-v$nv.tar.xz"
     unpack "node-v$nv.tar.xz" "$W/src/$group-$_v"
     _b="$W/b-$group-$_v.log"
+    : > "$_b"
+    # the patches of the port (www/node18: patch-libc++19, without which V8 of node 18 does not
+    # build with the libc++ 19 of the base system, std::char_traits<unsigned short>, run
+    # 45919874731; its fixes of CVEs): its EXTRA_PATCHES in their order (-p1), then its
+    # files/patch-* (-p0), as the framework applies them; one that does not apply is said in
+    # the report (node24 of 45914135967: without the patches of its port)
+    _pd="$top/www/$group"
+    for p in $(sed -n 's|.*${FILESDIR}/\([^: ]*\):-p1.*|\1|p' "$_pd/Makefile"); do
+        (cd "$W/src/$group-$_v" && patch -s -p1 < "$_pd/files/$p") >> "$_b" 2>&1 || echo "FAIL: $p" >> "$_b"
+    done
+    for p in "$_pd"/files/patch-*; do
+        [ -f "$p" ] || continue
+        (cd "$W/src/$group-$_v" && patch -s -p0 < "$p") >> "$_b" 2>&1 || echo "FAIL: ${p##*/}" >> "$_b"
+    done
+    ! grep -q '^FAIL' "$_b" ||
+        echo "$group $_v: the patches of www/$group that do not apply to $nv: $(grep '^FAIL' "$_b" | tr '\n' ' ')" >> "$W/fails/$group-notes-$_v.md"
     if (cd "$W/src/$group-$_v" && ./configure --prefix="$W/$group-$_v" --shared-openssl \
         --shared-openssl-includes=/usr/include --shared-openssl-libpath=/usr/lib --openssl-use-def-ca-store \
         --shared-zlib --shared-zlib-includes=/usr/include --shared-zlib-libpath=/usr/lib &&
         gmake -j"$ncpu" &&
-        mkdir -p "$W/$group-$_v/bin" && cp out/Release/node "$W/$group-$_v/bin/node") > "$_b" 2>&1 &&
+        mkdir -p "$W/$group-$_v/bin" && cp out/Release/node "$W/$group-$_v/bin/node") >> "$_b" 2>&1 &&
         "$W/$group-$_v/bin/node" -e 'process.exit(0)' >> "$_b" 2>&1; then
         bok "$group" "$_v" "$W/$group-$_v/bin/node"
     else
