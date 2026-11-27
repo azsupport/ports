@@ -30,6 +30,10 @@ on:
         description: 'The split groups measured with the builds of this earlier run (its artifacts pb-<group>-<variant>), not built again'
         required: false
         default: ''
+      variants:
+        description: 'The variants of the split groups built in this run (clang19 clang23 gcc16; default: all three, none with from_run); with from_run, over its builds'
+        required: false
+        default: ''
       rounds:
         description: 'Rounds of each benchmark (their median)'
         required: true
@@ -57,14 +61,17 @@ jobs:
           PB_GROUPS: ${{ inputs.groups }}
           PB_SPLIT: ${{ inputs.split }}
           PB_FROM: ${{ inputs.from_run }}
+          PB_VARIANTS: ${{ inputs.variants }}
         run: |
+          if [ -n "$PB_VARIANTS" ]; then vs="$PB_VARIANTS"; elif [ -n "$PB_FROM" ]; then vs=""; else vs="clang19 clang23 gcc16"; fi
+          for v in $vs; do
+            case " clang19 clang23 gcc16 " in *" $v "*) ;; *) echo "unknown variant $v (clang19 clang23 gcc16)"; exit 1 ;; esac
+          done
           # shellcheck disable=SC2086
           {
             printf 'json=%s\n' "$(printf '%s\n' $PB_GROUPS | jq -R . | jq -sc 'map(select(length > 0 and . != "none"))')"
             printf 'split=%s\n' "$(printf '%s\n' $PB_SPLIT | jq -R . | jq -sc 'map(select(length > 0))')"
-            if [ -n "$PB_FROM" ]; then echo 'builds=[]'; else
-              printf 'builds=%s\n' "$(for g in $PB_SPLIT; do for v in clang19 clang23 gcc16; do printf '{"group":"%s","variant":"%s"}\n' "$g" "$v"; done; done | jq -sc .)"
-            fi
+            printf 'builds=%s\n' "$(for g in $PB_SPLIT; do for v in $vs; do printf '{"group":"%s","variant":"%s"}\n' "$g" "$v"; done; done | jq -sc .)"
           } >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
 
@@ -123,7 +130,7 @@ jobs:
         env:
           PB_GROUP: ${{ matrix.group }}
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: groups=${{ inputs.groups }} split=${{ inputs.split }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
+          RUNS_INPUTS: groups=${{ inputs.groups }} split=${{ inputs.split }} from_run=${{ inputs.from_run }} variants=${{ inputs.variants }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
           RUNS_STEPS: bench=${{ steps.bench.outcome }}
         run: |
           for g in $(echo "$PB_GROUP" | tr '+' ' '); do
@@ -190,7 +197,7 @@ jobs:
         env:
           PB_PART: ${{ matrix.group }}-build-${{ matrix.variant }}
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: groups=${{ inputs.groups }} split=${{ inputs.split }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
+          RUNS_INPUTS: groups=${{ inputs.groups }} split=${{ inputs.split }} from_run=${{ inputs.from_run }} variants=${{ inputs.variants }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
           RUNS_STEPS: build=${{ steps.build.outcome }}
         run: |
           f="results/prog-bench/$PB_PART.md"
@@ -219,12 +226,21 @@ jobs:
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
 
       - uses: actions/download-artifact@v4
+        if: inputs.from_run != ''
         with:
           pattern: pb-${{ matrix.group }}-*
           merge-multiple: true
           path: results/prebuilt
-          run-id: ${{ inputs.from_run || github.run_id }}
+          run-id: ${{ inputs.from_run }}
           github-token: ${{ github.token }}
+
+      # the builds of this run (over those of from_run)
+      - uses: actions/download-artifact@v4
+        if: needs.groups.outputs.builds != '[]'
+        with:
+          pattern: pb-${{ matrix.group }}-*
+          merge-multiple: true
+          path: results/prebuilt
 
       - name: The benchmarks of ${{ matrix.group }} in FreeBSD ${{ inputs.release }}
         id: bench
@@ -256,7 +272,7 @@ jobs:
         env:
           PB_GROUP: ${{ matrix.group }}
           RUNS_TOKEN: ${{ secrets.RUNS_TOKEN }}
-          RUNS_INPUTS: groups=${{ inputs.groups }} split=${{ inputs.split }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
+          RUNS_INPUTS: groups=${{ inputs.groups }} split=${{ inputs.split }} from_run=${{ inputs.from_run }} variants=${{ inputs.variants }} rounds=${{ inputs.rounds }} release=${{ inputs.release }}
           RUNS_STEPS: bench=${{ steps.bench.outcome }}
         run: |
           f="results/prog-bench/$PB_GROUP.md"

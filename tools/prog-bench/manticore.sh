@@ -65,6 +65,15 @@ RoaringBitmap:CRoaring:v4.3.2:freebsd-deps/roaring:3be2e83b27cfbbf6692b215f9d4c1
     printf '%s\n' 'if (NOT TARGET xxHash::xxhash)' '	add_library ( xxHash::xxhash INTERFACE IMPORTED )' \
         '	set_target_properties ( xxHash::xxhash PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "/usr/local/include" )' \
         'endif ()' > "$D/lib/cmake/xxHash/xxHashConfig.cmake"
+    # CRoaring 4.3.2 calls bswap64 undeclared on FreeBSD (its portability.h includes
+    # <byteswap.h>; bswap64 is of <sys/endian.h>), in roaring64.c, which searchd does not link:
+    # an error of clang 23 and of GCC 14 and later, a warning of the base clang 19 (FreeBSD
+    # takes DefaultError off implicit declarations and implicit int): the same warning for
+    # clang23 and gcc16, said in the report (run 45918013549: their builds stopped there)
+    case "$_v" in clang23|gcc16)
+        export CFLAGS="$CFLAGS -Wno-error=implicit-function-declaration"
+        echo "manticore32 $_v: CRoaring 4.3.2 calls bswap64 undeclared on FreeBSD (include/roaring/portability.h: <byteswap.h>, not <sys/endian.h>; in roaring64.c, which searchd does not link), an error of clang 23 and of GCC 14 and later (the base clang 19 of FreeBSD keeps it a warning): built with -Wno-error=implicit-function-declaration" >> "$W/fails/$group-notes-$_v.md" ;;
+    esac
     # no PIE (the archives of boost-libs are not PIC), as the port
     _cf="$(echo "$CFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
     _cxf="$(echo "$CXXFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
