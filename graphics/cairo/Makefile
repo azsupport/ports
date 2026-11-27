@@ -15,6 +15,11 @@
 # data and its fields left unset, the JPEG 2000 box of length 0 that loops forever, the
 # JBIG2 reads past the data); CVE-2017-7475, a bitmap without a buffer in
 # _get_bitmap_surface() of cairo-ft-font.c (openSUSE, OpenEmbedded).
+# Compiled by GCC 16 (USES=azgcc; aZ, 27.11.2026 10:07: «да»): lib-bench3.sh of 26.11.2026
+# found cairo 7.0% faster with it than with clang 23 (docs/compiler-choice/decision.md of
+# azsupport/azsupport). C alone (C++ only for DirectWrite of Windows), no OpenMP. meson hands
+# the -pie of LDFLAGS to the link of the libraries, which GCC would link as programs:
+# Mk/azsupport-gcc-pie.mk leaves it out there.
 
 PORTNAME=	cairo
 DISTVERSION=	1.18.6
@@ -35,7 +40,7 @@ LICENSE_FILE_MPL11=	${WRKSRC}/COPYING-MPL-1.1
 
 LIB_DEPENDS=	libpixman-1.so:x11/pixman
 
-USES=		cpe gnome meson pkgconfig python:build shebangfix tar:xz
+USES=		azgcc cpe gnome meson pkgconfig python:build shebangfix tar:xz
 CAIRO_FIXES=	1-CVE-2025-50422 \
 		2-image-info-out-of-bounds-read-and-uninitialized-inf \
 		3-image-info-infinite-loop-on-jpeg-2000-boxes-with-le \
@@ -88,6 +93,7 @@ post-install:
 	cd ${STAGEDIR}${PREFIX} && ${FIND} include lib libdata \( -type f -o -type l \) | \
 		${SORT} >> ${TMPPLIST}
 
+.include "${.CURDIR:H:H}/Mk/azsupport-gcc-pie.mk"
 .include <bsd.port.mk>
 
 # No devel/gettext-runtime (aZ, 26.11.2026 13:09: «Делаем его самодостаточным — лишние

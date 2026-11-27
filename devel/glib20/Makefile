@@ -22,6 +22,14 @@
 # and the installed files are those of 2.88; the patches of the official port apply to
 # it as they are (with offsets). Its distfile: the SHA-256 of download.gnome.org and
 # of its checksum file (workflow distinfo.yml, run 45869488361).
+# Compiled by GCC 16 (USES=azgcc; aZ, 27.11.2026 10:07: «да»): lib-bench3.sh of 26.11.2026
+# found GLib 8.0% faster with it than with clang 23 (docs/compiler-choice/decision.md of
+# azsupport/azsupport). C alone: meson asks the C++ compiler for its checks only, no C++ is
+# built, no OpenMP. The programs (gio, gdbus, gsettings ...) PIE as before: meson hands the
+# -pie of LDFLAGS to the link of the libraries too, which GCC would link as programs, and
+# Mk/azsupport-gcc-pie.mk leaves it out there. files/patch-gio_gsocket.c: getsockname() and
+# getpeername() of GSocket given the whole union of the address, which _FORTIFY_SOURCE=2
+# of the base system checks, with GCC, by the 16 bytes of its member struct sockaddr.
 
 PORTNAME=	glib
 DISTVERSION=	2.90.2
@@ -49,7 +57,7 @@ RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libffi.so:azsupport/azsupport \
 		${AZSUPPORT_PREFIX}/lib/libintl.so:azsupport/azsupport
 LIB_DEPENDS=	libpcre2-8.so:devel/pcre2
 
-USES=		compiler:c11 cpe meson perl5 pkgconfig python:build tar:xz trigger
+USES=		azgcc compiler:c11 cpe meson perl5 pkgconfig python:build tar:xz trigger
 USE_LDCONFIG=	yes
 USE_PERL5=	build
 TRIGGERS=	gio-modules glib-schemas
@@ -133,4 +141,5 @@ post-install:
 .endfor
 	${RM} -r ${STAGEDIR}${PREFIX}/libexec/installed-tests
 
+.include "${.CURDIR:H:H}/Mk/azsupport-gcc-pie.mk"
 .include <bsd.port.mk>
