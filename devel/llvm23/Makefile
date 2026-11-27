@@ -169,10 +169,14 @@ CLANG_SUB_LIST=		XCC=clang${LLVM_SUFFIX} \
 			XLD=ld.lld${LLVM_SUFFIX} \
 			X_COMPILER_TYPE=clang
 CLANG_USES=		perl5
-.if ${FLAVOR:Mlite}
-# scan-build does require perl, but lite users can install it manually.
+# Perl to build only, in the default flavor too (the official port: in lite only, "scan-build
+# does require perl, but lite users can install it manually"): the Perl scripts of the
+# package (scan-build, ccc-analyzer) are not what the ports of this tree run of it, their
+# compiler. To run, it would be the lang/perl5.42 of this tree (tools/build.sh takes the
+# official Perl for a build only), which GCC 16 builds (Mk/Uses/azgcc.mk), whose lang/gcc16
+# and devel/binutils clang 23 builds: a cycle, in which each waited for the package of the
+# next (the build of 72f1c83 of the branch llvm23, 27.11.2026; tools/dep-cycles.sh)
 CLANG_USE=		PERL5=build
-.endif
 COMPILER_RT_DESC=	Sanitizer libraries
 COMPILER_RT_CMAKE_ON=	\
 	-DCOMPILER_RT_INSTALL_PATH=${LLVM_PREFIX}/lib/clang/${LLVM_RELEASE} \
