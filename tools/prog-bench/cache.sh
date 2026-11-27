@@ -11,7 +11,7 @@
 # gearmand 2.2.0 (devel/gearmand, its distinfo) with the patches of the port (the fixes of
 # master after 2.2.0, files/patch-*) and its options (make with noinst_PROGRAMS empty, as the
 # port: libtest does not build on FreeBSD, "undeclared identifier 'environ'"; then the two
-# programs of its benchmark): libevent, Boost.Program_options and
+# programs of its benchmark): libevent, Boost.Program_options (gcc16: its own, boost_gcc16) and
 # libuuid of the packages, SQLite (the persistent queue, off here), no TLS, no PIE (the port:
 # PIE_UNSAFE); its blobslap_client and blobslap_worker (of the build by clang19 for all). The
 # server on the last CPU (-t 1), 4 workers and the client on the others: 100000 jobs of 64
@@ -50,11 +50,18 @@ g_build() {
     _cf="$(echo "$CFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
     _cxf="$(echo "$CXXFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
     _lf="$(echo "$LDFLAGS" | sed -e 's/-pie //')"
-    if (cd "$W/src/gearmand-$_v" && autoreconf -fi && MAKE=gmake CFLAGS="$_cf" CXXFLAGS="$_cxf" LDFLAGS="-L/usr/local/lib $_lf" \
-        CPPFLAGS=-I/usr/local/include LIBS=-lexecinfo ./configure --prefix="$W/gearmand-$_v" \
+    # gcc16: Boost.Program_options of its own (boost_gcc16; that of boost-libs is of libc++,
+    # 45914480695: its std::__1 symbols undefined), its directory before /usr/local
+    _bo=/usr/local
+    if [ "$_v" = gcc16 ]; then
+        if ! boost_gcc16 program_options; then bno gearmand "$_v" "$W/b-boost-gcc16.log"; return 0; fi
+        _bo="$W/boost-gcc16"
+    fi
+    if (cd "$W/src/gearmand-$_v" && autoreconf -fi && MAKE=gmake CFLAGS="$_cf" CXXFLAGS="$_cxf" LDFLAGS="-L$_bo/lib -L/usr/local/lib $_lf" \
+        CPPFLAGS="-I$_bo/include -I/usr/local/include" LIBS=-lexecinfo ./configure --prefix="$W/gearmand-$_v" \
         --disable-dtrace --disable-hiredis --disable-libdrizzle --disable-libmemcached --disable-libpq \
         --disable-libtokyocabinet --disable-shared --enable-static --disable-wolfssl --disable-ssl \
-        --enable-jobserver=no --with-boost=/usr/local --with-mysql=no --with-postgresql=no --with-sqlite3=/usr/local &&
+        --enable-jobserver=no --with-boost="$_bo" --with-mysql=no --with-postgresql=no --with-sqlite3=/usr/local &&
         gmake -j"$ncpu" noinst_PROGRAMS= && gmake benchmark/blobslap_client benchmark/blobslap_worker &&
         mkdir -p "$W/gearmand-$_v/bin" &&
         cp gearmand/gearmand benchmark/blobslap_client benchmark/blobslap_worker "$W/gearmand-$_v/bin/") >> "$_b" 2>&1; then
@@ -104,8 +111,11 @@ g_bench() {
                         wpids="$wpids $!"
                     done
                     sleep 1
-                    # a probe of one job: a client whose jobs no worker takes would wait for ever
-                    if ! timeout 20 "$gb/blobslap_client" -h 127.0.0.1 -p 4731 -c 1 -n 1 > "$W/blobslap-probe.log" 2>&1; then
+                    # a probe of one job: a client whose jobs no worker takes would wait for ever. The
+                    # server of blobslap_client by GEARMAN_SERVERS: its -h adds the server before its
+                    # -p and with a host of NULL (localhost:4730, nothing there: 45914480695, connection
+                    # refused at the 20th to 27th task), then localhost:<port> too
+                    if ! timeout 20 env GEARMAN_SERVERS=127.0.0.1:4731 "$gb/blobslap_client" -c 1 -n 1 > "$W/blobslap-probe.log" 2>&1; then
                         say "gearmand $v: one job of blobslap did not complete in 20 s: $(tail -n 2 "$W/blobslap-probe.log" "$W/blobslap-worker-1.log" | tr '\n' ' ')"
                         echo "gearmand $v: one job of blobslap did not complete in 20 s ($(tail -n 1 "$W/blobslap-worker-1.log")): not measured in this round" >> "$W/fails/$group-notes.md"
                         # shellcheck disable=SC2086
@@ -115,7 +125,7 @@ g_bench() {
                     fi
                     # at most 300 s (a client whose jobs no worker takes waits for ever: 45905628133 stood 90 minutes)
                     timed "$v" gearmand "100000 jobs of 64-512 bytes, 100 at once (blobslap, 4 workers)" \
-                        timeout 300 cpuset -l "$others" "$gb/blobslap_client" -h 127.0.0.1 -p 4731 -c 1000 -n 100 -m 64 -M 512
+                        timeout 300 env GEARMAN_SERVERS=127.0.0.1:4731 cpuset -l "$others" "$gb/blobslap_client" -c 1000 -n 100 -m 64 -M 512
                     # shellcheck disable=SC2086
                     kill $wpids 2> /dev/null; wait $wpids 2> /dev/null
                 else
