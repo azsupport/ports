@@ -96,7 +96,10 @@ g_build() {
         _ucf="$CFLAGS -fpermissive"
         echo "unzip gcc16: built with -fpermissive (the errors of GCC 14 and later of its K&R C as warnings, as the base clang 19 has them)" >> "$W/fails/$group-notes-gcc16.md"
     fi
-    if (cd "$W/src/unzip-$_v" && env LOCAL_UNZIP="$_ucf -DNATIVE -DACORN_FTYPE_NFS -DWILD_STOP_AT_DIR -DUNICODE_SUPPORT -DUTF8_MAYBE_NATIVE -D_MBCS -DLARGE_FILE_SUPPORT" \
+    # and -DLIBICONV_PLUG: gcc16 (its prefix /usr/local) searches /usr/local/include before
+    # /usr/include, and the iconv.h of libiconv (a package here) names iconv_open libiconv_open
+    # (45943132901: undefined at the link); with it the names of iconv(3) of the base system
+    if (cd "$W/src/unzip-$_v" && env LOCAL_UNZIP="$_ucf -DLIBICONV_PLUG -DNATIVE -DACORN_FTYPE_NFS -DWILD_STOP_AT_DIR -DUNICODE_SUPPORT -DUTF8_MAYBE_NATIVE -D_MBCS -DLARGE_FILE_SUPPORT" \
         D_USE_BZ2=-DUSE_BZIP2 L_BZ2=-lbz2 make -f unix/Makefile bsd CC="$CC" LF2= LFLAGS1= LDFLAGS="$LDFLAGS") >> "$_b" 2>&1 &&
         [ -x "$W/src/unzip-$_v/unzip" ]; then
         mkdir -p "$W/unzip-$_v" && cp "$W/src/unzip-$_v/unzip" "$W/unzip-$_v/"
