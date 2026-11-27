@@ -84,7 +84,7 @@ export W O R QS HB IMGCMP TM HEIFDEC S2 BA LDP LDP431
 case "$(uname -s)" in
 FreeBSD)
     ncpu="$(sysctl -n hw.ncpu)"
-    cpuname="$(sysctl -n hw.model)"
+    cpuname="$(sysctl -n hw.model | sed 's/[[:space:]]*$//')"
     sha() { sha256 -q "$1"; }
     ;;
 *)
