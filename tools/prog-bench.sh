@@ -476,14 +476,26 @@ g_python() {
         # <ssp/socket.h> with GCC, the port)
         _cf="$(echo "$CFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//' -e 's/-D_FORTIFY_SOURCE=2/-D_FORTIFY_SOURCE=1/')"
         _lf="$(echo "$LDFLAGS" | sed -e 's/-pie //')"
+        # LTO: the configure of Python 3.12 sets its flags for a $CC of *clang* (ThinLTO, and
+        # llvm-ar as AR) or *gcc* (-flto -fuse-linker-plugin -ffat-lto-objects
+        # -flto-partition=none) alone; with cc (the default of the ports, the official package
+        # too) it builds without LTO, and so did clang19 in the runs up to 45907096652 (against
+        # the LTO of clang23 and gcc16). clang19 as clang (of the base system), the llvm-ar of
+        # each clang named; what configure took is said in the report
+        _pycc="$CC" _pyar=""
+        case "$v" in
+        clang19) _pycc=clang; for _pyar in /usr/bin/llvm-ar /usr/bin/ar; do [ ! -x "$_pyar" ] || break; done ;;
+        clang23) _pyar="$LLVM23/llvm-ar" ;;
+        esac
         unpack Python-3.12.16.tar.xz "$W/src/py-$v"
         # and OPT="" (the flags of the environment alone) and no -g, as the port
         (cd "$W/src/py-$v" && sed -i '' -e 's|^\( *MULTIARCH=\).*--print-multiarch.*|\1|' configure &&
-            env OPT= ac_cv_prog_cc_g=no ./configure --prefix="$W/py-$v" --enable-shared --with-lto --with-ensurepip=install \
-            CC="$CC" CFLAGS="$_cf" CPPFLAGS=-I/usr/local/include \
+            env OPT= ac_cv_prog_cc_g=no LLVM_AR="$_pyar" ./configure --prefix="$W/py-$v" --enable-shared --with-lto --with-ensurepip=install \
+            CC="$_pycc" CFLAGS="$_cf" CPPFLAGS=-I/usr/local/include \
             LDFLAGS="-L/usr/local/lib -Wl,-rpath,$W/py-$v/lib $_lf" && gmake -j"$ncpu" && gmake install) \
             > "$W/b-py-$v.log" 2>&1 || bfail "python $v" "$W/b-py-$v.log"
-        say "python $v: $(cc_of "$W/py-$v/lib/libpython3.12.so.1.0")"
+        echo "python $v: CC=$_pycc; $(grep -E '^(AR|CONFIGURE_CFLAGS_NODIST|CONFIGURE_LDFLAGS_NODIST)=' "$W/src/py-$v/Makefile" | sed -e 's/[[:space:]]\{1,\}/ /g' | tr '\n' ';')" >> "$W/fails/python-notes.md"
+        say "python $v: $(cc_of "$W/py-$v/lib/libpython3.12.so.1.0"); $(tail -n 1 "$W/fails/python-notes.md")"
         # the modules pyperformance and pip need (gcc16 of 45894371224: pip could not install wheel)
         if ! "$W/py-$v/bin/python3.12" -c 'import ssl, zlib, ctypes, hashlib, pyexpat, _json, _decimal, sqlite3' > "$W/pymod-$v.log" 2>&1; then
             say "python $v: modules: $(tail -n 2 "$W/pymod-$v.log" | tr '\n' ' ')"
