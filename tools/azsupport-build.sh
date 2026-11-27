@@ -169,10 +169,11 @@ path0="$PATH"
 # тестов»; lib-bench3.sh of 26.11.2026, the geometric mean of the benchmarks of each against
 # clang 23, GCC 16 the clear winner of its run): libffi -16.9%, c-ares -13.8%, libiconv
 # -10.7%, libyaml -10.4%, libmaxminddb -7.8%, libxml2 -5.4%, tidy -4.1%, libmcrypt -2.9%,
-# libidn2 -2.8% (docs/compiler-choice/decision.md of azsupport/azsupport). Not the C++ ones
-# (icu, libheif, libde265, libmemcached, fmt: libstdc++ of GCC beside the libc++ of clang
-# in one process), not those of pictures but lcms2 (cairo, freetype2, webp: clang 23, the
-# rule of aZ), not zstd and lz4 (cc_base below).
+# libidn2 -2.8% (docs/compiler-choice/decision.md of azsupport/azsupport); and those of pictures
+# without OpenMP and C++ (aZ 10:07: «да»): freetype2 -2.5%, webp -2.1% (lcms2 since
+# 09.11.2026; cairo and fribidi are ports: USES=azgcc). Not the C++ ones (icu, libheif,
+# libde265, libmemcached, fmt: libstdc++ of GCC beside the libc++ of clang in one process),
+# not zstd, lz4 and oniguruma (cc_base below).
 # Their static builds (b_*, for PHP built on a server) stay with clang: not measured.
 # GCC as lib-bench measured it and as the PHP ports have it (Mk/Uses/azgcc.mk):
 # -std=gnu17 (the C of clang 19; GCC 15 and later default to C23),
@@ -180,7 +181,7 @@ path0="$PATH"
 # a library to its own exported functions), -static-libgcc in CC (libgcc linked into
 # each library: no NEEDED libgcc_s.so.1; in CC because libtool passes no
 # -static-libgcc of LDFLAGS to the link of a shared library). AZSUPPORT_GCC_SO="": none.
-gcc_so="${AZSUPPORT_GCC_SO-sqlite3 expat lcms2 xxhash libffi c-ares libiconv libyaml libmaxminddb libxml2 tidy libmcrypt libidn2}"
+gcc_so="${AZSUPPORT_GCC_SO-sqlite3 expat lcms2 xxhash libffi c-ares libiconv libyaml libmaxminddb libxml2 tidy libmcrypt libidn2 freetype2 webp}"
 gcc_bin="${AZSUPPORT_GCC_BIN:-gcc16}"
 gcc_env() {
     g="$(command -v "$gcc_bin")" || { echo "== $1: no $gcc_bin (lang/${gcc_bin}, a BUILD_DEPENDS of azsupport/azsupport)"; return 1; }
@@ -194,11 +195,13 @@ gcc_env() {
 # clang 23 (aZ, 27.11.2026 08:43: «окей, следуем инфе с тестов»; the decompression of zstd
 # 10-14% and of lz4 2-3% slower with clang 23 and GCC 16, prog-bench run 45894859965; the
 # compression of zstd and lz4 within the spread; docs/compiler-choice/decision.md of
-# azsupport/azsupport). Its tools by their paths: cc in the PATH of the port is clang of
-# devel/llvm<N> (BINARY_ALIAS of Mk/bsd.overlay.mk). No LTO in their builds: the bitcode of
-# LLVM 19 in an archive the lld of LLVM 23 would read, the converse not.
+# azsupport/azsupport), and oniguruma (aZ 10:07: «да»; lib-bench3.sh of 26.11.2026: clang 23
+# +5.9% and GCC 16 +2.0% to clang 19, the clear winner in every run). Its tools by their
+# paths: cc in the PATH of the port is clang of devel/llvm<N> (BINARY_ALIAS of
+# Mk/bsd.overlay.mk). No LTO in their builds: the bitcode of LLVM 19 in an archive the lld of
+# LLVM 23 would read, the converse not.
 # AZSUPPORT_CC_BASE="": none. A library in both lists stops the build.
-cc_base="${AZSUPPORT_CC_BASE-zstd lz4}"
+cc_base="${AZSUPPORT_CC_BASE-zstd lz4 oniguruma}"
 base_env() {
     export CC=/usr/bin/cc CXX=/usr/bin/c++ AR=/usr/bin/ar NM=/usr/bin/nm RANLIB=/usr/bin/ranlib
     echo "== $1: $2 build with the cc of the base system ($(/usr/bin/cc --version 2>&1 | head -n 1)), CC=$CC, AR=$AR"
@@ -1195,18 +1198,26 @@ finish_so() {
     done
     [ -s "$res/shared.txt" ] || echo "no shared library in $S/lib" >> "$res/shared-bad.txt"
     # the libraries of AZSUPPORT_GCC_SO are those of GCC: the file of the link lib<name>.so
-    # (lib<name> without a lib of the name and its -: libffi, c-ares; libyaml-0.so.2)
+    # (lib<name> without a lib of the name and its -: libffi, c-ares; libyaml-0.so.2;
+    # freetype2 libfreetype.so, oniguruma libonig.so)
+    so_link() {
+        case "$1" in
+            freetype2) echo libfreetype.so ;;
+            oniguruma) echo libonig.so ;;
+            *) echo "lib$(printf '%s' "${1#lib}" | tr -d -).so" ;;
+        esac
+    }
     for n in $gcc_so; do
-        f="$(realpath "$S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so" 2>/dev/null)"
-        [ -f "$f" ] || { echo "$n of AZSUPPORT_GCC_SO: no $S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so, its compiler not checked"; continue; }
+        f="$(realpath "$S/lib/$(so_link "$n")" 2>/dev/null)"
+        [ -f "$f" ] || { echo "$n of AZSUPPORT_GCC_SO: no $S/lib/$(so_link "$n"), its compiler not checked"; continue; }
         readelf -p .comment "$f" 2>/dev/null | grep -q 'GCC:' ||
             echo "${f##*/}: of AZSUPPORT_GCC_SO, but its .comment names no GCC" >> "$res/shared-bad.txt"
     done
     # those of AZSUPPORT_CC_BASE of the clang of the base system alone (its crt files are of it
     # in every library): neither another clang nor GCC
     for n in $cc_base; do
-        f="$(realpath "$S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so" 2>/dev/null)"
-        [ -f "$f" ] || { echo "$n of AZSUPPORT_CC_BASE: no $S/lib/lib$(printf '%s' "${n#lib}" | tr -d -).so, its compiler not checked"; continue; }
+        f="$(realpath "$S/lib/$(so_link "$n")" 2>/dev/null)"
+        [ -f "$f" ] || { echo "$n of AZSUPPORT_CC_BASE: no $S/lib/$(so_link "$n"), its compiler not checked"; continue; }
         o="$(readelf -p .comment "$f" 2>/dev/null | grep -o -E 'GCC: \([^)]*\) [0-9.]+|clang version [0-9.]+' | sort -u)"
         b="$(/usr/bin/cc --version 2>/dev/null | grep -o -E 'clang version [0-9.]+' | head -n 1)"
         [ "$o" = "$b" ] ||
