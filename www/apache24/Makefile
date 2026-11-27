@@ -144,6 +144,14 @@ CONFIGURE_ARGS+=--prefix=${PREFIX_RELDEST} \
 		--with-pcre=${LOCALBASE} \
 		--with-apr=${APR_CONFIG} \
 		--with-apr-util=${APU_CONFIG}
+# the suexec that httpd checks at its start (SUEXEC_BIN of os/unix/unixd.c) is that of
+# www/apache24-suexec, ${PREFIX}/sbin/suexec, as the official port has it with SUEXEC
+# (Mk/Uses/apache.mk: --with-suexec-bin); without it httpd looks for HTTPD_ROOT/bin/suexec,
+# /usr/local/bin/suexec, which no package installs, and SuexecUserGroup stops it:
+# "SuexecUserGroup configured, but suEXEC is disabled: Missing suexec binary
+# /usr/local/bin/suexec" (27.11.2026). Always, not only with SUEXEC: apache24-suexec has
+# no httpd of its own, it runs on this one
+CONFIGURE_ARGS+=	--with-suexec-bin=${PREFIX}/sbin/suexec
 
 CONFIGURE_ENV+=	LOCALBASE="${LOCALBASE}" \
 		CONFIG_SHELL="${SH}"
