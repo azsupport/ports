@@ -25,8 +25,10 @@
 #   FETCHCONTENT_SOURCE_DIR_*, GALERA_SOURCE_DIR, COLUMNAR_LOCATOR): RE2 2015-06-01
 #   patched by Manticore (aZ's recipe: WITH_RE2_FORCE_STATIC), libstemmer (Snowball 3.0.3
 #   of Manticore, that of Manticore 31 and 32: the libstemmer_c.tgz of snowballstem.org 14.7.6
-#   took is no longer there), cctz, CRoaring, uni-algo, nlohmann/json, cppjieba with
-#   limonp (its dictionaries in share/manticore/jieba), the API of columnar c27-s18-k9;
+#   took is no longer there), cctz, CRoaring (with bswap64() of <sys/endian.h>, as upstream
+#   after 4.3.2: files/patch-freebsd-deps_roaring_include_roaring_portability.h), uni-algo,
+#   nlohmann/json, cppjieba with limonp (its dictionaries in share/manticore/jieba), the
+#   API of columnar c27-s18-k9;
 # - time zones: share/manticore/tzdata a link to /usr/share/zoneinfo (aZ);
 # - CMake 4: CMAKE_POLICY_VERSION_MINIMUM=3.5 in the environment, for the dependencies
 #   whose minimum is under 3.5 (cctz, nlohmann/json); the tree has CMake 3.31;

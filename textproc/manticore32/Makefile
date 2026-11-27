@@ -13,6 +13,12 @@
 # is that of 31.0.24), and the API of columnar from its submodule mcl (columnar 12f86b42
 # of 16.11.2026, 14.5.8 and two commits; MCL_LOCAL_RUNTIME=OFF: the libraries are
 # textproc/manticore32-columnar).
+# The C++ by clang 23 of devel/llvm23 (Mk/bsd.overlay.mk), as the line 14, not by GCC 16 (aZ
+# 27.11.2026 08:41: «manticore32 — C++, gcc16 не нужен»): prog-bench run 45923096945 against
+# the base clang 19: clang 23 -2.3%, GCC 16 -2.5% by the median (0.2% apart, within the
+# spread), and searchd of GCC 16 (libstdc++) does not link with the C++ libraries of the
+# packages, which are of clang and libc++ (Boost.Context and Boost.Filesystem, 45919701720).
+# CRoaring of both lines with the fix for clang 23 (the files/ of textproc/manticore14).
 
 DISTVERSION=	32.1.12
 PKGNAMESUFFIX=	32
