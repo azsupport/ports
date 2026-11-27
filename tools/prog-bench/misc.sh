@@ -107,7 +107,15 @@ g_build() {
         (cd "$W/src/procmail-$_v" && patch -s -p0 < "$p") >> "$_b" 2>&1 || echo "FAIL: ${p##*/}" >> "$_b"
     done
     find "$W/src/procmail-$_v" -name 'Makefile*' -exec sed -i '' -E -e 's|cd (.+); (\$\(MAKE\))|\2 -C \1|' {} +
-    if (cd "$W/src/procmail-$_v" && timeout -k 30 1500 make BATCH=yes CC="$CC" CFLAGS0="$CFLAGS" LDFLAGS0="$LDFLAGS" BASENAME="$W/procmail-$_v" < /dev/null) >> "$_b" 2>&1 &&
+    # gcc16: -fpermissive (its autoconf and its code of K&R C: the errors of GCC 14 and later,
+    # implicit declarations, implicit int, int-conversion, incompatible pointer types, warnings
+    # as with the base clang 19; 45930853611 stood in this build of gcc16 alone), said
+    _pcf="$CFLAGS"
+    if [ "$_v" = gcc16 ]; then
+        _pcf="$CFLAGS -fpermissive"
+        echo "procmail gcc16: built with -fpermissive (the errors of GCC 14 and later of its K&R C as warnings, as the base clang 19 has them)" >> "$W/fails/$group-notes-gcc16.md"
+    fi
+    if (cd "$W/src/procmail-$_v" && timeout -k 30 1500 make BATCH=yes CC="$CC" CFLAGS0="$_pcf" LDFLAGS0="$LDFLAGS" BASENAME="$W/procmail-$_v" < /dev/null) >> "$_b" 2>&1 &&
         [ -x "$W/src/procmail-$_v/src/procmail" ]; then
         mkdir -p "$W/procmail-$_v" && cp "$W/src/procmail-$_v/src/procmail" "$W/procmail-$_v/"
         bok procmail "$_v" "$W/procmail-$_v/procmail"

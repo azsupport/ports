@@ -248,6 +248,8 @@ bno() {
         head -n "$(( $(wc -l < "$3") - 40 ))" "$3" 2> /dev/null | grep -n -E '(^|[^a-z])(error|Error|ERROR|\*\*\*|FAIL|Abort|undefined reference|No such file|cannot find|recompile with|bad value)' | tail -n 12
         echo '---'; tail -n 40 "$3"; echo '```'; } >> "$W/fails/$group-$2.md"
     tail -n 40 "$3" >&3
+    # and its last lines into the log of the job too (a VM that does not end copies back no report)
+    tail -n 12 "$3" | cut -c1-300 | sed 's/^/    /'
     say "FAIL: the build of $1 by $2 (${3##*/})"
 }
 
