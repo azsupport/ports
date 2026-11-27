@@ -61,7 +61,7 @@ R="$top/results/avif-bench"
 QS="$(echo "${AB_QS:-30 40 50 60 70 75 80 85 90}" | tr ',' ' ')"
 NIMG="${AB_IMAGES:-24}"
 ROUNDS="${AB_ROUNDS:-3}"
-ALLCFG="svt-p5-psnr svt-p5-iq svt-p3-iq svt-p2-iq svt-p5-psnr-t1 svt-p5-iq-t1 aom-s6-iq aom-s5-iq aom-s5-ssim aom-s2-iq"
+ALLCFG="svt-p5-psnr svt-p5-iq svt-p3-iq svt-p2-iq svt-p5-psnr-t1 svt-p5-iq-t1 svt-p3-iq-t1 aom-s6-iq aom-s5-iq aom-s5-ssim aom-s2-iq"
 CONFIGS="$(echo "${AB_CONFIGS:-$ALLCFG}" | tr ',' ' ')"
 KODAK_MIRROR=dd2e1105fe8d9afe1120cd7e4c0e5e41f509a81b
 HEIF_URL=https://github.com/strukturag/libheif/releases/download/v1.23.7/libheif-1.23.7.tar.gz
@@ -117,6 +117,7 @@ cfg() {
     svt-p2-iq)      echo "svt speed=2 $k tune=iq" ;;
     svt-p5-psnr-t1) echo "svt speed=5 $k tile-rows=1 tile-cols=1" ;;
     svt-p5-iq-t1)   echo "svt speed=5 $k tune=iq tile-rows=1 tile-cols=1" ;;
+    svt-p3-iq-t1)   echo "svt speed=3 $k tune=iq tile-rows=1 tile-cols=1" ;;
     aom-s6-iq)      echo "aom speed=6 $k tune=iq" ;;
     aom-s5-iq)      echo "aom speed=5 $k tune=iq" ;;
     aom-s5-ssim)    echo "aom speed=5 $k tune=ssim" ;;
@@ -323,7 +324,7 @@ if [ "$part" != lossless ]; then
     for s in $SETS; do
         # the sweep: the slow configurations first, so that the parallel encodes end together
         say "sweep $s: $(echo "$CONFIGS" | wc -w | tr -d ' ') configurations x $(echo "$IMAGES" | wc -w | tr -d ' ') photos x $(echo "$QS" | wc -w | tr -d ' ') Q, $JOBS at a time"
-        for c in aom-s2-iq svt-p2-iq svt-p3-iq aom-s5-iq aom-s5-ssim aom-s6-iq $CONFIGS; do
+        for c in aom-s2-iq svt-p2-iq svt-p3-iq svt-p3-iq-t1 aom-s5-iq aom-s5-ssim aom-s6-iq $CONFIGS; do
             case " $CONFIGS " in *" $c "*) ;; *) continue ;; esac
             for im in $IMAGES; do echo "$s $im $c"; done
         done | awk '!seen[$0]++' | xargs -n 3 -P "$JOBS" sh "$self" _sweep
@@ -359,6 +360,21 @@ if [ "$part" != lossless ]; then
                     if cmp -s "$v/$im-svt-q$q.avif" "$W/enc430/$s/svt-p5-psnr/$im-q$q.avif"; then same=yes; note=""; else
                         same=no; note="$(bytes "$v/$im-svt-q$q.avif" 2> /dev/null) against $(bytes "$W/enc430/$s/svt-p5-psnr/$im-q$q.avif") B"; fi
                     echo "heifbench = vips heifsave	$s	svt-p5-psnr	$q	$im	$same	$note" >> "$W/checks.tsv"
+                fi
+                # the same with the libheif of the build (-march=x86-64-v3, as ours) in the place of that of the package
+                if [ -s "$W/enc430/$s/svt-p5-psnr/$im-q$q.avif" ]; then
+                    env LD_LIBRARY_PATH="$LDP" VIPS_CONCURRENCY=1 vips heifsave "$W/img/$s/$im.png" "$v/$im-svt-ours-q$q.avif" --Q "$q" --effort 4 \
+                        --compression av1 --encoder svt --keep none > /dev/null 2>&1 || true
+                    if cmp -s "$v/$im-svt-ours-q$q.avif" "$W/enc430/$s/svt-p5-psnr/$im-q$q.avif"; then same=yes; note=""; else
+                        same=no; note="$(bytes "$v/$im-svt-ours-q$q.avif" 2> /dev/null) against $(bytes "$W/enc430/$s/svt-p5-psnr/$im-q$q.avif") B"; fi
+                    echo "heifbench = vips heifsave, libheif of the build	$s	svt-p5-psnr	$q	$im	$same	$note" >> "$W/checks.tsv"
+                fi
+                if [ -s "$W/enc/$s/aom-s5-iq/$im-q$q.avif" ]; then
+                    env LD_LIBRARY_PATH="$LDP" VIPS_CONCURRENCY=1 vips heifsave "$W/img/$s/$im.png" "$v/$im-aom-ours-q$q.avif" --Q "$q" --effort 4 \
+                        --compression av1 --encoder aom --tune iq --keep none > /dev/null 2>&1 || true
+                    if cmp -s "$v/$im-aom-ours-q$q.avif" "$W/enc/$s/aom-s5-iq/$im-q$q.avif"; then same=yes; note=""; else
+                        same=no; note="$(bytes "$v/$im-aom-ours-q$q.avif" 2> /dev/null) against $(bytes "$W/enc/$s/aom-s5-iq/$im-q$q.avif") B"; fi
+                    echo "heifbench = vips heifsave, libheif of the build	$s	aom-s5-iq	$q	$im	$same	$note" >> "$W/checks.tsv"
                 fi
                 for c in aom-s5-iq; do
                     [ -s "$W/enc/$s/$c/$im-q$q.avif" ] || continue
@@ -413,6 +429,7 @@ lossless_cmd() {
     avif-aom-s2)  echo "env VIPS_CONCURRENCY=1 vips heifsave $2 $3 --lossless --compression av1 --encoder aom --effort 7 --keep none" ;;
     avif-svt-s5)  echo "env VIPS_CONCURRENCY=1 vips heifsave $2 $3 --lossless --compression av1 --encoder svt --effort 4 --keep none" ;;
     avif-aom-s5-hb) echo "env LD_LIBRARY_PATH=$LDP431 $HB $2 $3 aom lossless 1 speed=5 chroma=444 threads=1 auto-tiles=true enable-intrabc=false" ;;
+    avif-svt-s5-hb) echo "env LD_LIBRARY_PATH=$LDP431 $HB $2 $3 svt lossless 1 speed=5 chroma=444 threads=1 auto-tiles=true enable-intrabc=false" ;;
     webp-vips-e4) echo "env VIPS_CONCURRENCY=1 vips webpsave $2 $3 --lossless --effort 4 --Q 75 --keep none" ;;
     webp-cwebp-z9) echo "cwebp -quiet -lossless -z 9 -metadata none $2 -o $3" ;;
     png-vips-c9)  echo "env VIPS_CONCURRENCY=1 vips pngsave $2 $3 --compression 9 --keep none" ;;
@@ -424,7 +441,7 @@ lossless_cmd() {
 lossless_ext() { case "$1" in avif-*) echo avif ;; webp-*) echo webp ;; png-*) echo png ;; jxl-*) echo jxl ;; *) echo v ;; esac; }
 
 if [ "$part" = lossless ]; then
-    LFORMATS="$(echo "${AB_LOSSLESS:-avif-aom-s5 avif-aom-s5-hb avif-aom-s2 avif-svt-s5 webp-vips-e4 webp-cwebp-z9 png-vips-c9 png-vips-c9-all jxl-e7 vips-load}" | tr ',' ' ')"
+    LFORMATS="$(echo "${AB_LOSSLESS:-avif-aom-s5 avif-aom-s5-hb avif-aom-s2 avif-svt-s5 avif-svt-s5-hb webp-vips-e4 webp-cwebp-z9 png-vips-c9 png-vips-c9-all jxl-e7 vips-load}" | tr ',' ' ')"
     echo "set	image	format	bytes	width	height	maxdiff	ndiff	psnr_rgb	psnr_y	ssim_y	round	wall_s	cpu_s" > "$W/lossless.tsv"
     echo "- lossless commands (<in> <out>): $(for f in $LFORMATS; do printf '%s: `%s`; ' "$f" "$(lossless_cmd "$f" '<in>' '<out>')"; done)" >> "$head"
     for s in $SETS; do
@@ -434,11 +451,13 @@ if [ "$part" = lossless ]; then
             say "lossless $s: round $r of $ROUNDS"
             for f in $(rotate $((r - 1)) $LFORMATS); do
                 for im in $IMAGES; do
+                    # what failed in round 1 is not tried again
+                    [ "$r" -gt 1 ] && grep -q "^$s $im $f, round 1:" "$W/fails" && continue
                     out="$W/ll/$s/$im-$f.$(lossless_ext "$f")"
                     rm -f "$out"
                     # shellcheck disable=SC2046
                     t="$(pin "$TM" -e "$W/ll.err" $(lossless_cmd "$f" "$W/img/$s/$im.png" "$out"))" ||
-                        { echo "$s $im $f, round $r: $(tail -n 2 "$W/ll.err" | tr '\n' ' ')" >> "$W/fails"; continue; }
+                        { echo "$s $im $f, round $r: $(grep -v -e '^Svt\[info' -e '^Svt\[warn' "$W/ll.err" | tail -n 3 | tr '\n' ' ')" >> "$W/fails"; continue; }
                     echo "$s	$im	$f	$t	$r" >> "$W/ll-times.tsv"
                 done
             done
