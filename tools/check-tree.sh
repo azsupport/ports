@@ -33,7 +33,9 @@
 #     deps.conf, or the same in two ports; an origin of AZSUPPORT_HASH_OFFICIAL (the official
 #     ports whose files count in its hash) that the official tree has not; and what
 #     tools/azsupport-lib-ports.sh --check finds (the library ports are what it writes from
-#     deps.conf: AZSUPPORT_LIB_PORTS_WRITE=1 writes them);
+#     deps.conf: AZSUPPORT_LIB_PORTS_WRITE=1 writes them); the cases of
+#     tools/azsupport-shlibs-check.sh --test (the packages that need a library of azsupport
+#     which no package of the repository has, a check of tools/build.sh);
 #   - a file of the directory of another port its build reads (aZ, 12.11.2026) that
 #     is not in its azsupport_hash: the paths of this tree that its makefiles of this tree name
 #     from its own directory upward (${.CURDIR:H}..., ${.CURDIR}/..): the value make
@@ -330,6 +332,17 @@ if [ -f "$top/tools/azsupport-lib-ports.sh" ]; then
     fi
 else
     say "SKIP azsupport-lib-ports: no tools/azsupport-lib-ports.sh"
+fi
+# the check of tools/build.sh of the packages that need a shared library of azsupport which no
+# package of the repository has (tools/azsupport-shlibs-check.sh): its cases
+if [ -f "$top/tools/azsupport-shlibs-check.sh" ]; then
+    if sh "$top/tools/azsupport-shlibs-check.sh" --test > "$tmp/shlibs" 2>&1; then
+        nok=$((nok + 1))
+    else
+        sed 's/^/  azsupport-shlibs-check: /' "$tmp/shlibs"
+        say "FAIL azsupport-shlibs-check: sh tools/azsupport-shlibs-check.sh --test: $(grep -c '^FAIL' "$tmp/shlibs") of its cases failed"
+        nfail=$((nfail + 1))
+    fi
 fi
 n="$(wc -l < "$tmp/names" | tr -d ' ')"
 [ "$n" -gt 0 ] || [ "$nfail" -gt 0 ] || { say "FAIL no port in $top (<category>/<port>/Makefile)"; nfail=1; }

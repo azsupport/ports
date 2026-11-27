@@ -1268,6 +1268,14 @@ Nothing slips by unseen:
 - a package of the repository whose dependency of this tree has no package in it any more
   (gone as above, or of a port gone) goes too, and in turn those that need it: pkg would
   not install them ("has a missing dependency"); a run with their ports builds them again;
+- a package of the repository that needs a shared library of `/usr/local/azsupport` which no
+  package of the repository has (its `shlibs_required` against the `shlibs_provided` of the
+  packages of `azsupport/*` and the manifests of their libraries,
+  [`tools/azsupport-shlibs-check.sh`](tools/azsupport-shlibs-check.sh): a library port that
+  failed, when the package `azsupport` of before the split is gone) goes from the repository,
+  a line `shlibs:` each in the summary of the run: before the builds, so that its port is built
+  in the same run, and the run fails when its port is not in it or not in this tree; after
+  the builds, with what its port did, and the run fails;
 - the tests of all the programs run in every run (`tools/test-programs.sh`), with the
   packages kept against the new libraries;
 - a package that links a library of azsupport (its `shlibs_required`) whose port is not among

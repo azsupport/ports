@@ -1621,13 +1621,15 @@ done
 # the packages of the repository before: name origin azsupport_hash file, one per origin: of
 # two packages of an origin (the repository of the last run and the files of the
 # release, restored together) the newer version stays
-: > "$q/repo-all"
+: > "$q/repo-all"; : > "$q/azsn"
 for f in "$repo"/*.pkg; do
     [ -f "$f" ] || continue
     catalog "${f##*/}" && continue
     nm="$(pkg query -F "$f" '%n %o %v' 2>/dev/null)"
     if [ -z "$nm" ]; then say "the repository: ${f##*/} is not a package: removed"; rm -f "$f"; continue; fi
     echo "$nm ${f##*/}" >> "$q/repo-all"
+    # the shared libraries of a package of azsupport/* ($q/azsn: the check of the libraries below)
+    case "$nm" in *" azsupport/"*) pkg query -F "$f" '%b' 2> /dev/null >> "$q/azsn" ;; esac
 done
 : > "$q/repo-had"
 for og in $(awk '{ print $2 }' "$q/repo-all" | LC_ALL=C sort -u); do
@@ -1678,6 +1680,60 @@ while read -r lo ll; do
             echo "$ll $azcomb (azsupport/azsupport of before the split)" >> "$q/azold.src"
     fi
 done < "$q/libports"
+# The packages of the repository that need a shared library of /usr/local/azsupport which no
+# package of it has (aZ, 27.11.2026; tools/azsupport-shlibs-check.sh): a library port failed or
+# not built when the package azsupport of before the split, which had every library, is gone
+# (php84-gd and nginx-devel-image-filter of before on libgd.so.3, build-jail.yml 45928963778).
+# $q/azsn: the SONAMEs of /usr/local/azsupport, the shlibs_provided of the packages of
+# azsupport/* (above, and those built in this run at the end) and the soname lines of the
+# manifests (azsn_of: not those of another prefix, fontconfig); shl_scan <file>...: the
+# shlibs_provided and shlibs_required of those packages of the repository ($q/shl.b,
+# $q/shl.B: "<file> <SONAME>"). Before the decisions (below): such a package goes, a line in
+# the summary ($q/shl.lines, after its head); its port is built in this run when it is in the
+# queue (no package to keep), else the run fails with it (not in this run, or no port of this
+# tree: $shfail). Before the catalog (the repository): the same, with what its port did.
+azsn_of() {
+    awk -v a="$apre" 'function out() { if (!sk) for (i = 1; i <= n; i++) print s[i]; n = 0; sk = 0 }
+        FNR == 1 && NR > 1 { out() }
+        $1 == "prefix" && $2 != a { sk = 1 }
+        $1 == "soname" && $3 != "-" { s[++n] = $3 }
+        END { out() }' "$@" 2> /dev/null
+}
+shl_scan() {
+    : > "$q/shl.b"; : > "$q/shl.B"
+    for _f in "$@"; do
+        pkg query -F "$repo/$_f" '%b' 2> /dev/null | awk -v f="$_f" 'NF { print f, $1 }' >> "$q/shl.b"
+        pkg query -F "$repo/$_f" '%B' 2> /dev/null | awk -v f="$_f" 'NF { print f, $1 }' >> "$q/shl.B"
+    done
+}
+: > "$q/shl.lines"; : > "$q/shl.away"
+shfail=""
+if [ -f "$top/tools/azsupport-shlibs-check.sh" ]; then
+    for _f in "$q"/azold/*.txt "$q"/azcomb/*.txt; do [ -f "$_f" ] && azsn_of "$_f"; done >> "$q/azsn"
+    LC_ALL=C sort -u -o "$q/azsn" "$q/azsn"
+    # shellcheck disable=SC2046
+    shl_scan $(awk '{ print $4 }' "$q/repo-had")
+    sh "$top/tools/azsupport-shlibs-check.sh" "$q/azsn" "$q/shl.b" "$q/shl.B" > "$q/shl.away" ||
+        say "warning: tools/azsupport-shlibs-check.sh failed: the packages of the repository not checked for the libraries of $apre"
+    while read -r sf ss; do
+        so="$(awk -v f="$sf" '$4 == f { print $2; exit }' "$q/repo-had")"
+        if ! ours "$so"; then
+            sl="no port $so in this tree: the run fails"; shfail="$shfail $sf"
+        elif grep -qxF "$so" "$q/queue.txt"; then
+            sl="its port $so is built in this run"
+        else
+            sl="its port $so is not in this run: the run fails (a run with it builds it)"; shfail="$shfail $sf"
+        fi
+        if [ "$dryrun" = 1 ]; then sw="to go (AZSUPPORT_DRYRUN: not removed)"; else sw="away before the builds"; rm -f "$repo/$sf"; fi
+        echo "shlibs:   $sf $sw: it needs $(echo "$ss" | tr ',' ' ') of $apre, which no package of the repository has; $sl" >> "$q/shl.lines"
+        say "the repository: $sf $sw: it needs $(echo "$ss" | tr ',' ' ') of $apre, which no package of the repository has; $sl"
+    done < "$q/shl.away"
+    if [ "$dryrun" = 0 ] && [ -s "$q/shl.away" ]; then
+        awk 'NR == FNR { g[$1] = 1; next } !($4 in g)' "$q/shl.away" "$q/repo-had" > "$q/repo-had.t" && mv -f "$q/repo-had.t" "$q/repo-had"
+    fi
+    # what the ABI check of a library takes (repo_shlibs), of the packages that stay
+    awk 'NR == FNR { o[$4] = $2; next } ($1 in o) { print o[$1], $1, $2 }' "$q/repo-had" "$q/shl.B" > "$q/repo-shlibs"
+fi
 # lib_manicheck <origin> <key>: a library port or azsupport/azsupport kept by its hash (its package
 # in the repository has the same azsupport_hash) whose package has not the manifests of its
 # libraries is built again ($q/nomani-<key>, said)
@@ -3030,6 +3086,36 @@ done
 # azsupport, and the tests of build-jail.yml 45734425567 had none of them), cannot be
 # installed: away too, and in turn those that need it; a run with their ports builds them
 # again
+# The packages of the repository now that need a shared library of /usr/local/azsupport which
+# no package of it has (see shl_scan above; the SONAMEs of /usr/local/azsupport with those of
+# the packages of azsupport/* built in this run and of their manifests): away, a line each in
+# the summary with what its port did in this run, and the run fails (its port was not built in
+# it); those that need them go below. The lines of the check before the builds first.
+cat "$q/shl.lines" >> "$sum"
+if [ -f "$top/tools/azsupport-shlibs-check.sh" ]; then
+    for f in $(cat "$q/made"); do
+        case "$(pkg query -F "$f" '%o' 2> /dev/null)" in azsupport/*) pkg query -F "$f" '%b' 2> /dev/null ;; esac
+    done >> "$q/azsn"
+    for _f in "$q"/azif/*.txt; do [ -f "$_f" ] && azsn_of "$_f"; done >> "$q/azsn"
+    LC_ALL=C sort -u -o "$q/azsn" "$q/azsn"
+    # shellcheck disable=SC2046
+    shl_scan $(ls "$repo" | grep '\.pkg$' | while read -r f; do catalog "$f" || echo "$f"; done)
+    sh "$top/tools/azsupport-shlibs-check.sh" "$q/azsn" "$q/shl.b" "$q/shl.B" > "$q/shl.away2" ||
+        say "warning: tools/azsupport-shlibs-check.sh failed: the repository not checked for the libraries of $apre"
+    while read -r sf ss; do
+        so="$(pkg query -F "$repo/$sf" '%o' 2> /dev/null)"
+        case "$(st "$so")" in
+            fail) sl="its port $so failed in this run" ;;
+            skip) sl="its port $so was not built in this run (its line above)" ;;
+            repo) sl="its port $so kept it by its azsupport_hash" ;;
+            ok) sl="its port $so was built in this run" ;;
+            *) if ours "$so"; then sl="its port $so is not in this run"; else sl="no port $so in this tree"; fi ;;
+        esac
+        rm -f "$repo/$sf"; shfail="$shfail $sf"
+        echo "shlibs:   $sf away: it needs $(echo "$ss" | tr ',' ' ') of $apre, which no package of the repository has after this run; $sl: the run fails" >> "$sum"
+        say "the repository: $sf away: it needs $(echo "$ss" | tr ',' ' ') of $apre, which no package of the repository has after this run; $sl"
+    done < "$q/shl.away2"
+fi
 : > "$q/rp-pk"; : > "$q/rp-dp"
 for f in "$repo"/*.pkg; do
     [ -f "$f" ] || continue
@@ -3142,7 +3228,7 @@ fi
 # their dependencies to run do not bring (lib_cover_check)
 uncov="$(cd "$q/uncov" && ls | sed 's/_/\//' | tr '\n' ' ' | sed 's/ $//')"
 echo "built:    $nok, kept from the repository: $nkept$( [ "$plan" = 1 ] && echo ", to be built (AZSUPPORT_PLAN): $nplan")${failed:+, failed:$failed}${skipped:+, not built:$skipped}" >> "$sum"
-if [ -z "$failed" ] && [ -z "$skipped" ] && [ "$repo_ok" = 1 ] && [ -z "$uncov" ]; then
+if [ -z "$failed" ] && [ -z "$skipped" ] && [ "$repo_ok" = 1 ] && [ -z "$uncov" ] && [ -z "$shfail" ]; then
     echo "result:   OK" >> "$sum"
     say "OK: $nok built, $nkept kept from the repository ($repo)"
     exit 0
@@ -3152,6 +3238,7 @@ r=""
 [ -n "$skipped" ] && r="${r:+$r; }not built:$skipped"
 [ "$repo_ok" = 1 ] || r="${r:+$r; }pkg repo failed"
 [ -n "$uncov" ] && r="${r:+$r; }libraries of azsupport not in the azsupport_hash or not among the dependencies to run (results/azsupport-interface.txt): $uncov"
+[ -n "$shfail" ] && r="${r:+$r; }packages that need a library of $apre which no package of the repository has (shlibs:):$shfail"
 echo "result:   FAIL ($r)" >> "$sum"
 say "FAIL ($r)"
 exit 1
