@@ -213,9 +213,12 @@ cfg_diff() {
 # C++ libraries of the packages are of clang and libc++, and a program of gcc16 (libstdc++)
 # does not link with them (45914480695: Boost.Program_options of gearmand; 45919701720:
 # Boost.Filesystem of manticore32). As devel/boost-libs builds them: release, gnu++17 (no
-# Cobalt); static and not PIC here (the programs that take them are no PIE); b2 by the base
-# clang. Said in the report (the notes of gcc16)
+# Cobalt); static here, not PIC (manticore32 is no PIE, as the archives of boost-libs), with
+# pic first PIC (gearmand: its configure links PIE, 45926567019); b2 by the base clang. Said in
+# the report (the notes of gcc16)
 boost_gcc16() {
+    _bf="$(echo "$CXXFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
+    if [ "$1" = pic ]; then _bf="$CXXFLAGS"; shift; fi
     fetch boost_1_92_0.tar.bz2 5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c \
         https://archives.boost.io/release/1.92.0/source/boost_1_92_0.tar.bz2
     _bs="$W/src/boost-gcc16"
@@ -226,11 +229,11 @@ boost_gcc16() {
     (cd "$_bs" && { [ -x b2 ] || env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LDFLAGS -u AR -u NM -u RANLIB PATH="$PATH0" ./bootstrap.sh --with-toolset=clang; } &&
         ./b2 -j"$ncpu" --user-config="$W/boost-user.jam" toolset=gcc-16 variant=release link=static \
             threading=multi runtime-link=shared cxxstd=17 cxxstd-dialect=gnu \
-            cxxflags="$(echo "$CXXFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')" \
+            cxxflags="$_bf" \
             $_bw --stagedir="$W/boost-gcc16" stage) >> "$W/b-boost-gcc16.log" 2>&1 || return 1
     mkdir -p "$W/boost-gcc16/include" && ln -sfh "$_bs/boost" "$W/boost-gcc16/include/boost" || return 1
     for _l in "$@"; do [ -f "$W/boost-gcc16/lib/libboost_$_l.a" ] || return 1; done
-    echo "$group gcc16: Boost ($*) 1.92.0 of its own, by gcc16 (static, release, gnu++17, not PIC, as devel/boost-libs; boost-libs of the packages: $(pkg query %v boost-libs)): the C++ libraries of the packages are of clang and libc++, and a program of gcc16 (libstdc++) does not link with them" >> "$W/fails/$group-notes-gcc16.md"
+    echo "$group gcc16: Boost ($*) 1.92.0 of its own, by gcc16 (static, release, gnu++17, as devel/boost-libs, with $_bf; boost-libs of the packages: $(pkg query %v boost-libs)): the C++ libraries of the packages are of clang and libc++, and a program of gcc16 (libstdc++) does not link with them" >> "$W/fails/$group-notes-gcc16.md"
 }
 
 # bok <program> <variant> <file>: the build of the program by the variant is there
@@ -242,7 +245,7 @@ have() { [ -f "$W/ok/$group-$1-$2" ]; }
 # comparison) failing ends the group
 bno() {
     { echo; echo "FAIL: the build of $1 by $2, the last 40 lines of ${3##*/} (and its last lines of errors before them):"; echo; echo '```'
-        head -n "$(( $(wc -l < "$3") - 40 ))" "$3" 2> /dev/null | grep -n -E '(^|[^a-z])(error|Error|ERROR|\*\*\*|FAIL|Abort|undefined reference|No such file)' | tail -n 12
+        head -n "$(( $(wc -l < "$3") - 40 ))" "$3" 2> /dev/null | grep -n -E '(^|[^a-z])(error|Error|ERROR|\*\*\*|FAIL|Abort|undefined reference|No such file|cannot find|recompile with|bad value)' | tail -n 12
         echo '---'; tail -n 40 "$3"; echo '```'; } >> "$W/fails/$group-$2.md"
     tail -n 40 "$3" >&3
     say "FAIL: the build of $1 by $2 (${3##*/})"

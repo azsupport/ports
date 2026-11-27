@@ -11,11 +11,11 @@
 # gearmand 2.2.0 (devel/gearmand, its distinfo) with the patches of the port (the fixes of
 # master after 2.2.0, files/patch-*) and its options (make with noinst_PROGRAMS empty, as the
 # port: libtest does not build on FreeBSD, "undeclared identifier 'environ'"; then the two
-# programs of its benchmark): libevent, Boost.Program_options (gcc16: its own, boost_gcc16) and
-# libuuid of the packages, SQLite (the persistent queue, off here), no TLS, no PIE (the port:
-# PIE_UNSAFE); its blobslap_client and blobslap_worker (of the build by clang19 for all). The
-# server on the last CPU (-t 1), 4 workers and the client on the others: 100000 jobs of 64
-# to 512 bytes, 100 at once, timed.
+# programs of its benchmark): libevent, the archives of Boost.Program_options (gcc16: its own,
+# boost_gcc16) and libuuid of the packages, SQLite (the persistent queue, off here), no TLS, no
+# PIE (the port: PIE_UNSAFE and no -fPIE -pie of its configure); its blobslap_client and
+# blobslap_worker (of the build by clang19 for all). The server on the last CPU (-t 1), 4
+# workers and the client on the others: 100000 jobs of 64 to 512 bytes, 100 at once, timed.
 
 g_progs="memcached gearmand"
 
@@ -46,18 +46,28 @@ g_build() {
     for p in "$top"/devel/gearmand/files/patch-*; do
         (cd "$W/src/gearmand-$_v" && patch -s -p0 < "$p") >> "$_b" 2>&1 || echo "FAIL: ${p##*/}" >> "$_b"
     done
-    # PIE_UNSAFE of the port
+    # PIE_UNSAFE of the port, and its CONFIGURE_ENV: no -fPIE -pie of AX_HARDEN_COMPILER_FLAGS
+    # of gearmand either (a PIE gearadmin does not link with the archive of boost-libs)
     _cf="$(echo "$CFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
     _cxf="$(echo "$CXXFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
     _lf="$(echo "$LDFLAGS" | sed -e 's/-pie //')"
-    # gcc16: Boost.Program_options of its own (boost_gcc16; that of boost-libs is of libc++,
-    # 45914480695: its std::__1 symbols undefined), its directory before /usr/local
-    _bo=/usr/local
+    # as the port: the archives libboost_program_options.a and libuuid.a alone in a directory
+    # (the headers of Boost there too), before /usr/local; gcc16: its own Boost.Program_options
+    # (boost_gcc16; that of boost-libs is of libc++, 45914480695: its std::__1 symbols undefined)
+    _bo="$W/gmdeps-$_v"
+    mkdir -p "$_bo/include" "$_bo/lib"
     if [ "$_v" = gcc16 ]; then
         if ! boost_gcc16 program_options; then bno gearmand "$_v" "$W/b-boost-gcc16.log"; return 0; fi
-        _bo="$W/boost-gcc16"
+        ln -sfh "$W/boost-gcc16/include/boost" "$_bo/include/boost"
+        ln -sf "$W/boost-gcc16/lib/libboost_program_options.a" "$_bo/lib/"
+    else
+        ln -sfh /usr/local/include/boost "$_bo/include/boost"
+        ln -sf /usr/local/lib/libboost_program_options.a "$_bo/lib/"
     fi
+    ln -sf /usr/local/lib/libuuid.a "$_bo/lib/"
     if (cd "$W/src/gearmand-$_v" && autoreconf -fi && MAKE=gmake CFLAGS="$_cf" CXXFLAGS="$_cxf" LDFLAGS="-L$_bo/lib -L/usr/local/lib $_lf" \
+        ax_cv_check_cflags__Werror__fPIE=no ax_cv_check_cflags__Werror__pie=no \
+        ax_cv_check_cxxflags__Werror__fPIE=no ax_cv_check_cxxflags__Werror__pie=no \
         CPPFLAGS="-I$_bo/include -I/usr/local/include" LIBS=-lexecinfo ./configure --prefix="$W/gearmand-$_v" \
         --disable-dtrace --disable-hiredis --disable-libdrizzle --disable-libmemcached --disable-libpq \
         --disable-libtokyocabinet --disable-shared --enable-static --disable-wolfssl --disable-ssl \
