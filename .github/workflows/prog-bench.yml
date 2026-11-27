@@ -27,7 +27,7 @@ on:
         required: false
         default: ''
       from_run:
-        description: 'The split groups measured with the builds of this earlier run (its artifacts pb-<group>-<variant>), not built again'
+        description: 'The split groups measured with the builds of these earlier runs (their artifacts pb-<group>-<variant>; a later run over an earlier one), not built again'
         required: false
         default: ''
       variants:
@@ -225,14 +225,26 @@ jobs:
       - name: Free space on the runner
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
 
-      - uses: actions/download-artifact@v4
+      # the builds of the earlier runs (from_run: one or more, a later one over an earlier one;
+      # a build that failed is a tarball too: name the run of a good one after it)
+      - name: The builds of the runs ${{ inputs.from_run }}
         if: inputs.from_run != ''
-        with:
-          pattern: pb-${{ matrix.group }}-*
-          merge-multiple: true
-          path: results/prebuilt
-          run-id: ${{ inputs.from_run }}
-          github-token: ${{ github.token }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PB_FROM: ${{ inputs.from_run }}
+          PB_GROUP: ${{ matrix.group }}
+        run: |
+          mkdir -p results/prebuilt
+          for r in $PB_FROM; do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$r/artifacts?per_page=100" \
+              --jq ".artifacts[] | select(.expired | not) | select(.name | startswith(\"pb-$PB_GROUP-\")) | \"\(.id) \(.name)\"" > "$RUNNER_TEMP/pb-arts"
+            while read -r id name; do
+              gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/$name.zip"
+              unzip -o -q "$RUNNER_TEMP/$name.zip" -d results/prebuilt
+              echo "$name ($id) of the run $r: $(unzip -l "$RUNNER_TEMP/$name.zip" | tail -n 1)"
+            done < "$RUNNER_TEMP/pb-arts"
+          done
+          ls -l results/prebuilt
 
       # the builds of this run (over those of from_run)
       - uses: actions/download-artifact@v4

@@ -23,6 +23,25 @@ g_need() {
     if [ "$mode" = bench ]; then need wrk-luajit; fi
 }
 
+# gcc16: Boost.Context and Boost.Filesystem of its own, by gcc16 (libstdc++): the archives of
+# boost-libs are of clang (libc++), and searchd of gcc16 does not link with them (run
+# 45919701720: std::__1::locale of their path.o undefined). Boost 1.92.0 (devel/boost-libs) as
+# its port builds them: static, release, gnu++17 (no Cobalt); not PIC, as those archives; b2
+# by the base clang. The headers: those of the same tree
+mc_boost_gcc16() {
+    fetch boost_1_92_0.tar.bz2 5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c \
+        https://archives.boost.io/release/1.92.0/source/boost_1_92_0.tar.bz2
+    unpack boost_1_92_0.tar.bz2 "$W/src/boost-gcc16"
+    echo "using gcc : 16 : $gxx_bin ;" > "$W/boost-user.jam"
+    (cd "$W/src/boost-gcc16" &&
+        env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LDFLAGS -u AR -u NM -u RANLIB PATH="$PATH0" ./bootstrap.sh --with-toolset=clang &&
+        ./b2 -j"$ncpu" -d1 --user-config="$W/boost-user.jam" toolset=gcc-16 variant=release link=static \
+            threading=multi runtime-link=shared cxxstd=17 cxxstd-dialect=gnu cxxflags="$_cxf" \
+            --with-context --with-filesystem --stagedir="$W/boost-gcc16" stage) > "$W/b-boost-gcc16.log" 2>&1 &&
+        [ -f "$W/boost-gcc16/lib/libboost_context.a" ] && [ -f "$W/boost-gcc16/lib/libboost_filesystem.a" ] || return 1
+    echo "manticore32 gcc16: Boost.Context and Boost.Filesystem 1.92.0 of its own, by gcc16 (static, release, gnu++17, not PIC, as devel/boost-libs; boost-libs of the packages: $(pkg query %v boost-libs)): the archives of boost-libs are of clang and libc++, and searchd of gcc16 (libstdc++) does not link with them (45919701720: _ZNSt3__16localeC1ERKS0_ of their path.o undefined)" >> "$W/fails/$group-notes-gcc16.md"
+}
+
 g_build() {
     _v="$1"
     set_cc "$_v"
@@ -56,15 +75,6 @@ RoaringBitmap:CRoaring:v4.3.2:freebsd-deps/roaring:3be2e83b27cfbbf6692b215f9d4c1
     (cd "$S/freebsd-deps/re2" && patch -s -p1 < "$S/libre2/libre2.patch") >> "$_b" 2>&1 || echo "FAIL: libre2.patch" >> "$_b"
     cp "$S/libre2/CMakeLists.txt" "$S/freebsd-deps/re2/CMakeLists.txt"
     echo ok > "$S/freebsd-deps/re2/is_patched.txt"
-    # pre-configure of the port: the archives of Boost alone in a directory; a CMake config of
-    # xxHash (header only)
-    D="$W/mcdeps"
-    mkdir -p "$D/include" "$D/lib" "$D/lib/cmake/xxHash"
-    ln -sf /usr/local/include/boost "$D/include/boost"
-    ln -sf /usr/local/lib/libboost_context.a /usr/local/lib/libboost_filesystem.a "$D/lib/"
-    printf '%s\n' 'if (NOT TARGET xxHash::xxhash)' '	add_library ( xxHash::xxhash INTERFACE IMPORTED )' \
-        '	set_target_properties ( xxHash::xxhash PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "/usr/local/include" )' \
-        'endif ()' > "$D/lib/cmake/xxHash/xxHashConfig.cmake"
     # CRoaring 4.3.2 calls bswap64 undeclared on FreeBSD (its portability.h includes
     # <byteswap.h>; bswap64 is of <sys/endian.h>), in roaring64.c, which searchd does not link:
     # an error of clang 23 and of GCC 14 and later, a warning of the base clang 19 (FreeBSD
@@ -78,6 +88,21 @@ RoaringBitmap:CRoaring:v4.3.2:freebsd-deps/roaring:3be2e83b27cfbbf6692b215f9d4c1
     _cf="$(echo "$CFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
     _cxf="$(echo "$CXXFLAGS" | sed -e 's/ -fPIE//' -e 's/ -fPIC//')"
     _lf="$(echo "$LDFLAGS" | sed -e 's/-pie //')"
+    # pre-configure of the port: the archives of Boost alone in a directory (of the variant;
+    # gcc16: those of mc_boost_gcc16); a CMake config of xxHash (header only)
+    D="$W/mcdeps-$_v"
+    mkdir -p "$D/include" "$D/lib" "$D/lib/cmake/xxHash"
+    if [ "$_v" = gcc16 ]; then
+        if ! mc_boost_gcc16; then bno manticore32 "$_v" "$W/b-boost-gcc16.log"; rm -rf "$S"; return 0; fi
+        ln -sfh "$W/src/boost-gcc16/boost" "$D/include/boost"
+        ln -sf "$W/boost-gcc16/lib/libboost_context.a" "$W/boost-gcc16/lib/libboost_filesystem.a" "$D/lib/"
+    else
+        ln -sfh /usr/local/include/boost "$D/include/boost"
+        ln -sf /usr/local/lib/libboost_context.a /usr/local/lib/libboost_filesystem.a "$D/lib/"
+    fi
+    printf '%s\n' 'if (NOT TARGET xxHash::xxhash)' '	add_library ( xxHash::xxhash INTERFACE IMPORTED )' \
+        '	set_target_properties ( xxHash::xxhash PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "/usr/local/include" )' \
+        'endif ()' > "$D/lib/cmake/xxHash/xxHashConfig.cmake"
     M="$S/freebsd-deps"
     if (cd "$S" && env CMAKE_POLICY_VERSION_MINIMUM=3.5 CFLAGS="$_cf" CXXFLAGS="$_cxf" LDFLAGS="$_lf" \
         cmake -S . -B _b -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS_RELEASE=-DNDEBUG \
