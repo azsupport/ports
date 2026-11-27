@@ -24,10 +24,17 @@ LICENSE_FILE=	${WRKSRC}/COPYING
 
 # libevent.so of azsupport: its configure takes LIBEVENT_CORE_CFLAGS and LIBEVENT_CORE_LIBS
 # as they are (PKG_CHECK_MODULES does not ask pkg-config then)
+# The C compiled by GCC 16 of the ports (USES=azgcc, Mk/Uses/azgcc.mk; a build dependency
+# only), aZ 27.11.2026 08:43 («окей, следуем инфе с тестов»): prog-bench (a session cats
+# 150 MB of text, 200x50) against the base clang 19, run 45944300277: GCC 16 -10.1%, clang
+# 23 -0.9%, GCC 16 faster than clang 23 by 10.2% in 5 of 5 rounds; -2.5%, -15.3% and
+# -10.2% on three other runs (45938357673, 45941929373, 45943132901).
 BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
 RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libevent.so:azsupport/azsupport
 
 USES=		cpe ncurses pkgconfig
+# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
+USES+=		azgcc
 CPE_VENDOR=	tmux_project
 
 GNU_CONFIGURE=	yes

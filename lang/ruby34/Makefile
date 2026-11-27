@@ -19,6 +19,19 @@
 #   the configure test of libunwind.h answered no, so no build machine decides it.
 # The flags of the build go into rbconfig.rb as there: a native extension of a gem built
 # with this Ruby (mkmf) links with the -L and the run path of azsupport too.
+# The C compiled by GCC 16 of the ports (USES=azgcc, Mk/Uses/azgcc.mk; a build dependency
+# only), aZ 27.11.2026 08:43 («окей, следуем инфе с тестов»): prog-bench (bignum, calls,
+# hash, json, objects, regex, sort, string, each with and without YJIT) against the base
+# clang 19, run 45926215732: GCC 16 -2.2%, clang 23 -1.1% by the median, GCC 16 faster
+# than clang 23 by 1.2%, clear in 3 of 16 (calls -13.3%), clang 19 in 1 (objects +11.8%);
+# faster than clang 23 on three other machines too (by 1.6%, 4.0%, 2.2%: 45905132701,
+# 45913465743, 45918232254). No PIE of the framework (PIE_UNSAFE): GCC takes the -pie of
+# LDFLAGS, which configure puts into DLDFLAGS after the -shared of LDSHARED, for a program
+# and would link libruby34.so and the extensions as programs (Scrt1.o: undefined reference
+# to main; clang leaves -pie out with -shared), as lang/python312 had it with GCC 16;
+# ruby34 is a small program over libruby34.so (--enable-shared), which is position
+# independent anyway. rbconfig.rb names cc, c++ and cpp (Mk/azsupport-cc-names.sh), so
+# that mkmf builds an extension with the cc of a server.
 
 PORTNAME=	ruby
 PORTVERSION=	${RUBY_DISTVERSION}
@@ -43,6 +56,9 @@ LICENSE_FILE_RUBY=	${WRKSRC}/COPYING
 AZSUPPORT_LIBS=	libffi:libffi.so gmp:libgmp.so libyaml:libyaml.so
 
 USES=		autoreconf cpe ruby:none ssl tar:xz
+# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
+USES+=		azgcc
+PIE_UNSAFE=	GCC links libruby and the extensions as programs with -shared -pie
 
 CPE_VENDOR=	ruby-lang
 CPE_UPDATE=	p0

@@ -4,7 +4,12 @@
 # for its PHP ports: the masters lang/php56, lang/php74, lang/php81,
 # lang/php82, lang/php83 and lang/php84 have it in their USES, so the cores,
 # www/mod_php* and the modules php*-<module> (their slaves) are built with it
-# (aZ, 09.11.2026: the most speed there is, for 5.6 and the modules too).
+# (aZ, 09.11.2026: the most speed there is, for 5.6 and the modules too). And the C
+# programs GCC 16 builds clearly faster than clang 23 (the measurement of 26-27.11.2026, aZ
+# 27.11.2026 08:43: «окей, следуем инфе с тестов»; docs/compiler-choice/decision.md of
+# azsupport/azsupport): databases/redis82, mail/procmail, lang/tcl84, sysutils/tmux,
+# dns/unbound, lang/ruby34, and shells/bash and lang/perl5.42 (ports of
+# Mk/azsupport-official.mk: AZSUPPORT_USES=azgcc, Mk/bsd.overlay.mk).
 #
 # Why: the Zend VM of PHP 7 and later keeps its frame and its instruction
 # pointer in global register variables, which GCC has and clang has not
@@ -30,8 +35,10 @@
 # too: their configure links the OpenMP runtime of the compiler, which for GCC
 # is libgomp of the gcc package.
 # AZSUPPORT_GCC_CFLAGS: more flags for the C compiled by GCC, for a port that needs
-# them (none now: lang/php56 had -Wno-error=incompatible-pointer-types until
-# its tarball fixed the three places, 09.11.2026).
+# them: the errors of GCC 14 and later as warnings for old C (mail/procmail -fpermissive,
+# lang/tcl84 -Wno-error=implicit-int and three more; lang/php56 had
+# -Wno-error=incompatible-pointer-types until its tarball fixed the three places,
+# 09.11.2026).
 #
 # What it does:
 # - USE_GCC=${AZSUPPORT_GCC}:build of the framework (Mk/bsd.gcc.mk): CC, CPP and CXX

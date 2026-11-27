@@ -71,6 +71,9 @@ AZSUPPORT_OVERLAY:=	${.PARSEDIR:H}
 #   before llvm${AZSUPPORT_CLANG} is installed: the builder reads the dependencies of every
 #   port before it builds one, and compiler.mk without the compiler would take it
 #   for GCC.
+# AZSUPPORT_USES: USES the first pass adds to those of the port before they are read, for a
+# port of Mk/azsupport-official.mk, whose official Makefile sets USES= after the lines of the
+# port: azgcc (Mk/Uses/azgcc.mk) of shells/bash and lang/perl5.42.
 # AZSUPPORT_CLANG=base in the Makefile of a port (before bsd.port.pre.mk): the clang of the
 # base system instead, the clang 19 of FreeBSD 15.1 (CC, CXX and CPP of sys.mk; its ar, nm,
 # ranlib and lld), for what it builds faster than clang 23 and GCC 16 (aZ, 27.11.2026
@@ -83,6 +86,9 @@ AZSUPPORT_OVERLAY:=	${.PARSEDIR:H}
 AZSUPPORT_CLANG?=	${LLVM_DEFAULT}
 .if defined(_PREMKINCLUDED) && !defined(_POSTMKINCLUDED) && !defined(_AZSUPPORT_CLANG_DONE)
 _AZSUPPORT_CLANG_DONE=	yes
+.  if defined(AZSUPPORT_USES) && !empty(AZSUPPORT_USES)
+USES+=	${AZSUPPORT_USES}
+.  endif
 .  if !(${.CURDIR:H:T} == devel && !empty(.CURDIR:T:Mllvm[0-9]*)) && !defined(USE_GCC) && \
 	(empty(USES:Mazgcc) || ${AZSUPPORT_GCC:U} == no) && ${AZSUPPORT_CLANG} == base
 AZSUPPORT_TOOLCHAIN_ENV=

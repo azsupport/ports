@@ -19,6 +19,12 @@
 # make.conf of the servers). The rest as the official port: the rc.d
 # script unbound (unbound_enable, profiles, unbound-anchor before the start), the
 # user unbound, /usr/local/etc/unbound with unbound.conf.sample.
+# The C compiled by GCC 16 of the ports (USES=azgcc, Mk/Uses/azgcc.mk; a build dependency
+# only), aZ 27.11.2026 08:43 («окей, следуем инфе с тестов»): prog-bench (dnsperf: 10000
+# records of local-data, the cache of a zone forwarded to named) against the base clang
+# 19, run 45900388811: GCC 16 -5.1%, clang 23 -2.1% by the median, GCC 16 faster than clang
+# 23 by 3.1%, clear in 2 of 2. libunbound.so by libtool, which leaves the -pie of LDFLAGS
+# out of the link of a shared library.
 
 PORTNAME=	unbound
 DISTVERSION=	1.26.2
@@ -40,6 +46,8 @@ BUILD_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport
 RUN_DEPENDS=	${AZSUPPORT_PREFIX}/lib/libexpat.so:azsupport/azsupport
 
 USES=		autoreconf cpe libtool pkgconfig ssl
+# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
+USES+=		azgcc
 CPE_VENDOR=	nlnetlabs
 USE_LDCONFIG=	yes
 USE_RC_SUBR=	${PORTNAME}
