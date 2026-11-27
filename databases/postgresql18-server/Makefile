@@ -259,6 +259,21 @@ pre-configure:
 	    done; \
 	done
 
+# pg_config (--configure, --cc) and the view pg_config of the server name the compilers of the
+# build by the names of those of the base system, as Mk/azsupport-cc-names.sh names them in the
+# text files of the packages (Makefile.global of PGXS, the copies of pg_config.h): the clang of
+# devel/llvm<N> (that of its prefix for the server: USES=llvm) is a build dependency only.
+# CONFIGURE_ARGS of pg_config.h (the 'CC=...', 'CXX=...', 'CPP=...' and 'CLANG=...' of
+# configure) rewritten in the build tree once configure has written it, a name left stopping
+# the build, and VAL_CC of src/common/Makefile (files/patch-src_common_Makefile). Not in
+# post-configure, which databases/postgresql18-contrib has.
+_USES_configure+=	760:azsupport-pg-cc-names
+azsupport-pg-cc-names:
+	@${SETENV} AZSUPPORT_CLANG=${LLVM_DEFAULT} AZSUPPORT_GCC=${AZSUPPORT_GCC:U:M[0-9]*} LOCALBASE=${LOCALBASE} \
+		${SH} ${AZSUPPORT_OVERLAY}/Mk/azsupport-cc-names.sh ${WRKSRC}/src/include/pg_config.h
+	@${SETENV} AZSUPPORT_CLANG=${LLVM_DEFAULT} AZSUPPORT_GCC=${AZSUPPORT_GCC:U:M[0-9]*} LOCALBASE=${LOCALBASE} \
+		${SH} ${AZSUPPORT_OVERLAY}/Mk/azsupport-cc-names.sh --check ${WRKSRC}/src/include/pg_config.h
+
 .if defined(SERVER_ONLY)
 pre-build:
 	@${SH} ${PKGINSTALL} ${PORTNAME} PRE-INSTALL

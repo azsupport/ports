@@ -1,0 +1,17 @@
+pg_config --cc and the view pg_config name the cc of the base system (azsupport/ports,
+27.11.2026): the clang of devel/llvm<N> (Mk/bsd.overlay.mk, USES=llvm) and the GCC of
+lang/gcc<N> are build dependencies of the ports only, a server has neither, and
+Mk/azsupport-cc-names.sh names them so in the text files of the packages (CC of
+Makefile.global of PGXS); CONFIGURE_ARGS of pg_config.h the Makefile of the port rewrites.
+
+--- src/common/Makefile.orig	2026-11-09 20:09:29 UTC
++++ src/common/Makefile
+@@ -31,7 +31,7 @@
+ # don't include subdirectory-path-dependent -I and -L switches
+ STD_CPPFLAGS := $(filter-out -I$(top_srcdir)/src/include -I$(top_builddir)/src/include,$(CPPFLAGS))
+ STD_LDFLAGS := $(filter-out -L$(top_builddir)/src/common -L$(top_builddir)/src/port,$(LDFLAGS))
+-override CPPFLAGS += -DVAL_CC="\"$(CC)\""
++override CPPFLAGS += -DVAL_CC="\"cc\""
+ override CPPFLAGS += -DVAL_CPPFLAGS="\"$(STD_CPPFLAGS)\""
+ override CPPFLAGS += -DVAL_CFLAGS="\"$(CFLAGS)\""
+ override CPPFLAGS += -DVAL_CFLAGS_SL="\"$(CFLAGS_SL)\""
