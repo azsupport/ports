@@ -79,7 +79,7 @@ W="${PB_WORK:-/pb}"
 R="$top/results/prog-bench"
 P="$top/results/prebuilt"
 if [ "$mode" = build ]; then name="$group-build-$bvariant"; else name="$group"; fi
-mkdir -p "$W/dist" "$W/src" "$W/ok" "$W/fails" "$R" "$P"
+mkdir -p "$W/dist" "$W/src" "$W/ok" "$W/fails" "$W/cfg" "$R" "$P"
 raw="$W/raw-$name"
 rm -rf "$raw"; mkdir -p "$raw"
 out="$R/$name.md"
@@ -185,6 +185,29 @@ fetch_try() {
 fetch() { fetch_try "$@" || die "cannot download $1 with the SHA-256 $2 ($(shift 2; echo "$*"))"; }
 # unpack <file> <dir>: the tarball into <dir> (its top directory stripped)
 unpack() { rm -rf "$2"; mkdir -p "$2" && tar -xf "$W/dist/$1" -C "$2" --strip-components 1 || die "cannot unpack $1"; }
+# cfg_keep <program> <variant> <file>: the defines its configure wrote (config.h, or lines of
+# "#define NAME value"), for cfg_diff
+cfg_keep() {
+    [ -f "$3" ] || return 0
+    sed -n -E -e 's/^#define ([A-Za-z0-9_]+)$/\1/p' -e 's/^#define ([A-Za-z0-9_]+)[[:space:]]+(.*)$/\1 \2/p' \
+        -e 's/^\/\* #undef ([A-Za-z0-9_]+) \*\/$/\1 (undef)/p' "$3" | sort -u > "$W/cfg/$1-$2"
+}
+# cfg_diff: a note per program and variant whose configure found otherwise than for clang19
+# (Python 3.12 sets the flags of LTO for a CC of *clang* or *gcc* alone; bash 5.3 by clang19
+# took twice the time of the others in ${s//a/b}, 45918232254): the defines that differ, but
+# for those that name the compiler, its flags or the directories of the build
+cfg_diff() {
+    for _f in "$W/cfg"/*-clang19; do
+        [ -f "$_f" ] || continue
+        _p="${_f##*/}"; _p="${_p%-clang19}"
+        for _v in clang23 gcc16; do
+            [ -f "$W/cfg/$_p-$_v" ] || continue
+            _d="$(diff "$_f" "$W/cfg/$_p-$_v" | grep -v -E '/pb/|clang|gcc|g\+\+|c\+\+|-O[0-9s]|-march|-std=|"cc[ "]|-W[a-z]|-f[a-z]|-pie|-static' |
+                sed -n -E -e 's/^< (.*)/clang19 \1/p' -e "s/^> (.*)/$_v \\1/p" | head -n 40 | tr '\n' ';' | sed -e 's/;$//' -e 's/;/; /g')"
+            [ -z "$_d" ] || echo "$_p $_v: its configure found otherwise than for clang19 (its config.h, the compiler and the flags aside): $_d" >> "$W/fails/$group-notes-cfg.md"
+        done
+    done
+}
 # boost_gcc16 <library>...: those libraries of Boost 1.92.0 (devel/boost-libs) by gcc16 into
 # $W/boost-gcc16 (include: the headers of its tree; lib: the archives), after set_cc gcc16: the
 # C++ libraries of the packages are of clang and libc++, and a program of gcc16 (libstdc++)
@@ -297,6 +320,7 @@ pbrd() { mkdir -p /mnt/pbrd && { mount | grep -q ' /mnt/pbrd ' || mount -t tmpfs
 
 # the report: the compilers, the builds that failed, a table per program of the medians
 report() {
+    cfg_diff
     _ld19="$(ld --version 2> /dev/null | head -n 1)"
     {
         echo "# prog-bench: $group"
@@ -659,7 +683,7 @@ run_group() {
         # the markers of the builds and the failures go too: the job of the measurements
         # reports them
         # shellcheck disable=SC2086
-        tar -c --zstd -f "$P/$group-$bvariant.tar" -C / $keep "${W#/}/ok" "${W#/}/fails" ||
+        tar -c --zstd -f "$P/$group-$bvariant.tar" -C / $keep "${W#/}/ok" "${W#/}/fails" "${W#/}/cfg" ||
             die "cannot pack the builds of $group by $bvariant"
         say "packed: $(ls -l "$P/$group-$bvariant.tar" | awk '{ print $5 }') bytes ($keep)"
         {

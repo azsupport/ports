@@ -51,6 +51,7 @@ g_build() {
     else
         bno perl "$_v" "$_b"
     fi
+    cfg_keep perl "$_v" "$W/src/perl-$_v/config.h"
     rm -rf "$W/src/perl-$_v"
     # Ruby
     unpack ruby-3.4.13.tar.xz "$W/src/ruby-$_v"
@@ -63,6 +64,7 @@ g_build() {
     else
         bno ruby "$_v" "$_b"
     fi
+    cfg_keep ruby "$_v" "$(ls "$W/src/ruby-$_v"/.ext/include/*/ruby/config.h 2> /dev/null | head -n 1)"
     rm -rf "$W/src/ruby-$_v"
     # LuaJIT
     unpack openresty-luajit2-v2.1-20261107_GH0.tar.gz "$W/src/luajit-$_v"
@@ -112,6 +114,10 @@ g_build() {
     else
         bno tcl84 "$_v" "$_b"
     fi
+    # its configure puts its findings into DEFS of the Makefile (no config.h)
+    grep '^DEFS' "$W/src/tcl-$_v/unix/Makefile" 2> /dev/null | tr ' ' '\n' |
+        sed -n -E 's/^-D([A-Za-z0-9_]+)=?(.*)$/#define \1 \2/p' > "$W/tcl84-defs-$_v.h"
+    cfg_keep tcl84 "$_v" "$W/tcl84-defs-$_v.h"
     # calc (its make is not parallel: MAKE_JOBS_UNSAFE of the port)
     unpack lcn2-calc-v2.17.0.2_GH0.tar.gz "$W/src/calc-$_v"
     _b="$W/b-calc-$_v.log"
@@ -135,6 +141,7 @@ g_build() {
     else
         bno bash "$_v" "$_b"
     fi
+    cfg_keep bash "$_v" "$W/src/bash-$_v/config.h"
     rm -rf "$W/src/bash-$_v"
 }
 
