@@ -89,7 +89,14 @@ g_build() {
     # iconv(3) and bzip2 of the base system (ICONV of the port: ICONV_LIB empty), not -I and -L of
     # /usr/local: its iconv.h of libiconv (here a package) makes iconv_open libiconv_open, which
     # the link does not find (45938357673)
-    if (cd "$W/src/unzip-$_v" && env LOCAL_UNZIP="$CFLAGS -DNATIVE -DACORN_FTYPE_NFS -DWILD_STOP_AT_DIR -DUNICODE_SUPPORT -DUTF8_MAYBE_NATIVE -D_MBCS -DLARGE_FILE_SUPPORT" \
+    # gcc16: -fpermissive (the errors of GCC 14 and later of its K&R C as warnings, as the base
+    # clang 19 has them; 45941929373: its build stopped), said
+    _ucf="$CFLAGS"
+    if [ "$_v" = gcc16 ]; then
+        _ucf="$CFLAGS -fpermissive"
+        echo "unzip gcc16: built with -fpermissive (the errors of GCC 14 and later of its K&R C as warnings, as the base clang 19 has them)" >> "$W/fails/$group-notes-gcc16.md"
+    fi
+    if (cd "$W/src/unzip-$_v" && env LOCAL_UNZIP="$_ucf -DNATIVE -DACORN_FTYPE_NFS -DWILD_STOP_AT_DIR -DUNICODE_SUPPORT -DUTF8_MAYBE_NATIVE -D_MBCS -DLARGE_FILE_SUPPORT" \
         D_USE_BZ2=-DUSE_BZIP2 L_BZ2=-lbz2 make -f unix/Makefile bsd CC="$CC" LF2= LFLAGS1= LDFLAGS="$LDFLAGS") >> "$_b" 2>&1 &&
         [ -x "$W/src/unzip-$_v/unzip" ]; then
         mkdir -p "$W/unzip-$_v" && cp "$W/src/unzip-$_v/unzip" "$W/unzip-$_v/"
