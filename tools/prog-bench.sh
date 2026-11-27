@@ -537,11 +537,16 @@ py_one() {
     esac
     unpack Python-3.12.16.tar.xz "$W/src/py-$_v"
     rm -rf "$W/py-$_v" "$W/pyv-$_v"
-    # and OPT="" (the flags of the environment alone) and no -g, as the port
+    # and OPT="" (the flags of the environment alone) and no -g, as the port. Its Makefile does not
+    # set CFLAGS and LDFLAGS (PY_CFLAGS: those of configure, then $(CFLAGS)): make takes them from
+    # the environment, so these in the environment of make too, as MAKE_ENV of the port (up to
+    # 45935459608 the environment of set_cc came last: _FORTIFY_SOURCE=2 and -fPIE in every
+    # Python, and gcc16 aborted in the getsockname of sock_initobj, __chk_fail of <ssp/socket.h>)
+    _pyl="-L/usr/local/lib -Wl,-rpath,$W/py-$_v/lib $_lf"
     (cd "$W/src/py-$_v" && sed -i '' -e 's|^\( *MULTIARCH=\).*--print-multiarch.*|\1|' configure &&
         env OPT= ac_cv_prog_cc_g=no LLVM_AR="$_pyar" ./configure --prefix="$W/py-$_v" --enable-shared --with-lto --with-ensurepip=install \
-        CC="$_pycc" CFLAGS="$_cf" CPPFLAGS=-I/usr/local/include \
-        LDFLAGS="-L/usr/local/lib -Wl,-rpath,$W/py-$_v/lib $_lf" && gmake -j"$ncpu" && gmake install) \
+        CC="$_pycc" CFLAGS="$_cf" CPPFLAGS=-I/usr/local/include LDFLAGS="$_pyl" &&
+        env CFLAGS="$_cf" LDFLAGS="$_pyl" gmake -j"$ncpu" && env CFLAGS="$_cf" LDFLAGS="$_pyl" gmake install) \
         > "$W/b-py-$_v.log" 2>&1 || bfail "python $_v" "$W/b-py-$_v.log"
     echo "python $_v: CC=$_pycc; $(grep -E '^(AR|CONFIGURE_CFLAGS_NODIST|CONFIGURE_LDFLAGS_NODIST)=' "$W/src/py-$_v/Makefile" | sed -e 's/[[:space:]]\{1,\}/ /g' | tr '\n' ';')" >> "$W/fails/python-notes.md"
     say "python $_v: $(cc_of "$W/py-$_v/lib/libpython3.12.so.1.0"); $(tail -n 1 "$W/fails/python-notes.md")"
