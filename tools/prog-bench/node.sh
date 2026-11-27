@@ -33,15 +33,14 @@ g_build() {
     unpack "node-v$nv.tar.xz" "$W/src/$group-$_v"
     _b="$W/b-$group-$_v.log"
     : > "$_b"
-    # the patches of the port (www/node18: patch-libc++19, without which V8 of node 18 does not
-    # build with the libc++ 19 of the base system, std::char_traits<unsigned short>, run
-    # 45919874731; its fixes of CVEs): its EXTRA_PATCHES in their order (-p1), then its
-    # files/patch-* (-p0), as the framework applies them; one that does not apply is said in
-    # the report (node24 of 45914135967: without the patches of its port)
+    # the patches of the port, its files/patch-* (www/node18: patch-libc++19, without which V8
+    # of node 18 does not build with the libc++ 19 of the base system, std::char_traits<unsigned
+    # short>, run 45919874731); not its EXTRA_PATCHES (the fixes of CVEs of SUSE and upstream):
+    # they take the llhttp of its --shared-http-parser, newer than the one node bundles
+    # (45924274602: llhttp_set_lenient_version undeclared), and touch nothing the benchmarks
+    # run. One that does not apply is said in the report (node24 of 45914135967: without the
+    # patches of its port)
     _pd="$top/www/$group"
-    for p in $(sed -n 's|.*${FILESDIR}/\([^: ]*\):-p1.*|\1|p' "$_pd/Makefile"); do
-        (cd "$W/src/$group-$_v" && patch -s -p1 < "$_pd/files/$p") >> "$_b" 2>&1 || echo "FAIL: $p" >> "$_b"
-    done
     for p in "$_pd"/files/patch-*; do
         [ -f "$p" ] || continue
         (cd "$W/src/$group-$_v" && patch -s -p0 < "$p") >> "$_b" 2>&1 || echo "FAIL: ${p##*/}" >> "$_b"
