@@ -232,11 +232,14 @@ ports_url="https://github.com/freebsd/freebsd-ports"
 # devel/autoconf, devel/autoconf-switch, devel/m4, devel/binutils, www/py-requests: ours for
 # the packages of the repository that run with them (aZ, 26.11.2026 13:09: «Делаем его
 # самодостаточным — лишние зависимости убираем, нужные собираем у нас.»: devel/automake
-# with autoconf, lang/gcc16 with the binutils, www/yt-dlp with py-requests); the builds
-# of this tree keep the official packages, so that adding them builds again only those:
-# autoconf of phpize (every PHP module) and of USES=autoreconf (442 ports of this tree,
-# 26.11.2026), the binutils of USES=azgcc (409), m4 and py-requests of
-# databases/mongodb80
+# with autoconf, lang/gcc16 with the binutils, www/yt-dlp with py-requests); a build of
+# this tree that needs one only to build keeps the official package (phpize of every PHP
+# module: autoconf; databases/mongodb80: m4 and py-requests), unless a port of ours it
+# gets runs with it, which brings ours into its chroot over the official one (dep_lists):
+# automake (USES=autoreconf) our autoconf and m4, lang/gcc16 (USES=azgcc) our binutils.
+# The hash of such a build takes that of automake, in which autoconf counts, so a change
+# of autoconf builds again automake and with it 47 ports of this tree (USES=autoreconf and
+# what builds with them, 27.11.2026); of lang/gcc16 it takes the name of its package only
 AZSUPPORT_TOOLS_OFFICIAL="lang/python3 lang/python312 lang/perl5.42 devel/meson devel/gmake devel/pkgconf lang/rust devel/autoconf devel/autoconf-switch devel/m4 devel/binutils www/py-requests"
 # the ports that build against the sources of the kernel without being kernel modules
 # (no USES=kmod, no IGNORE without them): they get them as a kernel module does
