@@ -5,6 +5,18 @@
 # stamp as PORTREVISION, WWW here, the manual pages (TCLMAN) in share/man, the
 # release from SourceForge first. Beside lang/tcl86: tclsh8.4, libtcl84.so.1,
 # lib/tcl8.4 and include/tcl8.4 are its own.
+# The C compiled by GCC 16 of the ports (USES=azgcc, Mk/Uses/azgcc.mk; a build dependency
+# only), aZ 27.11.2026 08:41 («tcl84 — на gcc16»; 08:43 «окей, следуем инфе с тестов»):
+# prog-bench (array, expr, list, regexp, string) against the base clang 19, run
+# 45926215732: GCC 16 -8.1%, clang 23 -1.4% by the median, GCC 16 faster than clang 23 by
+# 7.3% (regexp -46.1%, string -20.7%), clear in 4 of 5; -4.5% on another machine
+# (45918232254). Its configure (autoconf 2.13) does not take GCC 14 and later (nor clang
+# 23) with the errors of implicit int and implicit declarations of its tests: these, and
+# int-conversion and incompatible pointer types, warnings (AZSUPPORT_GCC_CFLAGS), as
+# measured and as the base clang 19 has them. Its configure sets the LDFLAGS of FreeBSD
+# itself (no -pie of the framework) and links libtcl84.so.1 by ${CC} -shared, the CC of
+# configure with -static-libgcc (Mk/Uses/azgcc.mk); tclConfig.sh names cc
+# (Mk/azsupport-cc-names.sh).
 
 PORTNAME=	tcl
 PORTVERSION=	8.4.20
@@ -36,6 +48,10 @@ INSTALL_TARGET=	install install-libraries
 TEST_TARGET=	test
 
 USE_LDCONFIG=	yes
+# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
+USES=		azgcc
+AZSUPPORT_GCC_CFLAGS=	-Wno-error=implicit-int -Wno-error=implicit-function-declaration \
+			-Wno-error=int-conversion -Wno-error=incompatible-pointer-types
 GNU_CONFIGURE=	yes
 CONFIGURE_ARGS=	--enable-shared \
 		--enable-man-suffix=.${MAN_SUFFIX} \

@@ -11,9 +11,20 @@
 # files/patch-config.h (ETCRC and ETCRCS under /usr/local/etc, LMTP, the trusted ids,
 # no fcntl locking), files/patch-initmake (CFLAGS and LDFLAGS of the ports) and
 # files/patch-src-autoconf (no read of the terminal, /usr/local/bin in the default
-# PATH). The others are in 3.24 (comsat.c, formisc.c, mailfold.c, pipes.c, procmail.c;
-# getline is cgetline) or are only text (Makefile.1, procmail.man, manconf.c,
-# recommend.c). 3.24 installs the manual page of mailstat too.
+# PATH; since 27.11.2026 regenerated against 3.24, and without the benchmark of
+# strstr(): see the file). The others are in 3.24 (comsat.c, formisc.c, mailfold.c,
+# pipes.c, procmail.c; getline is cgetline) or are only text (Makefile.1, procmail.man,
+# manconf.c, recommend.c). 3.24 installs the manual page of mailstat too.
+# The C compiled by GCC 16 of the ports (USES=azgcc, Mk/Uses/azgcc.mk; a build dependency
+# only), aZ 27.11.2026 08:40 («правь»; 08:43 «окей, следуем инфе с тестов»): prog-bench
+# (2000 deliveries of 20 KB through 30 recipes) against the base clang 19, run
+# 45944300277: GCC 16 -9.4%, clang 23 +0.9%, GCC 16 faster than clang 23 by 10.4% in all
+# 5 rounds; -10.6% and -8.0% on two other machines (45941929373, 45943132901). Its C is
+# K&R: the errors of GCC 14 and later (int-conversion, incompatible pointer types, the
+# return of no value, and in C99 implicit declarations and int) warnings with
+# -fpermissive, as the base clang 19 has them (its build stopped without it, 45930853611;
+# initmake compiles with -std=gnu89 when the compiler takes it); its make takes no CC of
+# configure, so -static-libgcc in LDFLAGS (no NEEDED libgcc_s.so.1, as Mk/Uses/azgcc.mk).
 
 PORTNAME=	procmail
 DISTVERSION=	3.24.20260812
@@ -28,6 +39,9 @@ WWW=		https://github.com/BuGlessRB/procmail \
 LICENSE=	GPLv2
 
 USES=		cpe
+# GCC of the ports for the C, at build time only (Mk/Uses/azgcc.mk)
+USES+=		azgcc
+AZSUPPORT_GCC_CFLAGS=	-fpermissive
 CPE_VENDOR=	procmail
 USE_GITHUB=	yes
 GH_ACCOUNT=	BuGlessRB
@@ -51,4 +65,10 @@ post-install:
 	cd ${WRKSRC}/ && ${INSTALL_DATA} ${PORTDOCS} ${STAGEDIR}${DOCSDIR}/
 	cd ${WRKSRC}/examples/ && ${INSTALL_DATA} ${PORTEXAMPLES} ${STAGEDIR}${EXAMPLESDIR}/
 
-.include <bsd.port.mk>
+.include <bsd.port.pre.mk>
+
+.if ${AZSUPPORT_GCC} != no
+LDFLAGS+=	-static-libgcc
+.endif
+
+.include <bsd.port.post.mk>
